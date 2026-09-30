@@ -20,22 +20,25 @@ import {
  * only once its page exists.
  */
 const navEntries = [
-  { to: '/', label: 'Home', icon: HouseIcon },
+  { to: '/', label: 'Home', icon: HouseIcon, exact: true },
 ] as const satisfies ReadonlyArray<{
   to: LinkProps['to']
   label: string
   icon: LucideIcon
+  exact: boolean
 }>
 
 /**
- * How both navs mark the current page: Link's own exact match (so Home isn't
- * active on every page below it) sets data-active, which the sidebar's owned
- * styles already use.
+ * Link props that mark an entry's pages with data-active, which the sidebar's
+ * owned styles already use. An exact entry matches only its own page; any
+ * other also matches the pages below it, as an Itinerary page sits under
+ * Options.
  */
-const navLinkActivity = {
-  activeOptions: { exact: true },
+const navLinkProps = ({ to, exact }: (typeof navEntries)[number]) => ({
+  to,
+  activeOptions: { exact },
   activeProps: { 'data-active': true },
-} as const
+})
 
 /** Desktop navigation. */
 export function AppSidebar() {
@@ -53,13 +56,11 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {navEntries.map(({ to, label, icon: Icon }) => (
-                <SidebarMenuItem key={to}>
-                  <SidebarMenuButton
-                    render={<Link to={to} {...navLinkActivity} />}
-                  >
-                    <Icon />
-                    <span>{label}</span>
+              {navEntries.map((entry) => (
+                <SidebarMenuItem key={entry.to}>
+                  <SidebarMenuButton render={<Link {...navLinkProps(entry)} />}>
+                    <entry.icon />
+                    <span>{entry.label}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -79,15 +80,14 @@ export function BottomTabBar() {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-sidebar-border bg-sidebar/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
     >
       <ul className="flex">
-        {navEntries.map(({ to, label, icon: Icon }) => (
-          <li key={to} className="flex-1">
+        {navEntries.map((entry) => (
+          <li key={entry.to} className="flex-1">
             <Link
-              to={to}
-              {...navLinkActivity}
+              {...navLinkProps(entry)}
               className="flex h-14 flex-col items-center justify-center gap-1 text-[0.6875rem] text-muted-foreground transition-colors data-active:text-foreground"
             >
-              <Icon className="size-5" aria-hidden />
-              {label}
+              <entry.icon className="size-5" aria-hidden />
+              {entry.label}
             </Link>
           </li>
         ))}
