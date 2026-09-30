@@ -1,10 +1,6 @@
 import { Context, DateTime, Duration, Effect, Layer, Schema } from 'effect'
 
-/** The Trip's time zone: every Day is a calendar date in Tokyo. */
-export const tripTimeZone = 'Asia/Tokyo'
-
-/** Arrival: the first Day of the Trip. */
-export const tripStartDate = '2026-12-06'
+import { tripStartDate, tripTimeZone } from '@/trip/calendar'
 
 /**
  * Whole Tokyo calendar dates until the Trip starts at 00:00 on December 6 in

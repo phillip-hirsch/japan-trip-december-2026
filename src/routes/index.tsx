@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { DisplayJa } from '@/components/display-ja'
+import { formatDay, tripStartDate } from '@/trip/calendar'
 import { getHome } from '@/trip/trip.functions'
 
 export const Route = createFileRoute('/')({
@@ -47,8 +48,8 @@ function Home() {
           </h1>
         )}
         <p className="mt-10 max-w-sm text-sm leading-relaxed text-muted-foreground">
-          The Trip begins in <DisplayJa text="東京" /> Tokyo at 00:00 on Sunday,
-          December 6.
+          The Trip begins in <DisplayJa text="東京" /> Tokyo at 00:00 on{' '}
+          {formatDay(tripStartDate)}.
         </p>
       </section>
     </div>

@@ -1,4 +1,4 @@
-import { Link, useMatchRoute } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import type { LinkProps } from '@tanstack/react-router'
 import { HouseIcon } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -27,9 +27,18 @@ const navEntries = [
   icon: LucideIcon
 }>
 
+/**
+ * How both navs mark the current page: Link's own exact match (so Home isn't
+ * active on every page below it) sets data-active, which the sidebar's owned
+ * styles already use.
+ */
+const navLinkActivity = {
+  activeOptions: { exact: true },
+  activeProps: { 'data-active': true },
+} as const
+
 /** Desktop navigation. */
 export function AppSidebar() {
-  const matchRoute = useMatchRoute()
   return (
     <Sidebar>
       <SidebarHeader className="px-4 pt-6 pb-4">
@@ -47,8 +56,7 @@ export function AppSidebar() {
               {navEntries.map(({ to, label, icon: Icon }) => (
                 <SidebarMenuItem key={to}>
                   <SidebarMenuButton
-                    isActive={Boolean(matchRoute({ to }))}
-                    render={<Link to={to} />}
+                    render={<Link to={to} {...navLinkActivity} />}
                   >
                     <Icon />
                     <span>{label}</span>
@@ -75,8 +83,8 @@ export function BottomTabBar() {
           <li key={to} className="flex-1">
             <Link
               to={to}
-              activeOptions={{ exact: true }}
-              className="flex h-14 flex-col items-center justify-center gap-1 text-[0.6875rem] text-muted-foreground transition-colors data-[status=active]:text-foreground"
+              {...navLinkActivity}
+              className="flex h-14 flex-col items-center justify-center gap-1 text-[0.6875rem] text-muted-foreground transition-colors data-active:text-foreground"
             >
               <Icon className="size-5" aria-hidden />
               {label}

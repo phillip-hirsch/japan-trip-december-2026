@@ -5,6 +5,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
+// Relative, not '@/': plain `node` runs this script and can't resolve the alias.
 import { displayStrings } from '../src/fonts/display-strings.ts'
 
 const source =
