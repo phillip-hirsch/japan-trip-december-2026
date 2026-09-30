@@ -2,15 +2,13 @@
   "name": "japan-trip-december-2026",
   "private": true,
   "type": "module",
-  "imports": {
-    "#/*": "./src/*"
-  },
   "scripts": {
     "dev": "vp dev --port 3000",
     "generate-routes": "tsr generate",
     "build": "vp build",
     "preview": "vp preview",
     "deploy": "pnpm run build && wrangler deploy",
+    "cf-typegen": "wrangler types",
     "prepare": "vp config && effect-tsgo patch --typescript --oxlint",
     "lint": "vp lint",
     "format": "vp fmt .",
@@ -30,6 +28,7 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.62.0",
     "@effect/tsgo": "0.46.1",
+    "@effect/vitest": "4.0.0-rc.118",
     "@tanstack/devtools-vite": "^0.8.5",
     "@tanstack/router-cli": "^1.167.39",
     "@types/node": "^22.20.4",
