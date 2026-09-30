@@ -13,10 +13,13 @@ export const Route = createFileRoute('/')({
 function Home() {
   const { countdown, itineraries } = Route.useLoaderData()
   return (
-    <div className="relative flex flex-1 flex-col overflow-hidden">
+    // No overflow clipping here: the hero grows with its content (the
+    // Itineraries list must stay reachable on short phones), and the glow is
+    // capped to the hero's height instead.
+    <div className="relative flex flex-1 flex-col">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-112 bg-[radial-gradient(ellipse_at_top,oklch(0.3_0.04_255/0.45),transparent_70%)]"
+        className="pointer-events-none absolute inset-x-0 top-0 h-112 max-h-full bg-[radial-gradient(ellipse_at_top,oklch(0.3_0.04_255/0.45),transparent_70%)]"
       />
       <section className="relative mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 py-16 md:px-12">
         <p className="text-xs tracking-[0.3em] text-muted-foreground uppercase">
