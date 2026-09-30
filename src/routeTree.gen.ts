@@ -10,33 +10,53 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as OptionsIndexRouteImport } from './routes/options/index'
+import { Route as OptionsOptionNumberRouteImport } from './routes/options/$optionNumber'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OptionsIndexRoute = OptionsIndexRouteImport.update({
+  id: '/options/',
+  path: '/options/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OptionsOptionNumberRoute = OptionsOptionNumberRouteImport.update({
+  id: '/options/$optionNumber',
+  path: '/options/$optionNumber',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/options/$optionNumber': typeof OptionsOptionNumberRoute
+  '/options/': typeof OptionsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/options/$optionNumber': typeof OptionsOptionNumberRoute
+  '/options': typeof OptionsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/options/$optionNumber': typeof OptionsOptionNumberRoute
+  '/options/': typeof OptionsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/options/$optionNumber' | '/options/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/options/$optionNumber' | '/options'
+  id: '__root__' | '/' | '/options/$optionNumber' | '/options/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  OptionsOptionNumberRoute: typeof OptionsOptionNumberRoute
+  OptionsIndexRoute: typeof OptionsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +68,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/options/': {
+      id: '/options/'
+      path: '/options'
+      fullPath: '/options/'
+      preLoaderRoute: typeof OptionsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/options/$optionNumber': {
+      id: '/options/$optionNumber'
+      path: '/options/$optionNumber'
+      fullPath: '/options/$optionNumber'
+      preLoaderRoute: typeof OptionsOptionNumberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  OptionsOptionNumberRoute: OptionsOptionNumberRoute,
+  OptionsIndexRoute: OptionsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
