@@ -90,6 +90,21 @@ Import from `src/` with the `@/` alias (`@/routes/...` for `src/routes/...`).
 
 `worker-configuration.d.ts` is generated: run `vp run cf-typegen` after every `wrangler.jsonc` change and commit the result. Server code reads the typed environment with `import { env } from 'cloudflare:workers'`.
 
+### Japanese display font
+
+Shippori Mincho is subset to the curated strings in `src/fonts/display-strings.ts` plus ASCII. Render those strings with `DisplayJa`; any other Japanese text stays in the system font. After changing the list, run `vp run subset-display-font` (needs `uv`) and commit the regenerated woff2.
+
+### UI components
+
+shadcn/ui components in `src/components/ui/` are owned code on Base UI (vega preset). Never add Radix-based components or `sonner`; use the `toast` component for notifications.
+
+Router integration (Base UI, so no `asChild`):
+
+- To make a Base UI component navigate, pass a router `Link` as its `render` prop, e.g. `<SidebarMenuButton render={<Link to="/" />}>`.
+- For a link styled as a button, use `ButtonLink` (`src/components/button-link.tsx`, built with `createLink`) rather than `Button`, which renders a `<button>`.
+- Navigation entries live once in `src/components/app-nav.tsx`, shared by the tab bar and the sidebar. Mark the current page with Link's own active state (`activeOptions`/`activeProps`), not a separate `useMatchRoute` check.
+- Dialogs, sheets and toasts portal to `body` above the `isolate` app root; don't add a portal-root element or a theme provider (the app is dark-only).
+
 ### Pinning
 
 `effect`, `@effect/vitest` and every Effect SQL driver share one exact release-candidate version, bumped together. `@effect/tsgo` is versioned independently, against the TypeScript and Oxlint versions it supports.
@@ -102,8 +117,6 @@ Tests are colocated with the modules they exercise (`*.test.ts` under `src/`), w
 - Assert only on returned values, described in glossary terms (`CONTEXT.md`).
 - Build the module under test for real; substitute only its dependencies (Clock, SQL client, key-set transport, link resolver) through layers.
 - Read state back through the seam; tables, internal helpers and component internals stay uninspected.
-
-`src/effect-harness.test.ts` only proves the harness runs; delete it once the first seam test lands.
 
 ## Agent skills
 
