@@ -14,11 +14,16 @@ import effectTsconfig from './tsconfig.effect.json' with { type: 'json' }
 // reads it directly; Oxlint gets the same severities as effecttsgo/* rules
 // (floatingEffect -> effecttsgo/floating-effect, cryptoRandomUUID ->
 // effecttsgo/crypto-random-uuid). Warnings and suggestions never fail a gate.
+const toKebabCase = (name: string) =>
+  name.replace(
+    /[A-Z]+(?![a-z])|[A-Z]/g,
+    (word, index: number) => (index ? '-' : '') + word.toLowerCase(),
+  )
 const effectLintRules = Object.fromEntries(
   Object.entries(
     effectTsconfig.compilerOptions.plugins[0].diagnosticSeverity,
   ).map(([diagnostic, severity]) => [
-    `effecttsgo/${diagnostic.replace(/[A-Z]+(?![a-z])|[A-Z]/g, (m, i: number) => (i ? '-' : '') + m.toLowerCase())}`,
+    `effecttsgo/${toKebabCase(diagnostic)}`,
     severity === 'error' || severity === 'off' ? severity : 'warn',
   ]),
 )

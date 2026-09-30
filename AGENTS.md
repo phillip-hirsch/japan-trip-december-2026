@@ -84,7 +84,7 @@ guide doesn't cover, search through the source code in `node_modules/effect/src`
 
 ### Imports
 
-Import across directories with the `@/` alias (`@/routes/...` for `src/routes/...`).
+Import from `src/` with the `@/` alias (`@/routes/...` for `src/routes/...`).
 
 ### Cloudflare bindings
 
@@ -102,6 +102,8 @@ Tests are colocated with the modules they exercise (`*.test.ts` under `src/`), w
 - Assert only on returned values, described in glossary terms (`CONTEXT.md`).
 - Build the module under test for real; substitute only its dependencies (Clock, SQL client, key-set transport, link resolver) through layers.
 - Read state back through the seam; tables, internal helpers and component internals stay uninspected.
+
+`src/effect-harness.test.ts` only proves the harness runs; delete it once the first seam test lands.
 
 ## Agent skills
 
