@@ -43,7 +43,12 @@ const navLinkProps = ({ to, exact }: (typeof navEntries)[number]) => ({
 /** Desktop navigation. */
 export function AppSidebar() {
   return (
-    <Sidebar>
+    // Not collapsible: it is the only desktop nav, so the Cmd/Ctrl+B shortcut
+    // must not be able to hide it.
+    <Sidebar
+      collapsible="none"
+      className="sticky top-0 hidden h-svh border-r border-sidebar-border md:flex"
+    >
       <SidebarHeader className="px-4 pt-6 pb-4">
         <Link to="/" className="flex items-baseline gap-2">
           <DisplayJa text="日本" className="text-xl" />
