@@ -219,7 +219,7 @@ importers:
         specifier: ^1.167.39
         version: 1.167.39(supports-color@10.2.2)
       '@types/node':
-        specifier: ^22.10.2
+        specifier: ^22.20.4
         version: 22.20.4
       '@types/react':
         specifier: ^19.3.0
