@@ -45,7 +45,7 @@ release. Add a tool name to select part of the graph. For example, run
 ## Task Completion Requirements
 
 - `vp check` must pass before considering tasks completed.
-- `vp run typecheck` must also pass. Effect diagnostics follow the policy in `tsconfig.effect.json` and surface in both gates: `vp check` lints with the `@effect/tsgo`-patched Oxlint, and `vp run typecheck` runs the patched `tsc` (the `prepare` script applies both patches). Error-severity Effect diagnostics fail the gates; warnings and suggestions print without failing — do not ignore new ones. The Oxlint patch only applies when `@effect/tsgo` supports the exact `oxlint`/`oxlint-tsgolint` versions `vite-plus` pins (see its README "Supported Package Versions") — bump them together.
+- `vp run typecheck` and `vp test` must also pass. Effect diagnostics follow the policy in `tsconfig.effect.json` and surface in both gates: `vp check` lints with the `@effect/tsgo`-patched Oxlint, whose `effecttsgo/*` rule severities `vite.config.ts` derives from that file, and `vp run typecheck` runs the patched `tsc` (the `prepare` script applies both patches). Change a severity only in `tsconfig.effect.json`. Error-severity Effect diagnostics fail the gates; warnings and suggestions print without failing — do not ignore new ones. The Oxlint patch only applies when `@effect/tsgo` supports the exact `oxlint`/`oxlint-tsgolint` versions `vite-plus` pins (see its README "Supported Package Versions") — bump them together.
 - Use `vp test` for the built-in Vite+ test command and `vp run test` when you specifically need the `test` package script.
 
 ## Project Snapshot
@@ -81,6 +81,27 @@ Before writing any Effect code, first read `node_modules/effect/AGENTS.md`
 
 If you need to learn more about particular Effect apis and concepts that the
 guide doesn't cover, search through the source code in `node_modules/effect/src`.
+
+### Imports
+
+Import across directories with the `@/` alias (`@/routes/...` for `src/routes/...`).
+
+### Cloudflare bindings
+
+`worker-configuration.d.ts` is generated: run `vp run cf-typegen` after every `wrangler.jsonc` change and commit the result. Server code reads the typed environment with `import { env } from 'cloudflare:workers'`.
+
+### Pinning
+
+`effect`, `@effect/vitest` and every Effect SQL driver share one exact release-candidate version, bumped together. `@effect/tsgo` is versioned independently, against the TypeScript and Oxlint versions it supports.
+
+## Testing
+
+Tests are colocated with the modules they exercise (`*.test.ts` under `src/`), written with `@effect/vitest` and run by `vp test`. Every test honours this contract:
+
+- Drive behaviour only through a public seam: the Trip service or the Access gate.
+- Assert only on returned values, described in glossary terms (`CONTEXT.md`).
+- Build the module under test for real; substitute only its dependencies (Clock, SQL client, key-set transport, link resolver) through layers.
+- Read state back through the seam; tables, internal helpers and component internals stay uninspected.
 
 ## Agent skills
 
