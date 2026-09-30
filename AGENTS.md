@@ -1,23 +1,25 @@
+# AGENTS.md
+
 <!--VITE PLUS START-->
 
-# Using Vite+, the Unified Toolchain for the Web
+## Using Vite+, the Unified Toolchain for the Web
 
 This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Vite+ is distinct from Vite, and it invokes Vite through `vp dev` and `vp build`. Run `vp help` to print a list of commands and `vp <command> --help` for information about a specific command.
 
 Docs are local at `node_modules/vite-plus/docs` or online at https://viteplus.dev/guide/.
 
-## Built-in Commands vs Scripts
+### Built-in Commands vs Scripts
 
 `vp <name>` runs a built-in command. `vp run <name>` runs a `package.json` script or a `vite.config.ts` task. Scripts cannot overwrite built-ins, so `vp dev` and `vp run dev` may do different things. Check `package.json` and `vite.config.ts` first, and run `vp run <name>` when the project defines a script or task with that name.
 
-## Tool Versions
+### Tool Versions
 
 Run `vp toolchain` to show versions and relationships in the active Vite+
 release. Add a tool name to select part of the graph. For example, run
 `vp toolchain vite`. Use `--global` to ignore the local `vite-plus` package. Use
 `vp why <package>` to show the package-manager dependency graph.
 
-## Review Checklist
+### Review Checklist
 
 - [ ] Run `vp install` after pulling remote changes and before getting started.
 - [ ] Run `vp check` and `vp test` to format, lint, type check and test changes.
@@ -25,3 +27,57 @@ release. Add a tool name to select part of the graph. For example, run
 - [ ] If setup, runtime, or package-manager behavior looks wrong, run `vp env doctor` and include its output when asking for help.
 
 <!--VITE PLUS END-->
+
+## Task Completion Requirements
+
+- `vp check` must pass before considering tasks completed.
+- `vp run typecheck` must also pass. Effect diagnostics follow the policy in `tsconfig.effect.json` and surface in both gates: `vp check` lints with the `@effect/tsgo`-patched Oxlint, and `vp run typecheck` runs the patched `tsc` (the `prepare` script applies both patches). Error-severity Effect diagnostics fail the gates; warnings and suggestions print without failing — do not ignore new ones. The Oxlint patch only applies when `@effect/tsgo` supports the exact `oxlint`/`oxlint-tsgolint` versions `vite-plus` pins (see its README "Supported Package Versions") — bump them together.
+- Use `vp test` for the built-in Vite+ test command and `vp run test` when you specifically need the `test` package script.
+
+## Project Snapshot
+
+Japan Trip December 2026 is a webapp for the user, Phillip, to plan his trip to Japan in December 2026.
+
+This project uses [TanStack Start](https://tanstack.com/start/latest).
+
+## Core Priorities
+
+1. Performance first.
+2. Reliability first.
+3. Keep behavior predictable under load and during failures (session restarts, reconnects, partial streams).
+
+If a tradeoff is required, choose correctness and robustness over short-term convenience.
+
+## Maintainability
+
+Long term maintainability is a core priority. If you add new functionality, first check if there is shared logic that can be extracted to a separate module. Duplicate logic across multiple files is a code smell and should be avoided. Don't be afraid to change existing code. Don't take shortcuts by just adding local logic to solve a problem.
+
+## Code Style
+
+### Reference Material
+
+Installed packages are the reference material for coding agents. Prefer examples and patterns from the source in `node_modules/` over generated guesses or web search results.
+
+### Learning more about Effect
+
+This repository uses the Effect Typescript library.
+
+Before writing any Effect code, first read `node_modules/effect/AGENTS.md`
+**completely**, and follow the links in the file when required.
+
+If you need to learn more about particular Effect apis and concepts that the
+guide doesn't cover, search through the source code in `node_modules/effect/src`.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Triage uses the default mattpocock/skills label vocabulary. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+This repo uses a single-context domain-doc layout. See `docs/agents/domain.md`.
