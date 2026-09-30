@@ -18,6 +18,9 @@ export const displayStrings = [
   '日光',
   '江ノ島',
   '宇治',
+  // Places visited on previous trips
+  '大阪',
+  '広島',
   // Home
   '日本',
   'あと',

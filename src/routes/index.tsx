@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { DisplayJa } from '@/components/display-ja'
+import { ItineraryList } from '@/components/itinerary-list'
 import { formatDay, tripStartDate } from '@/trip/calendar'
 import { getHome } from '@/trip/trip.functions'
 
@@ -10,7 +11,7 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-  const { countdown } = Route.useLoaderData()
+  const { countdown, itineraries } = Route.useLoaderData()
   return (
     <div className="relative flex flex-1 flex-col overflow-hidden">
       <div
@@ -51,6 +52,15 @@ function Home() {
           The Trip begins in <DisplayJa text="東京" /> Tokyo at 00:00 on{' '}
           {formatDay(tripStartDate)}.
         </p>
+        <section aria-labelledby="itineraries" className="mt-12 max-w-md">
+          <h2
+            id="itineraries"
+            className="mb-4 text-xs tracking-[0.3em] text-muted-foreground uppercase"
+          >
+            Itineraries
+          </h2>
+          <ItineraryList itineraries={itineraries} />
+        </section>
       </section>
     </div>
   )
