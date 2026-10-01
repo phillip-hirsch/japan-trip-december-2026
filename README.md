@@ -31,28 +31,28 @@ Phases 2–4 are specified, and still on the board.
 
 ## Local development
 
-Use pnpm. The repo asks for 12.6.0 (`devEngines` in `package.json`). Vite+ is installed with the dependencies; the scripts below call it.
+[Vite+](https://viteplus.dev/) (`vp`) is how you install, run, and check the app.
 
 ```bash
-pnpm install
-pnpm dev
+vp install
+vp run dev
 ```
 
-`pnpm dev` runs `vp dev --port 3000`. Open http://localhost:3000.
+`vp run dev` is the dev script: `vp dev` on port 3000. Open http://localhost:3000.
 
 Local requests pass Wrangler's Access simulation. `.dev.vars` supplies `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `ACCESS_ALLOWED_EMAIL`, and `ACCESS_DEV_SIMULATION` for `vp dev` and `vp preview`.
 
 ```bash
-pnpm exec vp check          # format, lint, and typecheck
-pnpm exec vp run typecheck  # patched tsc, including Effect diagnostics
-pnpm exec vp test           # tests colocated under src/
+vp check           # format, lint, and typecheck
+vp run typecheck   # patched tsc, including Effect diagnostics
+vp test            # tests colocated under src/
 ```
 
-`pnpm build` produces the Worker bundle. `pnpm preview` serves that build locally, with the same Access simulation.
+`vp build` produces the Worker bundle. `vp preview` serves that build locally, with the same Access simulation.
 
 ## Deploy
 
-`pnpm deploy` builds, then runs `wrangler deploy`. The Worker is named `japan-trip-december-2026`. Deploy needs a Wrangler login.
+`vp run deploy` builds the Worker and runs `wrangler deploy`. The Worker is named `japan-trip-december-2026`. Deploy needs a Wrangler login.
 
 Cloudflare Access is the sign-in: an email one-time PIN for a single allowed address. `src/server.ts` checks that assertion before TanStack Start sees the request. `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_ALLOWED_EMAIL` are plain Worker variables. Until the Access application exists and the team domain and audience are set, a deployed Worker refuses every request. That first deploy is [#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14). The reasoning is [ADR 0002](docs/adr/0002-cloudflare-access-instead-of-in-app-login.md).
 
