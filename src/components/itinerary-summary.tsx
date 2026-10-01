@@ -22,7 +22,7 @@ function RecommendationStar({ className }: { className?: string }) {
 }
 
 /** Each Base in kanji followed by its romaji in parentheses. */
-function Route({ route }: { route: ReadonlyArray<Place> }) {
+function RouteBases({ route }: { route: ReadonlyArray<Place> }) {
   return (
     <ol className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
       {route.map((place, index) => (
@@ -84,7 +84,7 @@ export function ItinerarySummaryHeader({
       <dl className="mt-8 flex flex-col gap-4 text-sm">
         <SummaryRow label="Best for">{summary.bestFor}</SummaryRow>
         <SummaryRow label="Route">
-          <Route route={summary.route} />
+          <RouteBases route={summary.route} />
         </SummaryRow>
         <SummaryRow label="Nights per Base">
           <ul className="flex flex-wrap gap-x-5 gap-y-1">

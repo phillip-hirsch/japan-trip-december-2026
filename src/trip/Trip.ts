@@ -53,6 +53,8 @@ const addDays = (date: IsoDate, days: number) =>
     DateTime.add(DateTime.makeUnsafe(date), { days }),
   ) as IsoDate
 
+const nightsOf = (stay: Stay) => daysBetween(stay.checkIn, stay.checkOut)
+
 /** December 6 through December 20. */
 const tripDates = Array.from(
   { length: daysBetween(tripStartDate, tripEndDate) + 1 },
@@ -158,8 +160,8 @@ const claimsAttachedTo = (
 
 const nightsPerBaseOf = (stays: ReadonlyArray<Stay>): Array<BaseNights> => {
   const nights = new Map<PlaceId, number>()
-  for (const { base, checkIn, checkOut } of stays) {
-    nights.set(base, (nights.get(base) ?? 0) + daysBetween(checkIn, checkOut))
+  for (const stay of stays) {
+    nights.set(stay.base, (nights.get(stay.base) ?? 0) + nightsOf(stay))
   }
   return Array.from(nights, ([base, nights]) => ({
     base: placeOf(base),
@@ -207,7 +209,7 @@ const detailOf = (itinerary: Itinerary): ItineraryDetail => {
     stays: itinerary.stays.map((stay) => ({
       ...stay,
       base: placeOf(stay.base),
-      nights: daysBetween(stay.checkIn, stay.checkOut),
+      nights: nightsOf(stay),
       verifyClaims: claimsAttachedTo(itinerary, {
         _tag: 'Stay',
         checkIn: stay.checkIn,
