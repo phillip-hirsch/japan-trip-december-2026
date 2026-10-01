@@ -20,6 +20,11 @@ export const getItineraries = createServerFn({ method: 'GET' }).handler(() =>
   runTrip(Trip.use((trip) => trip.itineraries)),
 )
 
+/** Every Itinerary's Moves and Bases for the map overlaying them all. */
+export const getComparisonMap = createServerFn({ method: 'GET' }).handler(() =>
+  runTrip(Trip.use((trip) => trip.comparisonMap)),
+)
+
 /** One Itinerary with its Stays and 15 Days, or not-found. */
 export const getItinerary = createServerFn({ method: 'GET' })
   .validator(

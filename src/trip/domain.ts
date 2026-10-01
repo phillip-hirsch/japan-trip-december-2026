@@ -1,6 +1,6 @@
 // The Trip's domain types, named as in CONTEXT.md. The schemas run on the
 // server only; the browser imports these types with `import type`.
-import { DateTime, Option, Schema } from 'effect'
+import { DateTime, Option, Schema, Struct } from 'effect'
 
 import { displayStrings } from '@/fonts/display-strings'
 import { placeIds } from '@/trip/places'
@@ -403,6 +403,26 @@ export const ItineraryMap = Schema.Struct({
   railAttribution: Schema.optionalKey(Schema.String),
 })
 export type ItineraryMap = typeof ItineraryMap.Type
+
+/** An Itinerary's Moves on the comparison map, drawn as on its own map. */
+export const ComparisonMapItinerary = Schema.Struct({
+  ...Struct.pick(ItinerarySummary.fields, ['optionNumber', 'recommended']),
+  ...Struct.pick(ItineraryMap.fields, ['trainMoves', 'flights']),
+})
+export type ComparisonMapItinerary = typeof ComparisonMapItinerary.Type
+
+/** Every Itinerary's Moves and Bases overlaid on one map. */
+export const ComparisonMap = Schema.Struct({
+  /** Each Base once, in the order the Itineraries first reach it. */
+  bases: Schema.Array(Place),
+  itineraries: Schema.Array(ComparisonMapItinerary),
+  /**
+   * The credit the rail geometry's licence requires, present only when a
+   * train Move follows a rail line.
+   */
+  railAttribution: Schema.optionalKey(Schema.String),
+})
+export type ComparisonMap = typeof ComparisonMap.Type
 
 /**
  * One Itinerary as its page shows it: its summary, Stays, all 15 Days,

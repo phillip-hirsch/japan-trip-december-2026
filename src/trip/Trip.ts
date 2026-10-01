@@ -11,6 +11,7 @@ import { ItineraryNotFound } from '@/trip/domain'
 import type {
   Anchor,
   BaseNights,
+  ComparisonMap,
   Coordinates,
   Countdown,
   DayTrip,
@@ -353,6 +354,28 @@ const mapOf = (itinerary: Itinerary): ItineraryMap => {
   }
 }
 
+const comparisonMapOf = (
+  details: ReadonlyArray<ItineraryDetail>,
+): ComparisonMap => {
+  const railAttribution = details
+    .map(({ map }) => map.railAttribution)
+    .find(Boolean)
+  return {
+    bases: Array.from(
+      new Map(
+        details.flatMap(({ map }) => map.bases).map((base) => [base.id, base]),
+      ).values(),
+    ),
+    itineraries: details.map(({ optionNumber, recommended, map }) => ({
+      optionNumber,
+      recommended,
+      trainMoves: map.trainMoves,
+      flights: map.flights,
+    })),
+    ...(railAttribution && { railAttribution }),
+  }
+}
+
 /**
  * Every rail section the Itineraries ride, once whichever way it's ridden,
  * in the direction first ridden.
@@ -524,6 +547,8 @@ export class Trip extends Context.Service<
     readonly home: Effect.Effect<HomeState>
     /** Every Itinerary with its comparison rows. */
     readonly itineraries: Effect.Effect<ReadonlyArray<ItineraryComparison>>
+    /** Every Itinerary's Moves and Bases, overlaid on one map. */
+    readonly comparisonMap: Effect.Effect<ComparisonMap>
     /** One Itinerary with its Stays and all 15 Days. */
     itinerary(
       optionNumber: number,
@@ -557,6 +582,7 @@ export class Trip extends Context.Service<
       const details = new Map(
         all.map((itinerary) => [itinerary.optionNumber, detailOf(itinerary)]),
       )
+      const comparisonMap = comparisonMapOf(Array.from(details.values()))
 
       const find = Effect.fnUntraced(function* <A>(
         entries: ReadonlyMap<number, A>,
@@ -575,6 +601,7 @@ export class Trip extends Context.Service<
           itineraries: summaries,
         })),
         itineraries: Effect.succeed(comparisons),
+        comparisonMap: Effect.succeed(comparisonMap),
         itinerary: (optionNumber) => find(details, optionNumber),
         tripRuleBreaks: (optionNumber) =>
           find(byOptionNumber, optionNumber).pipe(Effect.map(tripRuleBreaksOf)),

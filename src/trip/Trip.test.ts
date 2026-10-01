@@ -995,3 +995,71 @@ describe('Itinerary map', () => {
       }),
   )
 })
+
+describe('Comparison map', () => {
+  const comparisonMap = Trip.use((trip) => trip.comparisonMap).pipe(
+    Effect.provide(liveTrip),
+  )
+
+  it.effect('shows each Base once, in the order the Itineraries reach it', () =>
+    Effect.gen(function* () {
+      const { bases } = yield* comparisonMap
+      assert.deepStrictEqual(
+        bases.map(({ romaji }) => romaji),
+        ['Tokyo', 'Kyoto', 'Kanazawa', 'Hakone', 'Fukuoka'],
+      )
+    }),
+  )
+
+  it.effect('draws every Itinerary’s Moves as its own page’s map does', () =>
+    Effect.gen(function* () {
+      const trip = yield* Trip
+      const { itineraries } = yield* trip.comparisonMap
+      const pages = yield* Effect.forEach(
+        yield* trip.itineraries,
+        ({ optionNumber }) => trip.itinerary(optionNumber),
+      )
+      assert.deepStrictEqual(
+        itineraries,
+        pages.map(({ optionNumber, recommended, map }) => ({
+          optionNumber,
+          recommended,
+          trainMoves: map.trainMoves,
+          flights: map.flights,
+        })),
+      )
+    }).pipe(Effect.provide(liveTrip)),
+  )
+
+  it.effect('credits MLIT when any Itinerary follows the rail lines', () =>
+    Effect.gen(function* () {
+      const { railAttribution } = yield* comparisonMap
+      assert.strictEqual(
+        railAttribution,
+        '「国土数値情報（鉄道データ）」（国土交通省）を加工して作成',
+      )
+    }),
+  )
+
+  it.effect('credits no rail data when no Itinerary follows a rail line', () =>
+    Effect.gen(function* () {
+      const { railAttribution } = yield* Trip.use(
+        (trip) => trip.comparisonMap,
+      ).pipe(
+        Effect.provide(
+          tripWith([
+            {
+              ...option1,
+              moves: option1.moves.map((move) => ({ ...move, sections: [] })),
+            },
+            {
+              ...option2,
+              moves: option2.moves.map((move) => ({ ...move, sections: [] })),
+            },
+          ]),
+        ),
+      )
+      assert.isUndefined(railAttribution)
+    }),
+  )
+})

@@ -2,6 +2,8 @@ import { MapIcon } from 'lucide-react'
 import { Component, Suspense, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
+import { cn } from '@/lib/utils'
+
 /** MapLibre GL 6 draws with WebGL2 and fails without it. */
 const supportsWebGl2 = () => {
   const context = document.createElement('canvas').getContext('webgl2')
@@ -79,12 +81,21 @@ class MapErrorBoundary extends Component<
  * worker stay out of the initial page load. If the map can't load, a clear
  * placeholder stays instead and the rest of the page keeps working.
  */
-export function LazyMap({ children }: { children: ReactNode }) {
+export function LazyMap({
+  className,
+  children,
+}: {
+  className?: string
+  children: ReactNode
+}) {
   const [ref, state] = useMapState()
   return (
     <div
       ref={ref}
-      className="relative isolate aspect-square overflow-hidden rounded-lg border bg-card sm:aspect-[3/2]"
+      className={cn(
+        'relative isolate aspect-square overflow-hidden rounded-lg border bg-card sm:aspect-[3/2]',
+        className,
+      )}
     >
       {state === 'waiting' && <MapLoading />}
       {state === 'unsupported' && <MapUnavailable />}
