@@ -1,6 +1,7 @@
 // Converted from docs/itinerary.md, "1. Tokyo → Kyoto → Kanazawa → Tokyo".
 import { december } from '@/trip/domain'
 import type { ItineraryContent } from '@/trip/domain'
+import { shigeharuOpeningDays } from '@/trip/itineraries/shigeharu'
 
 export const option1: ItineraryContent = {
   optionNumber: 1,
@@ -114,11 +115,7 @@ export const option1: ItineraryContent = {
     { date: december(18), place: 'enoshima', optional: true },
   ],
   verifyClaims: [
-    {
-      id: 'shigeharu-opening-days',
-      text: 'Recent visitor reports favor Friday mornings, with occasional Thursday openings, but this remains an observed pattern rather than a confirmed December schedule. Keep that morning flexible and have your agent or hotel confirm directly.',
-      attachedTo: { _tag: 'Day', date: december(11) },
-    },
+    shigeharuOpeningDays,
     {
       id: 'kanazawa-crab-season',
       text: 'December also falls within local crab season, which makes a special seafood dinner an appealing birthday plan.',
