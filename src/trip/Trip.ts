@@ -23,10 +23,12 @@ import type {
   ItineraryMap,
   ItinerarySummary,
   MapDayTrip,
+  MapRailSection,
   MoveDetail,
   MovesComparison,
   MoveSummary,
   Place,
+  RailSectionDetail,
   Stay,
   StaySummary,
   Station,
@@ -37,8 +39,9 @@ import type {
 import { Itineraries } from '@/trip/Itineraries'
 import { places, visitedPlaceIds } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
-import { stations } from '@/trip/rail'
+import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
 import type { StationId } from '@/trip/rail'
+import { railGeometryAttribution, railGeometryOf } from '@/trip/rail-geometry'
 
 const tripStart = DateTime.makeUnsafe(tripStartDate)
 
@@ -311,28 +314,62 @@ const mapDayTripsOf = ({ stays, dayTrips }: Itinerary): Array<MapDayTrip> => {
   })
 }
 
+/**
+ * A rail section's path on the map: along its rail line, or straight between
+ * its stations when the rail geometry lacks it.
+ */
+const railPathOf = (section: RailSectionDetail) => {
+  const path = railGeometryOf(railSectionIdsOf(section))
+  return path
+    ? { path, followsRailLine: true }
+    : {
+        path: [section.from.coordinates, section.to.coordinates],
+        followsRailLine: false,
+      }
+}
+
 const mapOf = (itinerary: Itinerary): ItineraryMap => {
   const moves = datedMovesOf(itinerary)
+  const trainMoves = moves
+    .filter((move) => move.mode === 'train')
+    .map((move) => ({ move, railPaths: move.sections.map(railPathOf) }))
   return {
     bases: Array.from(new Set(itinerary.stays.map((stay) => stay.base))).map(
       placeOf,
     ),
-    trainMoves: moves
-      .filter((move) => move.mode === 'train')
-      .map((move) => ({
-        date: move.date,
-        path: withoutRepeats([
-          move.from.coordinates,
-          ...move.sections.flatMap((section) => [
-            section.from.coordinates,
-            section.to.coordinates,
-          ]),
-          move.to.coordinates,
-        ]),
-      })),
+    trainMoves: trainMoves.map(({ move, railPaths }) => ({
+      date: move.date,
+      path: withoutRepeats([
+        move.from.coordinates,
+        ...railPaths.flatMap((railPath) => railPath.path),
+        move.to.coordinates,
+      ]),
+    })),
     flights: flightsOf(moves),
     dayTrips: mapDayTripsOf(itinerary),
+    ...(trainMoves.some(({ railPaths }) =>
+      railPaths.some((railPath) => railPath.followsRailLine),
+    ) && { railAttribution: railGeometryAttribution }),
   }
+}
+
+/**
+ * Every rail section the Itineraries ride, once whichever way it's ridden,
+ * in the direction first ridden.
+ */
+const railSectionsOf = (
+  itineraries: ReadonlyArray<Itinerary>,
+): Array<MapRailSection> => {
+  const sections = new Map<string, MapRailSection>()
+  for (const move of itineraries.flatMap(datedMovesOf)) {
+    for (const section of move.sections) {
+      const key = railSectionKey(railSectionIdsOf(section))
+      if (sections.has(key)) continue
+      const { followsRailLine } = railPathOf(section)
+      sections.set(key, { ...section, followsRailLine })
+    }
+  }
+  return Array.from(sections.values())
 }
 
 const detailOf = (itinerary: Itinerary): ItineraryDetail => {
@@ -498,6 +535,12 @@ export class Trip extends Context.Service<
     tripRuleBreaks(
       optionNumber: number,
     ): Effect.Effect<ReadonlyArray<TripRuleBreak>, ItineraryNotFound>
+    /**
+     * Every rail section the Itineraries ride, once whichever way it's
+     * ridden, and whether the map follows its rail line. Only the rail
+     * geometry build and the tests call this.
+     */
+    readonly railSections: Effect.Effect<ReadonlyArray<MapRailSection>>
   }
 >()('japan-trip/trip/Trip') {
   static readonly layer = Layer.effect(
@@ -506,6 +549,7 @@ export class Trip extends Context.Service<
       const { all } = yield* Itineraries
       const summaries = all.map(summaryOf)
       const comparisons = all.map(comparisonOf)
+      const railSections = railSectionsOf(all)
       const byOptionNumber = new Map(
         all.map((itinerary) => [itinerary.optionNumber, itinerary]),
       )
@@ -534,6 +578,7 @@ export class Trip extends Context.Service<
         itinerary: (optionNumber) => find(details, optionNumber),
         tripRuleBreaks: (optionNumber) =>
           find(byOptionNumber, optionNumber).pipe(Effect.map(tripRuleBreaksOf)),
+        railSections: Effect.succeed(railSections),
       })
     }),
   )

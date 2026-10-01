@@ -13,7 +13,8 @@
     "lint": "vp lint",
     "format": "vp fmt .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "subset-display-font": "node scripts/subset-display-font.ts"
+    "subset-display-font": "node scripts/subset-display-font.ts",
+    "build-rail-geometry": "node scripts/build-rail-geometry.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

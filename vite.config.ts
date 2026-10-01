@@ -44,6 +44,8 @@ const config = defineConfig({
       '.vite-hooks/**',
       'pnpm-lock.yaml',
       'src/routeTree.gen.ts',
+      // Generated and minified; its build checks its gzipped size.
+      'src/trip/rail-geometry.json',
       'worker-configuration.d.ts',
     ],
   },

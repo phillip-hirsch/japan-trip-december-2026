@@ -54,3 +54,30 @@ export const railLineIds = [
   'hokuriku-shinkansen',
   'thunderbird',
 ] as const
+
+export type RailLineId = (typeof railLineIds)[number]
+
+/** A rail section by the ids of its line and stations. */
+export type RailSectionIds = {
+  readonly line: RailLineId
+  readonly from: StationId
+  readonly to: StationId
+}
+
+/** The ids of a rail section whose stations are given in full. */
+export const railSectionIdsOf = (section: {
+  readonly line: RailLineId
+  readonly from: { readonly id: StationId }
+  readonly to: { readonly id: StationId }
+}): RailSectionIds => ({
+  line: section.line,
+  from: section.from.id,
+  to: section.to.id,
+})
+
+/**
+ * One key per rail section, whichever way it's ridden, for the rail geometry:
+ * Tokyo → Kyoto and Kyoto → Tokyo on the same line share their track.
+ */
+export const railSectionKey = ({ line, from, to }: RailSectionIds) =>
+  [line, ...[from, to].sort()].join('/')
