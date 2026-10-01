@@ -29,13 +29,8 @@ export const reportConnection = (next: ConnectionStatus) => {
 
 const subscribe = (listener: () => void) => {
   listeners.add(listener)
-  const reconnect = () => {
-    if (status === offline) reportConnection(connected)
-  }
-  window.addEventListener('online', reconnect)
   return () => {
     listeners.delete(listener)
-    window.removeEventListener('online', reconnect)
   }
 }
 

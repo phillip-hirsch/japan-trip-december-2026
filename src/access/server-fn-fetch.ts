@@ -47,6 +47,30 @@ const reloadToLogIn = () => {
   return true
 }
 
+let awaitingNetwork = false
+
+/**
+ * Once the browser reports a network again, asks the app whether it is
+ * reachable. The browser's `online` event only means a network interface is
+ * up (a captive portal or an outage still blocks the app), so the probe's
+ * answer, reported like any server function call, decides the banner.
+ */
+const probeWhenOnline = () => {
+  if (awaitingNetwork) return
+  awaitingNetwork = true
+  window.addEventListener(
+    'online',
+    () => {
+      awaitingNetwork = false
+      serverFnFetch(window.location.href, {
+        method: 'HEAD',
+        cache: 'no-store',
+      }).catch(() => {})
+    },
+    { once: true },
+  )
+}
+
 /** Reloads the page now, when Phillip asks to log in again. */
 export const logInAgain = () => {
   recordReload(Date.now())
@@ -62,7 +86,8 @@ export const logInAgain = () => {
  *   CORS failure. TanStack's own redirects travel in the response body, so
  *   they are unaffected.
  * - Either answer means "login expired": the Worker never ran.
- * - A failed fetch that wasn't aborted means "offline".
+ * - A failed fetch that wasn't aborted means "offline", until a later call
+ *   gets an answer.
  */
 export const serverFnFetch: CustomFetch = async (url, init) => {
   const headers = new Headers(init?.headers)
@@ -71,7 +96,10 @@ export const serverFnFetch: CustomFetch = async (url, init) => {
   try {
     response = await fetch(url, { ...init, headers, redirect: 'manual' })
   } catch (error) {
-    if (!init?.signal?.aborted) reportConnection(offline)
+    if (!init?.signal?.aborted) {
+      reportConnection(offline)
+      probeWhenOnline()
+    }
     throw error
   }
   if (response.status === 401 || response.type === 'opaqueredirect') {
