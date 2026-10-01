@@ -80,9 +80,13 @@ describe('Trip.home Itineraries', () => {
   it.effect('lists each Itinerary by Option number and name', () =>
     Effect.gen(function* () {
       const home = yield* homeAt('2026-10-01T00:00:00Z')
-      assert.deepStrictEqual(home.itineraries, [
-        { optionNumber: 1, name: 'Kyoto + Kanazawa' },
-      ])
+      assert.deepStrictEqual(
+        home.itineraries.map(({ optionNumber, name }) => ({
+          optionNumber,
+          name,
+        })),
+        [{ optionNumber: 1, name: 'Kyoto + Kanazawa' }],
+      )
     }),
   )
 })
@@ -99,6 +103,17 @@ layer(liveTrip)('Every Itinerary', (it) => {
       }
     }),
   )
+
+  it.effect('has exactly one recommended by gpt-6-astra', () =>
+    Effect.gen(function* () {
+      const trip = yield* Trip
+      const itineraries = yield* trip.itineraries
+      assert.strictEqual(
+        itineraries.filter((itinerary) => itinerary.recommended).length,
+        1,
+      )
+    }),
+  )
 })
 
 layer(liveTrip)('Option 1', (it) => {
@@ -110,6 +125,98 @@ layer(liveTrip)('Option 1', (it) => {
       assert.deepStrictEqual(
         { optionNumber, name },
         { optionNumber: 1, name: 'Kyoto + Kanazawa' },
+      )
+    }),
+  )
+
+  it.effect('is gpt-6-astra’s recommendation, best for a balanced trip', () =>
+    Effect.gen(function* () {
+      const { recommended, bestFor } = yield* option1Detail
+      assert.deepStrictEqual(
+        { recommended, bestFor },
+        {
+          recommended: true,
+          bestFor: 'Best overall balance of discovery, food, and Shigeharu',
+        },
+      )
+    }),
+  )
+
+  it.effect('routes through each Base in kanji and romaji', () =>
+    Effect.gen(function* () {
+      const { route } = yield* option1Detail
+      assert.deepStrictEqual(
+        route.map(({ kanji, romaji }) => `${kanji} (${romaji})`).join(' → '),
+        '東京 (Tokyo) → 京都 (Kyoto) → 金沢 (Kanazawa) → 東京 (Tokyo)',
+      )
+    }),
+  )
+
+  it.effect('spreads its nights across Bases, Tokyo’s two Stays together', () =>
+    Effect.gen(function* () {
+      const { nightsPerBase } = yield* option1Detail
+      assert.deepStrictEqual(
+        nightsPerBase.map(({ base, nights }) => [base.romaji, nights]),
+        [
+          ['Tokyo', 6],
+          ['Kyoto', 4],
+          ['Kanazawa', 4],
+        ],
+      )
+    }),
+  )
+
+  it.effect('is New to you in its Bases and Day trips, optional ones too', () =>
+    Effect.gen(function* () {
+      const { newToYou } = yield* option1Detail
+      assert.deepStrictEqual(
+        newToYou.map((place) => place.romaji),
+        ['Kamakura', 'Uji', 'Kanazawa', 'Enoshima'],
+      )
+    }),
+  )
+
+  it.effect('keeps gpt-6-astra’s reasoning', () =>
+    Effect.gen(function* () {
+      const {
+        birthdayOutline,
+        pros,
+        cons,
+        chooseThisIf,
+        whyRecommended,
+        travelNotes,
+      } = yield* option1Detail
+      assert.deepStrictEqual(
+        {
+          birthdayOutline,
+          pros,
+          cons,
+          chooseThisIf,
+          whyRecommended,
+          travelNotes,
+        },
+        {
+          birthdayOutline:
+            'A slow breakfast, a short outing if you feel like it, an afternoon break, and a reserved sushi or seasonal seafood dinner.',
+          pros: [
+            'A substantial new destination alongside the Shigeharu opportunity.',
+            'Four-night stays let you settle in, with room for poor weather or a lazy morning.',
+            'An efficient rail loop with no domestic flights.',
+            'Particularly strong for food, crafts, and traditional neighborhoods.',
+          ],
+          cons: [
+            'Kanazawa can be wet and wintry; snow during your dates is possible, not guaranteed.',
+            'No dedicated hot-spring retreat.',
+            'Nikko is omitted; adding it would mean replacing another excursion or giving up downtime.',
+          ],
+          // The source gives Option 1 no "choose this if", only why it is
+          // recommended.
+          chooseThisIf: undefined,
+          whyRecommended:
+            'It makes the trip feel different from your previous visits while giving the knife shop appropriate attention. You get one new city in depth, a relaxed return to Kyoto, and Tokyo time at both ends.',
+          travelNotes:
+            'Tokyo–Kyoto is approximately 2¼ hours by fast shinkansen; Kyoto–Kanazawa roughly two hours with a change at Tsuruga; Kanazawa–Tokyo approximately 2½ hours. Each move comfortably fits into a half-day once hotel transfers are included.',
+        },
       )
     }),
   )
@@ -674,6 +781,55 @@ describe('Free days', () => {
   )
 })
 
+describe('Route', () => {
+  it.effect('names a Base once when back-to-back Stays share it', () =>
+    Effect.gen(function* () {
+      const { route } = yield* Trip.use((trip) => trip.itinerary(1)).pipe(
+        Effect.provide(
+          tripWith([
+            option1With({
+              ...withStays(
+                ['tokyo', 6, 9],
+                ['kyoto', 9, 13],
+                ['kanazawa', 13, 17],
+                ['tokyo', 17, 18],
+                ['tokyo', 18, 20],
+              ),
+            }),
+          ]),
+        ),
+      )
+      assert.deepStrictEqual(
+        route.map((place) => place.romaji),
+        ['Tokyo', 'Kyoto', 'Kanazawa', 'Tokyo'],
+      )
+    }),
+  )
+})
+
+describe('New to you', () => {
+  it.effect('names a New place once, however often the Trip goes there', () =>
+    Effect.gen(function* () {
+      const { newToYou } = yield* Trip.use((trip) => trip.itinerary(1)).pipe(
+        Effect.provide(
+          tripWith([
+            option1With({
+              dayTrips: [
+                ...option1.dayTrips,
+                { date: december(19), place: 'kamakura', optional: false },
+              ],
+            }),
+          ]),
+        ),
+      )
+      assert.deepStrictEqual(
+        newToYou.map((place) => place.romaji),
+        ['Kamakura', 'Uji', 'Kanazawa', 'Enoshima'],
+      )
+    }),
+  )
+})
+
 describe('Verify claims', () => {
   it.effect('can be attached to the Itinerary as a whole', () =>
     Effect.gen(function* () {
@@ -732,6 +888,10 @@ describe('Itinerary content version', () => {
       const original = yield* versionOf(option1)
       const changed: ReadonlyArray<ItineraryContent> = [
         option1With({ name: 'Kyoto + Kanazawa, revised' }),
+        option1With({ bestFor: 'Crab season' }),
+        option1With({ recommended: false }),
+        option1With({ cons: [...option1.cons, 'Long train days.'] }),
+        option1With({ chooseThisIf: 'you want gardens and crafts.' }),
         option1With({
           days: option1.days.map((day) =>
             day.date === december(14)

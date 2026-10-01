@@ -5,6 +5,8 @@ import type { ItineraryContent } from '@/trip/domain'
 export const option1: ItineraryContent = {
   optionNumber: 1,
   name: 'Kyoto + Kanazawa',
+  bestFor: 'Best overall balance of discovery, food, and Shigeharu',
+  recommended: true,
   stays: [
     {
       base: 'tokyo',
@@ -129,4 +131,23 @@ export const option1: ItineraryContent = {
     },
   ],
   shigeharuVisit: { date: december(11), slot: 'morning' },
+  birthdayOutline:
+    'A slow breakfast, a short outing if you feel like it, an afternoon break, and a reserved sushi or seasonal seafood dinner.',
+  pros: [
+    'A substantial new destination alongside the Shigeharu opportunity.',
+    'Four-night stays let you settle in, with room for poor weather or a lazy morning.',
+    'An efficient rail loop with no domestic flights.',
+    'Particularly strong for food, crafts, and traditional neighborhoods.',
+  ],
+  cons: [
+    'Kanazawa can be wet and wintry; snow during your dates is possible, not guaranteed.',
+    'No dedicated hot-spring retreat.',
+    'Nikko is omitted; adding it would mean replacing another excursion or giving up downtime.',
+  ],
+  // The source gives no "choose this if" for Option 1, only "Why I recommend
+  // it most".
+  whyRecommended:
+    'It makes the trip feel different from your previous visits while giving the knife shop appropriate attention. You get one new city in depth, a relaxed return to Kyoto, and Tokyo time at both ends.',
+  travelNotes:
+    'Tokyo–Kyoto is approximately 2¼ hours by fast shinkansen; Kyoto–Kanazawa roughly two hours with a change at Tsuruga; Kanazawa–Tokyo approximately 2½ hours. Each move comfortably fits into a half-day once hotel transfers are included.',
 }

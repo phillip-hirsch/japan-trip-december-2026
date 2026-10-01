@@ -1,4 +1,4 @@
-import { Context, DateTime, Duration, Effect, Layer } from 'effect'
+import { Context, DateTime, Duration, Effect, Layer, Struct } from 'effect'
 
 import {
   birthdayDate,
@@ -10,6 +10,7 @@ import {
 import { ItineraryNotFound } from '@/trip/domain'
 import type {
   Anchor,
+  BaseNights,
   Countdown,
   HomeState,
   IsoDate,
@@ -155,12 +156,52 @@ const claimsAttachedTo = (
     )
     .map(({ id, text }) => ({ id, text }))
 
+const nightsPerBaseOf = (stays: ReadonlyArray<Stay>): Array<BaseNights> => {
+  const nights = new Map<PlaceId, number>()
+  for (const { base, checkIn, checkOut } of stays) {
+    nights.set(base, (nights.get(base) ?? 0) + daysBetween(checkIn, checkOut))
+  }
+  return Array.from(nights, ([base, nights]) => ({
+    base: placeOf(base),
+    nights,
+  }))
+}
+
+const newToYouOf = ({ stays, dayTrips }: Itinerary): Array<Place> => {
+  const visits = [
+    ...stays.map((stay) => ({ date: stay.checkIn, place: stay.base })),
+    ...dayTrips.map(({ date, place }) => ({ date, place })),
+  ].sort((a, b) => a.date.localeCompare(b.date))
+  return Array.from(new Set(visits.map((visit) => visit.place)))
+    .map(placeOf)
+    .filter((place) => place.newPlace)
+}
+
+const summaryOf = (itinerary: Itinerary): ItinerarySummary => ({
+  optionNumber: itinerary.optionNumber,
+  name: itinerary.name,
+  recommended: itinerary.recommended,
+  bestFor: itinerary.bestFor,
+  route: itinerary.stays
+    .filter((stay, index) => stay.base !== itinerary.stays[index - 1]?.base)
+    .map((stay) => placeOf(stay.base)),
+  nightsPerBase: nightsPerBaseOf(itinerary.stays),
+  newToYou: newToYouOf(itinerary),
+})
+
 const detailOf = (itinerary: Itinerary): ItineraryDetail => {
   const anchors = anchorsOf(itinerary)
   const moves = moveDetailsOf(itinerary)
   return {
-    optionNumber: itinerary.optionNumber,
-    name: itinerary.name,
+    ...summaryOf(itinerary),
+    ...Struct.pick(itinerary, [
+      'birthdayOutline',
+      'pros',
+      'cons',
+      'chooseThisIf',
+      'whyRecommended',
+      'travelNotes',
+    ]),
     contentVersion: itinerary.contentVersion,
     verifyClaims: claimsAttachedTo(itinerary, { _tag: 'Itinerary' }),
     stays: itinerary.stays.map((stay) => ({
@@ -316,10 +357,7 @@ export class Trip extends Context.Service<
     Trip,
     Effect.gen(function* () {
       const { all } = yield* Itineraries
-      const summaries = all.map(({ optionNumber, name }) => ({
-        optionNumber,
-        name,
-      }))
+      const summaries = all.map(summaryOf)
       const byOptionNumber = new Map(
         all.map((itinerary) => [itinerary.optionNumber, itinerary]),
       )
