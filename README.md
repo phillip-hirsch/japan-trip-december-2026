@@ -1,191 +1,76 @@
-Welcome to your new TanStack Start app!
+# Japan · December 2026
 
-# Getting Started
+A private companion for Phillip's fourth trip to Japan: 14 nights, arriving Sunday, December 6, 2026 and flying home Sunday, December 20. What runs today is a dark, mobile-first comparison of the candidate itineraries. From there the plan is his own schedule: notes, a checklist, and pages he can still read on a train with no signal.
 
-To run this application:
+## Status
+
+The [spec](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/1) splits the work into four phases. They ship in order.
+
+**Phase 1 — compare the itineraries.** This is what the repo runs today. Home counts whole days until midnight on December 6 in Tokyo. Four itineraries, Option 1 through Option 4, each show their stays, all 15 days, and the anchors every option has to respect: arrival, the Shigeharu visit on the morning of December 11, the birthday on December 15, and departure. `/options` lines them up on the same rows and on one map. Each itinerary page has its own map, with train moves drawn along the real rail lines.
+
+Two Phase 1 issues are still open: prerendering the comparison and itinerary pages ([#13](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/13)), and deploying the Worker behind Cloudflare Access ([#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14)).
+
+**Phase 2 — choose, then keep a schedule.** Choosing an itinerary copies it into a personal schedule. A later revision of that itinerary leaves the copy as it was. This phase adds notes, a checklist of things to book or confirm, and a Today view on Home during the trip. The schedule will live in one SQLite Durable Object near Japan ([ADR 0001](docs/adr/0001-durable-object-sqlite-for-schedule-data.md)).
+
+**Phase 3 — match the bookings.** Activities on a day, hotel details on a stay, splitting and reshaping stays, pins placed from a maps link, and a full-screen map of the schedule.
+
+**Phase 4 — read it offline.** An app on the iPhone Home Screen. The schedule, Today, the checklist, notes, and a Japan overview map stay readable with no connection. Editing waits until the signal is back.
+
+Phases 2–4 are specified, and still on the board.
+
+## Stack
+
+- [TanStack Start](https://tanstack.com/start) and React 19, with file routes in `src/routes`.
+- [Tailwind CSS](https://tailwindcss.com/) 4. One dark theme.
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/), via the Cloudflare Vite plugin and Wrangler. The Worker entry is `src/server.ts`.
+- [MapLibre GL](https://maplibre.org/) for the itinerary and comparison maps, on [OpenFreeMap](https://openfreemap.org/)'s dark style. The MapLibre worker ships with the app.
+- [Effect](https://effect.website/) 4 for the Trip service and the Access gate. Tests use `@effect/vitest`.
+- [Vite+](https://viteplus.dev/) (`vp`) for dev, build, format, lint, typecheck, and tests.
+- Owned [shadcn/ui](https://ui.shadcn.com/) components on Base UI.
+- Headings and a curated set of Japanese words use a subset of Shippori Mincho, served from the app.
+
+## Local development
+
+Use pnpm. The repo asks for 12.6.0 (`devEngines` in `package.json`). Vite+ is installed with the dependencies; the scripts below call it.
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-# Building For Production
+`pnpm dev` runs `vp dev --port 3000`. Open http://localhost:3000.
 
-To build this application for production:
+Local requests pass Wrangler's Access simulation. `.dev.vars` supplies `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `ACCESS_ALLOWED_EMAIL`, and `ACCESS_DEV_SIMULATION` for `vp dev` and `vp preview`.
 
 ```bash
-pnpm build
+pnpm exec vp check          # format, lint, and typecheck
+pnpm exec vp run typecheck  # patched tsc, including Effect diagnostics
+pnpm exec vp test           # tests colocated under src/
 ```
 
-## Styling
+`pnpm build` produces the Worker bundle. `pnpm preview` serves that build locally, with the same Access simulation.
 
-This project uses [Tailwind CSS](https://tailwindcss.com/) for styling.
+## Deploy
 
-### Removing Tailwind CSS
+`pnpm deploy` builds, then runs `wrangler deploy`. The Worker is named `japan-trip-december-2026`. Deploy needs a Wrangler login.
 
-If you prefer not to use Tailwind CSS:
+Cloudflare Access is the sign-in: an email one-time PIN for a single allowed address. `src/server.ts` checks that assertion before TanStack Start sees the request. `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_ALLOWED_EMAIL` are plain Worker variables. Until the Access application exists and the team domain and audience are set, a deployed Worker refuses every request. That first deploy is [#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14). The reasoning is [ADR 0002](docs/adr/0002-cloudflare-access-instead-of-in-app-login.md).
 
-1. Remove the demo pages in `src/routes/demo/`
-2. Replace the Tailwind import in `src/styles.css` with your own styles
-3. Remove `tailwindcss()` from the plugins array in `vite.config.ts`
-4. Remove `@tailwindcss/vite` and `tailwindcss` from `package.json`
+The repository is public on purpose. Itineraries and these docs belong here. A schedule, checklist, notes, and booking details stay in storage once Phase 2 exists, and out of git. See [ADR 0003](docs/adr/0003-itineraries-are-repo-content.md).
 
-## Deploy to Cloudflare Workers
+## Where to look
 
-This project uses the Cloudflare Vite plugin (configured in `vite.config.ts`) and `wrangler.jsonc`:
+- `src/routes` — Home (`/`), the comparison (`/options`), and one itinerary (`/options/$optionNumber`).
+- `src/trip` — the Trip domain, Options 1–4, and the rail geometry the maps draw.
+- `src/access` — the Access gate.
+- `src/components` — page UI, the maps, and the nav shared by the phone tab bar and the desktop sidebar.
+- [`CONTEXT.md`](CONTEXT.md) — the glossary the code uses (Trip, Itinerary, Schedule, Stay, and the rest).
+- [`docs/adr`](docs/adr) — why storage, Access, and itinerary content are shaped this way.
+- [`docs/itinerary.md`](docs/itinerary.md) — the source write-up the four options were converted from.
+- [`docs/agents/itineraries.md`](docs/agents/itineraries.md) — how to add or revise an itinerary.
 
-1. Install Wrangler: `npm install -g wrangler`
-2. Authenticate: `wrangler login`
-3. Deploy: `npx wrangler deploy`
+Issues labelled [`ready-for-agent`](https://github.com/phillip-hirsch/japan-trip-december-2026/issues?q=is%3Aissue+is%3Aopen+label%3Aready-for-agent) are specified enough for an agent to pick up. `ready-for-human` means a deploy or a check on the phone.
 
-For production env vars, run `wrangler secret put MY_VAR` for each secret listed in `.env.example`. Public (non-secret) vars go in `wrangler.jsonc` under `vars`.
+## Contributing
 
-KV, D1, R2, and Durable Object bindings are configured in `wrangler.jsonc` — see https://developers.cloudflare.com/workers/wrangler/configuration/.
-
-## Routing
-
-This project uses [TanStack Router](https://tanstack.com/router) with file-based routing. Routes are managed as files in `src/routes`.
-
-### Adding A Route
-
-To add a new route to your application just add a new file in the `./src/routes` directory.
-
-TanStack will automatically generate the content of the route file for you.
-
-Now that you have two routes you can use a `Link` component to navigate between them.
-
-### Adding Links
-
-To use SPA (Single Page Application) navigation you will need to import the `Link` component from `@tanstack/react-router`.
-
-```tsx
-import { Link } from '@tanstack/react-router'
-```
-
-Then anywhere in your JSX you can use it like so:
-
-```tsx
-<Link to="/about">About</Link>
-```
-
-This will create a link that will navigate to the `/about` route.
-
-More information on the `Link` component can be found in the [Link documentation](https://tanstack.com/router/v1/docs/framework/react/api/router/linkComponent).
-
-### Using A Layout
-
-In the File Based Routing setup the layout is located in `src/routes/__root.tsx`. Anything you add to the root route will appear in all the routes. The route content will appear in the JSX where you render `{children}` in the `shellComponent`.
-
-Here is an example layout that includes a header:
-
-```tsx
-import { HeadContent, Scripts, createRootRoute } from '@tanstack/react-router'
-
-export const Route = createRootRoute({
-  head: () => ({
-    meta: [
-      { charSet: 'utf-8' },
-      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-      { title: 'My App' },
-    ],
-  }),
-  shellComponent: ({ children }) => (
-    <html lang="en">
-      <head>
-        <HeadContent />
-      </head>
-      <body>
-        <header>
-          <nav>
-            <Link to="/">Home</Link>
-            <Link to="/about">About</Link>
-          </nav>
-        </header>
-        {children}
-        <Scripts />
-      </body>
-    </html>
-  ),
-})
-```
-
-More information on layouts can be found in the [Layouts documentation](https://tanstack.com/router/latest/docs/framework/react/guide/routing-concepts#layouts).
-
-## Server Functions
-
-TanStack Start provides server functions that allow you to write server-side code that seamlessly integrates with your client components.
-
-```tsx
-import { createServerFn } from '@tanstack/react-start'
-
-const getServerTime = createServerFn({
-  method: 'GET',
-}).handler(async () => {
-  return new Date().toISOString()
-})
-
-// Use in a component
-function MyComponent() {
-  const [time, setTime] = useState('')
-
-  useEffect(() => {
-    getServerTime().then(setTime)
-  }, [])
-
-  return <div>Server time: {time}</div>
-}
-```
-
-## API Routes
-
-You can create API routes by using the `server` property in your route definitions:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-import { json } from '@tanstack/react-start'
-
-export const Route = createFileRoute('/api/hello')({
-  server: {
-    handlers: {
-      GET: () => json({ message: 'Hello, World!' }),
-    },
-  },
-})
-```
-
-## Data Fetching
-
-There are multiple ways to fetch data in your application. You can use TanStack Query to fetch data from a server. But you can also use the `loader` functionality built into TanStack Router to load the data for a route before it's rendered.
-
-For example:
-
-```tsx
-import { createFileRoute } from '@tanstack/react-router'
-
-export const Route = createFileRoute('/people')({
-  loader: async () => {
-    const response = await fetch('https://swapi.dev/api/people')
-    return response.json()
-  },
-  component: PeopleComponent,
-})
-
-function PeopleComponent() {
-  const data = Route.useLoaderData()
-  return (
-    <ul>
-      {data.results.map((person) => (
-        <li key={person.name}>{person.name}</li>
-      ))}
-    </ul>
-  )
-}
-```
-
-Loaders simplify your data fetching logic dramatically. Check out more information in the [Loader documentation](https://tanstack.com/router/latest/docs/framework/react/guide/data-loading#loader-parameters).
-
-# Learn More
-
-You can learn more about all of the offerings from TanStack in the [TanStack documentation](https://tanstack.com).
-
-For TanStack Start specific documentation, visit [TanStack Start](https://tanstack.com/start).
+This is Phillip's trip app. Pull requests are welcome, including from agents. Start from a `ready-for-agent` issue. Tracker conventions live in [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
