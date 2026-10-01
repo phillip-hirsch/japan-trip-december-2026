@@ -1,17 +1,13 @@
-import type { LngLatBoundsLike } from 'maplibre-gl'
-
 import { PlaceName } from '@/components/place-name'
+import { BaseMarker, lngLatOf, TripMapView } from '@/components/trip-map-view'
 import {
-  Map as MapView,
   MapArc,
-  MapControls,
   MapMarker,
   MapRoute,
   MarkerContent,
-  MarkerLabel,
   MarkerPopup,
 } from '@/components/ui/map'
-import type { Coordinates, ItineraryMap, Place } from '@/trip/domain'
+import type { ItineraryMap, Place } from '@/trip/domain'
 
 // MapLibre takes colour strings, not CSS variables: these are the theme's
 // --paper, --chart-1 and --muted-foreground in hex. Vermilion stays reserved
@@ -19,36 +15,6 @@ import type { Coordinates, ItineraryMap, Place } from '@/trip/domain'
 const trainColor = '#eee7d9'
 const flightColor = '#a1c3db'
 const dayTripColor = '#aba397'
-
-const lngLatOf = ({ longitude, latitude }: Coordinates): [number, number] => [
-  longitude,
-  latitude,
-]
-
-/** The smallest box around every point, as [south-west, north-east]. */
-const boundsOf = (points: ReadonlyArray<Coordinates>): LngLatBoundsLike => {
-  const longitudes = points.map((point) => point.longitude)
-  const latitudes = points.map((point) => point.latitude)
-  return [
-    [Math.min(...longitudes), Math.min(...latitudes)],
-    [Math.max(...longitudes), Math.max(...latitudes)],
-  ]
-}
-
-/** A Base: a point with its name always shown. */
-function BaseMarker({ place }: { place: Place }) {
-  const { latitude, longitude } = place.coordinates
-  return (
-    <MapMarker latitude={latitude} longitude={longitude}>
-      <MarkerContent className="cursor-default">
-        <span className="block size-3 rounded-full bg-foreground ring-2 ring-background" />
-        <MarkerLabel className="text-xs [text-shadow:0_0_3px_var(--background),0_0_6px_var(--background)]">
-          <PlaceName place={place} />
-        </MarkerLabel>
-      </MarkerContent>
-    </MapMarker>
-  )
-}
 
 /**
  * A Day trip destination: a smaller point named when tapped, since nearby
@@ -75,28 +41,20 @@ function DestinationMarker({ place }: { place: Place }) {
 /**
  * The map itself, loaded lazily: Bases as points, train Moves as solid lines
  * along their rail lines, flights as arcs and Day trips as dashed lines,
- * framed to fit them all. Gestures are cooperative so the page still scrolls
- * past the map.
+ * framed to fit them all.
  */
 export default function ItineraryMapCanvas({ map }: { map: ItineraryMap }) {
   const baseIds = new Set(map.bases.map((base) => base.id))
   const destinations = Array.from(
     new Map(map.dayTrips.map(({ to }) => [to.id, to])).values(),
   ).filter((place) => !baseIds.has(place.id))
-  const bounds = boundsOf([
-    ...[...map.bases, ...destinations].map((place) => place.coordinates),
-    ...map.trainMoves.flatMap((move) => move.path),
-  ])
   return (
-    <MapView
-      bounds={bounds}
-      fitBoundsOptions={{ padding: 48 }}
-      cooperativeGestures
-      // Always shown in full, as the map data's licences require.
-      attributionControl={{
-        compact: false,
-        ...(map.railAttribution && { customAttribution: map.railAttribution }),
-      }}
+    <TripMapView
+      points={[
+        ...[...map.bases, ...destinations].map((place) => place.coordinates),
+        ...map.trainMoves.flatMap((move) => move.path),
+      ]}
+      railAttribution={map.railAttribution}
     >
       {map.dayTrips.map(({ from, to, optional }) => (
         <MapRoute
@@ -134,8 +92,6 @@ export default function ItineraryMapCanvas({ map }: { map: ItineraryMap }) {
       {map.bases.map((place) => (
         <BaseMarker key={place.id} place={place} />
       ))}
-      {/* Top right, clear of the attribution, which wraps on phones. */}
-      <MapControls position="top-right" />
-    </MapView>
+    </TripMapView>
   )
 }

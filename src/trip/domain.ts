@@ -404,6 +404,29 @@ export const ItineraryMap = Schema.Struct({
 })
 export type ItineraryMap = typeof ItineraryMap.Type
 
+/** An Itinerary's Moves on the comparison map, drawn as on its own map. */
+export const ComparisonMapItinerary = Schema.Struct({
+  optionNumber: OptionNumber,
+  name: Schema.String,
+  recommended: Schema.Boolean,
+  trainMoves: Schema.Array(MapTrainMove),
+  flights: Schema.Array(MoveSummary),
+})
+export type ComparisonMapItinerary = typeof ComparisonMapItinerary.Type
+
+/** Every Itinerary's Moves and Bases overlaid on one map. */
+export const ComparisonMap = Schema.Struct({
+  /** Each Base once, in the order the Itineraries first reach it. */
+  bases: Schema.Array(Place),
+  itineraries: Schema.Array(ComparisonMapItinerary),
+  /**
+   * The credit the rail geometry's licence requires, present only when a
+   * train Move follows a rail line.
+   */
+  railAttribution: Schema.optionalKey(Schema.String),
+})
+export type ComparisonMap = typeof ComparisonMap.Type
+
 /**
  * One Itinerary as its page shows it: its summary, Stays, all 15 Days,
  * gpt-6-astra's reasoning and its map.

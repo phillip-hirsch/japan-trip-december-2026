@@ -1293,6 +1293,11 @@ type MapRouteProps = {
   /** Dash pattern [dash length, gap length] for dashed lines */
   dashArray?: [number, number]
   /**
+   * Pixels to draw the line to the right of its direction, or to the left
+   * when negative, so routes sharing a path run side by side. (default: 0)
+   */
+  offset?: number
+  /**
    * Fraction of the route already covered, from 0 to 1. Drives `RouteProgress`
    * and the `"progress"` anchor on `RouteMarker`.
    */
@@ -1331,6 +1336,7 @@ function MapRoute({
   width = 3,
   opacity = 0.8,
   dashArray,
+  offset = 0,
   progress,
   active = false,
   activeColor,
@@ -1419,6 +1425,7 @@ function MapRoute({
           'line-color': resolvedColor,
           'line-width': resolvedWidth,
           'line-opacity': resolvedOpacity,
+          'line-offset': offset,
           ...(resolvedDashArray && { 'line-dasharray': resolvedDashArray }),
         },
       },
@@ -1465,6 +1472,7 @@ function MapRoute({
     map.setPaintProperty(layerId, 'line-width', resolvedWidth)
     map.setPaintProperty(layerId, 'line-opacity', resolvedOpacity)
     map.setPaintProperty(layerId, 'line-dasharray', resolvedDashArray)
+    map.setPaintProperty(layerId, 'line-offset', offset)
   }, [
     isLoaded,
     map,
@@ -1473,6 +1481,7 @@ function MapRoute({
     resolvedWidth,
     resolvedOpacity,
     resolvedDashArray,
+    offset,
   ])
 
   // Raise the active route (and anything it owns) above its siblings. With a

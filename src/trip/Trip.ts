@@ -11,6 +11,7 @@ import { ItineraryNotFound } from '@/trip/domain'
 import type {
   Anchor,
   BaseNights,
+  ComparisonMap,
   Coordinates,
   Countdown,
   DayTrip,
@@ -353,6 +354,30 @@ const mapOf = (itinerary: Itinerary): ItineraryMap => {
   }
 }
 
+const comparisonMapOf = (
+  itineraries: ReadonlyArray<Itinerary>,
+): ComparisonMap => {
+  const maps = itineraries.map((itinerary) => ({
+    itinerary,
+    map: mapOf(itinerary),
+  }))
+  const railAttribution = maps.find(({ map }) => map.railAttribution)?.map
+    .railAttribution
+  return {
+    bases: Array.from(
+      new Map(
+        maps.flatMap(({ map }) => map.bases).map((base) => [base.id, base]),
+      ).values(),
+    ),
+    itineraries: maps.map(({ itinerary, map }) => ({
+      ...Struct.pick(itinerary, ['optionNumber', 'name', 'recommended']),
+      trainMoves: map.trainMoves,
+      flights: map.flights,
+    })),
+    ...(railAttribution && { railAttribution }),
+  }
+}
+
 /**
  * Every rail section the Itineraries ride, once whichever way it's ridden,
  * in the direction first ridden.
@@ -524,6 +549,8 @@ export class Trip extends Context.Service<
     readonly home: Effect.Effect<HomeState>
     /** Every Itinerary with its comparison rows. */
     readonly itineraries: Effect.Effect<ReadonlyArray<ItineraryComparison>>
+    /** Every Itinerary's Moves and Bases, overlaid on one map. */
+    readonly comparisonMap: Effect.Effect<ComparisonMap>
     /** One Itinerary with its Stays and all 15 Days. */
     itinerary(
       optionNumber: number,
@@ -549,6 +576,7 @@ export class Trip extends Context.Service<
       const { all } = yield* Itineraries
       const summaries = all.map(summaryOf)
       const comparisons = all.map(comparisonOf)
+      const comparisonMap = comparisonMapOf(all)
       const railSections = railSectionsOf(all)
       const byOptionNumber = new Map(
         all.map((itinerary) => [itinerary.optionNumber, itinerary]),
@@ -575,6 +603,7 @@ export class Trip extends Context.Service<
           itineraries: summaries,
         })),
         itineraries: Effect.succeed(comparisons),
+        comparisonMap: Effect.succeed(comparisonMap),
         itinerary: (optionNumber) => find(details, optionNumber),
         tripRuleBreaks: (optionNumber) =>
           find(byOptionNumber, optionNumber).pipe(Effect.map(tripRuleBreaksOf)),
