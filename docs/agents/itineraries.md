@@ -91,7 +91,7 @@ Every Base and Day trip destination must be in the place catalogue in `src/trip/
 
 A new place is a New place automatically. `visitedPlaceIds` changes only when Phillip says he has been somewhere.
 
-The station or line ids that rail sections use live in `src/trip/rail.ts`. Add any that are missing.
+The station or line ids that rail sections use live in `src/trip/rail.ts`. Add any that are missing. Give a new station its coordinates in decimal degrees to four places, taken from a reliable source: the Itinerary's map draws train Moves through them.
 
 ## Checks
 

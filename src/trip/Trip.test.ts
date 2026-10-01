@@ -10,6 +10,8 @@ import type {
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
 import { option1 } from '@/trip/itineraries/option-1'
+import { places } from '@/trip/places'
+import { stations } from '@/trip/rail'
 import { Trip } from '@/trip/Trip'
 
 const tripWith = (contents: ReadonlyArray<ItineraryContent>) =>
@@ -688,5 +690,136 @@ describe('Comparison rows', () => {
         ['Kamakura', 'Uji (optional)', 'Enoshima'],
       )
     }),
+  )
+})
+
+describe('Itinerary map', () => {
+  const mapIn = (trip: Layer.Layer<Trip>, optionNumber: number) =>
+    Trip.use((trip) => trip.itinerary(optionNumber)).pipe(
+      Effect.map((itinerary) => itinerary.map),
+      Effect.provide(trip),
+    )
+
+  const mapOf = (content: ItineraryContent) =>
+    mapIn(tripWith([content]), content.optionNumber)
+
+  const liveMapOf = (optionNumber: number) => mapIn(liveTrip, optionNumber)
+
+  const { tokyo, kyoto, kanazawa, hakone } = places
+
+  it.effect('shows each Base once, in the order the Trip reaches it', () =>
+    Effect.gen(function* () {
+      const { bases } = yield* liveMapOf(1)
+      assert.deepStrictEqual(
+        bases.map(({ romaji, kanji }) => `${romaji} ${kanji}`),
+        ['Tokyo 東京', 'Kyoto 京都', 'Kanazawa 金沢'],
+      )
+    }),
+  )
+
+  it.effect('draws a train Move straight through its stations', () =>
+    Effect.gen(function* () {
+      const { trainMoves } = yield* liveMapOf(1)
+      assert.deepStrictEqual(trainMoves, [
+        { date: december(9), path: [tokyo.coordinates, kyoto.coordinates] },
+        {
+          date: december(13),
+          path: [
+            kyoto.coordinates,
+            stations.tsuruga.coordinates,
+            kanazawa.coordinates,
+          ],
+        },
+        {
+          date: december(17),
+          path: [kanazawa.coordinates, tokyo.coordinates],
+        },
+      ])
+    }),
+  )
+
+  it.effect('joins a train Move’s stations to the Bases it connects', () =>
+    Effect.gen(function* () {
+      const { trainMoves } = yield* liveMapOf(2)
+      assert.deepStrictEqual(trainMoves.slice(1), [
+        {
+          date: december(14),
+          path: [
+            kyoto.coordinates,
+            stations.odawara.coordinates,
+            hakone.coordinates,
+          ],
+        },
+        // The source names no rail section for it.
+        { date: december(17), path: [hakone.coordinates, tokyo.coordinates] },
+      ])
+    }),
+  )
+
+  it.effect('draws a flight from Base to Base, never as a train', () =>
+    Effect.gen(function* () {
+      const { trainMoves, flights } = yield* liveMapOf(4)
+      assert.deepStrictEqual(
+        {
+          trainMoves: trainMoves.map((move) => move.date),
+          flights: flights.map(
+            ({ date, mode, from, to }) =>
+              `${date} ${mode} ${from.romaji} → ${to.romaji}`,
+          ),
+        },
+        {
+          trainMoves: [december(9), december(13)],
+          flights: ['2026-12-17 flight Fukuoka → Tokyo'],
+        },
+      )
+    }),
+  )
+
+  it.effect('draws nothing for a local Move', () =>
+    Effect.gen(function* () {
+      const stays = withStays(
+        ['tokyo', 6, 9],
+        ['kyoto', 9, 13],
+        ['kanazawa', 13, 17],
+        ['tokyo', 17, 18],
+        ['tokyo', 18, 20],
+      )
+      const { trainMoves, flights } = yield* mapOf(
+        option1With({
+          ...stays,
+          moves: stays.moves.map((move) =>
+            move.date === december(18) ? { ...move, mode: 'local' } : move,
+          ),
+        }),
+      )
+      assert.deepStrictEqual(
+        [...trainMoves, ...flights].map((move) => move.date),
+        [december(9), december(13), december(17)],
+      )
+    }),
+  )
+
+  it.effect(
+    'draws a Day trip once from its Base, optional only when every one is',
+    () =>
+      Effect.gen(function* () {
+        const { dayTrips } = yield* mapOf(
+          option1With({
+            dayTrips: [
+              ...option1.dayTrips,
+              { date: december(19), place: 'enoshima', optional: false },
+              { date: december(19), place: 'kamakura', optional: true },
+              { date: december(10), place: 'uji', optional: true },
+            ],
+          }),
+        )
+        assert.deepStrictEqual(
+          dayTrips.map(
+            ({ from, to, optional }) =>
+              `${from.romaji} → ${to.romaji}${optional ? ' (optional)' : ''}`,
+          ),
+          ['Tokyo → Kamakura', 'Kyoto → Uji (optional)', 'Tokyo → Enoshima'],
+        )
+      }),
   )
 })

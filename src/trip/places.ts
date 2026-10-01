@@ -2,6 +2,12 @@
 // here, so this shape can't be derived from that schema without a cycle.
 import type { DisplayString } from '@/fonts/display-strings'
 
+/** A point in decimal degrees, shared by the place and station catalogues. */
+export type CatalogueCoordinates = {
+  readonly latitude: number
+  readonly longitude: number
+}
+
 /**
  * The one catalogue of places that Bases and Day trip destinations share,
  * keyed by stable id. Coordinates, in decimal degrees, are the town's main
@@ -73,10 +79,7 @@ export const places = {
   {
     readonly romaji: string
     readonly kanji: DisplayString
-    readonly coordinates: {
-      readonly latitude: number
-      readonly longitude: number
-    }
+    readonly coordinates: CatalogueCoordinates
   }
 >
 
