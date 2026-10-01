@@ -63,6 +63,11 @@ export const places = {
     kanji: '宇治',
     coordinates: { latitude: 34.8893, longitude: 135.8077 },
   },
+  dazaifu: {
+    romaji: 'Dazaifu',
+    kanji: '太宰府',
+    coordinates: { latitude: 33.519, longitude: 130.5314 },
+  },
 } as const satisfies Record<
   string,
   {

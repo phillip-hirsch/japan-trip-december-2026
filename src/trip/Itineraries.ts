@@ -4,6 +4,9 @@ import { Context, Layer, Predicate } from 'effect'
 
 import type { Itinerary, ItineraryContent } from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
+import { option2 } from '@/trip/itineraries/option-2'
+import { option3 } from '@/trip/itineraries/option-3'
+import { option4 } from '@/trip/itineraries/option-4'
 
 /** JSON with every object's keys sorted, so key order never matters. */
 const canonicalJson = (value: unknown): string =>
@@ -38,5 +41,10 @@ export class Itineraries extends Context.Service<
       }),
     )
 
-  static readonly layer = Itineraries.fromContent([option1])
+  static readonly layer = Itineraries.fromContent([
+    option1,
+    option2,
+    option3,
+    option4,
+  ])
 }

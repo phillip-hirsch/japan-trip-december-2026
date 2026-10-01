@@ -128,6 +128,10 @@ Issues and PRDs are tracked in GitHub Issues using the `gh` CLI. See `docs/agent
 
 Triage uses the default mattpocock/skills label vocabulary. See `docs/agents/triage-labels.md`.
 
+### Itineraries
+
+To add or revise an Itinerary from gpt-6-astra's markdown, follow `docs/agents/itineraries.md`.
+
 ### Domain docs
 
 This repo uses a single-context domain-doc layout. See `docs/agents/domain.md`.
