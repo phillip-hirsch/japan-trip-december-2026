@@ -227,6 +227,9 @@ function DefaultLoader() {
   )
 }
 
+// How long the first style may take before the map counts as failed.
+const STYLE_LOAD_TIMEOUT_MS = 20_000
+
 function getViewport(map: MapLibreGL.Map): MapViewport {
   const center = map.getCenter()
   return {
@@ -257,6 +260,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
   const [isLoaded, setIsLoaded] = useState(false)
   const [isStyleLoaded, setIsStyleLoaded] = useState(false)
   const [pendingStyle, setPendingStyle] = useState<MapStyleOption | null>(null)
+  const [startupError, setStartupError] = useState<Error | null>(null)
   const currentStyleRef = useRef<MapStyleOption | null>(null)
   const styleSwapInFlightRef = useRef(false)
   const internalUpdateRef = useRef(false)
@@ -306,7 +310,25 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       ...viewport,
     })
 
+    // MapLibre reports a style that fails to load, such as while offline, as
+    // an event rather than throwing, and never fires `load`. Until the first
+    // style loads, an error or the timeout fails the map instead, so the
+    // nearest error boundary can replace it. Later errors, such as a missing
+    // tile, leave the map running.
+    let firstStyleLoaded = false
+    const startupTimeout = setTimeout(
+      () => setStartupError(new Error('The map style did not load in time')),
+      STYLE_LOAD_TIMEOUT_MS,
+    )
+    const errorHandler = ({ error }: MapLibreGL.ErrorEvent) => {
+      if (firstStyleLoaded) return
+      clearTimeout(startupTimeout)
+      setStartupError(new Error(error.message, { cause: error }))
+    }
+
     const styleLoadHandler = () => {
+      firstStyleLoaded = true
+      clearTimeout(startupTimeout)
       styleSwapInFlightRef.current = false
       setIsStyleLoaded(true)
     }
@@ -320,12 +342,15 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
 
     map.on('load', loadHandler)
     map.on('style.load', styleLoadHandler)
+    map.on('error', errorHandler)
     map.on('move', handleMove)
     setMapInstance(map)
 
     return () => {
+      clearTimeout(startupTimeout)
       map.off('load', loadHandler)
       map.off('style.load', styleLoadHandler)
+      map.off('error', errorHandler)
       map.off('move', handleMove)
       map.remove()
       setIsLoaded(false)
@@ -402,6 +427,8 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     }),
     [mapInstance, isLoaded, isStyleLoaded, resolvedTheme],
   )
+
+  if (startupError) throw startupError
 
   return (
     <MapContext.Provider value={contextValue}>
