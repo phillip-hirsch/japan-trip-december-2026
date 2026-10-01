@@ -40,7 +40,7 @@ vp run dev
 
 `vp run dev` is the dev script: `vp dev` on port 3000. Open http://localhost:3000.
 
-Local requests pass Wrangler's Access simulation. `.dev.vars` supplies `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `ACCESS_ALLOWED_EMAIL`, and `ACCESS_DEV_SIMULATION` for `vp dev` and `vp preview`.
+Local requests pass Wrangler's Access simulation. For `vp dev` and `vp preview`, `.dev.vars` sets `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_DEV_SIMULATION`. The allowed email is `ACCESS_ALLOWED_EMAIL` under `vars` in `wrangler.jsonc`.
 
 ```bash
 vp check           # format, lint, and typecheck
