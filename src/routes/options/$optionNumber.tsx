@@ -1,6 +1,7 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { DayTimeline } from '@/components/day-timeline'
+import { ItineraryMap } from '@/components/itinerary-map'
 import { ItineraryReasoning } from '@/components/itinerary-reasoning'
 import { ItinerarySummaryHeader } from '@/components/itinerary-summary'
 import { StayList } from '@/components/stay-list'
@@ -34,6 +35,12 @@ function ItineraryPage() {
       <ItinerarySummaryHeader summary={itinerary}>
         <VerifyClaims claims={itinerary.verifyClaims} className="mt-6" />
       </ItinerarySummaryHeader>
+      <section aria-labelledby="map" className="mt-12">
+        <h2 id="map" className="mb-4 text-xl font-semibold">
+          Map
+        </h2>
+        <ItineraryMap map={itinerary.map} />
+      </section>
       <section aria-labelledby="stays" className="mt-12">
         <h2 id="stays" className="mb-4 text-xl font-semibold">
           Stays

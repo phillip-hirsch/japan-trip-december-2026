@@ -11,14 +11,18 @@ import { ItineraryNotFound } from '@/trip/domain'
 import type {
   Anchor,
   BaseNights,
+  Coordinates,
   Countdown,
+  DayTrip,
   DayTripDetail,
   HomeState,
   IsoDate,
   Itinerary,
   ItineraryComparison,
   ItineraryDetail,
+  ItineraryMap,
   ItinerarySummary,
+  MapDayTrip,
   MoveDetail,
   MovesComparison,
   MoveSummary,
@@ -237,17 +241,36 @@ const birthdayOf = ({ stays, birthdayOutline }: Itinerary) => {
   }
 }
 
-const dayTripsOf = ({ dayTrips }: Itinerary): Array<DayTripDetail> => {
-  const optionalByPlace = new Map<PlaceId, boolean>()
+/**
+ * Each group of Day trips once, by its first Day trip, in the order the Trip
+ * first makes one. A group is optional only when every Day trip in it is. A
+ * Day trip without a group is left out.
+ */
+const groupedDayTrips = (
+  dayTrips: ReadonlyArray<DayTrip>,
+  groupOf: (dayTrip: DayTrip) => string | undefined,
+) => {
+  const groups = new Map<string, { first: DayTrip; optional: boolean }>()
   const byDate = [...dayTrips].sort((a, b) => a.date.localeCompare(b.date))
-  for (const { place, optional } of byDate) {
-    optionalByPlace.set(place, (optionalByPlace.get(place) ?? true) && optional)
+  for (const dayTrip of byDate) {
+    const group = groupOf(dayTrip)
+    if (group === undefined) continue
+    const seen = groups.get(group)
+    groups.set(group, {
+      first: seen?.first ?? dayTrip,
+      optional: (seen?.optional ?? true) && dayTrip.optional,
+    })
   }
-  return Array.from(optionalByPlace, ([place, optional]) => ({
-    place: placeOf(place),
-    optional,
-  }))
+  return Array.from(groups.values())
 }
+
+const dayTripsOf = ({ dayTrips }: Itinerary): Array<DayTripDetail> =>
+  groupedDayTrips(dayTrips, (dayTrip) => dayTrip.place).map(
+    ({ first, optional }) => ({ place: placeOf(first.place), optional }),
+  )
+
+const flightsOf = (moves: ReadonlyArray<DatedMove>) =>
+  moves.filter((move) => move.mode === 'flight').map(moveSummaryOf)
 
 const comparisonOf = (itinerary: Itinerary): ItineraryComparison => {
   const moves = datedMovesOf(itinerary)
@@ -257,10 +280,58 @@ const comparisonOf = (itinerary: Itinerary): ItineraryComparison => {
     moves: movesOf(moves),
     thursdayBackup: hasThursdayBackup(itinerary.stays),
     dayTrips: dayTripsOf(itinerary),
-    flights: moves.filter((move) => move.mode === 'flight').map(moveSummaryOf),
+    flights: flightsOf(moves),
     ryokanStays: itinerary.stays
       .filter((stay) => stay.accommodation === 'ryokan')
       .map(staySummaryOf),
+  }
+}
+
+/** Each point once where consecutive points coincide. */
+const withoutRepeats = (path: ReadonlyArray<Coordinates>) =>
+  path.filter((point, index) => {
+    const previous = path[index - 1]
+    return (
+      previous?.latitude !== point.latitude ||
+      previous.longitude !== point.longitude
+    )
+  })
+
+/** Each pair of Base and Day trip destination once. */
+const mapDayTripsOf = ({ stays, dayTrips }: Itinerary): Array<MapDayTrip> => {
+  const baseOf = (dayTrip: DayTrip) => stayForNight(stays, dayTrip.date)?.base
+  return groupedDayTrips(dayTrips, (dayTrip) => {
+    const base = baseOf(dayTrip)
+    return base && `${base} ${dayTrip.place}`
+  }).flatMap(({ first, optional }) => {
+    const base = baseOf(first)
+    return base
+      ? [{ from: placeOf(base), to: placeOf(first.place), optional }]
+      : []
+  })
+}
+
+const mapOf = (itinerary: Itinerary): ItineraryMap => {
+  const moves = datedMovesOf(itinerary)
+  return {
+    bases: Array.from(new Set(itinerary.stays.map((stay) => stay.base))).map(
+      placeOf,
+    ),
+    trainMoves: moves
+      .filter((move) => move.mode === 'train')
+      .map((move) => ({
+        date: move.date,
+        path: withoutRepeats([
+          move.from.coordinates,
+          ...move.sections.flatMap((section) => [
+            section.from.coordinates,
+            section.to.coordinates,
+          ]),
+          move.to.coordinates,
+        ]),
+      })),
+    flights: flightsOf(moves),
+    dayTrips: mapDayTripsOf(itinerary),
   }
 }
 
@@ -312,6 +383,7 @@ const detailOf = (itinerary: Itinerary): ItineraryDetail => {
           ),
       }
     }),
+    map: mapOf(itinerary),
   }
 }
 

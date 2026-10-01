@@ -32,15 +32,19 @@ export const december = (day: number) =>
 
 export const PlaceId = Schema.Literals(placeIds)
 
+/** A point on the map, in decimal degrees. */
+export const Coordinates = Schema.Struct({
+  latitude: Schema.Finite,
+  longitude: Schema.Finite,
+})
+export type Coordinates = typeof Coordinates.Type
+
 /** A place from the catalogue, with whether it's a New place for Phillip. */
 export const Place = Schema.Struct({
   id: PlaceId,
   romaji: Schema.String,
   kanji: Schema.Literals(displayStrings),
-  coordinates: Schema.Struct({
-    latitude: Schema.Finite,
-    longitude: Schema.Finite,
-  }),
+  coordinates: Coordinates,
   newPlace: Schema.Boolean,
 })
 export type Place = typeof Place.Type
@@ -68,7 +72,11 @@ export type Stay = typeof Stay.Type
 
 export const StationId = Schema.Literals(stationIds)
 
-export const Station = Schema.Struct({ id: StationId, name: Schema.String })
+export const Station = Schema.Struct({
+  id: StationId,
+  name: Schema.String,
+  coordinates: Coordinates,
+})
 export type Station = typeof Station.Type
 
 export const RailSectionMode = Schema.Literals([
@@ -350,8 +358,39 @@ export const ItineraryComparison = Schema.Struct({
 export type ItineraryComparison = typeof ItineraryComparison.Type
 
 /**
- * One Itinerary as its page shows it: its summary, Stays, all 15 Days and
- * gpt-6-astra's reasoning.
+ * A train Move as the map draws it: straight lines from the Base it leaves,
+ * through the stations of its rail sections, to the Base it reaches.
+ */
+export const MapTrainMove = Schema.Struct({
+  date: IsoDate,
+  path: Schema.Array(Coordinates),
+})
+export type MapTrainMove = typeof MapTrainMove.Type
+
+/** A Day trip as the map draws it, from its Base to its destination. */
+export const MapDayTrip = Schema.Struct({
+  from: Place,
+  to: Place,
+  /** Optional only when every Day trip between the two is. */
+  optional: Schema.Boolean,
+})
+export type MapDayTrip = typeof MapDayTrip.Type
+
+/** An Itinerary on its map. Local Moves stay within a Base and draw nothing. */
+export const ItineraryMap = Schema.Struct({
+  /** Each Base once, in the order the Trip first reaches it. */
+  bases: Schema.Array(Place),
+  trainMoves: Schema.Array(MapTrainMove),
+  /** Each flight from Base to Base, drawn as an arc. */
+  flights: Schema.Array(MoveSummary),
+  /** Each pair of Base and destination once, drawn dashed. */
+  dayTrips: Schema.Array(MapDayTrip),
+})
+export type ItineraryMap = typeof ItineraryMap.Type
+
+/**
+ * One Itinerary as its page shows it: its summary, Stays, all 15 Days,
+ * gpt-6-astra's reasoning and its map.
  */
 export const ItineraryDetail = Schema.Struct({
   ...ItinerarySummary.fields,
@@ -361,6 +400,7 @@ export const ItineraryDetail = Schema.Struct({
   days: Schema.Array(DayDetail),
   /** The Verify claims about the Itinerary as a whole. */
   verifyClaims: Schema.Array(VerifyClaimDetail),
+  map: ItineraryMap,
 })
 export type ItineraryDetail = typeof ItineraryDetail.Type
 

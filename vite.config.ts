@@ -58,6 +58,9 @@ const config = defineConfig({
     options: { typeAware: true, typeCheck: true },
   },
   resolve: { tsconfigPaths: true },
+  // MapLibre's docs ask TanStack Start apps to bundle it, avoiding CJS
+  // resolution issues. The map itself never renders on the server.
+  ssr: { noExternal: ['maplibre-gl'] },
   test: { include: ['src/**/*.test.ts'] },
   // Tests run the Effect services in Node; the Worker and UI plugins are only
   // for dev and build (the Cloudflare plugin cannot start under Vitest).
