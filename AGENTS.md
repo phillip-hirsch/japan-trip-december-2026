@@ -107,7 +107,7 @@ Router integration (Base UI, so no `asChild`):
 
 ### Pinning
 
-`effect`, `@effect/vitest` and every Effect SQL driver share one exact release-candidate version, bumped together. `@effect/tsgo` is versioned independently, against the TypeScript and Oxlint versions it supports.
+`effect`, `@effect/vitest` and every Effect SQL driver share one exact version, bumped together. `@effect/tsgo` is versioned independently, against the TypeScript and Oxlint versions it supports.
 
 ## Testing
 
