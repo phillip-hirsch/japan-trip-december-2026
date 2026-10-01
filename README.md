@@ -6,9 +6,9 @@ Private web app for Phillip's fourth trip to Japan, December 6–20, 2026 (14 ni
 
 Four phases, in order. Spec: [issue #1](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/1).
 
-**Phase 1, compare.** Built. Home counts whole days until midnight on December 6 in Tokyo. Options 1–4 show their stays, all 15 days, and the anchors: arrival, the Shigeharu visit on the morning of December 11, the birthday on December 15, and departure. `/options` compares them on the same rows and on one map. Each itinerary page has its own map. Train moves follow the real rail lines when the route is known. A move with no route is a straight line between the places it joins.
+**Phase 1, compare.** Built. Home counts whole days until midnight on December 6 in Tokyo. Options 1–4 show their stays, all 15 days, and the anchors: arrival, the Shigeharu visit on the morning of December 11, the birthday on December 15, and departure. `/options` compares them on the same rows and on one map. Each itinerary page has its own map. Train moves follow the real rail lines when the route is known. A move with no route is a straight line between the places it joins. `/options` and every itinerary page are prerendered; Home stays dynamic.
 
-Still open: prerender those pages ([#13](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/13)) and deploy behind Cloudflare Access ([#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14)).
+Still open: deploy behind Cloudflare Access ([#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14)).
 
 **Phase 2, schedule.** Not built. Choosing copies an itinerary into a schedule that later revisions leave alone, with notes, a checklist, and Today on Home, stored in a SQLite Durable Object near Japan ([ADR 0001](docs/adr/0001-durable-object-sqlite-for-schedule-data.md)).
 
@@ -44,7 +44,7 @@ vp run typecheck   # patched tsc, including Effect diagnostics
 vp test            # tests under src/
 ```
 
-`vp build` builds the Worker. `vp preview` serves that build with the same Access simulation.
+`vp build` builds the Worker and prerenders `/options` and every Itinerary page in the catalogue (`scripts/prerender.ts`), fetching them through the preview's Access simulation. The build fails if a listed page's HTML is missing, if any HTML contains an email address, or if a page links to an Itinerary page that isn’t prerendered. `vp preview` serves that build with the same Access simulation.
 
 ## Deploy
 

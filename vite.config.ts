@@ -8,6 +8,11 @@ import { cloudflare } from '@cloudflare/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 
+import {
+  checkPrerenderedHtml,
+  readPrerenderedPaths,
+} from './scripts/prerender.ts'
+
 import effectTsconfig from './tsconfig.effect.json' with { type: 'json' }
 
 // tsconfig.effect.json is the single Effect diagnostics policy. The patched tsc
@@ -66,17 +71,28 @@ const config = defineConfig({
   test: { include: ['src/**/*.test.ts'] },
   // Tests run the Effect services in Node; the Worker and UI plugins are only
   // for dev and build (the Cloudflare plugin cannot start under Vitest).
-  plugins: lazyPlugins(() =>
-    process.env.VITEST
-      ? []
-      : [
-          devtools(),
-          cloudflare({ viteEnvironment: { name: 'ssr' } }),
-          tailwindcss(),
-          tanstackStart(),
-          viteReact({ compiler: true }),
-        ],
-  ),
+  plugins: lazyPlugins(async () => {
+    if (process.env.VITEST) return []
+    const prerenderedPaths = await readPrerenderedPaths()
+    return [
+      devtools(),
+      cloudflare({ viteEnvironment: { name: 'ssr' } }),
+      tailwindcss(),
+      // Prerenders through the local preview, whose Access dev simulation
+      // passes the gate as it does for `vp dev`.
+      tanstackStart({
+        pages: prerenderedPaths.map((path) => ({ path })),
+        prerender: {
+          enabled: true,
+          crawlLinks: false,
+          autoStaticPathsDiscovery: false,
+          autoSubfolderIndex: false,
+        },
+      }),
+      viteReact({ compiler: true }),
+      checkPrerenderedHtml(prerenderedPaths),
+    ]
+  }),
 })
 
 export default config
