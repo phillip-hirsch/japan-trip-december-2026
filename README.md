@@ -6,7 +6,7 @@ A private companion for Phillip's fourth trip to Japan: 14 nights, arriving Sund
 
 The [spec](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/1) splits the work into four phases. They ship in order.
 
-**Phase 1 — compare the itineraries.** This is what the repo runs today. Home counts whole days until midnight on December 6 in Tokyo. Four itineraries, Option 1 through Option 4, each show their stays, all 15 days, and the anchors every option has to respect: arrival, the Shigeharu visit on the morning of December 11, the birthday on December 15, and departure. `/options` lines them up on the same rows and on one map. Each itinerary page has its own map, with train moves drawn along the real rail lines.
+**Phase 1 — compare the itineraries.** This is what the repo runs today. Home counts whole days until midnight on December 6 in Tokyo. Four itineraries, Option 1 through Option 4, each show their stays, all 15 days, and the anchors every option has to respect: arrival, the Shigeharu visit on the morning of December 11, the birthday on December 15, and departure. `/options` lines them up on the same rows and on one map. Each itinerary page has its own map. Train moves follow the real rail lines when the route is known. A move with no route is a straight line between the places it joins.
 
 Two Phase 1 issues are still open: prerendering the comparison and itinerary pages ([#13](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/13)), and deploying the Worker behind Cloudflare Access ([#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14)).
 
