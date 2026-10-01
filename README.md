@@ -70,7 +70,3 @@ The repository is public on purpose. Itineraries and these docs belong here. A s
 - [`docs/agents/itineraries.md`](docs/agents/itineraries.md) — how to add or revise an itinerary.
 
 Issues labelled [`ready-for-agent`](https://github.com/phillip-hirsch/japan-trip-december-2026/issues?q=is%3Aissue+is%3Aopen+label%3Aready-for-agent) are specified enough for an agent to pick up. `ready-for-human` means a deploy or a check on the phone.
-
-## Contributing
-
-This is Phillip's trip app. Pull requests are welcome, including from agents. Start from a `ready-for-agent` issue. Tracker conventions live in [`docs/agents/issue-tracker.md`](docs/agents/issue-tracker.md).
