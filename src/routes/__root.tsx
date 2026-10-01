@@ -3,6 +3,7 @@ import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
 import { AppSidebar, BottomTabBar } from '@/components/app-nav'
+import { ConnectionBanner } from '@/components/connection-banner'
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/toast'
 import { TooltipProvider } from '@/components/ui/tooltip'
@@ -65,6 +66,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
               </SidebarProvider>
             </TooltipProvider>
           </Toaster>
+          <ConnectionBanner />
         </div>
         <TanStackDevtools
           config={{

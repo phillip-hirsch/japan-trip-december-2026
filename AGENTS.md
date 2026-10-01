@@ -115,7 +115,7 @@ Tests are colocated with the modules they exercise (`*.test.ts` under `src/`), w
 
 - Drive behaviour only through a public seam: the Trip service or the Access gate.
 - Assert only on returned values, described in glossary terms (`CONTEXT.md`).
-- Build the module under test for real; substitute only its dependencies (Itinerary catalogue, Clock, SQL client, key-set transport, link resolver) through layers.
+- Build the module under test for real; substitute only its dependencies (Itinerary catalogue, Clock, SQL client, configuration, key-set transport, link resolver) through layers.
 - Read state back through the seam; tables, internal helpers and component internals stay uninspected.
 
 ## Agent skills
