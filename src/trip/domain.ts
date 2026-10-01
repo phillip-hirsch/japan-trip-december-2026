@@ -358,8 +358,19 @@ export const ItineraryComparison = Schema.Struct({
 export type ItineraryComparison = typeof ItineraryComparison.Type
 
 /**
- * A train Move as the map draws it: straight lines from the Base it leaves,
- * through the stations of its rail sections, to the Base it reaches.
+ * A rail section as the map draws it: along its rail line, or straight
+ * between its stations when the rail geometry lacks it.
+ */
+export const MapRailSection = Schema.Struct({
+  ...RailSectionDetail.fields,
+  followsRailLine: Schema.Boolean,
+})
+export type MapRailSection = typeof MapRailSection.Type
+
+/**
+ * A train Move as the map draws it: from the Base it leaves, along each of
+ * its rail sections in turn, to the Base it reaches. Its stations join their
+ * Bases with straight lines.
  */
 export const MapTrainMove = Schema.Struct({
   date: IsoDate,
@@ -385,6 +396,11 @@ export const ItineraryMap = Schema.Struct({
   flights: Schema.Array(MoveSummary),
   /** Each pair of Base and destination once, drawn dashed. */
   dayTrips: Schema.Array(MapDayTrip),
+  /**
+   * The credit the rail geometry's licence requires, present only when a
+   * train Move follows a rail line.
+   */
+  railAttribution: Schema.optionalKey(Schema.String),
 })
 export type ItineraryMap = typeof ItineraryMap.Type
 

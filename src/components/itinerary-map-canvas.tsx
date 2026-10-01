@@ -73,9 +73,10 @@ function DestinationMarker({ place }: { place: Place }) {
 }
 
 /**
- * The map itself, loaded lazily: Bases as points, train Moves as solid
- * lines, flights as arcs and Day trips as dashed lines, framed to fit them
- * all. Gestures are cooperative so the page still scrolls past the map.
+ * The map itself, loaded lazily: Bases as points, train Moves as solid lines
+ * along their rail lines, flights as arcs and Day trips as dashed lines,
+ * framed to fit them all. Gestures are cooperative so the page still scrolls
+ * past the map.
  */
 export default function ItineraryMapCanvas({ map }: { map: ItineraryMap }) {
   const baseIds = new Set(map.bases.map((base) => base.id))
@@ -92,7 +93,10 @@ export default function ItineraryMapCanvas({ map }: { map: ItineraryMap }) {
       fitBoundsOptions={{ padding: 48 }}
       cooperativeGestures
       // Always shown in full, as the map data's licences require.
-      attributionControl={{ compact: false }}
+      attributionControl={{
+        compact: false,
+        ...(map.railAttribution && { customAttribution: map.railAttribution }),
+      }}
     >
       {map.dayTrips.map(({ from, to, optional }) => (
         <MapRoute
@@ -130,7 +134,8 @@ export default function ItineraryMapCanvas({ map }: { map: ItineraryMap }) {
       {map.bases.map((place) => (
         <BaseMarker key={place.id} place={place} />
       ))}
-      <MapControls />
+      {/* Top right, clear of the attribution, which wraps on phones. */}
+      <MapControls position="top-right" />
     </MapView>
   )
 }

@@ -4,12 +4,15 @@ import { TestClock } from 'effect/testing'
 
 import { december } from '@/trip/domain'
 import type {
+  Coordinates,
   ItineraryContent,
   MoveSummary,
+  RailSectionDetail,
   TripRuleBreak,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
 import { option1 } from '@/trip/itineraries/option-1'
+import { option2 } from '@/trip/itineraries/option-2'
 import { places } from '@/trip/places'
 import { stations } from '@/trip/rail'
 import { Trip } from '@/trip/Trip'
@@ -108,7 +111,47 @@ describe('Trip.home Itineraries', () => {
   )
 })
 
+/** A rail section as "mode line from → to". */
+const describeRailSection = ({ mode, line, from, to }: RailSectionDetail) =>
+  `${mode} ${line} ${from.name} → ${to.name}`
+
+/**
+ * The rail sections the map draws straight because the rail geometry lacks
+ * them, as "mode line from → to". Rebuild the geometry with
+ * `vp run build-rail-geometry` rather than flag one here.
+ */
+const railSectionsDrawnStraight: ReadonlyArray<string> = []
+
 layer(liveTrip)('Every Itinerary', (it) => {
+  it.effect('rides each rail section once, whichever way it’s ridden', () =>
+    Effect.gen(function* () {
+      const trip = yield* Trip
+      assert.deepStrictEqual(
+        (yield* trip.railSections).map(describeRailSection),
+        [
+          'shinkansen tokaido-shinkansen Tokyo → Kyoto',
+          'limited-express thunderbird Kyoto → Tsuruga',
+          'shinkansen hokuriku-shinkansen Tsuruga → Kanazawa',
+          'shinkansen hokuriku-shinkansen Kanazawa → Tokyo',
+          'shinkansen tokaido-shinkansen Kyoto → Odawara',
+          'shinkansen tokaido-sanyo-shinkansen Kyoto → Hakata',
+        ],
+      )
+    }),
+  )
+
+  it.effect('follows the rail line on every rail section not flagged', () =>
+    Effect.gen(function* () {
+      const trip = yield* Trip
+      assert.deepStrictEqual(
+        (yield* trip.railSections)
+          .filter((section) => !section.followsRailLine)
+          .map(describeRailSection),
+        railSectionsDrawnStraight,
+      )
+    }),
+  )
+
   it.effect('satisfies every Trip rule', () =>
     Effect.gen(function* () {
       const trip = yield* Trip
@@ -717,42 +760,171 @@ describe('Itinerary map', () => {
     }),
   )
 
-  it.effect('draws a train Move straight through its stations', () =>
+  const isAt = (place: Coordinates) => (point: Coordinates) =>
+    point.latitude === place.latitude && point.longitude === place.longitude
+
+  it.effect('draws a train Move from Base to Base through each change', () =>
     Effect.gen(function* () {
       const { trainMoves } = yield* liveMapOf(1)
-      assert.deepStrictEqual(trainMoves, [
-        { date: december(9), path: [tokyo.coordinates, kyoto.coordinates] },
-        {
-          date: december(13),
-          path: [
-            kyoto.coordinates,
-            stations.tsuruga.coordinates,
-            kanazawa.coordinates,
-          ],
-        },
-        {
-          date: december(17),
-          path: [kanazawa.coordinates, tokyo.coordinates],
-        },
-      ])
+      assert.deepStrictEqual(
+        trainMoves.map(({ date, path }) => ({
+          date,
+          from: path[0],
+          to: path.at(-1),
+          throughTsuruga: path.some(isAt(stations.tsuruga.coordinates)),
+        })),
+        [
+          {
+            date: december(9),
+            from: tokyo.coordinates,
+            to: kyoto.coordinates,
+            throughTsuruga: false,
+          },
+          {
+            date: december(13),
+            from: kyoto.coordinates,
+            to: kanazawa.coordinates,
+            throughTsuruga: true,
+          },
+          {
+            date: december(17),
+            from: kanazawa.coordinates,
+            to: tokyo.coordinates,
+            throughTsuruga: false,
+          },
+        ],
+      )
     }),
   )
 
-  it.effect('joins a train Move’s stations to the Bases it connects', () =>
+  /** The distance in km from a point to the nearest part of a path. */
+  const kmFrom = (point: Coordinates, path: ReadonlyArray<Coordinates>) => {
+    // Kilometres east and north of the point: close enough at map scale.
+    const kmPerDegree = 111.32
+    const toKm = ({ latitude, longitude }: Coordinates) => ({
+      x:
+        (longitude - point.longitude) *
+        kmPerDegree *
+        Math.cos((point.latitude * Math.PI) / 180),
+      y: (latitude - point.latitude) * kmPerDegree,
+    })
+    const kmFromSegment = (start: Coordinates, end: Coordinates) => {
+      const a = toKm(start)
+      const b = toKm(end)
+      const dx = b.x - a.x
+      const dy = b.y - a.y
+      const lengthSquared = dx ** 2 + dy ** 2
+      const along =
+        lengthSquared === 0
+          ? 0
+          : Math.min(1, Math.max(0, -(a.x * dx + a.y * dy) / lengthSquared))
+      return Math.hypot(a.x + along * dx, a.y + along * dy)
+    }
+    return Math.min(
+      ...path
+        .slice(1)
+        .map((end, index) => kmFromSegment(path[index] ?? end, end)),
+    )
+  }
+
+  // Stations on each line that a straight line between the Bases would miss
+  // by kilometres.
+  const shizuoka = { latitude: 34.9712, longitude: 138.3886 }
+  const linesThrough = [
+    [1, 9, 'Shizuoka', shizuoka],
+    [1, 13, 'Ōmi-Imazu', { latitude: 35.3978, longitude: 136.0321 }],
+    [1, 17, 'Takasaki', { latitude: 36.3216, longitude: 139.0131 }],
+    [1, 17, 'Nagano', { latitude: 36.6437, longitude: 138.1902 }],
+    [2, 14, 'Shizuoka', shizuoka],
+    [3, 13, 'Shizuoka', shizuoka],
+    [4, 13, 'Hiroshima', { latitude: 34.3991, longitude: 132.4742 }],
+  ] as const
+
+  for (const [optionNumber, day, station, coordinates] of linesThrough) {
+    it.effect(
+      `follows the real line through ${station} on Option ${optionNumber}, December ${day}`,
+      () =>
+        Effect.gen(function* () {
+          const { trainMoves } = yield* liveMapOf(optionNumber)
+          const move = trainMoves.find((move) => move.date === december(day))
+          assert.isDefined(move)
+          assert.isBelow(kmFrom(coordinates, move.path), 1)
+        }),
+    )
+  }
+
+  it.effect('joins a train Move to its Bases straight from its stations', () =>
     Effect.gen(function* () {
       const { trainMoves } = yield* liveMapOf(2)
-      assert.deepStrictEqual(trainMoves.slice(1), [
+      assert.deepStrictEqual(
         {
-          date: december(14),
-          path: [
-            kyoto.coordinates,
-            stations.odawara.coordinates,
-            hakone.coordinates,
-          ],
+          toHakone: trainMoves[1]?.path.slice(-2),
+          toTokyo: trainMoves[2],
         },
-        // The source names no rail section for it.
-        { date: december(17), path: [hakone.coordinates, tokyo.coordinates] },
-      ])
+        {
+          toHakone: [stations.odawara.coordinates, hakone.coordinates],
+          // The source names no rail section for it.
+          toTokyo: {
+            date: december(17),
+            path: [hakone.coordinates, tokyo.coordinates],
+          },
+        },
+      )
+    }),
+  )
+
+  it.effect(
+    'draws a rail section without rail geometry straight between its stations',
+    () =>
+      Effect.gen(function* () {
+        const { trainMoves } = yield* mapOf({
+          ...option2,
+          moves: option2.moves.map((move) =>
+            move.date === december(17)
+              ? {
+                  ...move,
+                  // No train runs this way, so the rail geometry never has it.
+                  sections: [
+                    {
+                      mode: 'limited-express',
+                      line: 'thunderbird',
+                      from: 'odawara',
+                      to: 'tokyo',
+                    },
+                  ],
+                }
+              : move,
+          ),
+        })
+        assert.deepStrictEqual(trainMoves.at(-1), {
+          date: december(17),
+          path: [
+            hakone.coordinates,
+            stations.odawara.coordinates,
+            tokyo.coordinates,
+          ],
+        })
+      }),
+  )
+
+  it.effect('credits MLIT on a map that follows the rail lines', () =>
+    Effect.gen(function* () {
+      const { railAttribution } = yield* liveMapOf(1)
+      assert.strictEqual(
+        railAttribution,
+        '「国土数値情報（鉄道データ）」（国土交通省）を加工して作成',
+      )
+    }),
+  )
+
+  it.effect('credits no rail data on a map that follows no rail line', () =>
+    Effect.gen(function* () {
+      const { railAttribution } = yield* mapOf(
+        option1With({
+          moves: option1.moves.map((move) => ({ ...move, sections: [] })),
+        }),
+      )
+      assert.isUndefined(railAttribution)
     }),
   )
 
