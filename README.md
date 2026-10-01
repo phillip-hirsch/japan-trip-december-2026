@@ -6,9 +6,7 @@ Private web app for Phillip's fourth trip to Japan, December 6–20, 2026 (14 ni
 
 Four phases, in order. Spec: [issue #1](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/1).
 
-**Phase 1, compare.** Built. Home counts whole days until midnight on December 6 in Tokyo. Options 1–4 show their stays, all 15 days, and the anchors: arrival, the Shigeharu visit on the morning of December 11, the birthday on December 15, and departure. `/options` compares them on the same rows and on one map. Each itinerary page has its own map. Train moves follow the real rail lines when the route is known. A move with no route is a straight line between the places it joins. `/options` and every itinerary page are prerendered; Home stays dynamic.
-
-Still open: deploy behind Cloudflare Access ([#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14)).
+**Phase 1, compare.** Live at https://japan-trip-december-2026.phillip-b52.workers.dev, behind Cloudflare Access. Home counts whole days until midnight on December 6 in Tokyo. Options 1–4 show their stays, all 15 days, and the anchors: arrival, the Shigeharu visit on the morning of December 11, the birthday on December 15, and departure. `/options` compares them on the same rows and on one map. Each itinerary page has its own map. Train moves follow the real rail lines when the route is known. A move with no route is a straight line between the places it joins. `/options` and every itinerary page are prerendered; Home stays dynamic.
 
 **Phase 2, schedule.** Not built. Choosing copies an itinerary into a schedule that later revisions leave alone, with notes, a checklist, and Today on Home, stored in a SQLite Durable Object near Japan ([ADR 0001](docs/adr/0001-durable-object-sqlite-for-schedule-data.md)).
 
@@ -36,7 +34,7 @@ vp run dev
 
 `vp run dev` runs `vp dev` on port 3000. Open http://localhost:3000.
 
-For `vp dev` and `vp preview`, `.dev.vars` sets `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_DEV_SIMULATION`. `ACCESS_ALLOWED_EMAIL` is under `vars` in `wrangler.jsonc`.
+For `vp dev` and `vp preview`, `.dev.vars` sets `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_DEV_SIMULATION`. Its `ACCESS_AUD` is the real one, matching `access.dev.aud` in `wrangler.jsonc`. `ACCESS_ALLOWED_EMAIL` is under `vars` in `wrangler.jsonc`.
 
 ```bash
 vp check           # format, lint, and typecheck
@@ -48,9 +46,9 @@ vp test            # tests under src/
 
 ## Deploy
 
-`vp run deploy` builds the Worker and runs `wrangler deploy`. The Worker name is `japan-trip-december-2026`. You need `wrangler login`.
+`vp run deploy` builds the Worker and runs `wrangler deploy` to https://japan-trip-december-2026.phillip-b52.workers.dev, the app's stable address. The Worker name is `japan-trip-december-2026`. You need `wrangler login`.
 
-Sign-in is Cloudflare Access, an email one-time PIN for one address. `src/server.ts` checks the assertion. `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_ALLOWED_EMAIL` are Worker variables, not secrets. Until the team domain and audience are set, a deploy refuses every request ([#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14), [ADR 0002](docs/adr/0002-cloudflare-access-instead-of-in-app-login.md)).
+Sign-in is Cloudflare Access, an email one-time PIN for one address. `src/server.ts` checks the assertion. Access is Worker-level: the team is `phillip-hirsch.cloudflareaccess.com`, the policy allows only phillip@350home.com, and the application and global sessions last one month. `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_ALLOWED_EMAIL` are Worker variables in `wrangler.jsonc`, not secrets. `ACCESS_AUD` is the Access application's AUD tag. If the application is ever recreated, update it there and in `.dev.vars`, or the gate refuses every request ([#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14), [ADR 0002](docs/adr/0002-cloudflare-access-instead-of-in-app-login.md)).
 
 The repo is public. Itineraries and these docs are in git. The schedule, checklist, notes, and bookings will live in storage, not in commits ([ADR 0003](docs/adr/0003-itineraries-are-repo-content.md)).
 
