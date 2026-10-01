@@ -69,15 +69,10 @@ export const option2: ItineraryContent = {
         'Your sightseeing day—perhaps the Open-Air Museum or a lake/ropeway outing, depending on conditions.',
     },
     { date: december(17) },
-    // The Stay's row names no Day for these, so both whole Days carry them.
-    {
-      date: december(18),
-      description: 'Optional Enoshima, shopping, and rest before departure.',
-    },
-    {
-      date: december(19),
-      description: 'Optional Enoshima, shopping, and rest before departure.',
-    },
+    // "Optional Enoshima, shopping, and rest before departure" is for the Stay
+    // as a whole, so it describes no Day.
+    { date: december(18) },
+    { date: december(19) },
     { date: december(20) },
   ],
   moves: [

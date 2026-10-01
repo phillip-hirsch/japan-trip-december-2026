@@ -6,6 +6,7 @@ import { Effect, Layer } from 'effect'
 import { december } from '@/trip/domain'
 import type {
   AccommodationKind,
+  IsoDate,
   ItineraryReasoning,
   MoveMode,
   RailSectionMode,
@@ -306,8 +307,8 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         'Your sightseeing day—perhaps the Open-Air Museum or a lake/ropeway outing, depending on conditions.',
       ],
       [17],
-      [18, 'Optional Enoshima, shopping, and rest before departure.'],
-      [19, 'Optional Enoshima, shopping, and rest before departure.'],
+      [18],
+      [19],
       [20],
     ],
     freeDays: [],
@@ -572,7 +573,7 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
     dayTrips: [
       { day: 8, place: 'Kamakura', optional: true },
       { day: 16, place: 'Dazaifu', optional: true },
-      { day: 18, place: 'Enoshima', optional: false },
+      { day: 18, place: 'Enoshima', optional: true },
     ],
     verifyClaims: [shigeharuClaim],
     thursdayBackup: true,
@@ -595,7 +596,7 @@ layer(liveTrip)('The Itinerary catalogue', (it) => {
 })
 
 /** A date in December as its day of the month. */
-const dayOfMonth = (date: string) => Number(date.slice(-2))
+const dayOfMonth = (date: IsoDate) => Number(date.slice(-2))
 
 for (const expected of expectedItineraries) {
   layer(liveTrip)(`Option ${expected.optionNumber}`, (it) => {

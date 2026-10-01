@@ -77,21 +77,13 @@ describe('Trip.home countdown', () => {
 })
 
 describe('Trip.home Itineraries', () => {
-  it.effect('lists each Itinerary by Option number and name', () =>
+  it.effect('lists every Itinerary in the catalogue', () =>
     Effect.gen(function* () {
       const home = yield* homeAt('2026-10-01T00:00:00Z')
-      assert.deepStrictEqual(
-        home.itineraries.map(({ optionNumber, name }) => ({
-          optionNumber,
-          name,
-        })),
-        [
-          { optionNumber: 1, name: 'Kyoto + Kanazawa' },
-          { optionNumber: 2, name: 'Kyoto + Hakone' },
-          { optionNumber: 3, name: 'Tokyo + Kyoto' },
-          { optionNumber: 4, name: 'Kyoto + Fukuoka' },
-        ],
+      const itineraries = yield* Trip.use((trip) => trip.itineraries).pipe(
+        Effect.provide(liveTrip),
       )
+      assert.deepStrictEqual(home.itineraries, itineraries)
     }),
   )
 })

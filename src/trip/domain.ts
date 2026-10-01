@@ -117,8 +117,8 @@ export type Move = typeof Move.Type
 
 /**
  * Going to another town and returning to the same Base on the same day. An
- * optional one includes an either-or choice such as "Uji or a leisurely Kyoto
- * day".
+ * optional one is offered rather than planned, such as "Uji or a leisurely
+ * Kyoto day" or "leave room for Enoshima".
  */
 export const DayTrip = Schema.Struct({
   date: IsoDate,

@@ -107,9 +107,8 @@ export const option4: ItineraryContent = {
   dayTrips: [
     { date: december(8), place: 'kamakura', optional: true },
     { date: december(16), place: 'dazaifu', optional: true },
-    // "Leave room for Enoshima" makes room for it rather than offering a
-    // choice, so it isn't optional.
-    { date: december(18), place: 'enoshima', optional: false },
+    // "Leave room for Enoshima": offered, not planned, so optional.
+    { date: december(18), place: 'enoshima', optional: true },
   ],
   verifyClaims: [shigeharuOpeningDays],
   shigeharuVisit: { date: december(11), slot: 'morning' },
