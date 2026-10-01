@@ -64,5 +64,3 @@ The repo is public. Itineraries and these docs are in git. The schedule, checkli
 - [`docs/adr`](docs/adr): storage, Access, itineraries as repo content
 - [`docs/itinerary.md`](docs/itinerary.md): source write-up
 - [`docs/agents/itineraries.md`](docs/agents/itineraries.md): add or revise an itinerary
-
-[`ready-for-agent`](https://github.com/phillip-hirsch/japan-trip-december-2026/issues?q=is%3Aissue+is%3Aopen+label%3Aready-for-agent) issues are ready for an agent. `ready-for-human` is a deploy or a phone check.
