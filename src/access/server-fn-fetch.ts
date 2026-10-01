@@ -2,6 +2,7 @@ import type { CustomFetch } from '@tanstack/react-start'
 
 import {
   connected,
+  currentConnection,
   offline,
   reportConnection,
 } from '@/access/connection-status'
@@ -47,28 +48,56 @@ const reloadToLogIn = () => {
   return true
 }
 
-let awaitingNetwork = false
+// Soon after going offline, then once a minute.
+const probeDelaysMs = [2_000, 5_000, 15_000, 30_000, 60_000]
+let probing = false
 
 /**
- * Once the browser reports a network again, asks the app whether it is
- * reachable. The browser's `online` event only means a network interface is
- * up (a captive portal or an outage still blocks the app), so the probe's
- * answer, reported like any server function call, decides the banner.
+ * While offline, asks the app whether it is reachable again, until it
+ * answers. The browser's own online state proves nothing either way: an
+ * outage or captive portal can block the app while the browser stays online,
+ * and ending one may never fire an `online` event. So it probes on a backoff
+ * schedule, and at once on `online` or when the page becomes visible; a
+ * hidden page waits until it is visible again. Only a probe's answer,
+ * reported like any server function call, clears the banner.
  */
-const probeWhenOnline = () => {
-  if (awaitingNetwork) return
-  awaitingNetwork = true
-  window.addEventListener(
-    'online',
-    () => {
-      awaitingNetwork = false
-      serverFnFetch(window.location.href, {
-        method: 'HEAD',
-        cache: 'no-store',
-      }).catch(() => {})
-    },
-    { once: true },
-  )
+const probeUntilAnswered = () => {
+  if (probing) return
+  probing = true
+  let attempt = 0
+  let inFlight = false
+  let timer: ReturnType<typeof setTimeout> | undefined
+
+  const stop = () => {
+    probing = false
+    clearTimeout(timer)
+    window.removeEventListener('online', probe)
+    document.removeEventListener('visibilitychange', probeIfVisible)
+  }
+  const schedule = () => {
+    const delay = probeDelaysMs[Math.min(attempt, probeDelaysMs.length - 1)]
+    attempt += 1
+    timer = setTimeout(probeIfVisible, delay)
+  }
+  function probe() {
+    if (inFlight) return
+    inFlight = true
+    clearTimeout(timer)
+    serverFnFetch(window.location.href, { method: 'HEAD', cache: 'no-store' })
+      .catch(() => {})
+      .finally(() => {
+        inFlight = false
+        if (currentConnection() === offline) schedule()
+        else stop()
+      })
+  }
+  function probeIfVisible() {
+    if (document.visibilityState === 'visible') probe()
+  }
+
+  window.addEventListener('online', probe)
+  document.addEventListener('visibilitychange', probeIfVisible)
+  schedule()
 }
 
 /** Reloads the page now, when Phillip asks to log in again. */
@@ -98,7 +127,7 @@ export const serverFnFetch: CustomFetch = async (url, init) => {
   } catch (error) {
     if (!init?.signal?.aborted) {
       reportConnection(offline)
-      probeWhenOnline()
+      probeUntilAnswered()
     }
     throw error
   }

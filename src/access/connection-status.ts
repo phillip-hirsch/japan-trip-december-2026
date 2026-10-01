@@ -18,6 +18,9 @@ export const offline: ConnectionStatus = { _tag: 'Offline' }
 let status: ConnectionStatus = connected
 const listeners = new Set<() => void>()
 
+/** What the latest server function call showed. */
+export const currentConnection = () => status
+
 /** Records what the latest server function call showed. */
 export const reportConnection = (next: ConnectionStatus) => {
   // Once a reload to log in is on its way, nothing else changes the banner.
