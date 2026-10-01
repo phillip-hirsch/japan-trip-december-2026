@@ -1,5 +1,6 @@
-// Trip dates as plain values, safe to import in the browser (no Effect).
-import type { IsoDate } from '@/trip/domain'
+// Trip dates and durations as plain values, safe to import in the browser
+// (no Effect).
+import type { DurationRange, IsoDate } from '@/trip/domain'
 
 /** The Trip's time zone: every Day is a calendar date in Tokyo. */
 export const tripTimeZone = 'Asia/Tokyo'
@@ -43,3 +44,20 @@ export const formatWeekday = format({ weekday: 'short' })
 
 /** A calendar date's day of the month as "6". */
 export const formatDayOfMonth = format({ day: 'numeric' })
+
+const formatMinutes = (minutes: number) => {
+  const hours = Math.floor(minutes / 60)
+  const rest = minutes % 60
+  return [hours > 0 && `${hours} h`, rest > 0 && `${rest} min`]
+    .filter(Boolean)
+    .join(' ')
+}
+
+/** A rough travel time as "about 2 h 15 min" or "3 h 30 min – 4 h 30 min". */
+export const formatDurationRange = ({
+  minMinutes,
+  maxMinutes,
+}: DurationRange) =>
+  minMinutes === maxMinutes
+    ? `about ${formatMinutes(minMinutes)}`
+    : `${formatMinutes(minMinutes)} – ${formatMinutes(maxMinutes)}`

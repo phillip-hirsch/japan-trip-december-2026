@@ -1,5 +1,14 @@
-import { ArrowRightIcon, LuggageIcon } from 'lucide-react'
+import {
+  ArrowRightIcon,
+  BuildingIcon,
+  LuggageIcon,
+  MapPinnedIcon,
+  PlaneIcon,
+  TrainFrontIcon,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 
+import { NewPlaceBadge } from '@/components/new-place-badge'
 import { PlaceName } from '@/components/place-name'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -10,14 +19,22 @@ import {
 } from '@/components/ui/item'
 import { Marker, MarkerContent } from '@/components/ui/marker'
 import { Separator } from '@/components/ui/separator'
+import { VerifyClaims } from '@/components/verify-claims'
 import { cn } from '@/lib/utils'
 import {
   formatDay,
   formatDayOfMonth,
+  formatDurationRange,
   formatNights,
   formatWeekday,
 } from '@/trip/calendar'
-import type { Anchor, DayDetail, StayDetail } from '@/trip/domain'
+import type {
+  Anchor,
+  DayDetail,
+  MoveDetail,
+  MoveMode,
+  StayDetail,
+} from '@/trip/domain'
 
 const anchorBadges: Record<
   Anchor['_tag'],
@@ -35,6 +52,34 @@ function AnchorNote({ anchor }: { anchor: Anchor }) {
     <p className="text-xs text-muted-foreground">
       Tentative, in the {anchor.slot}
       {anchor.thursdayBackup && ', with Thursday morning as a backup'}.
+    </p>
+  )
+}
+
+const moveModes: Record<MoveMode, { label: string; icon: LucideIcon }> = {
+  train: { label: 'Train', icon: TrainFrontIcon },
+  flight: { label: 'Flight', icon: PlaneIcon },
+  local: { label: 'Local', icon: BuildingIcon },
+}
+
+/** How a Move travels: its mode, rough duration and any change of train. */
+function MoveTravel({ move }: { move: MoveDetail }) {
+  const { label, icon: Icon } = moveModes[move.mode]
+  return (
+    <p className="flex flex-wrap items-center gap-x-1.5 pl-5.5 text-xs text-muted-foreground">
+      <Icon className="size-3.5" aria-hidden />
+      <span className="text-foreground">{label}</span>
+      {move.mode !== 'local' && (
+        <span>
+          ·{' '}
+          {move.duration
+            ? formatDurationRange(move.duration)
+            : 'duration not given'}
+        </span>
+      )}
+      {move.changes.map((station) => (
+        <span key={station.id}>· change at {station.name}</span>
+      ))}
     </p>
   )
 }
@@ -112,11 +157,35 @@ function DayItem({ day }: { day: DayDetail }) {
             <PlaceName place={day.move.to} />
           </p>
         )}
+        {day.move && <MoveTravel move={day.move} />}
+        {day.dayTrips.map(({ place, optional }) => (
+          <p
+            key={place.id}
+            className="flex flex-wrap items-center gap-1.5 text-sm"
+          >
+            <MapPinnedIcon
+              className="size-4 text-muted-foreground"
+              aria-hidden
+            />
+            <span className="text-muted-foreground">Day trip</span>
+            <PlaceName place={place} />
+            <NewPlaceBadge place={place} />
+            {optional && (
+              <Badge
+                variant="outline"
+                className="border-dashed font-normal text-muted-foreground"
+              >
+                Optional
+              </Badge>
+            )}
+          </p>
+        ))}
         {day.description !== undefined && (
           <ItemDescription className="line-clamp-none text-foreground">
             {day.description}
           </ItemDescription>
         )}
+        <VerifyClaims claims={day.verifyClaims} className="mt-1" />
       </ItemContent>
     </Item>
   )

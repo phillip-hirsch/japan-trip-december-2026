@@ -2,6 +2,7 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { DayTimeline } from '@/components/day-timeline'
 import { StayList } from '@/components/stay-list'
+import { VerifyClaims } from '@/components/verify-claims'
 import { parseOptionNumber } from '@/trip/params'
 import { getItinerary } from '@/trip/trip.functions'
 
@@ -35,6 +36,7 @@ function ItineraryPage() {
         <p className="mt-3 text-xs tracking-[0.3em] text-muted-foreground uppercase">
           {itinerary.name}
         </p>
+        <VerifyClaims claims={itinerary.verifyClaims} className="mt-6" />
       </header>
       <section aria-labelledby="stays" className="mt-12">
         <h2 id="stays" className="mb-4 text-xl font-semibold">

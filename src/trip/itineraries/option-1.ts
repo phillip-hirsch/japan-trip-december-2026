@@ -6,10 +6,40 @@ export const option1: ItineraryContent = {
   optionNumber: 1,
   name: 'Kyoto + Kanazawa',
   stays: [
-    { base: 'tokyo', checkIn: december(6), checkOut: december(9) },
-    { base: 'kyoto', checkIn: december(9), checkOut: december(13) },
-    { base: 'kanazawa', checkIn: december(13), checkOut: december(17) },
-    { base: 'tokyo', checkIn: december(17), checkOut: december(20) },
+    {
+      base: 'tokyo',
+      checkIn: december(6),
+      checkOut: december(9),
+      accommodation: 'hotel',
+      highlights: [],
+    },
+    {
+      base: 'kyoto',
+      checkIn: december(9),
+      checkOut: december(13),
+      accommodation: 'hotel',
+      highlights: [],
+    },
+    {
+      base: 'kanazawa',
+      checkIn: december(13),
+      checkOut: december(17),
+      accommodation: 'hotel',
+      highlights: [
+        'Kenrokuen',
+        'the castle grounds',
+        'Higashi Chaya',
+        'craft shops',
+        'Omicho Market',
+      ],
+    },
+    {
+      base: 'tokyo',
+      checkIn: december(17),
+      checkOut: december(20),
+      accommodation: 'hotel',
+      highlights: [],
+    },
   ],
   days: [
     { date: december(6), description: 'Arrival evening.' },
@@ -27,6 +57,76 @@ export const option1: ItineraryContent = {
     { date: december(18), description: 'Optional Enoshima afternoon/evening.' },
     { date: december(19), description: 'Shopping and relaxing.' },
     { date: december(20) },
+  ],
+  moves: [
+    {
+      date: december(9),
+      mode: 'train',
+      sections: [
+        {
+          mode: 'shinkansen',
+          line: 'tokaido-shinkansen',
+          from: 'tokyo',
+          to: 'kyoto',
+        },
+      ],
+      duration: { minMinutes: 135, maxMinutes: 135 },
+    },
+    {
+      date: december(13),
+      mode: 'train',
+      sections: [
+        {
+          mode: 'limited-express',
+          line: 'thunderbird',
+          from: 'kyoto',
+          to: 'tsuruga',
+        },
+        {
+          mode: 'shinkansen',
+          line: 'hokuriku-shinkansen',
+          from: 'tsuruga',
+          to: 'kanazawa',
+        },
+      ],
+      duration: { minMinutes: 120, maxMinutes: 120 },
+    },
+    {
+      date: december(17),
+      mode: 'train',
+      sections: [
+        {
+          mode: 'shinkansen',
+          line: 'hokuriku-shinkansen',
+          from: 'kanazawa',
+          to: 'tokyo',
+        },
+      ],
+      duration: { minMinutes: 150, maxMinutes: 150 },
+    },
+  ],
+  dayTrips: [
+    { date: december(8), place: 'kamakura', optional: false },
+    // "Uji or a leisurely Kyoto day": an either-or, so optional.
+    { date: december(12), place: 'uji', optional: true },
+    { date: december(18), place: 'enoshima', optional: true },
+  ],
+  verifyClaims: [
+    {
+      id: 'shigeharu-opening-days',
+      text: 'Recent visitor reports favor Friday mornings, with occasional Thursday openings, but this remains an observed pattern rather than a confirmed December schedule. Keep that morning flexible and have your agent or hotel confirm directly.',
+      attachedTo: { _tag: 'Day', date: december(11) },
+    },
+    {
+      id: 'kanazawa-crab-season',
+      text: 'December also falls within local crab season, which makes a special seafood dinner an appealing birthday plan.',
+      attachedTo: { _tag: 'Stay', checkIn: december(13) },
+    },
+    {
+      id: 'kanazawa-snow',
+      text: 'Kanazawa can be wet and wintry; snow during your dates is possible, not guaranteed.',
+      attachedTo: { _tag: 'Stay', checkIn: december(13) },
+    },
   ],
   shigeharuVisit: { date: december(11), slot: 'morning' },
 }

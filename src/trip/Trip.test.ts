@@ -161,6 +161,35 @@ layer(liveTrip)('Option 1', (it) => {
     }),
   )
 
+  it.effect('lists each Stay’s highlights and accommodation kind', () =>
+    Effect.gen(function* () {
+      const { stays } = yield* option1Detail
+      assert.deepStrictEqual(
+        stays.map((stay) => [
+          stay.base.romaji,
+          stay.accommodation,
+          stay.highlights,
+        ]),
+        [
+          ['Tokyo', 'hotel', []],
+          ['Kyoto', 'hotel', []],
+          [
+            'Kanazawa',
+            'hotel',
+            [
+              'Kenrokuen',
+              'the castle grounds',
+              'Higashi Chaya',
+              'craft shops',
+              'Omicho Market',
+            ],
+          ],
+          ['Tokyo', 'hotel', []],
+        ],
+      )
+    }),
+  )
+
   it.effect(
     'wakes up in Kyoto for Shigeharu on the morning of December 11',
     () =>
@@ -197,7 +226,7 @@ layer(liveTrip)('Option 1', (it) => {
     }),
   )
 
-  it.effect('infers each Move from a Stay boundary', () =>
+  it.effect('connects the two Stays that meet on each Move day', () =>
     Effect.gen(function* () {
       const { days } = yield* option1Detail
       assert.deepStrictEqual(
@@ -208,6 +237,84 @@ layer(liveTrip)('Option 1', (it) => {
           ['Tokyo', 'Kyoto'],
           ['Kyoto', 'Kanazawa'],
           ['Kanazawa', 'Tokyo'],
+        ],
+      )
+    }),
+  )
+
+  it.effect('travels by train on every Move, with its rail sections', () =>
+    Effect.gen(function* () {
+      const { days } = yield* option1Detail
+      assert.deepStrictEqual(
+        days.flatMap(({ move }) =>
+          move
+            ? [
+                {
+                  mode: move.mode,
+                  sections: move.sections.map((section) => [
+                    section.mode,
+                    section.line,
+                    section.from.name,
+                    section.to.name,
+                  ]),
+                },
+              ]
+            : [],
+        ),
+        [
+          {
+            mode: 'train',
+            sections: [['shinkansen', 'tokaido-shinkansen', 'Tokyo', 'Kyoto']],
+          },
+          {
+            mode: 'train',
+            sections: [
+              ['limited-express', 'thunderbird', 'Kyoto', 'Tsuruga'],
+              ['shinkansen', 'hokuriku-shinkansen', 'Tsuruga', 'Kanazawa'],
+            ],
+          },
+          {
+            mode: 'train',
+            sections: [
+              ['shinkansen', 'hokuriku-shinkansen', 'Kanazawa', 'Tokyo'],
+            ],
+          },
+        ],
+      )
+    }),
+  )
+
+  it.effect('gives each Move its duration range and changes of train', () =>
+    Effect.gen(function* () {
+      const { days } = yield* option1Detail
+      assert.deepStrictEqual(
+        days.flatMap(({ date, move }) =>
+          move
+            ? [
+                {
+                  date,
+                  duration: move.duration,
+                  changes: move.changes.map((station) => station.name),
+                },
+              ]
+            : [],
+        ),
+        [
+          {
+            date: december(9),
+            duration: { minMinutes: 135, maxMinutes: 135 },
+            changes: [],
+          },
+          {
+            date: december(13),
+            duration: { minMinutes: 120, maxMinutes: 120 },
+            changes: ['Tsuruga'],
+          },
+          {
+            date: december(17),
+            duration: { minMinutes: 150, maxMinutes: 150 },
+            changes: [],
+          },
         ],
       )
     }),
@@ -234,6 +341,69 @@ layer(liveTrip)('Option 1', (it) => {
         days.filter((day) => day.freeDay).map((day) => day.date),
         ['2026-12-14', '2026-12-16'],
       )
+    }),
+  )
+
+  it.effect('marks Day trips, optional ones included, as New places', () =>
+    Effect.gen(function* () {
+      const { days } = yield* option1Detail
+      assert.deepStrictEqual(
+        days.flatMap(({ date, dayTrips }) =>
+          dayTrips.map(({ place, optional }) => ({
+            date,
+            place: place.romaji,
+            optional,
+            newPlace: place.newPlace,
+          })),
+        ),
+        [
+          {
+            date: december(8),
+            place: 'Kamakura',
+            optional: false,
+            newPlace: true,
+          },
+          { date: december(12), place: 'Uji', optional: true, newPlace: true },
+          {
+            date: december(18),
+            place: 'Enoshima',
+            optional: true,
+            newPlace: true,
+          },
+        ],
+      )
+    }),
+  )
+
+  it.effect('attaches each Verify claim to its Day, Stay or Itinerary', () =>
+    Effect.gen(function* () {
+      const { verifyClaims, stays, days } = yield* option1Detail
+      assert.deepStrictEqual(
+        [
+          ...verifyClaims.map((claim) => ['Itinerary', claim.id]),
+          ...stays.flatMap((stay) =>
+            stay.verifyClaims.map((claim) => [
+              `${stay.base.romaji} Stay`,
+              claim.id,
+            ]),
+          ),
+          ...days.flatMap((day) =>
+            day.verifyClaims.map((claim) => [day.date, claim.id]),
+          ),
+        ],
+        [
+          ['Kanazawa Stay', 'kanazawa-crab-season'],
+          ['Kanazawa Stay', 'kanazawa-snow'],
+          [december(11), 'shigeharu-opening-days'],
+        ],
+      )
+    }),
+  )
+
+  it.effect('has no citation markers left in its text', () =>
+    Effect.gen(function* () {
+      const detail = yield* option1Detail
+      assert.notMatch(JSON.stringify(detail), /content-reference|【|†|\[\d+\]/)
     }),
   )
 
@@ -267,20 +437,36 @@ layer(liveTrip)('Option 1', (it) => {
 })
 
 /** Option 1 with some of its content replaced. */
-const brokenOption1 = (
-  changes: Partial<ItineraryContent>,
-): ItineraryContent => ({ ...option1, ...changes })
+const option1With = (changes: Partial<ItineraryContent>): ItineraryContent => ({
+  ...option1,
+  ...changes,
+})
 
-const stays = (
+/**
+ * Stays over the given nights, with a train Move at each Stay boundary and
+ * none of Option 1's Verify claims, which belong to its own Stays.
+ */
+const withStays = (
   ...ranges: ReadonlyArray<
     readonly [base: ItineraryContent['stays'][number]['base'], number, number]
   >
-) =>
-  ranges.map(([base, checkIn, checkOut]) => ({
+): Pick<ItineraryContent, 'stays' | 'moves' | 'verifyClaims'> => ({
+  stays: ranges.map(([base, checkIn, checkOut]) => ({
     base,
     checkIn: december(checkIn),
     checkOut: december(checkOut),
-  }))
+    accommodation: 'hotel',
+    highlights: [],
+  })),
+  moves: ranges
+    .slice(1)
+    .flatMap(([, checkIn], index) =>
+      ranges[index]?.[2] === checkIn
+        ? [{ date: december(checkIn), mode: 'train', sections: [] }]
+        : [],
+    ),
+  verifyClaims: [],
+})
 
 const ruleBreaksOf = (content: ItineraryContent) =>
   Trip.use((trip) => trip.tripRuleBreaks(content.optionNumber)).pipe(
@@ -297,27 +483,27 @@ describe('Trip rules', () => {
   > = [
     [
       'Shigeharu missing',
-      brokenOption1({ shigeharuVisit: undefined }),
+      option1With({ shigeharuVisit: undefined }),
       [{ _tag: 'ShigeharuMissing' }],
     ],
     [
       'Shigeharu on the wrong date',
-      brokenOption1({
+      option1With({
         shigeharuVisit: { date: december(12), slot: 'morning' },
       }),
       [{ _tag: 'ShigeharuWrongDate', date: december(12) }],
     ],
     [
       'Shigeharu not in the morning',
-      brokenOption1({
+      option1With({
         shigeharuVisit: { date: december(11), slot: 'afternoon' },
       }),
       [{ _tag: 'ShigeharuNotInMorning', slot: 'afternoon' }],
     ],
     [
       'a Move on December 15',
-      brokenOption1({
-        stays: stays(
+      option1With({
+        ...withStays(
           ['tokyo', 6, 9],
           ['kyoto', 9, 15],
           ['kanazawa', 15, 17],
@@ -328,8 +514,8 @@ describe('Trip rules', () => {
     ],
     [
       'a gap',
-      brokenOption1({
-        stays: stays(
+      option1With({
+        ...withStays(
           ['tokyo', 6, 9],
           ['kyoto', 9, 13],
           ['kanazawa', 14, 17],
@@ -340,8 +526,8 @@ describe('Trip rules', () => {
     ],
     [
       'an overlap',
-      brokenOption1({
-        stays: stays(
+      option1With({
+        ...withStays(
           ['tokyo', 6, 9],
           ['kyoto', 9, 13],
           ['kanazawa', 12, 17],
@@ -352,15 +538,15 @@ describe('Trip rules', () => {
     ],
     [
       'ending outside Tokyo',
-      brokenOption1({
-        stays: stays(['tokyo', 6, 9], ['kyoto', 9, 13], ['kanazawa', 13, 20]),
+      option1With({
+        ...withStays(['tokyo', 6, 9], ['kyoto', 9, 13], ['kanazawa', 13, 20]),
       }),
       [{ _tag: 'EndsOutsideTokyo', base: 'kanazawa' }],
     ],
     [
       'not waking up in Kyoto on December 11',
-      brokenOption1({
-        stays: stays(
+      option1With({
+        ...withStays(
           ['tokyo', 6, 11],
           ['kyoto', 11, 13],
           ['kanazawa', 13, 17],
@@ -371,8 +557,8 @@ describe('Trip rules', () => {
     ],
     [
       'a Stay without nights',
-      brokenOption1({
-        stays: stays(
+      option1With({
+        ...withStays(
           ['tokyo', 6, 9],
           ['kyoto', 9, 13],
           ['hakone', 13, 13],
@@ -384,8 +570,8 @@ describe('Trip rules', () => {
     ],
     [
       'not covering December 6 to December 20',
-      brokenOption1({
-        stays: stays(
+      option1With({
+        ...withStays(
           ['tokyo', 7, 9],
           ['kyoto', 9, 13],
           ['kanazawa', 13, 17],
@@ -400,10 +586,53 @@ describe('Trip rules', () => {
         },
       ],
     ],
-    ['no Stays', brokenOption1({ stays: [] }), [{ _tag: 'NoStays' }]],
+    ['no Stays', option1With(withStays()), [{ _tag: 'NoStays' }]],
+    [
+      'a Move where no Stays meet',
+      option1With({
+        moves: [
+          ...option1.moves,
+          { date: december(11), mode: 'local', sections: [] },
+        ],
+      }),
+      [{ _tag: 'MoveWithoutStayBoundary', date: december(11) }],
+    ],
+    [
+      'Stays that meet without a Move',
+      option1With({
+        moves: option1.moves.filter((move) => move.date !== december(13)),
+      }),
+      [{ _tag: 'StayBoundaryWithoutMove', date: december(13) }],
+    ],
+    [
+      'a Verify claim attached to no Stay',
+      option1With({
+        verifyClaims: [
+          {
+            id: 'kyoto-crowds',
+            text: 'Kyoto is quieter in December.',
+            attachedTo: { _tag: 'Stay', checkIn: december(10) },
+          },
+        ],
+      }),
+      [{ _tag: 'UnattachedVerifyClaim', id: 'kyoto-crowds' }],
+    ],
+    [
+      'a Verify claim attached to no Day',
+      option1With({
+        verifyClaims: [
+          {
+            id: 'late-checkout',
+            text: 'Late checkout is free.',
+            attachedTo: { _tag: 'Day', date: december(21) },
+          },
+        ],
+      }),
+      [{ _tag: 'UnattachedVerifyClaim', id: 'late-checkout' }],
+    ],
     [
       'Days other than the 15 Trip Days',
-      brokenOption1({ days: option1.days.slice(1) }),
+      option1With({ days: option1.days.slice(1) }),
       [
         {
           _tag: 'NotTheTripDays',
@@ -420,6 +649,56 @@ describe('Trip rules', () => {
       }),
     )
   }
+})
+
+describe('Free days', () => {
+  it.effect('are not Days with a Day trip', () =>
+    Effect.gen(function* () {
+      const { days } = yield* Trip.use((trip) => trip.itinerary(1)).pipe(
+        Effect.provide(
+          tripWith([
+            option1With({
+              dayTrips: [
+                ...option1.dayTrips,
+                { date: december(14), place: 'kamakura', optional: true },
+              ],
+            }),
+          ]),
+        ),
+      )
+      assert.deepStrictEqual(
+        days.filter((day) => day.freeDay).map((day) => day.date),
+        [december(16)],
+      )
+    }),
+  )
+})
+
+describe('Verify claims', () => {
+  it.effect('can be attached to the Itinerary as a whole', () =>
+    Effect.gen(function* () {
+      const { verifyClaims } = yield* Trip.use((trip) =>
+        trip.itinerary(1),
+      ).pipe(
+        Effect.provide(
+          tripWith([
+            option1With({
+              verifyClaims: [
+                {
+                  id: 'rail-pass',
+                  text: 'Rail pass prices change in October.',
+                  attachedTo: { _tag: 'Itinerary' },
+                },
+              ],
+            }),
+          ]),
+        ),
+      )
+      assert.deepStrictEqual(verifyClaims, [
+        { id: 'rail-pass', text: 'Rail pass prices change in October.' },
+      ])
+    }),
+  )
 })
 
 describe('Itinerary content version', () => {
@@ -452,21 +731,45 @@ describe('Itinerary content version', () => {
     Effect.gen(function* () {
       const original = yield* versionOf(option1)
       const changed: ReadonlyArray<ItineraryContent> = [
-        brokenOption1({ name: 'Kyoto + Kanazawa, revised' }),
-        brokenOption1({
+        option1With({ name: 'Kyoto + Kanazawa, revised' }),
+        option1With({
           days: option1.days.map((day) =>
             day.date === december(14)
               ? { ...day, description: 'Kenrokuen.' }
               : day,
           ),
         }),
-        brokenOption1({
+        option1With({
           stays: option1.stays.map((stay, index) =>
             index === 2 ? { ...stay, base: 'hakone' } : stay,
           ),
         }),
-        brokenOption1({
+        option1With({
           shigeharuVisit: { date: december(10), slot: 'morning' },
+        }),
+        option1With({
+          stays: option1.stays.map((stay) => ({
+            ...stay,
+            highlights: [...stay.highlights, 'Gold leaf ice cream'],
+          })),
+        }),
+        option1With({
+          moves: option1.moves.map((move) => ({
+            ...move,
+            duration: { minMinutes: 120, maxMinutes: 180 },
+          })),
+        }),
+        option1With({
+          dayTrips: option1.dayTrips.map((dayTrip) => ({
+            ...dayTrip,
+            optional: !dayTrip.optional,
+          })),
+        }),
+        option1With({
+          verifyClaims: option1.verifyClaims.map((claim) => ({
+            ...claim,
+            text: `${claim.text} Confirmed.`,
+          })),
         }),
       ]
       for (const content of changed) {
