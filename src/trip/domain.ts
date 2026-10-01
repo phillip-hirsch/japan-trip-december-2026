@@ -159,16 +159,36 @@ export const VerifyClaim = Schema.Struct({
 })
 export type VerifyClaim = typeof VerifyClaim.Type
 
-/** An Itinerary as converted from gpt-6-astra's markdown. */
+/**
+ * gpt-6-astra's reasoning about an Itinerary. A field the source doesn't give
+ * is absent: Option 1 has no "choose this if", only why it is recommended.
+ */
+export const ItineraryReasoning = Schema.Struct({
+  birthdayOutline: Schema.String,
+  pros: Schema.Array(Schema.String),
+  cons: Schema.Array(Schema.String),
+  chooseThisIf: Schema.optionalKey(Schema.String),
+  whyRecommended: Schema.optionalKey(Schema.String),
+  travelNotes: Schema.optionalKey(Schema.String),
+})
+export type ItineraryReasoning = typeof ItineraryReasoning.Type
+
+/**
+ * An Itinerary as converted from gpt-6-astra's markdown. Exactly one is
+ * recommended by gpt-6-astra.
+ */
 export const ItineraryContent = Schema.Struct({
   optionNumber: OptionNumber,
   name: Schema.String,
+  bestFor: Schema.String,
+  recommended: Schema.Boolean,
   stays: Schema.Array(Stay),
   days: Schema.Array(Day),
   moves: Schema.Array(Move),
   dayTrips: Schema.Array(DayTrip),
   verifyClaims: Schema.Array(VerifyClaim),
   shigeharuVisit: Schema.optionalKey(ShigeharuVisit),
+  ...ItineraryReasoning.fields,
 })
 export type ItineraryContent = typeof ItineraryContent.Type
 
@@ -247,15 +267,35 @@ export const DayDetail = Schema.Struct({
 })
 export type DayDetail = typeof DayDetail.Type
 
+/** The nights an Itinerary spends at one Base, across all its Stays there. */
+export const BaseNights = Schema.Struct({ base: Place, nights: Schema.Int })
+export type BaseNights = typeof BaseNights.Type
+
+/** An Itinerary's character at a glance, derived from its data. */
 export const ItinerarySummary = Schema.Struct({
   optionNumber: OptionNumber,
   name: Schema.String,
+  recommended: Schema.Boolean,
+  bestFor: Schema.String,
+  /** Each Base in the order the Trip reaches it. */
+  route: Schema.Array(Place),
+  /** In the order the Trip first reaches each Base. */
+  nightsPerBase: Schema.Array(BaseNights),
+  /**
+   * The New places among its Bases and Day trip destinations, optional Day
+   * trips included, in the order the Trip first reaches them.
+   */
+  newToYou: Schema.Array(Place),
 })
 export type ItinerarySummary = typeof ItinerarySummary.Type
 
-/** One Itinerary as its page shows it: its Stays and all 15 Days. */
+/**
+ * One Itinerary as its page shows it: its summary, Stays, all 15 Days and
+ * gpt-6-astra's reasoning.
+ */
 export const ItineraryDetail = Schema.Struct({
   ...ItinerarySummary.fields,
+  ...ItineraryReasoning.fields,
   contentVersion: Schema.String,
   stays: Schema.Array(StayDetail),
   days: Schema.Array(DayDetail),
