@@ -5,11 +5,15 @@
   "compatibility_flags": ["nodejs_compat"],
   // Runs the Access gate before TanStack Start (ADR 0002).
   "main": "src/server.ts",
-  // The Access gate's configuration; all three values are public. The team
-  // domain and AUD tag are added when the Access application exists (#14);
-  // until then the deployed gate refuses every request with 503.
+  // The app's stable address. Worker-level Access protects it (#14).
+  "workers_dev": true,
+  "preview_urls": false,
+  // The Access gate's configuration; all three values are public. The AUD tag
+  // is the Worker-level Access application's.
   // .dev.vars supplies local values for `vp dev` and `vp preview`.
   "vars": {
+    "ACCESS_TEAM_DOMAIN": "https://phillip-hirsch.cloudflareaccess.com",
+    "ACCESS_AUD": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16",
     "ACCESS_ALLOWED_EMAIL": "phillip@350home.com",
   },
   // Wrangler's Access dev simulation: ctx.access for local requests, with the
@@ -17,7 +21,7 @@
   // .dev.vars sets ACCESS_DEV_SIMULATION, which production never does.
   "access": {
     "dev": {
-      "aud": "local-dev-aud",
+      "aud": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16",
       "identity": { "email": "phillip@350home.com" },
     },
   },

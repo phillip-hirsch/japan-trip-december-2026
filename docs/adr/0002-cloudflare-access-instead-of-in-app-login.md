@@ -6,7 +6,7 @@ The app has one user and holds his bookings, notes and day-by-day whereabouts, s
 
 - Access protects the running app, not the source. The GitHub repository is deliberately public, so the Itineraries (with Trip dates), this ADR and the planning issues are public too. Personal data that must stay private (the Schedule, Checklist and notes) lives only in storage (ADR 0001) and never in the repository.
 - `ctx.access` is not available in production for TanStack Start, because the Static Assets router drops it, so the Worker must verify the JWT itself. In local development, wrangler's `access.dev` block supplies `ctx.access` instead.
-- It is not documented whether Worker-level Access injects the JWT header. Confirm this on the first deploy; if it doesn't, fall back to a hostname-based Access app on the `workers.dev` hostname.
+- It is not documented whether Worker-level Access injects the JWT header. A temporary diagnostic on the first deploy confirmed that it does (#14), so Worker-level Access is used rather than a hostname-based Access app on the `workers.dev` hostname.
 - An expired session breaks `fetch()` calls with an opaque redirect. Server-function calls send `X-Requested-With: XMLHttpRequest` and `redirect: 'manual'`, treat a 401 or `opaqueredirect` response as "session expired", keep unsaved input, and reload the page at the top level to log in again.
 - Worker-level Access blocks WebSockets, which is acceptable because devices sync when the app is opened or regains focus.
 - Before the trip, Phillip logs in in Safari on his iPhone and then adds the app to the Home Screen, since iOS copies cookies into the installed app only once, at install time.
