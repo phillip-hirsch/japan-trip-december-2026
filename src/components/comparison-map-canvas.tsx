@@ -15,6 +15,8 @@ const otherColors = ['#7cc1e9', '#e8be62', '#eee7d9', '#bba3e8', '#75cca7']
 /** How far apart, in pixels, the Itineraries run where they share a path. */
 const laneWidth = 3.5
 
+// Fetched here rather than by the route's loader, so the map's data stays out
+// of the page's initial load along with its code.
 let comparisonMap: Promise<ComparisonMap> | undefined
 
 /** The map's data, fetched once, and again after a failure. */
@@ -39,26 +41,23 @@ const westToEast = (path: ReadonlyArray<Coordinates>) => {
  * Each Itinerary's colour, vermilion when recommended, and its lane: an
  * offset that keeps it beside the others where they share a path.
  */
-const drawn = (itineraries: ComparisonMap['itineraries']) => {
-  let others = 0
-  return itineraries.map((itinerary, index) => ({
-    ...itinerary,
-    color: itinerary.recommended
-      ? recommendedColor
-      : (otherColors[others++ % otherColors.length] ?? recommendedColor),
-    offset: (index - (itineraries.length - 1) / 2) * laneWidth,
-  }))
-}
+const withColorAndLane = (itineraries: ComparisonMap['itineraries']) =>
+  itineraries.map((itinerary, index) => {
+    const others = itineraries
+      .slice(0, index)
+      .filter((other) => !other.recommended).length
+    return {
+      ...itinerary,
+      color: itinerary.recommended
+        ? recommendedColor
+        : otherColors[others % otherColors.length],
+      offset: (index - (itineraries.length - 1) / 2) * laneWidth,
+    }
+  })
 
-function Legend({
-  itineraries,
-}: {
-  itineraries: ReadonlyArray<{
-    optionNumber: number
-    recommended: boolean
-    color: string
-  }>
-}) {
+type Line = ReturnType<typeof withColorAndLane>[number]
+
+function Legend({ itineraries }: { itineraries: ReadonlyArray<Line> }) {
   return (
     <ul
       aria-label="Itineraries on the map"
@@ -87,7 +86,7 @@ function Legend({
  */
 export default function ComparisonMapCanvas() {
   const { bases, itineraries, railAttribution } = use(loadComparisonMap())
-  const lines = drawn(itineraries)
+  const lines = withColorAndLane(itineraries)
   return (
     <TripMapView
       points={[

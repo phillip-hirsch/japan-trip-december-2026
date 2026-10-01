@@ -355,22 +355,20 @@ const mapOf = (itinerary: Itinerary): ItineraryMap => {
 }
 
 const comparisonMapOf = (
-  itineraries: ReadonlyArray<Itinerary>,
+  details: ReadonlyArray<ItineraryDetail>,
 ): ComparisonMap => {
-  const maps = itineraries.map((itinerary) => ({
-    itinerary,
-    map: mapOf(itinerary),
-  }))
-  const railAttribution = maps.find(({ map }) => map.railAttribution)?.map
-    .railAttribution
+  const railAttribution = details
+    .map(({ map }) => map.railAttribution)
+    .find(Boolean)
   return {
     bases: Array.from(
       new Map(
-        maps.flatMap(({ map }) => map.bases).map((base) => [base.id, base]),
+        details.flatMap(({ map }) => map.bases).map((base) => [base.id, base]),
       ).values(),
     ),
-    itineraries: maps.map(({ itinerary, map }) => ({
-      ...Struct.pick(itinerary, ['optionNumber', 'name', 'recommended']),
+    itineraries: details.map(({ optionNumber, recommended, map }) => ({
+      optionNumber,
+      recommended,
       trainMoves: map.trainMoves,
       flights: map.flights,
     })),
@@ -576,7 +574,6 @@ export class Trip extends Context.Service<
       const { all } = yield* Itineraries
       const summaries = all.map(summaryOf)
       const comparisons = all.map(comparisonOf)
-      const comparisonMap = comparisonMapOf(all)
       const railSections = railSectionsOf(all)
       const byOptionNumber = new Map(
         all.map((itinerary) => [itinerary.optionNumber, itinerary]),
@@ -585,6 +582,7 @@ export class Trip extends Context.Service<
       const details = new Map(
         all.map((itinerary) => [itinerary.optionNumber, detailOf(itinerary)]),
       )
+      const comparisonMap = comparisonMapOf(Array.from(details.values()))
 
       const find = Effect.fnUntraced(function* <A>(
         entries: ReadonlyMap<number, A>,

@@ -1015,14 +1015,14 @@ describe('Comparison map', () => {
     Effect.gen(function* () {
       const trip = yield* Trip
       const { itineraries } = yield* trip.comparisonMap
-      const pages = yield* Effect.forEach([1, 2, 3, 4], (optionNumber) =>
-        trip.itinerary(optionNumber),
+      const pages = yield* Effect.forEach(
+        yield* trip.itineraries,
+        ({ optionNumber }) => trip.itinerary(optionNumber),
       )
       assert.deepStrictEqual(
         itineraries,
-        pages.map(({ optionNumber, name, recommended, map }) => ({
+        pages.map(({ optionNumber, recommended, map }) => ({
           optionNumber,
-          name,
           recommended,
           trainMoves: map.trainMoves,
           flights: map.flights,

@@ -1,6 +1,6 @@
 // The Trip's domain types, named as in CONTEXT.md. The schemas run on the
 // server only; the browser imports these types with `import type`.
-import { DateTime, Option, Schema } from 'effect'
+import { DateTime, Option, Schema, Struct } from 'effect'
 
 import { displayStrings } from '@/fonts/display-strings'
 import { placeIds } from '@/trip/places'
@@ -406,11 +406,8 @@ export type ItineraryMap = typeof ItineraryMap.Type
 
 /** An Itinerary's Moves on the comparison map, drawn as on its own map. */
 export const ComparisonMapItinerary = Schema.Struct({
-  optionNumber: OptionNumber,
-  name: Schema.String,
-  recommended: Schema.Boolean,
-  trainMoves: Schema.Array(MapTrainMove),
-  flights: Schema.Array(MoveSummary),
+  ...Struct.pick(ItinerarySummary.fields, ['optionNumber', 'recommended']),
+  ...Struct.pick(ItineraryMap.fields, ['trainMoves', 'flights']),
 })
 export type ComparisonMapItinerary = typeof ComparisonMapItinerary.Type
 
