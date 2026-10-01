@@ -26,6 +26,7 @@
     "class-variance-authority": "^0.7.1",
     "cn": "^0.4.0",
     "effect": "4.0.0",
+    "jose": "^6.2.12",
     "lucide-react": "^1.48.0",
     "maplibre-gl": "6.11.2",
     "react": "^19.3.0",

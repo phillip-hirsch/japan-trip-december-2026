@@ -3,5 +3,22 @@
   "name": "japan-trip-december-2026",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry",
+  // Runs the Access gate before TanStack Start (ADR 0002).
+  "main": "src/server.ts",
+  // The Access gate's configuration; all three values are public. The team
+  // domain and AUD tag are added when the Access application exists (#14);
+  // until then the deployed gate refuses every request with 503.
+  // .dev.vars supplies local values for `vp dev` and `vp preview`.
+  "vars": {
+    "ACCESS_ALLOWED_EMAIL": "phillip@350home.com",
+  },
+  // Wrangler's Access dev simulation: ctx.access for local requests, with the
+  // same AUD as ACCESS_AUD in .dev.vars. The gate reads it only when
+  // .dev.vars sets ACCESS_DEV_SIMULATION, which production never does.
+  "access": {
+    "dev": {
+      "aud": "local-dev-aud",
+      "identity": { "email": "phillip@350home.com" },
+    },
+  },
 }
