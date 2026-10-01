@@ -9,6 +9,7 @@ import {
 import type { LucideIcon } from 'lucide-react'
 
 import { NewPlaceBadge } from '@/components/new-place-badge'
+import { OptionalBadge } from '@/components/optional-badge'
 import { PlaceName } from '@/components/place-name'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -170,14 +171,7 @@ function DayItem({ day }: { day: DayDetail }) {
             <span className="text-muted-foreground">Day trip</span>
             <PlaceName place={place} />
             <NewPlaceBadge place={place} />
-            {optional && (
-              <Badge
-                variant="outline"
-                className="border-dashed font-normal text-muted-foreground"
-              >
-                Optional
-              </Badge>
-            )}
+            {optional && <OptionalBadge />}
           </p>
         ))}
         {day.description !== undefined && (

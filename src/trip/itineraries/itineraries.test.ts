@@ -60,6 +60,23 @@ interface ExpectedItinerary {
     readonly [attachedTo: string, id: string, text: string]
   >
   readonly thursdayBackup: boolean
+  /** The comparison rows that the fields above don't already give. */
+  readonly comparison: {
+    /** The Base on December 15. */
+    readonly birthdayBase: string
+    readonly moves: {
+      readonly count: number
+      readonly travelTime?: readonly [min: number, max: number]
+      /** Each train or flight Move without a duration, as "day mode from → to". */
+      readonly durationNotGiven: ReadonlyArray<string>
+    }
+    /** Each Day trip destination once, marked "(optional)" when it is. */
+    readonly dayTrips: ReadonlyArray<string>
+    /** Each flight Move as "day from → to". */
+    readonly flights: ReadonlyArray<string>
+    /** Each ryokan Stay as "Base, check-in–check-out". */
+    readonly ryokanStays: ReadonlyArray<string>
+  }
 }
 
 const shigeharuClaim = [
@@ -217,6 +234,14 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
       shigeharuClaim,
     ],
     thursdayBackup: true,
+    comparison: {
+      birthdayBase: 'Kanazawa',
+      // 2¼ hours, about 2 hours and about 2½ hours.
+      moves: { count: 3, travelTime: [405, 405], durationNotGiven: [] },
+      dayTrips: ['Kamakura', 'Uji (optional)', 'Enoshima (optional)'],
+      flights: [],
+      ryokanStays: [],
+    },
   },
   {
     optionNumber: 2,
@@ -342,6 +367,18 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
     ],
     verifyClaims: [shigeharuClaim],
     thursdayBackup: false,
+    comparison: {
+      birthdayBase: 'Hakone',
+      // 2¼ hours plus 3½–4½ hours; the return to Tokyo gives none.
+      moves: {
+        count: 3,
+        travelTime: [345, 405],
+        durationNotGiven: ['17 train Hakone → Tokyo'],
+      },
+      dayTrips: ['Kamakura', 'Uji (optional)', 'Enoshima (optional)'],
+      flights: [],
+      ryokanStays: ['Hakone, 14–17'],
+    },
   },
   {
     optionNumber: 3,
@@ -450,6 +487,14 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
       ],
     ],
     thursdayBackup: true,
+    comparison: {
+      birthdayBase: 'Tokyo',
+      // 2¼ hours each way.
+      moves: { count: 2, travelTime: [270, 270], durationNotGiven: [] },
+      dayTrips: ['Kamakura', 'Nikko', 'Enoshima'],
+      flights: [],
+      ryokanStays: [],
+    },
   },
   {
     optionNumber: 4,
@@ -577,6 +622,22 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
     ],
     verifyClaims: [shigeharuClaim],
     thursdayBackup: true,
+    comparison: {
+      birthdayBase: 'Fukuoka',
+      // 2¼ hours plus 2¾ hours; the flight gives none.
+      moves: {
+        count: 3,
+        travelTime: [300, 300],
+        durationNotGiven: ['17 flight Fukuoka → Tokyo'],
+      },
+      dayTrips: [
+        'Kamakura (optional)',
+        'Dazaifu (optional)',
+        'Enoshima (optional)',
+      ],
+      flights: ['17 Fukuoka → Tokyo'],
+      ryokanStays: [],
+    },
   },
 ]
 
@@ -647,6 +708,73 @@ for (const expected of expectedItineraries) {
             expected.newToYou,
           )
         }),
+    )
+
+    it.effect('lines up on every comparison row', () =>
+      Effect.gen(function* () {
+        const itineraries = yield* Trip.use((trip) => trip.itineraries)
+        const compared = itineraries.find(
+          (itinerary) => itinerary.optionNumber === expected.optionNumber,
+        )
+        assert.isDefined(compared)
+        const { travelTime } = compared.moves
+        assert.deepStrictEqual(
+          {
+            bestFor: compared.bestFor,
+            route: compared.route
+              .map(({ kanji, romaji }) => `${kanji} (${romaji})`)
+              .join(' → '),
+            nightsPerBase: compared.nightsPerBase.map(
+              ({ base, nights }) => [base.romaji, nights] as const,
+            ),
+            newToYou: compared.newToYou.map((place) => place.romaji),
+            birthday: [
+              compared.birthday.base?.romaji,
+              compared.birthday.outline,
+            ],
+            moves: {
+              count: compared.moves.count,
+              ...(travelTime && {
+                travelTime: [travelTime.minMinutes, travelTime.maxMinutes],
+              }),
+              durationNotGiven: compared.moves.durationNotGiven.map(
+                ({ date, mode, from, to }) =>
+                  `${dayOfMonth(date)} ${mode} ${from.romaji} → ${to.romaji}`,
+              ),
+            },
+            thursdayBackup: compared.thursdayBackup,
+            dayTrips: compared.dayTrips.map(
+              ({ place, optional }) =>
+                `${place.romaji}${optional ? ' (optional)' : ''}`,
+            ),
+            flights: compared.flights.map(
+              ({ date, from, to }) =>
+                `${dayOfMonth(date)} ${from.romaji} → ${to.romaji}`,
+            ),
+            ryokanStays: compared.ryokanStays.map(
+              ({ base, checkIn, checkOut }) =>
+                `${base.romaji}, ${dayOfMonth(checkIn)}–${dayOfMonth(checkOut)}`,
+            ),
+            recommended: compared.recommended,
+          },
+          {
+            bestFor: expected.bestFor,
+            route: expected.route,
+            nightsPerBase: expected.nightsPerBase,
+            newToYou: expected.newToYou,
+            birthday: [
+              expected.comparison.birthdayBase,
+              expected.reasoning.birthdayOutline,
+            ],
+            moves: expected.comparison.moves,
+            thursdayBackup: expected.thursdayBackup,
+            dayTrips: expected.comparison.dayTrips,
+            flights: expected.comparison.flights,
+            ryokanStays: expected.comparison.ryokanStays,
+            recommended: expected.recommended,
+          },
+        )
+      }),
     )
 
     it.effect('keeps gpt-6-astra’s reasoning', () =>

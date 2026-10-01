@@ -101,4 +101,4 @@ Run each of these until it passes:
 - `vp run typecheck`
 - `vp test`
 
-The tests check the conversion in two ways. "satisfies every Trip rule" covers the whole catalogue: 14 nights, back-to-back Stays, Kyoto on the night of December 10, no Move on December 15, ending in Tokyo, a Move on every Stay boundary, and every Verify claim attached. The Itinerary's entry in `itineraries.test.ts` checks the rest against the source. Then open `/options/N` at phone and desktop widths.
+The tests check the conversion in two ways. "satisfies every Trip rule" covers the whole catalogue: 14 nights, back-to-back Stays, Kyoto on the night of December 10, no Move on December 15, ending in Tokyo, a Move on every Stay boundary, and every Verify claim attached. The Itinerary's entry in `itineraries.test.ts` checks the rest against the source. Then open `/options` and `/options/N` at phone and desktop widths.
