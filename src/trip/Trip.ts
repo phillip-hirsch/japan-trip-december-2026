@@ -16,13 +16,19 @@ import type {
   Itinerary,
   ItineraryDetail,
   ItinerarySummary,
+  MoveDetail,
   Place,
   Stay,
+  Station,
   TripRuleBreak,
+  VerifyClaimAttachment,
+  VerifyClaimDetail,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
 import { places, visitedPlaceIds } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
+import { stations } from '@/trip/rail'
+import type { StationId } from '@/trip/rail'
 
 const tripStart = DateTime.makeUnsafe(tripStartDate)
 
@@ -65,17 +71,37 @@ const placeOf = (id: PlaceId): Place => ({
 const stayForNight = (stays: ReadonlyArray<Stay>, date: IsoDate) =>
   stays.find((stay) => stay.checkIn <= date && date < stay.checkOut)
 
-/**
- * The Moves between Stays. Until Moves are content, a Move is inferred from
- * a Stay boundary: a check-out and the next check-in on the same date.
- */
-const movesOf = (stays: ReadonlyArray<Stay>) =>
+/** The dates where one Stay checks out and the next checks in. */
+const stayBoundariesOf = (stays: ReadonlyArray<Stay>) =>
   stays.slice(1).flatMap((to, index) => {
     const from = stays[index]
-    return from?.checkOut === to.checkIn
-      ? [{ date: to.checkIn, from: from.base, to: to.base }]
-      : []
+    return from?.checkOut === to.checkIn ? [{ date: to.checkIn, from, to }] : []
   })
+
+const stationOf = (id: StationId): Station => ({ id, ...stations[id] })
+
+/** Each Move with the Stays it connects, by date. */
+const moveDetailsOf = ({ stays, moves }: Itinerary) =>
+  new Map(
+    stayBoundariesOf(stays).flatMap(({ date, from, to }) => {
+      const move = moves.find((move) => move.date === date)
+      if (move === undefined) return []
+      const sections = move.sections.map((section) => ({
+        ...section,
+        from: stationOf(section.from),
+        to: stationOf(section.to),
+      }))
+      const detail: MoveDetail = {
+        mode: move.mode,
+        from: placeOf(from.base),
+        to: placeOf(to.base),
+        sections,
+        ...(move.duration && { duration: move.duration }),
+        changes: sections.slice(1).map((section) => section.from),
+      }
+      return [[date, detail] as const]
+    }),
+  )
 
 /**
  * Whether Thursday, December 10 is a whole day in Kyoto and not a Move day,
@@ -106,30 +132,65 @@ const anchorsOf = ({ stays, shigeharuVisit }: Itinerary): Array<Anchor> => [
   { _tag: 'Departure', date: tripEndDate },
 ]
 
+/** One key per place a Verify claim can attach to, for matching. */
+const attachmentKey = (attachedTo: VerifyClaimAttachment) => {
+  switch (attachedTo._tag) {
+    case 'Day':
+      return `Day ${attachedTo.date}`
+    case 'Stay':
+      return `Stay ${attachedTo.checkIn}`
+    case 'Itinerary':
+      return 'Itinerary'
+  }
+}
+
+/** The Verify claims attached to one place, without their attachment. */
+const claimsAttachedTo = (
+  { verifyClaims }: Itinerary,
+  attachment: VerifyClaimAttachment,
+): Array<VerifyClaimDetail> =>
+  verifyClaims
+    .filter(
+      (claim) => attachmentKey(claim.attachedTo) === attachmentKey(attachment),
+    )
+    .map(({ id, text }) => ({ id, text }))
+
 const detailOf = (itinerary: Itinerary): ItineraryDetail => {
   const anchors = anchorsOf(itinerary)
-  const moves = movesOf(itinerary.stays)
+  const moves = moveDetailsOf(itinerary)
   return {
     optionNumber: itinerary.optionNumber,
     name: itinerary.name,
     contentVersion: itinerary.contentVersion,
+    verifyClaims: claimsAttachedTo(itinerary, { _tag: 'Itinerary' }),
     stays: itinerary.stays.map((stay) => ({
       ...stay,
       base: placeOf(stay.base),
       nights: daysBetween(stay.checkIn, stay.checkOut),
+      verifyClaims: claimsAttachedTo(itinerary, {
+        _tag: 'Stay',
+        checkIn: stay.checkIn,
+      }),
     })),
     days: itinerary.days.map((day) => {
       const dayAnchors = anchors.filter((anchor) => anchor.date === day.date)
-      const move = moves.find((move) => move.date === day.date)
+      const move = moves.get(day.date)
+      const dayTrips = itinerary.dayTrips
+        .filter((dayTrip) => dayTrip.date === day.date)
+        .map(({ place, optional }) => ({ place: placeOf(place), optional }))
       return {
         ...day,
         anchors: dayAnchors,
-        ...(move && {
-          move: { from: placeOf(move.from), to: placeOf(move.to) },
+        ...(move && { move }),
+        dayTrips,
+        verifyClaims: claimsAttachedTo(itinerary, {
+          _tag: 'Day',
+          date: day.date,
         }),
         freeDay:
           day.description === undefined &&
           move === undefined &&
+          dayTrips.length === 0 &&
           !dayAnchors.some(
             (anchor) =>
               anchor._tag === 'Arrival' || anchor._tag === 'Departure',
@@ -143,6 +204,8 @@ const detailOf = (itinerary: Itinerary): ItineraryDetail => {
 const tripRuleBreaksOf = ({
   stays,
   days,
+  moves,
+  verifyClaims,
   shigeharuVisit,
 }: Itinerary): Array<TripRuleBreak> => {
   const first = stays[0]
@@ -175,6 +238,18 @@ const tripRuleBreaksOf = ({
       })
     }
   })
+  const boundaryDates = new Set(stayBoundariesOf(stays).map(({ date }) => date))
+  const moveDates = new Set(moves.map((move) => move.date))
+  for (const date of moveDates) {
+    if (!boundaryDates.has(date)) {
+      breaks.push({ _tag: 'MoveWithoutStayBoundary', date })
+    }
+  }
+  for (const date of boundaryDates) {
+    if (!moveDates.has(date)) {
+      breaks.push({ _tag: 'StayBoundaryWithoutMove', date })
+    }
+  }
   const dates = days.map((day) => day.date)
   if (dates.join() !== tripDates.join()) {
     breaks.push({ _tag: 'NotTheTripDays', dates })
@@ -196,8 +271,20 @@ const tripRuleBreaksOf = ({
       breaks.push({ _tag: 'ShigeharuNotInMorning', slot: shigeharuVisit.slot })
     }
   }
-  if (movesOf(stays).some((move) => move.date === birthdayDate)) {
+  if (moveDates.has(birthdayDate)) {
     breaks.push({ _tag: 'MoveOnBirthday' })
+  }
+  const attachments = new Set(
+    [
+      { _tag: 'Itinerary' as const },
+      ...days.map(({ date }) => ({ _tag: 'Day' as const, date })),
+      ...stays.map(({ checkIn }) => ({ _tag: 'Stay' as const, checkIn })),
+    ].map(attachmentKey),
+  )
+  for (const { id, attachedTo } of verifyClaims) {
+    if (!attachments.has(attachmentKey(attachedTo))) {
+      breaks.push({ _tag: 'UnattachedVerifyClaim', id })
+    }
   }
   if (last.base !== 'tokyo') {
     breaks.push({ _tag: 'EndsOutsideTokyo', base: last.base })
