@@ -12,14 +12,19 @@ import type {
   Anchor,
   BaseNights,
   Countdown,
+  DayTripDetail,
   HomeState,
   IsoDate,
   Itinerary,
+  ItineraryComparison,
   ItineraryDetail,
   ItinerarySummary,
   MoveDetail,
+  MovesComparison,
+  MoveSummary,
   Place,
   Stay,
+  StaySummary,
   Station,
   TripRuleBreak,
   VerifyClaimAttachment,
@@ -68,6 +73,13 @@ const placeOf = (id: PlaceId): Place => ({
   id,
   ...places[id],
   newPlace: !visitedPlaceIds.has(id),
+})
+
+const staySummaryOf = (stay: Stay): StaySummary => ({
+  base: placeOf(stay.base),
+  checkIn: stay.checkIn,
+  checkOut: stay.checkOut,
+  nights: nightsOf(stay),
 })
 
 /** The Stay whose hotel Phillip sleeps in on the night starting on a date. */
@@ -191,6 +203,67 @@ const summaryOf = (itinerary: Itinerary): ItinerarySummary => ({
   newToYou: newToYouOf(itinerary),
 })
 
+/** Each Move with its date and the Bases it connects, in travel order. */
+const datedMovesOf = (itinerary: Itinerary) =>
+  Array.from(moveDetailsOf(itinerary), ([date, move]) => ({ date, ...move }))
+
+type DatedMove = ReturnType<typeof datedMovesOf>[number]
+
+const moveSummaryOf = (move: DatedMove): MoveSummary =>
+  Struct.pick(move, ['date', 'mode', 'from', 'to'])
+
+const movesOf = (moves: ReadonlyArray<DatedMove>): MovesComparison => {
+  const travelling = moves.filter((move) => move.mode !== 'local')
+  const timed = travelling.flatMap((move) => move.duration ?? [])
+  return {
+    count: moves.length,
+    ...(timed.length > 0 && {
+      travelTime: {
+        minMinutes: timed.reduce((sum, { minMinutes }) => sum + minMinutes, 0),
+        maxMinutes: timed.reduce((sum, { maxMinutes }) => sum + maxMinutes, 0),
+      },
+    }),
+    durationNotGiven: travelling
+      .filter((move) => move.duration === undefined)
+      .map(moveSummaryOf),
+  }
+}
+
+const birthdayOf = ({ stays, birthdayOutline }: Itinerary) => {
+  const stay = stayForNight(stays, birthdayDate)
+  return {
+    ...(stay && { base: placeOf(stay.base) }),
+    outline: birthdayOutline,
+  }
+}
+
+const dayTripsOf = ({ dayTrips }: Itinerary): Array<DayTripDetail> => {
+  const optionalByPlace = new Map<PlaceId, boolean>()
+  const byDate = [...dayTrips].sort((a, b) => a.date.localeCompare(b.date))
+  for (const { place, optional } of byDate) {
+    optionalByPlace.set(place, (optionalByPlace.get(place) ?? true) && optional)
+  }
+  return Array.from(optionalByPlace, ([place, optional]) => ({
+    place: placeOf(place),
+    optional,
+  }))
+}
+
+const comparisonOf = (itinerary: Itinerary): ItineraryComparison => {
+  const moves = datedMovesOf(itinerary)
+  return {
+    ...summaryOf(itinerary),
+    birthday: birthdayOf(itinerary),
+    moves: movesOf(moves),
+    thursdayBackup: hasThursdayBackup(itinerary.stays),
+    dayTrips: dayTripsOf(itinerary),
+    flights: moves.filter((move) => move.mode === 'flight').map(moveSummaryOf),
+    ryokanStays: itinerary.stays
+      .filter((stay) => stay.accommodation === 'ryokan')
+      .map(staySummaryOf),
+  }
+}
+
 const detailOf = (itinerary: Itinerary): ItineraryDetail => {
   const anchors = anchorsOf(itinerary)
   const moves = moveDetailsOf(itinerary)
@@ -208,8 +281,7 @@ const detailOf = (itinerary: Itinerary): ItineraryDetail => {
     verifyClaims: claimsAttachedTo(itinerary, { _tag: 'Itinerary' }),
     stays: itinerary.stays.map((stay) => ({
       ...stay,
-      base: placeOf(stay.base),
-      nights: nightsOf(stay),
+      ...staySummaryOf(stay),
       verifyClaims: claimsAttachedTo(itinerary, {
         _tag: 'Stay',
         checkIn: stay.checkIn,
@@ -341,7 +413,8 @@ export class Trip extends Context.Service<
   {
     /** Home's state at the current moment of the Clock. */
     readonly home: Effect.Effect<HomeState>
-    readonly itineraries: Effect.Effect<ReadonlyArray<ItinerarySummary>>
+    /** Every Itinerary with its comparison rows. */
+    readonly itineraries: Effect.Effect<ReadonlyArray<ItineraryComparison>>
     /** One Itinerary with its Stays and all 15 Days. */
     itinerary(
       optionNumber: number,
@@ -360,6 +433,7 @@ export class Trip extends Context.Service<
     Effect.gen(function* () {
       const { all } = yield* Itineraries
       const summaries = all.map(summaryOf)
+      const comparisons = all.map(comparisonOf)
       const byOptionNumber = new Map(
         all.map((itinerary) => [itinerary.optionNumber, itinerary]),
       )
@@ -384,7 +458,7 @@ export class Trip extends Context.Service<
           countdown: countdownAt(now),
           itineraries: summaries,
         })),
-        itineraries: Effect.succeed(summaries),
+        itineraries: Effect.succeed(comparisons),
         itinerary: (optionNumber) => find(details, optionNumber),
         tripRuleBreaks: (optionNumber) =>
           find(byOptionNumber, optionNumber).pipe(Effect.map(tripRuleBreaksOf)),

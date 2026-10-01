@@ -15,7 +15,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(() =>
   runTrip(Trip.use((trip) => trip.home)),
 )
 
-/** Every Itinerary by Option number and name. */
+/** Every Itinerary with its comparison rows. */
 export const getItineraries = createServerFn({ method: 'GET' }).handler(() =>
   runTrip(Trip.use((trip) => trip.itineraries)),
 )

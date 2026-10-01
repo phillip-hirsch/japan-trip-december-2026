@@ -222,10 +222,18 @@ export const VerifyClaimDetail = Schema.Struct({
 })
 export type VerifyClaimDetail = typeof VerifyClaimDetail.Type
 
+/** A Stay by its Base, dates and nights. */
+export const StaySummary = Schema.Struct({
+  base: Place,
+  checkIn: IsoDate,
+  checkOut: IsoDate,
+  nights: Schema.Int,
+})
+export type StaySummary = typeof StaySummary.Type
+
 export const StayDetail = Schema.Struct({
   ...Stay.fields,
-  base: Place,
-  nights: Schema.Int,
+  ...StaySummary.fields,
   verifyClaims: Schema.Array(VerifyClaimDetail),
 })
 export type StayDetail = typeof StayDetail.Type
@@ -288,6 +296,58 @@ export const ItinerarySummary = Schema.Struct({
   newToYou: Schema.Array(Place),
 })
 export type ItinerarySummary = typeof ItinerarySummary.Type
+
+/** A Move by its date, how it travels and the Bases it connects. */
+export const MoveSummary = Schema.Struct({
+  date: IsoDate,
+  mode: MoveMode,
+  from: Place,
+  to: Place,
+})
+export type MoveSummary = typeof MoveSummary.Type
+
+/** An Itinerary's Moves at a glance. */
+export const MovesComparison = Schema.Struct({
+  count: Schema.Int,
+  /**
+   * The summed duration range of the train and flight Moves that have one;
+   * absent when none has. A Move without one is never estimated.
+   */
+  travelTime: Schema.optionalKey(DurationRange),
+  /** The train and flight Moves left out of the travel time. */
+  durationNotGiven: Schema.Array(MoveSummary),
+})
+export type MovesComparison = typeof MovesComparison.Type
+
+/**
+ * An Itinerary on the comparison rows, every one derived from its data so a
+ * Revision updates them.
+ */
+export const ItineraryComparison = Schema.Struct({
+  ...ItinerarySummary.fields,
+  /**
+   * The Base whose Stay covers the night of December 15, absent only when no
+   * Stay does, and the birthday outline.
+   */
+  birthday: Schema.Struct({
+    base: Schema.optionalKey(Place),
+    outline: Schema.String,
+  }),
+  moves: MovesComparison,
+  /**
+   * Whether all of Thursday, December 10 is spent in Kyoto and not moving, so
+   * the Shigeharu visit can fall back to it.
+   */
+  thursdayBackup: Schema.Boolean,
+  /**
+   * Each Day trip destination once, in the order the Trip first goes there.
+   * It is optional only when every Day trip there is.
+   */
+  dayTrips: Schema.Array(DayTripDetail),
+  flights: Schema.Array(MoveSummary),
+  ryokanStays: Schema.Array(StaySummary),
+})
+export type ItineraryComparison = typeof ItineraryComparison.Type
 
 /**
  * One Itinerary as its page shows it: its summary, Stays, all 15 Days and
