@@ -8,20 +8,18 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { gzipSync } from 'node:zlib'
 
-import { Effect, Layer, Schema } from 'effect'
-import { runnerImport } from 'vite-plus'
-import type { InlineConfig } from 'vite-plus'
+import { Schema } from 'effect'
 
 import type {
   Coordinates,
   RailSectionDetail,
   Station,
 } from '../src/trip/domain.ts'
-import type { Itineraries } from '../src/trip/Itineraries.ts'
 // Relative, not '@/': plain `node` runs this script and can't resolve the alias.
 import { railSectionIdsOf, railSectionKey } from '../src/trip/rail.ts'
 import type { RailLineId } from '../src/trip/rail.ts'
-import type { Trip } from '../src/trip/Trip.ts'
+
+import { readTrip } from './trip.ts'
 
 const source = 'https://nlftp.mlit.go.jp/ksj/gml/data/N02/N02-25/N02-25_GML.zip'
 const sourceEntry = 'N02-25_GML/UTF-8/N02-25_RailroadSection.geojson'
@@ -236,29 +234,8 @@ const rounded = ([longitude, latitude]: Position): Position => [
   Math.round(latitude * 1e5) / 1e5,
 ]
 
-// The catalogue's rail sections, read through the Trip service. Vite's module
-// runner resolves the '@/' imports that plain `node` can't.
-const viteConfig: InlineConfig = {
-  configFile: false,
-  resolve: { tsconfigPaths: true },
-}
-const [tripModule, itinerariesModule] = await Promise.all([
-  runnerImport<{ Trip: typeof Trip }>('/src/trip/Trip.ts', viteConfig),
-  runnerImport<{ Itineraries: typeof Itineraries }>(
-    '/src/trip/Itineraries.ts',
-    viteConfig,
-  ),
-])
-const { Trip: TripService } = tripModule.module
-const sections = await Effect.runPromise(
-  TripService.use((trip) => trip.railSections).pipe(
-    Effect.provide(
-      TripService.layer.pipe(
-        Layer.provide(itinerariesModule.module.Itineraries.layer),
-      ),
-    ),
-  ),
-)
+// The catalogue's rail sections, read through the Trip service.
+const sections = await readTrip((trip) => trip.railSections)
 
 const work = mkdtempSync(join(tmpdir(), 'rail-geometry-'))
 const archive = join(work, 'N02-25_GML.zip')
