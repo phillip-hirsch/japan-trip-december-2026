@@ -310,6 +310,15 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       ...viewport,
     })
 
+    // OpenFreeMap's place layers ask for `circle-11`, but its sprite names the
+    // icon `circle_11`. Alias such hyphenated ids to the sprite's own image.
+    map.setMissingStyleImageResolver((id) => {
+      const alias = id.replaceAll('-', '_')
+      if (alias === id || !map.hasImage(alias)) return
+      const { data, pixelRatio, sdf } = map.getImage(alias)
+      map.addImage(id, data, { pixelRatio, sdf })
+    })
+
     // MapLibre reports a style that fails to load, such as while offline, as
     // an event rather than throwing, and never fires `load`. Until the first
     // style loads, an error or the timeout fails the map instead, so the
