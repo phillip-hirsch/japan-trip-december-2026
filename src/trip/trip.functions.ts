@@ -7,6 +7,7 @@ import {
   ChooseOutcome,
   OptionNumber,
   ScheduleDetail,
+  ScheduleSummary,
 } from '@/trip/domain'
 import { runTrip } from '@/trip/runtime.server'
 import { Trip } from '@/trip/Trip'
@@ -63,4 +64,16 @@ export const getSchedule = createServerFn({ method: 'GET' }).handler(() =>
   callTripStore(Schema.NullOr(ScheduleDetail), (store) =>
     store.currentSchedule(),
   ),
+)
+
+/**
+ * The current Schedule's summary, or null before Phillip chooses one. Only
+ * the browser asks for it, after hydration, so prerendered pages never
+ * contain it.
+ */
+export const getScheduleSummary = createServerFn({ method: 'GET' }).handler(
+  () =>
+    callTripStore(Schema.NullOr(ScheduleSummary), (store) =>
+      store.scheduleSummary(),
+    ),
 )

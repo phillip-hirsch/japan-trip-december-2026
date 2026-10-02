@@ -9,6 +9,7 @@ import type {
   ChooseItinerary,
   ChooseOutcome,
   ScheduleDetail,
+  ScheduleSummary,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
 import { migrations } from '@/trip/migrations'
@@ -83,6 +84,15 @@ export class TripStore extends DurableObject<Env> {
   currentSchedule(): Promise<ScheduleDetail | null> {
     return this.#run(
       Trip.use((trip) => trip.currentSchedule).pipe(
+        Effect.map(Option.getOrNull),
+      ),
+    )
+  }
+
+  /** The current Schedule's summary, or null before Phillip chooses one. */
+  scheduleSummary(): Promise<ScheduleSummary | null> {
+    return this.#run(
+      Trip.use((trip) => trip.scheduleSummary).pipe(
         Effect.map(Option.getOrNull),
       ),
     )

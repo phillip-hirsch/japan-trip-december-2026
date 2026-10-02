@@ -72,6 +72,23 @@ describe('Trip.currentSchedule', () => {
   )
 })
 
+describe('Trip.scheduleSummary', () => {
+  it.effect('is empty before anything is chosen', () =>
+    Effect.gen(function* () {
+      const summary = yield* Trip.use((trip) => trip.scheduleSummary)
+      assert.isTrue(Option.isNone(summary))
+    }).pipe(Effect.provide([trip, storage])),
+  )
+
+  it.effect('names the Itinerary the current Schedule came from', () =>
+    Effect.gen(function* () {
+      yield* chooseOption1(firstChoose)
+      const summary = yield* Trip.use((trip) => trip.scheduleSummary)
+      assert.deepStrictEqual(summary, Option.some({ sourceOptionNumber: 1 }))
+    }).pipe(Effect.provide([trip, storage])),
+  )
+})
+
 describe('Trip.choose', () => {
   it.effect('copies the whole Itinerary into a new current Schedule', () =>
     Effect.gen(function* () {

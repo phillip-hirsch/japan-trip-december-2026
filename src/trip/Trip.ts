@@ -51,6 +51,7 @@ import type {
   ScheduleDetail,
   ScheduleId,
   ScheduleRecord,
+  ScheduleSummary,
   Stay,
   StaySummary,
   Station,
@@ -684,6 +685,12 @@ export class Trip extends Context.Service<
       never,
       SqlClient.SqlClient
     >
+    /** The current Schedule's summary, if Phillip has chosen one. */
+    readonly scheduleSummary: Effect.Effect<
+      Option.Option<ScheduleSummary>,
+      never,
+      SqlClient.SqlClient
+    >
   }
 >()('japan-trip/trip/Trip') {
   static readonly layer = Layer.effect(
@@ -761,6 +768,17 @@ export class Trip extends Context.Service<
         Effect.withSpan('Trip.currentSchedule'),
       )
 
+      const scheduleSummary = Effect.gen(function* () {
+        const store = yield* scheduleStore
+        const current = yield* store.currentRecord
+        return Option.map(current, (schedule) =>
+          Struct.pick(schedule, ['sourceOptionNumber']),
+        )
+      }).pipe(
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+        Effect.withSpan('Trip.scheduleSummary'),
+      )
+
       return Trip.of({
         home: Effect.map(DateTime.now, (now) => ({
           countdown: countdownAt(now),
@@ -774,6 +792,7 @@ export class Trip extends Context.Service<
         railSections: Effect.succeed(railSections),
         choose,
         currentSchedule,
+        scheduleSummary,
       })
     }),
   )
