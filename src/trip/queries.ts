@@ -48,22 +48,31 @@ export const homeQuery = queryOptions({
   refetchOnMount: false,
 })
 
+/** How long after a failed refetch Home tries again. */
+const retryDelay = 60_000
+
 /**
- * Home's state, kept on the right Day: it follows the date in Tokyo, so a
- * page left open across midnight there refetches, and the timer is set
- * again from each answer.
+ * Home's state, kept on the right Day. It follows the date in Tokyo, so each
+ * answer schedules a refetch a moment past the next Tokyo midnight after the
+ * answer's own moment: a page hydrated after that midnight refetches at once,
+ * and a refetch that fails is tried again until one answers.
  */
 export const useHome = () => {
   const queryClient = useQueryClient()
-  const { data, dataUpdatedAt } = useSuspenseQuery(homeQuery)
+  const { data, dataUpdatedAt, errorUpdatedAt } = useSuspenseQuery(homeQuery)
   useEffect(() => {
+    const deadline =
+      dataUpdatedAt + millisecondsUntilTokyoMidnight(dataUpdatedAt) + 1000
+    const overdue = Date.now() >= deadline
+    const failedSince = errorUpdatedAt > dataUpdatedAt
+    const delay =
+      overdue && failedSince ? retryDelay : Math.max(deadline - Date.now(), 0)
     const timer = setTimeout(
       () => void queryClient.invalidateQueries({ queryKey: keys.home }),
-      // A moment past midnight, so the server is already on the new date.
-      millisecondsUntilTokyoMidnight(Date.now()) + 1000,
+      delay,
     )
     return () => clearTimeout(timer)
-  }, [queryClient, dataUpdatedAt])
+  }, [queryClient, dataUpdatedAt, errorUpdatedAt])
   return data
 }
 
