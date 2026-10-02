@@ -23,16 +23,19 @@ const keys = {
 // these with `fetchQuery`, which waits for fresh data whenever the cache is
 // stale (not `ensureQueryData`, which returns whatever is cached), and set
 // `staleReloadMode: 'blocking'`, so the router waits for that too instead of
-// rendering its cached match first.
+// rendering its cached match first. The page then mounts on what its loader
+// just fetched, so mounting never fetches again.
 
 export const homeQuery = queryOptions({
   queryKey: keys.home,
   queryFn: () => getHome(),
+  refetchOnMount: false,
 })
 
 export const scheduleQuery = queryOptions({
   queryKey: keys.schedule,
   queryFn: () => getSchedule(),
+  refetchOnMount: false,
 })
 
 /**
