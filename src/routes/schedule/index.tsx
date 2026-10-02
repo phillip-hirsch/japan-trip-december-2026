@@ -10,7 +10,10 @@ import { scheduleQuery } from '@/trip/queries'
 
 // Personal state, so never prerendered: each visit asks the Trip store.
 export const Route = createFileRoute('/schedule/')({
-  loader: ({ context }) => context.queryClient.ensureQueryData(scheduleQuery),
+  loader: {
+    handler: ({ context }) => context.queryClient.fetchQuery(scheduleQuery),
+    staleReloadMode: 'blocking',
+  },
   head: () => ({ meta: [{ title: 'Schedule · Japan · December 2026' }] }),
   component: SchedulePage,
 })

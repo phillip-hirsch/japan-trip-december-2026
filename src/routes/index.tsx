@@ -7,7 +7,10 @@ import { formatDay, tripStartDate } from '@/trip/calendar'
 import { homeQuery } from '@/trip/queries'
 
 export const Route = createFileRoute('/')({
-  loader: ({ context }) => context.queryClient.ensureQueryData(homeQuery),
+  loader: {
+    handler: ({ context }) => context.queryClient.fetchQuery(homeQuery),
+    staleReloadMode: 'blocking',
+  },
   component: Home,
 })
 

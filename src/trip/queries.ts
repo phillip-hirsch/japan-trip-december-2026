@@ -18,6 +18,13 @@ const keys = {
   scheduleSummary: ['schedule-summary'],
 } as const satisfies Record<string, QueryKey>
 
+// A page shown again must not open on data another device has since changed,
+// and only shown queries refetch on focus and reconnect. So loaders fetch
+// these with `fetchQuery`, which waits for fresh data whenever the cache is
+// stale (not `ensureQueryData`, which returns whatever is cached), and set
+// `staleReloadMode: 'blocking'`, so the router waits for that too instead of
+// rendering its cached match first.
+
 export const homeQuery = queryOptions({
   queryKey: keys.home,
   queryFn: () => getHome(),
@@ -63,12 +70,11 @@ export type TripWrite = keyof typeof affectedBy
 
 /**
  * Invalidates exactly the queries a successful write affects, and resolves
- * once each cached one has refetched, shown or not: a loader reuses cached
- * data, so a page opened next must not find it stale.
+ * once the shown ones have refetched. The rest refetch when next shown.
  */
 export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) =>
   Promise.all(
     affectedBy[write].map((queryKey) =>
-      queryClient.invalidateQueries({ queryKey, refetchType: 'all' }),
+      queryClient.invalidateQueries({ queryKey }),
     ),
   )
