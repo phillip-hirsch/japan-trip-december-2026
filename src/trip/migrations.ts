@@ -96,4 +96,9 @@ export const migrations = Migrator.fromRecord({
       )
     `
   }),
+  // When each Schedule was last archived; null while it is current.
+  '0002_schedules_archived_at': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+    yield* sql`ALTER TABLE schedules ADD COLUMN archivedAt TEXT`
+  }),
 })

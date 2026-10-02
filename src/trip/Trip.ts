@@ -20,11 +20,14 @@ import {
 } from '@/trip/calendar'
 import {
   ItineraryNotFound,
-  ScheduleAlreadyChosen,
+  ScheduleChanged,
   ScheduleChosen,
+  ScheduleNotFound,
+  ScheduleRestored,
 } from '@/trip/domain'
 import type {
   Anchor,
+  ArchivedScheduleSummary,
   BaseNights,
   ChooseItinerary,
   ComparisonMap,
@@ -48,10 +51,12 @@ import type {
   MoveSummary,
   Place,
   RailSectionDetail,
+  RestoreSchedule,
   ScheduleDetail,
   ScheduleId,
   ScheduleRecord,
   ScheduleSummary,
+  SourceItineraryStatus,
   Stay,
   StaySummary,
   Station,
@@ -67,7 +72,7 @@ import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
 import type { StationId } from '@/trip/rail'
 import { railGeometryAttribution, railGeometryOf } from '@/trip/rail-geometry'
 import { scheduleStore } from '@/trip/schedule-store'
-import type { ScheduleCopy } from '@/trip/schedule-store'
+import type { ScheduleCopy, ScheduleStore } from '@/trip/schedule-store'
 
 const tripStart = DateTime.makeUnsafe(tripStartDate)
 
@@ -533,14 +538,54 @@ const copyOf = (itinerary: Itinerary): ScheduleCopy => {
   }
 }
 
-/** A Schedule as its page shows it, from its own record and copy alone. */
-const scheduleDetailOf = ({
-  schedule,
-  copy,
-}: {
-  readonly schedule: ScheduleRecord
-  readonly copy: ScheduleCopy
-}): ScheduleDetail => ({ ...schedule, ...staysAndDaysOf(copy) })
+/**
+ * Whether the Itinerary a Schedule came from has had a Revision since it was
+ * chosen, by comparing content versions under the same Option number.
+ */
+const sourceItineraryOf = (
+  schedule: ScheduleRecord,
+  itineraries: ReadonlyMap<number, Itinerary>,
+): SourceItineraryStatus => {
+  const source = itineraries.get(schedule.sourceOptionNumber)
+  if (source === undefined) return 'unavailable'
+  return source.contentVersion === schedule.sourceContentVersion
+    ? 'unchanged'
+    : 'revised'
+}
+
+/**
+ * A Schedule as its page shows it, from its own record and copy alone, and
+ * the current content version of the Itinerary it came from.
+ */
+const scheduleDetailOf =
+  (itineraries: ReadonlyMap<number, Itinerary>) =>
+  ({
+    schedule,
+    copy,
+  }: {
+    readonly schedule: ScheduleRecord
+    readonly copy: ScheduleCopy
+  }): ScheduleDetail => ({
+    ...schedule,
+    sourceItinerary: sourceItineraryOf(schedule, itineraries),
+    ...staysAndDaysOf(copy),
+  })
+
+/**
+ * The current Schedule, if it is the one a write names (none when it names
+ * null); ScheduleChanged otherwise. Every Schedule write checks this first,
+ * so a write from an out-of-date screen, or to an archived Schedule, writes
+ * nothing.
+ */
+const currentNamed = Effect.fnUntraced(function* (
+  store: ScheduleStore,
+  named: ScheduleId | null,
+) {
+  const current = yield* store.currentRecord
+  const currentId = Option.getOrNull(Option.map(current, ({ id }) => id))
+  if (currentId !== named) return yield* new ScheduleChanged()
+  return current
+})
 
 /** Every way an Itinerary breaks the Trip's rules; empty when it keeps them. */
 const tripRuleBreaksOf = ({
@@ -668,17 +713,35 @@ export class Trip extends Context.Service<
      */
     readonly railSections: Effect.Effect<ReadonlyArray<MapRailSection>>
     /**
-     * Copies an Itinerary into a new current Schedule, as one transaction
-     * that also records the operation id with its result. Repeating the
-     * operation id returns that result and writes nothing.
+     * Copies an Itinerary into a fresh current Schedule, archiving the one it
+     * replaces, as one transaction that also records the operation id with
+     * its result. Repeating the operation id returns that result and writes
+     * nothing.
      */
     choose(
       input: ChooseItinerary,
     ): Effect.Effect<
       ScheduleChosen,
-      ItineraryNotFound | ScheduleAlreadyChosen,
+      ItineraryNotFound | ScheduleChanged,
       SqlClient.SqlClient
     >
+    /**
+     * Makes an archived Schedule current again, archiving the one it
+     * replaces, as one transaction that also records the operation id with
+     * its result. Repeating the operation id returns that result and writes
+     * nothing.
+     */
+    restore(
+      input: RestoreSchedule,
+    ): Effect.Effect<
+      ScheduleRestored,
+      ScheduleNotFound | ScheduleChanged,
+      SqlClient.SqlClient
+    >
+    /** One Schedule, current or archived. */
+    schedule(
+      scheduleId: ScheduleId,
+    ): Effect.Effect<ScheduleDetail, ScheduleNotFound, SqlClient.SqlClient>
     /** The current Schedule, if Phillip has chosen one. */
     readonly currentSchedule: Effect.Effect<
       Option.Option<ScheduleDetail>,
@@ -688,6 +751,12 @@ export class Trip extends Context.Service<
     /** The current Schedule's summary, if Phillip has chosen one. */
     readonly scheduleSummary: Effect.Effect<
       Option.Option<ScheduleSummary>,
+      never,
+      SqlClient.SqlClient
+    >
+    /** Every archived Schedule, the most recently archived first. */
+    readonly archivedSchedules: Effect.Effect<
+      ReadonlyArray<ArchivedScheduleSummary>,
       never,
       SqlClient.SqlClient
     >
@@ -708,6 +777,7 @@ export class Trip extends Context.Service<
         all.map((itinerary) => [itinerary.optionNumber, detailOf(itinerary)]),
       )
       const comparisonMap = comparisonMapOf(Array.from(details.values()))
+      const scheduleDetail = scheduleDetailOf(byOptionNumber)
 
       const find = Effect.fnUntraced(function* <A>(
         entries: ReadonlyMap<number, A>,
@@ -721,7 +791,7 @@ export class Trip extends Context.Service<
       })
 
       const choose = Effect.fn('Trip.choose')(
-        function* ({ operationId, optionNumber }: ChooseItinerary) {
+        function* ({ operationId, optionNumber, replacing }: ChooseItinerary) {
           const store = yield* scheduleStore
           return yield* store.transaction(
             Effect.gen(function* () {
@@ -729,11 +799,10 @@ export class Trip extends Context.Service<
                 yield* store.recordedResult(ScheduleChosen)(operationId)
               if (Option.isSome(recorded)) return recorded.value.result
               const itinerary = yield* find(byOptionNumber, optionNumber)
-              const current = yield* store.currentRecord
+              const current = yield* currentNamed(store, replacing)
+              const now = DateTime.formatIso(yield* DateTime.now)
               if (Option.isSome(current)) {
-                return yield* new ScheduleAlreadyChosen({
-                  sourceOptionNumber: current.value.sourceOptionNumber,
-                })
+                yield* store.archive(current.value.id, now)
               }
               const scheduleId = crypto.randomUUID() as ScheduleId
               yield* store.insert(
@@ -742,7 +811,8 @@ export class Trip extends Context.Service<
                   status: 'current',
                   sourceOptionNumber: itinerary.optionNumber,
                   sourceContentVersion: itinerary.contentVersion,
-                  chosenAt: DateTime.formatIso(yield* DateTime.now),
+                  chosenAt: now,
+                  archivedAt: null,
                   birthdayOutline: itinerary.birthdayOutline,
                 },
                 copyOf(itinerary),
@@ -759,10 +829,55 @@ export class Trip extends Context.Service<
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
       )
 
+      const restore = Effect.fn('Trip.restore')(
+        function* ({ operationId, scheduleId, replacing }: RestoreSchedule) {
+          const store = yield* scheduleStore
+          return yield* store.transaction(
+            Effect.gen(function* () {
+              const recorded =
+                yield* store.recordedResult(ScheduleRestored)(operationId)
+              if (Option.isSome(recorded)) return recorded.value.result
+              const restoring = yield* store.record(scheduleId)
+              if (Option.isNone(restoring)) {
+                return yield* new ScheduleNotFound({ scheduleId })
+              }
+              const current = yield* currentNamed(store, replacing)
+              // Restoring the current Schedule leaves it as it is.
+              if (restoring.value.status === 'archived') {
+                if (Option.isSome(current)) {
+                  const now = DateTime.formatIso(yield* DateTime.now)
+                  yield* store.archive(current.value.id, now)
+                }
+                yield* store.makeCurrent(scheduleId)
+              }
+              const restored = { scheduleId }
+              yield* store.recordResult(ScheduleRestored)({
+                id: operationId,
+                result: restored,
+              })
+              return restored
+            }),
+          )
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
+      const schedule = Effect.fn('Trip.schedule')(
+        function* (scheduleId: ScheduleId) {
+          const store = yield* scheduleStore
+          const found = yield* store.transaction(store.byId(scheduleId))
+          if (Option.isNone(found)) {
+            return yield* new ScheduleNotFound({ scheduleId })
+          }
+          return scheduleDetail(found.value)
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
       const currentSchedule = Effect.gen(function* () {
         const store = yield* scheduleStore
         const current = yield* store.transaction(store.current)
-        return Option.map(current, scheduleDetailOf)
+        return Option.map(current, scheduleDetail)
       }).pipe(
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
         Effect.withSpan('Trip.currentSchedule'),
@@ -772,11 +887,19 @@ export class Trip extends Context.Service<
         const store = yield* scheduleStore
         const current = yield* store.currentRecord
         return Option.map(current, (schedule) =>
-          Struct.pick(schedule, ['sourceOptionNumber']),
+          Struct.pick(schedule, ['id', 'sourceOptionNumber']),
         )
       }).pipe(
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
         Effect.withSpan('Trip.scheduleSummary'),
+      )
+
+      const archivedSchedules = Effect.flatMap(
+        scheduleStore,
+        (store) => store.archived,
+      ).pipe(
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+        Effect.withSpan('Trip.archivedSchedules'),
       )
 
       return Trip.of({
@@ -791,8 +914,11 @@ export class Trip extends Context.Service<
           find(byOptionNumber, optionNumber).pipe(Effect.map(tripRuleBreaksOf)),
         railSections: Effect.succeed(railSections),
         choose,
+        restore,
+        schedule,
         currentSchedule,
         scheduleSummary,
+        archivedSchedules,
       })
     }),
   )

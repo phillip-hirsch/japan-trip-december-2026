@@ -465,7 +465,9 @@ export type TripRuleBreak = typeof TripRuleBreak.Type
 /** The id of something copied into a Schedule, fresh in each Schedule. */
 export const CopyId = Schema.String
 
-export const ScheduleId = Schema.String.pipe(Schema.brand('ScheduleId'))
+export const ScheduleId = Schema.String.check(Schema.isUUID()).pipe(
+  Schema.brand('ScheduleId'),
+)
 export type ScheduleId = typeof ScheduleId.Type
 
 /**
@@ -515,18 +517,31 @@ export const ScheduleRecord = Schema.Struct({
   sourceContentVersion: Schema.String,
   /** The moment it was chosen, as an ISO 8601 UTC string. */
   chosenAt: Schema.String,
+  /** The moment it was last archived, as an ISO 8601 UTC string. */
+  archivedAt: Schema.NullOr(Schema.String),
   birthdayOutline: Schema.String,
 })
 export type ScheduleRecord = typeof ScheduleRecord.Type
 
 /**
- * What every page needs to know about Phillip's Schedule: the Itinerary it
- * came from. Its absence means none is chosen yet.
+ * What every page needs to know about Phillip's Schedule: which it is, and
+ * the Itinerary it came from. Its absence means none is chosen yet.
  */
 export const ScheduleSummary = Schema.Struct(
-  Struct.pick(ScheduleRecord.fields, ['sourceOptionNumber']),
+  Struct.pick(ScheduleRecord.fields, ['id', 'sourceOptionNumber']),
 )
 export type ScheduleSummary = typeof ScheduleSummary.Type
+
+/**
+ * The Itinerary a Schedule came from, now: unchanged since it was chosen,
+ * revised since (a Revision notice), or no longer available.
+ */
+export const SourceItineraryStatus = Schema.Literals([
+  'unchanged',
+  'revised',
+  'unavailable',
+])
+export type SourceItineraryStatus = typeof SourceItineraryStatus.Type
 
 /**
  * Phillip's Schedule as its page shows it: where it came from, and its Stays
@@ -535,6 +550,7 @@ export type ScheduleSummary = typeof ScheduleSummary.Type
  */
 export const ScheduleDetail = Schema.Struct({
   ...ScheduleRecord.fields,
+  sourceItinerary: SourceItineraryStatus,
   /** The Verify claims about the Schedule as a whole. */
   verifyClaims: Schema.Array(VerifyClaimDetail),
   stays: Schema.Array(ScheduleStayDetail),
@@ -542,15 +558,46 @@ export const ScheduleDetail = Schema.Struct({
 })
 export type ScheduleDetail = typeof ScheduleDetail.Type
 
-/** Choose an Itinerary, making a copy of it Phillip's Schedule. */
+/** An archived Schedule as /schedule lists it. */
+export const ArchivedScheduleSummary = Schema.Struct({
+  ...Struct.pick(ScheduleRecord.fields, [
+    'id',
+    'sourceOptionNumber',
+    'chosenAt',
+  ]),
+  archivedAt: Schema.String,
+})
+export type ArchivedScheduleSummary = typeof ArchivedScheduleSummary.Type
+
+/**
+ * Choose an Itinerary, making a fresh copy of it Phillip's Schedule. It names
+ * the current Schedule it archives, or null when there is none yet.
+ */
 export const ChooseItinerary = Schema.Struct({
   operationId: OperationId,
   optionNumber: OptionNumber,
+  replacing: Schema.NullOr(ScheduleId),
 })
 export type ChooseItinerary = typeof ChooseItinerary.Type
 
 export const ScheduleChosen = Schema.Struct({ scheduleId: ScheduleId })
 export type ScheduleChosen = typeof ScheduleChosen.Type
+
+/** Restore an archived Schedule, archiving the current one it names. */
+export const RestoreSchedule = Schema.Struct({
+  operationId: OperationId,
+  scheduleId: ScheduleId,
+  replacing: Schema.NullOr(ScheduleId),
+})
+export type RestoreSchedule = typeof RestoreSchedule.Type
+
+export const ScheduleRestored = Schema.Struct({ scheduleId: ScheduleId })
+export type ScheduleRestored = typeof ScheduleRestored.Type
+
+export class ScheduleNotFound extends Schema.TaggedError<ScheduleNotFound>()(
+  'ScheduleNotFound',
+  { scheduleId: ScheduleId },
+) {}
 
 export class ItineraryNotFound extends Schema.TaggedError<ItineraryNotFound>()(
   'ItineraryNotFound',
@@ -575,18 +622,27 @@ export const HomeState = Schema.Struct({
 export type HomeState = typeof HomeState.Type
 
 /**
- * Choosing while a Schedule is current. Until choosing again can archive it,
- * there is never more than one, and nothing is overwritten.
+ * A write named a Schedule that isn't current, or none while one is: it was
+ * made on an out-of-date screen. Archived Schedules reject every write this
+ * way, and nothing is written.
  */
-export class ScheduleAlreadyChosen extends Schema.TaggedError<ScheduleAlreadyChosen>()(
-  'ScheduleAlreadyChosen',
-  { sourceOptionNumber: OptionNumber },
+export class ScheduleChanged extends Schema.TaggedError<ScheduleChanged>()(
+  'ScheduleChanged',
+  {},
 ) {}
 
 /** What choosing an Itinerary did, as plain data for the browser. */
 export const ChooseOutcome = Schema.TaggedUnion({
   Chosen: ScheduleChosen.fields,
   ItineraryNotFound: ItineraryNotFound.fields,
-  ScheduleAlreadyChosen: ScheduleAlreadyChosen.fields,
+  ScheduleChanged: ScheduleChanged.fields,
 })
 export type ChooseOutcome = typeof ChooseOutcome.Type
+
+/** What restoring a Schedule did, as plain data for the browser. */
+export const RestoreOutcome = Schema.TaggedUnion({
+  Restored: ScheduleRestored.fields,
+  ScheduleNotFound: ScheduleNotFound.fields,
+  ScheduleChanged: ScheduleChanged.fields,
+})
+export type RestoreOutcome = typeof RestoreOutcome.Type

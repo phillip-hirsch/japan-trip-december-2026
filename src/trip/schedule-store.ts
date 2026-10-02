@@ -8,6 +8,7 @@ import { SqlClient, SqlSchema } from 'effect/sql'
 import type { Statement } from 'effect/sql'
 
 import {
+  ArchivedScheduleSummary,
   CopyId,
   DayTrip,
   DurationRange,
@@ -87,6 +88,8 @@ const AnchorRow = Schema.Struct({
   anchor: Schema.fromJsonString(ScheduleAnchor),
 })
 
+export type ScheduleStore = Effect.Success<typeof scheduleStore>
+
 /** The storage operations, over the SQL client in context. */
 export const scheduleStore = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
@@ -110,6 +113,40 @@ export const scheduleStore = Effect.gen(function* () {
     Request: Schema.Void,
     Result: ScheduleRecord,
     execute: () => sql`SELECT * FROM schedules WHERE status = 'current'`,
+  })
+
+  const findById = SqlSchema.findOneOption({
+    Request: ScheduleId,
+    Result: ScheduleRecord,
+    execute: (id) => sql`SELECT * FROM schedules WHERE id = ${id}`,
+  })
+
+  const findArchived = SqlSchema.findAll({
+    Request: Schema.Void,
+    Result: ArchivedScheduleSummary,
+    execute: () =>
+      sql`
+        SELECT id, sourceOptionNumber, chosenAt, archivedAt FROM schedules
+        WHERE status = 'archived' ORDER BY archivedAt DESC
+      `,
+  })
+
+  const archiveSchedule = SqlSchema.void({
+    Request: Schema.Struct({ id: ScheduleId, archivedAt: Schema.String }),
+    execute: ({ id, archivedAt }) =>
+      sql`
+        UPDATE schedules SET status = 'archived', archivedAt = ${archivedAt}
+        WHERE id = ${id}
+      `,
+  })
+
+  const makeScheduleCurrent = SqlSchema.void({
+    Request: ScheduleId,
+    execute: (id) =>
+      sql`
+        UPDATE schedules SET status = 'current', archivedAt = NULL
+        WHERE id = ${id}
+      `,
   })
 
   const rowsOf = <S extends Schema.Top>(
@@ -180,15 +217,11 @@ export const scheduleStore = Effect.gen(function* () {
     return copy
   })
 
-  return {
-    /** Runs storage operations as one transaction. */
-    transaction: sql.withTransaction,
-
-    /** The current Schedule's own fields, if there is one. */
-    currentRecord: findCurrent(undefined),
-
-    /** The current Schedule with its copy, if there is one. */
-    current: findCurrent(undefined).pipe(
+  /** A Schedule found by its own fields, with its copy. */
+  const withCopy = <E, R>(
+    found: Effect.Effect<Option.Option<ScheduleRecord>, E, R>,
+  ) =>
+    found.pipe(
       Effect.flatMap(
         Option.match({
           onNone: () => Effect.succeedNone,
@@ -198,7 +231,33 @@ export const scheduleStore = Effect.gen(function* () {
             ),
         }),
       ),
-    ),
+    )
+
+  return {
+    /** Runs storage operations as one transaction. */
+    transaction: sql.withTransaction,
+
+    /** The current Schedule's own fields, if there is one. */
+    currentRecord: findCurrent(undefined),
+
+    /** The current Schedule with its copy, if there is one. */
+    current: withCopy(findCurrent(undefined)),
+
+    /** A Schedule's own fields, current or archived, if it exists. */
+    record: findById,
+
+    /** A Schedule with its copy, current or archived, if it exists. */
+    byId: (id: ScheduleId) => withCopy(findById(id)),
+
+    /** Every archived Schedule, the most recently archived first. */
+    archived: findArchived(undefined),
+
+    /** Archives a Schedule at a moment, given as an ISO 8601 UTC string. */
+    archive: (id: ScheduleId, archivedAt: string) =>
+      archiveSchedule({ id, archivedAt }),
+
+    /** Makes an archived Schedule current again. */
+    makeCurrent: makeScheduleCurrent,
 
     /**
      * Stores a new Schedule with its copy, one row per statement to stay well

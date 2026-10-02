@@ -4,7 +4,13 @@
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { Query, QueryClient, QueryKey } from '@tanstack/react-query'
 
-import { getHome, getSchedule, getScheduleSummary } from '@/trip/trip.functions'
+import {
+  getArchivedSchedules,
+  getHome,
+  getSchedule,
+  getScheduleById,
+  getScheduleSummary,
+} from '@/trip/trip.functions'
 
 /**
  * One key per query, none a prefix of another, so invalidating one never
@@ -16,6 +22,9 @@ const keys = {
   /** The prefix of every Day page's query. */
   days: ['days'],
   scheduleSummary: ['schedule-summary'],
+  archivedSchedules: ['archived-schedules'],
+  /** The prefix of every archived Schedule page's query. */
+  archivedSchedule: ['archived-schedule'],
 } as const satisfies Record<string, QueryKey>
 
 // A page shown again must not open on data another device has since changed,
@@ -37,6 +46,21 @@ export const scheduleQuery = queryOptions({
   queryFn: () => getSchedule(),
   refetchOnMount: false,
 })
+
+/** Every archived Schedule, for the list on /schedule. */
+export const archivedSchedulesQuery = queryOptions({
+  queryKey: keys.archivedSchedules,
+  queryFn: () => getArchivedSchedules(),
+  refetchOnMount: false,
+})
+
+/** One Schedule by id, for its archived page: null when none has that id. */
+export const archivedScheduleQuery = (scheduleId: string) =>
+  queryOptions({
+    queryKey: [...keys.archivedSchedule, scheduleId],
+    queryFn: () => getScheduleById({ data: { scheduleId } }),
+    refetchOnMount: false,
+  })
 
 /**
  * The storage-dependent parts of every page, prerendered ones included, read
@@ -65,8 +89,18 @@ export const shouldDehydrateQuery = (query: Query) =>
  * The invalidation contract: the queries each write affects. Every write
  * lists its own here.
  */
+const replacingTheSchedule = [
+  keys.schedule,
+  keys.days,
+  keys.home,
+  keys.scheduleSummary,
+  keys.archivedSchedules,
+  keys.archivedSchedule,
+] as const
+
 const affectedBy = {
-  choose: [keys.schedule, keys.days, keys.home, keys.scheduleSummary],
+  choose: replacingTheSchedule,
+  restore: replacingTheSchedule,
 } as const satisfies Record<string, ReadonlyArray<QueryKey>>
 
 export type TripWrite = keyof typeof affectedBy

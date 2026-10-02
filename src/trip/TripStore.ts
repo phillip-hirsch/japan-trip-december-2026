@@ -6,9 +6,13 @@ import { Effect, Exit, Layer, ManagedRuntime, Option } from 'effect'
 import type { SqlClient } from 'effect/sql'
 
 import type {
+  ArchivedScheduleSummary,
   ChooseItinerary,
   ChooseOutcome,
+  RestoreOutcome,
+  RestoreSchedule,
   ScheduleDetail,
+  ScheduleId,
   ScheduleSummary,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
@@ -59,7 +63,7 @@ export class TripStore extends DurableObject<Env> {
     return runToPromise(this.#runtime, operation)
   }
 
-  /** Copies an Itinerary into Phillip's Schedule. */
+  /** Copies an Itinerary into Phillip's Schedule, archiving the current one. */
   choose(input: ChooseItinerary): Promise<ChooseOutcome> {
     return this.#run(
       Trip.use((trip) => trip.choose(input)).pipe(
@@ -70,14 +74,46 @@ export class TripStore extends DurableObject<Env> {
               _tag: 'ItineraryNotFound',
               optionNumber,
             }),
-          ScheduleAlreadyChosen: ({ sourceOptionNumber }) =>
-            Effect.succeed<ChooseOutcome>({
-              _tag: 'ScheduleAlreadyChosen',
-              sourceOptionNumber,
-            }),
+          ScheduleChanged: () =>
+            Effect.succeed<ChooseOutcome>({ _tag: 'ScheduleChanged' }),
         }),
       ),
     )
+  }
+
+  /** Makes an archived Schedule current again, archiving the current one. */
+  restore(input: RestoreSchedule): Promise<RestoreOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.restore(input)).pipe(
+        Effect.map((restored): RestoreOutcome => ({
+          _tag: 'Restored',
+          ...restored,
+        })),
+        Effect.catchTags({
+          ScheduleNotFound: ({ scheduleId }) =>
+            Effect.succeed<RestoreOutcome>({
+              _tag: 'ScheduleNotFound',
+              scheduleId,
+            }),
+          ScheduleChanged: () =>
+            Effect.succeed<RestoreOutcome>({ _tag: 'ScheduleChanged' }),
+        }),
+      ),
+    )
+  }
+
+  /** One Schedule, current or archived, or null when none has that id. */
+  schedule(scheduleId: ScheduleId): Promise<ScheduleDetail | null> {
+    return this.#run(
+      Trip.use((trip) => trip.schedule(scheduleId)).pipe(
+        Effect.catchTag('ScheduleNotFound', () => Effect.succeed(null)),
+      ),
+    )
+  }
+
+  /** Every archived Schedule, the most recently archived first. */
+  archivedSchedules(): Promise<ReadonlyArray<ArchivedScheduleSummary>> {
+    return this.#run(Trip.use((trip) => trip.archivedSchedules))
   }
 
   /** The current Schedule, or null before Phillip chooses one. */

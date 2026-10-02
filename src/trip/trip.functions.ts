@@ -3,10 +3,14 @@ import { createServerFn } from '@tanstack/react-start'
 import { Effect, Schema } from 'effect'
 
 import {
+  ArchivedScheduleSummary,
   ChooseItinerary,
   ChooseOutcome,
   OptionNumber,
+  RestoreOutcome,
+  RestoreSchedule,
   ScheduleDetail,
+  ScheduleId,
   ScheduleSummary,
 } from '@/trip/domain'
 import { runTrip } from '@/trip/runtime.server'
@@ -50,14 +54,45 @@ export const getItinerary = createServerFn({ method: 'GET' })
   })
 
 /**
- * Copies an Itinerary into Phillip's Schedule. Repeating the operation id
- * returns the first result, so a retry never chooses twice.
+ * Copies an Itinerary into Phillip's Schedule, archiving the current one.
+ * Repeating the operation id returns the first result, so a retry never
+ * chooses twice.
  */
 export const chooseItinerary = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(ChooseItinerary))
   .handler(({ data }) =>
     callTripStore(ChooseOutcome, (store) => store.choose(data)),
   )
+
+/**
+ * Makes an archived Schedule current again, archiving the current one.
+ * Repeating the operation id returns the first result, so a retry never
+ * restores twice.
+ */
+export const restoreSchedule = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(RestoreSchedule))
+  .handler(({ data }) =>
+    callTripStore(RestoreOutcome, (store) => store.restore(data)),
+  )
+
+/** One Schedule, current or archived, or null when none has that id. */
+export const getScheduleById = createServerFn({ method: 'GET' })
+  .validator(
+    Schema.toStandardSchemaV1(Schema.Struct({ scheduleId: ScheduleId })),
+  )
+  .handler(({ data }) =>
+    callTripStore(Schema.NullOr(ScheduleDetail), (store) =>
+      store.schedule(data.scheduleId),
+    ),
+  )
+
+/** Every archived Schedule, the most recently archived first. */
+export const getArchivedSchedules = createServerFn({ method: 'GET' }).handler(
+  () =>
+    callTripStore(Schema.Array(ArchivedScheduleSummary), (store) =>
+      store.archivedSchedules(),
+    ),
+)
 
 /** The current Schedule, or null before Phillip chooses one. */
 export const getSchedule = createServerFn({ method: 'GET' }).handler(() =>
