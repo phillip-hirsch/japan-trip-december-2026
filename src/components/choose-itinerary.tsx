@@ -38,19 +38,28 @@ export function ChooseItinerary({ optionNumber }: { optionNumber: number }) {
     return <Skeleton aria-hidden className="h-10 w-40" />
   }
   const fromThis = summary?.sourceOptionNumber === optionNumber
-  // Choose keeps its place among its siblings, so an open dialog stays open
-  // while the summary changes under it.
+  // Choose keeps its identity (its key) whichever links surround it, so an
+  // open dialog stays open while the summary changes under it.
   return (
     <div>
       <div className="flex flex-wrap gap-2">
         {fromThis && (
-          <ButtonLink to="/schedule" size="lg">
+          <ButtonLink key="open" to="/schedule" size="lg">
             Open your Schedule
           </ButtonLink>
         )}
-        <ChooseItineraryButton optionNumber={optionNumber} current={summary} />
+        <ChooseItineraryButton
+          key="choose"
+          optionNumber={optionNumber}
+          current={summary}
+        />
         {summary && !fromThis && (
-          <ButtonLink to="/schedule" size="lg" variant="outline">
+          <ButtonLink
+            key="open-outline"
+            to="/schedule"
+            size="lg"
+            variant="outline"
+          >
             Open your Schedule
           </ButtonLink>
         )}
