@@ -29,6 +29,18 @@ One calendar date of the Trip in Tokyo time, December 6 through December 20.
 One thing planned on a Day of the Schedule.
 _Avoid_: event, item
 
+**Day page**:
+A Day of the Schedule on its own page at /schedule/$date: the Day's source description and Day trips, Tonight's hotel and the Next Move.
+
+**Today**:
+During the Trip, Home showing the Day page of the current Day in Tokyo, in place.
+
+**Tonight's hotel**:
+The Stay covering the night a Day ends with; absent on December 20. Shown as its Base marked "hotel not recorded" until hotel details are recorded.
+
+**Next Move**:
+From a Day, the first Move dated that Day or later; absent once no Moves are left.
+
 **Stay**:
 Consecutive nights at one hotel.
 _Avoid_: leg, segment

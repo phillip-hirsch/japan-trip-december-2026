@@ -1,10 +1,19 @@
 // The browser's cache of Trip server data, and which writes make it stale.
 // Itinerary content changes only with a deploy, so its pages keep their route
 // loaders; this cache holds what Phillip's writes change.
-import { queryOptions, useQuery } from '@tanstack/react-query'
-import type { Query, QueryClient, QueryKey } from '@tanstack/react-query'
-
 import {
+  queryOptions,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query'
+import type { Query, QueryClient, QueryKey } from '@tanstack/react-query'
+import { useEffect } from 'react'
+
+import { millisecondsUntilTokyoMidnight } from '@/trip/calendar'
+import type { IsoDate } from '@/trip/domain'
+import {
+  getDay,
   getHome,
   getScheduleById,
   getSchedules,
@@ -38,6 +47,46 @@ export const homeQuery = queryOptions({
   queryFn: () => getHome(),
   refetchOnMount: false,
 })
+
+/** How long after a failed refetch Home tries again. */
+const retryDelay = 60_000
+
+/**
+ * Home's state, kept on the right Day. It follows the date in Tokyo, so each
+ * answer schedules a refetch a moment past the next Tokyo midnight after the
+ * moment the server read it at (not after the answer arrived, which may be
+ * past that midnight already): an answer already overdue refetches at once,
+ * and a refetch that fails is tried again until one answers.
+ */
+export const useHome = () => {
+  const queryClient = useQueryClient()
+  const { data, dataUpdatedAt, errorUpdatedAt } = useSuspenseQuery(homeQuery)
+  const readAt = Date.parse(data.readAt)
+  useEffect(() => {
+    const deadline = readAt + millisecondsUntilTokyoMidnight(readAt) + 1000
+    const overdue = Date.now() >= deadline
+    const failedSince = errorUpdatedAt > dataUpdatedAt
+    const delay =
+      overdue && failedSince ? retryDelay : Math.max(deadline - Date.now(), 0)
+    const timer = setTimeout(
+      () => void queryClient.invalidateQueries({ queryKey: keys.home }),
+      delay,
+    )
+    return () => clearTimeout(timer)
+  }, [queryClient, readAt, dataUpdatedAt, errorUpdatedAt])
+  return data
+}
+
+/**
+ * One Day of the current Schedule as its page shows it: null before a
+ * Schedule exists. The date is a Day of the Trip; the route checks it first.
+ */
+export const dayQuery = (date: IsoDate) =>
+  queryOptions({
+    queryKey: [...keys.days, date],
+    queryFn: () => getDay({ data: { date } }),
+    refetchOnMount: false,
+  })
 
 /** The current Schedule and the archived ones, for /schedule. */
 export const schedulesQuery = queryOptions({

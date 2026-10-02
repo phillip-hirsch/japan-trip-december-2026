@@ -5,6 +5,9 @@ import { Effect, Schema } from 'effect'
 import {
   ChooseItinerary,
   ChooseOutcome,
+  DayOutcome,
+  HomeState,
+  IsoDate,
   OptionNumber,
   RestoreOutcome,
   RestoreSchedule,
@@ -23,10 +26,34 @@ import { callTripStore } from '@/trip/trip-store.server'
 // Its storage operations run in the Trip store, reached only through
 // callTripStore.
 
-/** Home's state at the moment of the request. */
+/**
+ * Home's state at the moment of the request, in Tokyo. Personal state, so it
+ * comes from the Trip store and is never prerendered.
+ */
 export const getHome = createServerFn({ method: 'GET' }).handler(() =>
-  runTrip(Trip.use((trip) => trip.home)),
+  callTripStore(HomeState, (store) => store.home()),
 )
+
+/**
+ * One Day of Phillip's Schedule as its page shows it, null before he chooses
+ * one, or not-found for a date outside the Trip. The browser checks the date
+ * first; this is the server's own check.
+ */
+export const getDay = createServerFn({ method: 'GET' })
+  .validator(Schema.toStandardSchemaV1(Schema.Struct({ date: IsoDate })))
+  .handler(async ({ data }) => {
+    const outcome = await callTripStore(DayOutcome, (store) =>
+      store.day(data.date),
+    )
+    switch (outcome._tag) {
+      case 'Day':
+        return outcome.page
+      case 'NoSchedule':
+        return null
+      case 'DayNotFound':
+        throw notFound()
+    }
+  })
 
 /** Every Itinerary with its comparison rows. */
 export const getItineraries = createServerFn({ method: 'GET' }).handler(() =>

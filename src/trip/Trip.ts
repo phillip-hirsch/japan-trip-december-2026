@@ -13,12 +13,15 @@ import type { SqlClient } from 'effect/sql'
 
 import {
   birthdayDate,
+  isTripDate,
   shigeharuDate,
+  tripDates,
   tripEndDate,
   tripStartDate,
   tripTimeZone,
 } from '@/trip/calendar'
 import {
+  DayNotFound,
   ItineraryNotFound,
   ScheduleChanged,
   ScheduleChosen,
@@ -32,8 +35,8 @@ import type {
   ChooseItinerary,
   ComparisonMap,
   Coordinates,
-  Countdown,
   Day,
+  DayPage,
   DayTrip,
   DayTripDetail,
   HomeState,
@@ -74,15 +77,11 @@ import { railGeometryAttribution, railGeometryOf } from '@/trip/rail-geometry'
 import { scheduleStore } from '@/trip/schedule-store'
 import type { ScheduleCopy, ScheduleStore } from '@/trip/schedule-store'
 
-const tripStart = DateTime.makeUnsafe(tripStartDate)
-
-const countdownAt = (now: DateTime.DateTime): Countdown => {
-  const today = DateTime.removeTime(
-    DateTime.setZoneNamedUnsafe(now, tripTimeZone),
-  )
-  const days = Math.round(Duration.toDays(DateTime.distance(today, tripStart)))
-  return days > 0 ? { _tag: 'Counting', days } : { _tag: 'Ended' }
-}
+/** The calendar date in Tokyo at a moment. */
+const tokyoDateOf = (now: DateTime.DateTime) =>
+  DateTime.formatIsoDate(
+    DateTime.removeTime(DateTime.setZoneNamedUnsafe(now, tripTimeZone)),
+  ) as IsoDate
 
 const daysBetween = (from: IsoDate, to: IsoDate) =>
   Math.round(
@@ -97,12 +96,6 @@ const addDays = (date: IsoDate, days: number) =>
   ) as IsoDate
 
 const nightsOf = (stay: Stay) => daysBetween(stay.checkIn, stay.checkOut)
-
-/** December 6 through December 20. */
-const tripDates = Array.from(
-  { length: daysBetween(tripStartDate, tripEndDate) + 1 },
-  (_, index) => addDays(tripStartDate, index),
-)
 
 /** The Thursday before the Shigeharu visit, its backup morning. */
 const thursdayBeforeShigeharu = addDays(shigeharuDate, -1)
@@ -121,8 +114,10 @@ const staySummaryOf = (stay: Stay): StaySummary => ({
 })
 
 /** The Stay whose hotel Phillip sleeps in on the night starting on a date. */
-const stayForNight = (stays: ReadonlyArray<Stay>, date: IsoDate) =>
-  stays.find((stay) => stay.checkIn <= date && date < stay.checkOut)
+const stayForNight = <S extends Pick<Stay, 'checkIn' | 'checkOut'>>(
+  stays: ReadonlyArray<S>,
+  date: IsoDate,
+) => stays.find((stay) => stay.checkIn <= date && date < stay.checkOut)
 
 /** The dates where one Stay checks out and the next checks in. */
 const stayBoundariesOf = (stays: ReadonlyArray<Stay>) =>
@@ -572,6 +567,74 @@ const scheduleDetailOf =
   })
 
 /**
+ * A Day of a Schedule as its page shows it: the Day, tonight's hotel (the
+ * Stay covering the night, except on December 20, when Phillip flies home)
+ * and the next Move (the first dated that Day or later).
+ */
+const dayPageOf = (schedule: ScheduleDetail, date: IsoDate) =>
+  Option.map(
+    Option.fromUndefinedOr(schedule.days.find((day) => day.date === date)),
+    (day): DayPage => {
+      const tonight =
+        date === tripEndDate ? undefined : stayForNight(schedule.stays, date)
+      const nextMove = schedule.days
+        .filter((later) => later.date >= date)
+        .flatMap((later) =>
+          later.move ? [{ date: later.date, ...later.move }] : [],
+        )
+        .at(0)
+      return {
+        day,
+        ...(tonight && {
+          tonight: {
+            id: tonight.id,
+            ...Struct.pick(tonight, ['base', 'checkIn', 'checkOut', 'nights']),
+            hotel: { _tag: 'NotRecorded' },
+          },
+        }),
+        ...(nextMove && { nextMove }),
+      }
+    },
+  )
+
+/**
+ * Home's state at a moment: before the Trip, the countdown and the Schedule;
+ * during it, Today, the Day page of the Tokyo date; after it, the Schedule
+ * as a record. The Itineraries stand in for a Schedule not yet chosen.
+ */
+const homeStateOf = (
+  now: DateTime.DateTime,
+  schedule: Option.Option<ScheduleDetail>,
+  itineraries: ReadonlyArray<ItinerarySummary>,
+): HomeState => {
+  const date = tokyoDateOf(now)
+  const shared = { readAt: DateTime.formatIso(now), itineraries }
+  if (date < tripStartDate) {
+    return {
+      _tag: 'BeforeTrip',
+      ...shared,
+      daysToGo: daysBetween(date, tripStartDate),
+      schedule: Option.getOrNull(schedule),
+    }
+  }
+  if (date > tripEndDate) {
+    return {
+      _tag: 'AfterTrip',
+      ...shared,
+      schedule: Option.getOrNull(schedule),
+    }
+  }
+  return {
+    _tag: 'DuringTrip',
+    ...shared,
+    date,
+    today: Option.getOrNull(
+      Option.flatMap(schedule, (schedule) => dayPageOf(schedule, date)),
+    ),
+  }
+}
+
+/**
  * The current Schedule, if it is the one a write names (none when it names
  * null); ScheduleChanged otherwise. Every Schedule write checks this first,
  * so a write from an out-of-date screen, or to an archived Schedule, writes
@@ -704,8 +767,19 @@ const tripRuleBreaksOf = ({
 export class Trip extends Context.Service<
   Trip,
   {
-    /** Home's state at the current moment of the Clock. */
-    readonly home: Effect.Effect<HomeState>
+    /**
+     * Home's state at the current moment of the Clock, in Tokyo: before the
+     * Trip, during it (00:00 on December 6 to 23:59:59.999 on December 20,
+     * inclusive) or after it.
+     */
+    readonly home: Effect.Effect<HomeState, never, SqlClient.SqlClient>
+    /**
+     * One Day of the current Schedule as its page shows it; none before a
+     * Schedule is chosen. DayNotFound for a date outside the Trip.
+     */
+    day(
+      date: IsoDate,
+    ): Effect.Effect<Option.Option<DayPage>, DayNotFound, SqlClient.SqlClient>
     /** Every Itinerary with its comparison rows. */
     readonly itineraries: Effect.Effect<ReadonlyArray<ItineraryComparison>>
     /** Every Itinerary's Moves and Bases, overlaid on one map. */
@@ -905,11 +979,27 @@ export class Trip extends Context.Service<
         Effect.withSpan('Trip.scheduleSummary'),
       )
 
+      /** The current Schedule with its copy, as its page shows it. */
+      const currentSchedule = Effect.gen(function* () {
+        const store = yield* scheduleStore
+        const current = yield* store.transaction(store.current)
+        return Option.map(current, scheduleDetail)
+      }).pipe(Effect.catchTag(['SqlError', 'SchemaError'], Effect.die))
+
+      const home = Effect.gen(function* () {
+        const now = yield* DateTime.now
+        return homeStateOf(now, yield* currentSchedule, summaries)
+      }).pipe(Effect.withSpan('Trip.home'))
+
+      const day = Effect.fn('Trip.day')(function* (date: IsoDate) {
+        if (!isTripDate(date)) return yield* new DayNotFound({ date })
+        const schedule = yield* currentSchedule
+        return Option.flatMap(schedule, (schedule) => dayPageOf(schedule, date))
+      })
+
       return Trip.of({
-        home: Effect.map(DateTime.now, (now) => ({
-          countdown: countdownAt(now),
-          itineraries: summaries,
-        })),
+        home,
+        day,
         itineraries: Effect.succeed(comparisons),
         comparisonMap: Effect.succeed(comparisonMap),
         itinerary: (optionNumber) => find(details, optionNumber),

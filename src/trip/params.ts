@@ -1,5 +1,6 @@
 // Route params, checked in the browser by small synchronous checks (no Effect
 // in the browser). The server validates them again.
+import { isTripDate } from '@/trip/calendar'
 
 /** An Option number from the address, or undefined when it is malformed. */
 export const parseOptionNumber = (param: string) => {
@@ -19,3 +20,10 @@ export const parseScheduleId = (param: string) =>
   )
     ? param
     : undefined
+
+/**
+ * A Day's date from the address, or undefined when it is malformed or not a
+ * Day of the Trip.
+ */
+export const parseTripDate = (param: string) =>
+  isTripDate(param) ? param : undefined

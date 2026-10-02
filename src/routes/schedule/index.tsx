@@ -44,7 +44,7 @@ function SchedulePage() {
         <RevisionNotice schedule={schedule} className="mt-6" />
         <VerifyClaims claims={schedule.verifyClaims} className="mt-6" />
       </header>
-      <ScheduleSections schedule={schedule} />
+      <ScheduleSections schedule={schedule} linkDays />
       <ArchivedScheduleList schedules={archived} />
     </article>
   )

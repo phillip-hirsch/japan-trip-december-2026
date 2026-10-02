@@ -14,8 +14,17 @@ import { cn } from '@/lib/utils'
 import { formatMoment } from '@/trip/calendar'
 import type { ArchivedScheduleSummary, ScheduleDetail } from '@/trip/domain'
 
-/** A Schedule's Stays and Days, current or archived. */
-export function ScheduleSections({ schedule }: { schedule: ScheduleDetail }) {
+/**
+ * A Schedule's Stays and Days, current or archived. Only the current
+ * Schedule's Days have pages of their own to link to.
+ */
+export function ScheduleSections({
+  schedule,
+  linkDays = false,
+}: {
+  schedule: ScheduleDetail
+  linkDays?: boolean
+}) {
   return (
     <>
       <section aria-labelledby="stays" className="mt-12">
@@ -28,7 +37,11 @@ export function ScheduleSections({ schedule }: { schedule: ScheduleDetail }) {
         <h2 id="days" className="mb-4 text-xl font-semibold">
           Days
         </h2>
-        <DayTimeline days={schedule.days} stays={schedule.stays} />
+        <DayTimeline
+          days={schedule.days}
+          stays={schedule.stays}
+          linkDays={linkDays}
+        />
       </section>
     </>
   )
