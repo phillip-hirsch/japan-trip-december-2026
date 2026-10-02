@@ -8,3 +8,14 @@ export const parseOptionNumber = (param: string) => {
     ? optionNumber
     : undefined
 }
+
+/**
+ * A Schedule id from the address, or undefined when it is malformed. Schedule
+ * ids are random UUIDs.
+ */
+export const parseScheduleId = (param: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(
+    param,
+  )
+    ? param
+    : undefined

@@ -73,6 +73,9 @@ const formatTokyoDate = formatter({
   timeZone: tripTimeZone,
 })
 
-/** A moment, such as when a Schedule was chosen, as "October 2, 2026" in Tokyo. */
-export const formatChosenAt = (isoInstant: string) =>
+/**
+ * A moment, such as when a Schedule was chosen or archived, as
+ * "October 2, 2026" in Tokyo.
+ */
+export const formatMoment = (isoInstant: string) =>
   formatTokyoDate(new Date(isoInstant))

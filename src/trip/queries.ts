@@ -4,7 +4,12 @@
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { Query, QueryClient, QueryKey } from '@tanstack/react-query'
 
-import { getHome, getSchedule, getScheduleSummary } from '@/trip/trip.functions'
+import {
+  getHome,
+  getScheduleById,
+  getSchedules,
+  getScheduleSummary,
+} from '@/trip/trip.functions'
 
 /**
  * One key per query, none a prefix of another, so invalidating one never
@@ -12,10 +17,12 @@ import { getHome, getSchedule, getScheduleSummary } from '@/trip/trip.functions'
  */
 const keys = {
   home: ['home'],
-  schedule: ['schedule'],
+  schedules: ['schedules'],
   /** The prefix of every Day page's query. */
   days: ['days'],
   scheduleSummary: ['schedule-summary'],
+  /** The prefix of every query for one Schedule by its id. */
+  scheduleById: ['schedule-by-id'],
 } as const satisfies Record<string, QueryKey>
 
 // A page shown again must not open on data another device has since changed,
@@ -32,11 +39,23 @@ export const homeQuery = queryOptions({
   refetchOnMount: false,
 })
 
-export const scheduleQuery = queryOptions({
-  queryKey: keys.schedule,
-  queryFn: () => getSchedule(),
+/** The current Schedule and the archived ones, for /schedule. */
+export const schedulesQuery = queryOptions({
+  queryKey: keys.schedules,
+  queryFn: () => getSchedules(),
   refetchOnMount: false,
 })
+
+/**
+ * One Schedule by id, current or archived, for an archived Schedule's page:
+ * null when none has that id.
+ */
+export const scheduleByIdQuery = (scheduleId: string) =>
+  queryOptions({
+    queryKey: [...keys.scheduleById, scheduleId],
+    queryFn: () => getScheduleById({ data: { scheduleId } }),
+    refetchOnMount: false,
+  })
 
 /**
  * The storage-dependent parts of every page, prerendered ones included, read
@@ -61,12 +80,22 @@ export const useScheduleSummary = () => useQuery(scheduleSummaryQuery).data
 export const shouldDehydrateQuery = (query: Query) =>
   query.queryKey[0] !== keys.scheduleSummary[0]
 
+/** What replacing the current Schedule, by choosing or restoring, affects. */
+const replacingTheSchedule = [
+  keys.schedules,
+  keys.days,
+  keys.home,
+  keys.scheduleSummary,
+  keys.scheduleById,
+] as const
+
 /**
  * The invalidation contract: the queries each write affects. Every write
  * lists its own here.
  */
 const affectedBy = {
-  choose: [keys.schedule, keys.days, keys.home, keys.scheduleSummary],
+  choose: replacingTheSchedule,
+  restore: replacingTheSchedule,
 } as const satisfies Record<string, ReadonlyArray<QueryKey>>
 
 export type TripWrite = keyof typeof affectedBy

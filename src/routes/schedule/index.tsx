@@ -1,17 +1,20 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 
-import { DayTimeline } from '@/components/day-timeline'
 import { NoSchedule } from '@/components/no-schedule'
-import { StayList } from '@/components/stay-list'
+import {
+  ArchivedScheduleList,
+  RevisionNotice,
+  ScheduleSections,
+} from '@/components/schedule-sections'
 import { VerifyClaims } from '@/components/verify-claims'
-import { formatChosenAt } from '@/trip/calendar'
-import { scheduleQuery } from '@/trip/queries'
+import { formatMoment } from '@/trip/calendar'
+import { schedulesQuery } from '@/trip/queries'
 
 // Personal state, so never prerendered: each visit asks the Trip store.
 export const Route = createFileRoute('/schedule/')({
   loader: {
-    handler: ({ context }) => context.queryClient.fetchQuery(scheduleQuery),
+    handler: ({ context }) => context.queryClient.fetchQuery(schedulesQuery),
     staleReloadMode: 'blocking',
   },
   head: () => ({ meta: [{ title: 'Schedule · Japan · December 2026' }] }),
@@ -19,7 +22,7 @@ export const Route = createFileRoute('/schedule/')({
 })
 
 function SchedulePage() {
-  const schedule = useSuspenseQuery(scheduleQuery).data
+  const { current: schedule, archived } = useSuspenseQuery(schedulesQuery).data
   if (schedule === null) return <NoSchedule />
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-10 md:px-12 md:py-16">
@@ -28,7 +31,7 @@ function SchedulePage() {
         <p className="mt-3 text-sm text-muted-foreground">
           Copied from Option {schedule.sourceOptionNumber} on{' '}
           <time dateTime={schedule.chosenAt}>
-            {formatChosenAt(schedule.chosenAt)}
+            {formatMoment(schedule.chosenAt)}
           </time>
           .{' '}
           <Link
@@ -38,20 +41,11 @@ function SchedulePage() {
             See the Itineraries
           </Link>
         </p>
+        <RevisionNotice schedule={schedule} className="mt-6" />
         <VerifyClaims claims={schedule.verifyClaims} className="mt-6" />
       </header>
-      <section aria-labelledby="stays" className="mt-12">
-        <h2 id="stays" className="mb-4 text-xl font-semibold">
-          Stays
-        </h2>
-        <StayList stays={schedule.stays} />
-      </section>
-      <section aria-labelledby="days" className="mt-12">
-        <h2 id="days" className="mb-4 text-xl font-semibold">
-          Days
-        </h2>
-        <DayTimeline days={schedule.days} stays={schedule.stays} />
-      </section>
+      <ScheduleSections schedule={schedule} />
+      <ArchivedScheduleList schedules={archived} />
     </article>
   )
 }
