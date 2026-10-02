@@ -131,6 +131,7 @@ function RestoreButton({ schedule }: { schedule: ScheduleDetail }) {
   return (
     <ReplaceScheduleDialog
       write="restore"
+      target={schedule.id}
       run={async (operationId) =>
         answerOf(
           await restore({

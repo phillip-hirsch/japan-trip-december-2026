@@ -47,13 +47,16 @@ const confirming: DialogState = { _tag: 'Confirming' }
  * A write that replaces the current Schedule (choosing or restoring), after
  * a confirmation saying what happens. On success it opens the Schedule.
  *
- * One operation id serves every attempt from this dialog, so a retry after a
- * lost answer returns the first result instead of writing again. A refusal
+ * One operation id serves every attempt at the same target, so a retry after
+ * a lost answer returns the first result instead of writing again. A refusal
  * writes nothing, so the same id can confirm again once the refreshed
- * confirmation has been read.
+ * confirmation has been read. A new target (the page now shows another
+ * Itinerary or Schedule) gets a new id, so it never returns another
+ * target's result.
  */
 export function ReplaceScheduleDialog({
   write,
+  target,
   run,
   trigger,
   triggerLabel,
@@ -64,6 +67,11 @@ export function ReplaceScheduleDialog({
   failed,
 }: {
   write: TripWrite
+  /**
+   * What the write acts on, such as the Itinerary chosen; not the Schedule it
+   * replaces, which a retry may see change.
+   */
+  target: string
   run: (operationId: string) => Promise<ReplaceAnswer>
   /** The trigger's button, without children. */
   trigger: ReactElement
@@ -78,15 +86,18 @@ export function ReplaceScheduleDialog({
 }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const operationId = useRef<string>(undefined)
+  const operation = useRef<{ target: string; id: string }>(undefined)
   const [open, setOpen] = useState(false)
   const [state, setState] = useState<DialogState>(confirming)
 
   const confirm = async () => {
-    operationId.current ??= crypto.randomUUID()
+    if (operation.current?.target !== target) {
+      operation.current = { target, id: crypto.randomUUID() }
+    }
+    const operationId = operation.current.id
     setState({ _tag: 'Working' })
     try {
-      const answer = await run(operationId.current)
+      const answer = await run(operationId)
       // Either it changed the Schedule, or a refusal says this screen is out
       // of date; both make what's shown stale.
       if (answer._tag === 'Replaced') setOpen(false)

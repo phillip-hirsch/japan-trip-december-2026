@@ -93,6 +93,7 @@ function ChooseItineraryButton({
   return (
     <ReplaceScheduleDialog
       write="choose"
+      target={`Option ${optionNumber}`}
       run={async (operationId) =>
         answerOf(
           await choose({
