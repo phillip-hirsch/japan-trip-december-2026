@@ -1,9 +1,16 @@
 // The browser's cache of Trip server data, and which writes make it stale.
 // Itinerary content changes only with a deploy, so its pages keep their route
 // loaders; this cache holds what Phillip's writes change.
-import { queryOptions, useQuery } from '@tanstack/react-query'
+import {
+  queryOptions,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from '@tanstack/react-query'
 import type { Query, QueryClient, QueryKey } from '@tanstack/react-query'
+import { useEffect } from 'react'
 
+import { millisecondsUntilTokyoMidnight } from '@/trip/calendar'
 import type { IsoDate } from '@/trip/domain'
 import {
   getDay,
@@ -40,6 +47,25 @@ export const homeQuery = queryOptions({
   queryFn: () => getHome(),
   refetchOnMount: false,
 })
+
+/**
+ * Home's state, kept on the right Day: it follows the date in Tokyo, so a
+ * page left open across midnight there refetches, and the timer is set
+ * again from each answer.
+ */
+export const useHome = () => {
+  const queryClient = useQueryClient()
+  const { data, dataUpdatedAt } = useSuspenseQuery(homeQuery)
+  useEffect(() => {
+    const timer = setTimeout(
+      () => void queryClient.invalidateQueries({ queryKey: keys.home }),
+      // A moment past midnight, so the server is already on the new date.
+      millisecondsUntilTokyoMidnight(Date.now()) + 1000,
+    )
+    return () => clearTimeout(timer)
+  }, [queryClient, dataUpdatedAt])
+  return data
+}
 
 /**
  * One Day of the current Schedule as its page shows it: null before a

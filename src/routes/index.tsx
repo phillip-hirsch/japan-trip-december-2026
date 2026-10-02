@@ -1,4 +1,3 @@
-import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 
@@ -8,7 +7,7 @@ import { ScheduleDayView } from '@/components/schedule-day'
 import { ScheduleSections } from '@/components/schedule-sections'
 import { formatDay, tripEndDate, tripStartDate } from '@/trip/calendar'
 import type { HomeState, ItinerarySummary, ScheduleDetail } from '@/trip/domain'
-import { homeQuery } from '@/trip/queries'
+import { homeQuery, useHome } from '@/trip/queries'
 
 // Personal state, so never prerendered: Home follows the Trip and the
 // Schedule, and asks the Trip store on each visit.
@@ -21,7 +20,7 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-  const home = useSuspenseQuery(homeQuery).data
+  const home = useHome()
   switch (home._tag) {
     case 'BeforeTrip':
       return <BeforeTrip home={home} />

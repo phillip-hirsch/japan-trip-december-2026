@@ -35,6 +35,18 @@ export const tripDates: ReadonlyArray<IsoDate> = Array.from(
       .slice(0, 10) as IsoDate,
 )
 
+/**
+ * Tokyo's offset from UTC. Japan has kept UTC+9 with no daylight saving since
+ * 1951, so the next Tokyo midnight is plain arithmetic in the browser.
+ */
+const tokyoOffsetInMilliseconds = 9 * 60 * 60 * 1000
+
+/** How long until the date next changes in Tokyo, from a moment in epoch ms. */
+export const millisecondsUntilTokyoMidnight = (now: number) => {
+  const tokyo = now + tokyoOffsetInMilliseconds
+  return Math.ceil((tokyo + 1) / dayInMilliseconds) * dayInMilliseconds - tokyo
+}
+
 /** Whether a string names a Day of the Trip. */
 export const isTripDate = (date: string): date is IsoDate =>
   tripDates.includes(date as IsoDate)
