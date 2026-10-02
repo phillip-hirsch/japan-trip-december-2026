@@ -1,17 +1,5 @@
-// effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
-// @effect-diagnostics unstableApiUsage:off
-import { SqliteClient, SqliteMigrator } from '@effect/sql-sqlite-node'
 import { assert, describe, it } from '@effect/vitest'
-import {
-  DateTime,
-  Effect,
-  Exit,
-  Layer,
-  Option,
-  Predicate,
-  Struct,
-} from 'effect'
-import { TestClock } from 'effect/testing'
+import { Effect, Exit, Option, Predicate, Struct } from 'effect'
 
 import { december, ScheduleNotFound } from '@/trip/domain'
 import type {
@@ -20,22 +8,10 @@ import type {
   ScheduleDetail,
   ScheduleId,
 } from '@/trip/domain'
-import { Itineraries } from '@/trip/Itineraries'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
-import { migrations } from '@/trip/migrations'
+import { operation, setTime, storage, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
-
-/**
- * A fresh database for each test: the Durable Object's SQL and migrations,
- * over Node's SQLite in memory.
- */
-const storage = Layer.effectDiscard(
-  SqliteMigrator.run({ loader: migrations }),
-).pipe(Layer.provideMerge(SqliteClient.layer({ filename: ':memory:' })))
-
-const tripWith = (contents: ReadonlyArray<ItineraryContent>) =>
-  Trip.layer.pipe(Layer.provide(Itineraries.fromContent(contents)))
 
 /** Option 1 with a Verify claim about the Itinerary as a whole. */
 const option1WithEveryAttachment: ItineraryContent = {
@@ -55,10 +31,6 @@ const trip = tripWith([option1WithEveryAttachment, option2])
 const firstChoose = '7d1f8c2e-4b6a-4f0e-9a3d-2c5b8e1f4a60' as OperationId
 const secondChoose = 'c4e2a9b1-3f7d-4e8a-b6c0-9d1e5f2a7b38' as OperationId
 
-/** The nth client-generated operation id of a test. */
-const operation = (n: number) =>
-  `00000000-0000-4000-8000-${String(n).padStart(12, '0')}` as OperationId
-
 const chooseOption1 = (operationId: OperationId) =>
   Trip.use((trip) =>
     trip.choose({ operationId, optionNumber: 1, replacing: null }),
@@ -70,9 +42,6 @@ const choose = (
   operationId: OperationId,
   replacing: ScheduleId | null,
 ) => Trip.use((trip) => trip.choose({ operationId, optionNumber, replacing }))
-
-const setTime = (instant: string) =>
-  TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe(instant)))
 
 const schedules = Trip.use((trip) => trip.schedules)
 
@@ -148,9 +117,7 @@ describe('Trip.scheduleSummary', () => {
 describe('Trip.choose', () => {
   it.effect('copies the whole Itinerary into a new current Schedule', () =>
     Effect.gen(function* () {
-      yield* TestClock.setTime(
-        DateTime.toEpochMillis(DateTime.makeUnsafe('2026-10-01T09:30:00Z')),
-      )
+      yield* setTime('2026-10-01T09:30:00Z')
       const chosen = yield* chooseOption1(firstChoose)
       const schedule = yield* currentSchedule
       const itinerary = yield* Trip.use((trip) => trip.itinerary(1))

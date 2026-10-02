@@ -1,19 +1,18 @@
-import {
-  ArrowRightIcon,
-  BuildingIcon,
-  LuggageIcon,
-  MapPinnedIcon,
-  PlaneIcon,
-  TrainFrontIcon,
-} from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { ChevronRightIcon } from 'lucide-react'
 
-import { NewPlaceBadge } from '@/components/new-place-badge'
-import { OptionalBadge } from '@/components/optional-badge'
+import {
+  AnchorBadges,
+  AnchorNotes,
+  DayTripLine,
+  isBirthday,
+  MoveRoute,
+  MoveTravel,
+} from '@/components/day-details'
 import { PlaceName } from '@/components/place-name'
-import { Badge } from '@/components/ui/badge'
 import {
   Item,
+  ItemActions,
   ItemContent,
   ItemDescription,
   ItemMedia,
@@ -25,68 +24,14 @@ import { cn } from '@/lib/utils'
 import {
   formatDay,
   formatDayOfMonth,
-  formatDurationRange,
   formatNights,
   formatWeekday,
 } from '@/trip/calendar'
-import type {
-  Anchor,
-  DayDetail,
-  MoveDetail,
-  MoveMode,
-  StayDetail,
-} from '@/trip/domain'
+import type { DayDetail, StayDetail } from '@/trip/domain'
 
-const anchorBadges: Record<
-  Anchor['_tag'],
-  { label: string; variant: 'default' | 'secondary' | 'outline' }
-> = {
-  Arrival: { label: 'Arrival', variant: 'secondary' },
-  ShigeharuVisit: { label: 'Shigeharu', variant: 'outline' },
-  Birthday: { label: 'Birthday', variant: 'default' },
-  Departure: { label: 'Departure', variant: 'secondary' },
-}
-
-function AnchorNote({ anchor }: { anchor: Anchor }) {
-  if (anchor._tag !== 'ShigeharuVisit') return null
-  return (
-    <p className="text-xs text-muted-foreground">
-      Tentative, in the {anchor.slot}
-      {anchor.thursdayBackup && ', with Thursday morning as a backup'}.
-    </p>
-  )
-}
-
-const moveModes: Record<MoveMode, { label: string; icon: LucideIcon }> = {
-  train: { label: 'Train', icon: TrainFrontIcon },
-  flight: { label: 'Flight', icon: PlaneIcon },
-  local: { label: 'Local', icon: BuildingIcon },
-}
-
-/** How a Move travels: its mode, rough duration and any change of train. */
-function MoveTravel({ move }: { move: MoveDetail }) {
-  const { label, icon: Icon } = moveModes[move.mode]
-  return (
-    <p className="flex flex-wrap items-center gap-x-1.5 pl-5.5 text-xs text-muted-foreground">
-      <Icon className="size-3.5" aria-hidden />
-      <span className="text-foreground">{label}</span>
-      {move.mode !== 'local' && (
-        <span>
-          ·{' '}
-          {move.duration
-            ? formatDurationRange(move.duration)
-            : 'duration not given'}
-        </span>
-      )}
-      {move.changes.map((station) => (
-        <span key={station.id}>· change at {station.name}</span>
-      ))}
-    </p>
-  )
-}
-
-function DayItem({ day }: { day: DayDetail }) {
-  const birthday = day.anchors.some((anchor) => anchor._tag === 'Birthday')
+/** A Day, opening its own page when the timeline links its Days. */
+function DayItem({ day, linked }: { day: DayDetail; linked: boolean }) {
+  const birthday = isBirthday(day.anchors)
   return (
     <Item
       size="sm"
@@ -94,6 +39,11 @@ function DayItem({ day }: { day: DayDetail }) {
         'items-start',
         birthday && 'border-primary/40 bg-primary/10',
       )}
+      render={
+        linked ? (
+          <Link to="/schedule/$date" params={{ date: day.date }} />
+        ) : undefined
+      }
     >
       <ItemMedia className="w-10 flex-col items-center gap-0 self-start">
         <time dateTime={day.date} className="flex flex-col items-center">
@@ -116,63 +66,12 @@ function DayItem({ day }: { day: DayDetail }) {
         </time>
       </ItemMedia>
       <ItemContent className="gap-1.5">
-        {(day.anchors.length > 0 || day.freeDay) && (
-          <div className="flex flex-wrap gap-1.5">
-            {day.anchors.map((anchor) => {
-              const badge = anchorBadges[anchor._tag]
-              return (
-                <Badge
-                  key={anchor._tag}
-                  variant={badge.variant}
-                  className={cn(
-                    anchor._tag === 'ShigeharuVisit' && 'border-dashed',
-                  )}
-                >
-                  {badge.label}
-                </Badge>
-              )
-            })}
-            {day.freeDay && (
-              <Badge
-                variant="outline"
-                className="border-dashed text-muted-foreground"
-              >
-                Free day
-              </Badge>
-            )}
-          </div>
-        )}
-        {day.anchors.map((anchor) => (
-          <AnchorNote key={anchor._tag} anchor={anchor} />
-        ))}
-        {day.move && (
-          <p className="flex flex-wrap items-center gap-1.5 text-sm">
-            <LuggageIcon className="size-4 text-muted-foreground" aria-hidden />
-            <span className="text-muted-foreground">Move</span>
-            <PlaceName place={day.move.from} />
-            <ArrowRightIcon
-              className="size-3.5 text-muted-foreground"
-              aria-hidden
-            />
-            <span className="sr-only">to</span>
-            <PlaceName place={day.move.to} />
-          </p>
-        )}
-        {day.move && <MoveTravel move={day.move} />}
-        {day.dayTrips.map(({ place, optional }) => (
-          <p
-            key={place.id}
-            className="flex flex-wrap items-center gap-1.5 text-sm"
-          >
-            <MapPinnedIcon
-              className="size-4 text-muted-foreground"
-              aria-hidden
-            />
-            <span className="text-muted-foreground">Day trip</span>
-            <PlaceName place={place} />
-            <NewPlaceBadge place={place} />
-            {optional && <OptionalBadge />}
-          </p>
+        <AnchorBadges anchors={day.anchors} freeDay={day.freeDay} />
+        <AnchorNotes anchors={day.anchors} />
+        {day.move && <MoveRoute move={day.move} />}
+        {day.move && <MoveTravel move={day.move} className="pl-5.5" />}
+        {day.dayTrips.map((dayTrip) => (
+          <DayTripLine key={dayTrip.place.id} dayTrip={dayTrip} />
         ))}
         {day.description !== undefined && (
           <ItemDescription className="line-clamp-none text-foreground">
@@ -181,20 +80,32 @@ function DayItem({ day }: { day: DayDetail }) {
         )}
         <VerifyClaims claims={day.verifyClaims} className="mt-1" />
       </ItemContent>
+      {linked && (
+        <ItemActions className="self-center">
+          <ChevronRightIcon
+            aria-hidden
+            className="size-4 text-muted-foreground"
+          />
+        </ItemActions>
+      )}
     </Item>
   )
 }
 
 /**
  * All 15 Days as one timeline, under a marker for each Stay they fall in. The
- * Days are sections of the Itinerary page, each addressable by its date.
+ * Days are sections of the page, each addressable by its date; on the
+ * current Schedule, each also opens its own page.
  */
 export function DayTimeline({
   days,
   stays,
+  linkDays = false,
 }: {
   days: ReadonlyArray<DayDetail>
   stays: ReadonlyArray<StayDetail>
+  /** Whether each Day opens its page at /schedule/$date. */
+  linkDays?: boolean
 }) {
   // Each Day sits under the latest Stay that has checked in by then, so a
   // Move day opens the Stay it moves to and Departure closes the last one.
@@ -223,7 +134,7 @@ export function DayTimeline({
             {days.map((day, index) => (
               <li key={day.date} id={day.date} className="scroll-mt-4">
                 {index > 0 && <Separator className="my-1" />}
-                <DayItem day={day} />
+                <DayItem day={day} linked={linkDays} />
               </li>
             ))}
           </ol>

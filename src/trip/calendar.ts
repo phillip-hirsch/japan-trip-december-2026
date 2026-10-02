@@ -17,6 +17,36 @@ export const shigeharuDate = '2026-12-11' as IsoDate
 /** The Birthday: Tuesday, December 15, never a Move day. */
 export const birthdayDate = '2026-12-15' as IsoDate
 
+const dayInMilliseconds = 24 * 60 * 60 * 1000
+
+const midnightUtc = (isoDate: IsoDate) => Date.parse(`${isoDate}T00:00:00Z`)
+
+/** Every Day of the Trip, December 6 through December 20, in order. */
+export const tripDates: ReadonlyArray<IsoDate> = Array.from(
+  {
+    length:
+      (midnightUtc(tripEndDate) - midnightUtc(tripStartDate)) /
+        dayInMilliseconds +
+      1,
+  },
+  (_, index) =>
+    new Date(midnightUtc(tripStartDate) + index * dayInMilliseconds)
+      .toISOString()
+      .slice(0, 10) as IsoDate,
+)
+
+/** Whether a string names a Day of the Trip. */
+export const isTripDate = (date: string): date is IsoDate =>
+  tripDates.includes(date as IsoDate)
+
+/** The Day before, or undefined on December 6. */
+export const previousTripDate = (date: IsoDate) =>
+  tripDates[tripDates.indexOf(date) - 1]
+
+/** The Day after, or undefined on December 20. */
+export const nextTripDate = (date: IsoDate) =>
+  tripDates[tripDates.indexOf(date) + 1]
+
 /** A formatter of moments, in US English. */
 const formatter = (options: Intl.DateTimeFormatOptions) => {
   const dateTimeFormat = new Intl.DateTimeFormat('en-US', options)

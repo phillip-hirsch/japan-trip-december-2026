@@ -498,15 +498,57 @@ export const ScheduleStayDetail = Schema.Struct({
 })
 export type ScheduleStayDetail = typeof ScheduleStayDetail.Type
 
+/** A Move as copied into a Schedule, as its Day shows it. */
+export const ScheduleMoveDetail = Schema.Struct({
+  id: CopyId,
+  ...MoveDetail.fields,
+})
+export type ScheduleMoveDetail = typeof ScheduleMoveDetail.Type
+
 export const ScheduleDayDetail = Schema.Struct({
   ...DayDetail.fields,
   anchors: Schema.Array(ScheduleAnchor),
-  move: Schema.optionalKey(Schema.Struct({ id: CopyId, ...MoveDetail.fields })),
+  move: Schema.optionalKey(ScheduleMoveDetail),
   dayTrips: Schema.Array(
     Schema.Struct({ id: CopyId, ...DayTripDetail.fields }),
   ),
 })
 export type ScheduleDayDetail = typeof ScheduleDayDetail.Type
+
+/**
+ * A Stay's hotel. Not recorded until Phase 3 lets Phillip record its
+ * details, so a Day page shows the Base marked "hotel not recorded".
+ */
+export const Hotel = Schema.TaggedUnion({ NotRecorded: {} })
+export type Hotel = typeof Hotel.Type
+
+/** Tonight's hotel: the Stay covering the night a Day ends with. */
+export const TonightsHotel = Schema.Struct({
+  id: CopyId,
+  ...StaySummary.fields,
+  hotel: Hotel,
+})
+export type TonightsHotel = typeof TonightsHotel.Type
+
+/** The next Move from a Day: the first dated that Day or later. */
+export const NextMove = Schema.Struct({
+  date: IsoDate,
+  ...ScheduleMoveDetail.fields,
+})
+export type NextMove = typeof NextMove.Type
+
+/**
+ * A Day of Phillip's Schedule as its page shows it, and as Home shows Today
+ * during the Trip.
+ */
+export const DayPage = Schema.Struct({
+  day: ScheduleDayDetail,
+  /** Absent on December 20, the Departure Day, when Phillip flies home. */
+  tonight: Schema.optionalKey(TonightsHotel),
+  /** Absent once no Moves are left. */
+  nextMove: Schema.optionalKey(NextMove),
+})
+export type DayPage = typeof DayPage.Type
 
 /** A Schedule's own fields: where it came from and when. */
 export const ScheduleRecord = Schema.Struct({
@@ -615,22 +657,49 @@ export class ItineraryNotFound extends Schema.TaggedError<ItineraryNotFound>()(
   { optionNumber: Schema.Int },
 ) {}
 
-/**
- * Whole Tokyo calendar dates until the Trip starts at 00:00 on December 6 in
- * Tokyo, or Ended once that moment has passed. The time of day never changes
- * the count.
- */
-export const Countdown = Schema.TaggedUnion({
-  Counting: { days: Schema.Int },
-  Ended: {},
-})
-export type Countdown = typeof Countdown.Type
+/** The date is not a Day of the Trip, December 6 through December 20. */
+export class DayNotFound extends Schema.TaggedError<DayNotFound>()(
+  'DayNotFound',
+  { date: IsoDate },
+) {}
 
-export const HomeState = Schema.Struct({
-  countdown: Countdown,
-  itineraries: Schema.Array(ItinerarySummary),
+/**
+ * What Home shows, by where the moment falls relative to the Trip in Tokyo:
+ * 00:00 on December 6 to 23:59:59.999 on December 20, inclusive. The
+ * Itineraries are what Home shows until Phillip has chosen one.
+ */
+export const HomeState = Schema.TaggedUnion({
+  BeforeTrip: {
+    /**
+     * Whole Tokyo calendar dates until the Trip starts. The time of day never
+     * changes the count.
+     */
+    daysToGo: Schema.Int,
+    schedule: Schema.NullOr(ScheduleDetail),
+    itineraries: Schema.Array(ItinerarySummary),
+  },
+  DuringTrip: {
+    /** The Day in Tokyo. */
+    date: IsoDate,
+    /** Today: that Day's page, null until a Schedule exists. */
+    today: Schema.NullOr(DayPage),
+    itineraries: Schema.Array(ItinerarySummary),
+  },
+  AfterTrip: {
+    /** The Schedule as a record. */
+    schedule: Schema.NullOr(ScheduleDetail),
+    itineraries: Schema.Array(ItinerarySummary),
+  },
 })
 export type HomeState = typeof HomeState.Type
+
+/** What reading a Day page found, as plain data for the browser. */
+export const DayOutcome = Schema.TaggedUnion({
+  Day: { page: DayPage },
+  NoSchedule: {},
+  DayNotFound: DayNotFound.fields,
+})
+export type DayOutcome = typeof DayOutcome.Type
 
 /**
  * A write named a Schedule that isn't current, or none while one is: it was

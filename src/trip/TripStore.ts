@@ -8,6 +8,9 @@ import type { SqlClient } from 'effect/sql'
 import type {
   ChooseItinerary,
   ChooseOutcome,
+  DayOutcome,
+  HomeState,
+  IsoDate,
   RestoreOutcome,
   RestoreSchedule,
   ScheduleDetail,
@@ -61,6 +64,31 @@ export class TripStore extends DurableObject<Env> {
       )
     }
     return runToPromise(this.#runtime, operation)
+  }
+
+  /** Home's state at the moment of the request, in Tokyo. */
+  home(): Promise<HomeState> {
+    return this.#run(Trip.use((trip) => trip.home))
+  }
+
+  /**
+   * One Day of Phillip's Schedule as its page shows it, no Schedule before
+   * he chooses one, or DayNotFound for a date outside the Trip.
+   */
+  day(date: IsoDate): Promise<DayOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.day(date)).pipe(
+        Effect.map(
+          Option.match({
+            onNone: (): DayOutcome => ({ _tag: 'NoSchedule' }),
+            onSome: (page): DayOutcome => ({ _tag: 'Day', page }),
+          }),
+        ),
+        Effect.catchTag('DayNotFound', ({ date }) =>
+          Effect.succeed<DayOutcome>({ _tag: 'DayNotFound', date }),
+        ),
+      ),
+    )
   }
 
   /** Copies an Itinerary into Phillip's Schedule, archiving the current one. */

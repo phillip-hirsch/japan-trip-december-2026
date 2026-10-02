@@ -4,7 +4,9 @@
 import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { Query, QueryClient, QueryKey } from '@tanstack/react-query'
 
+import type { IsoDate } from '@/trip/domain'
 import {
+  getDay,
   getHome,
   getScheduleById,
   getSchedules,
@@ -38,6 +40,17 @@ export const homeQuery = queryOptions({
   queryFn: () => getHome(),
   refetchOnMount: false,
 })
+
+/**
+ * One Day of the current Schedule as its page shows it: null before a
+ * Schedule exists. The date is a Day of the Trip; the route checks it first.
+ */
+export const dayQuery = (date: IsoDate) =>
+  queryOptions({
+    queryKey: [...keys.days, date],
+    queryFn: () => getDay({ data: { date } }),
+    refetchOnMount: false,
+  })
 
 /** The current Schedule and the archived ones, for /schedule. */
 export const schedulesQuery = queryOptions({

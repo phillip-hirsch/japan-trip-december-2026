@@ -11,8 +11,8 @@ export function NotFound() {
         Nothing lives at this address
       </h1>
       <p className="mt-4 max-w-sm text-sm leading-relaxed text-muted-foreground">
-        The link may be mistyped, or it may point to an Option that doesn’t
-        exist.
+        The link may be mistyped, or it may point to an Option or a Day that
+        doesn’t exist.
       </p>
       <div className="mt-8 flex gap-2">
         <ButtonLink to="/">Home</ButtonLink>
