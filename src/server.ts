@@ -4,6 +4,9 @@ import { ConfigProvider, Effect, Exit, Layer, ManagedRuntime } from 'effect'
 
 import { AccessGate, KeySetTransport } from '@/access/AccessGate'
 
+// The Durable Object class, exported for the Wrangler configuration (ADR 0001).
+export { TripStore } from '@/trip/TripStore'
+
 /**
  * One gate per isolate, so its remote key set is cached at module scope. Its
  * configuration is the Worker's plain variables.

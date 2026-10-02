@@ -2,13 +2,21 @@ import { notFound } from '@tanstack/react-router'
 import { createServerFn } from '@tanstack/react-start'
 import { Effect, Schema } from 'effect'
 
-import { OptionNumber } from '@/trip/domain'
+import {
+  ChooseItinerary,
+  ChooseOutcome,
+  OptionNumber,
+  ScheduleDetail,
+} from '@/trip/domain'
 import { runTrip } from '@/trip/runtime.server'
 import { Trip } from '@/trip/Trip'
+import { callTripStore } from '@/trip/trip-store.server'
 
 // Server functions are thin adapters around the Trip service: validate the
 // input with Schema (inline, so the client build strips it with the
 // validator), map the service's typed failures, and run it through runTrip.
+// Its storage operations run in the Trip store, reached only through
+// callTripStore.
 
 /** Home's state at the moment of the request. */
 export const getHome = createServerFn({ method: 'GET' }).handler(() =>
@@ -39,3 +47,20 @@ export const getItinerary = createServerFn({ method: 'GET' })
     if (itinerary === null) throw notFound()
     return itinerary
   })
+
+/**
+ * Copies an Itinerary into Phillip's Schedule. Repeating the operation id
+ * returns the first result, so a retry never chooses twice.
+ */
+export const chooseItinerary = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(ChooseItinerary))
+  .handler(({ data }) =>
+    callTripStore(ChooseOutcome, (store) => store.choose(data)),
+  )
+
+/** The current Schedule, or null before Phillip chooses one. */
+export const getSchedule = createServerFn({ method: 'GET' }).handler(() =>
+  callTripStore(Schema.NullOr(ScheduleDetail), (store) =>
+    store.currentSchedule(),
+  ),
+)

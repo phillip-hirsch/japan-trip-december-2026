@@ -8,6 +8,14 @@
   // The app's stable address. Worker-level Access protects it (#14).
   "workers_dev": true,
   "preview_urls": false,
+  // All editable data lives in one SQLite-backed Durable Object (ADR 0001),
+  // declared under exports, never the legacy migrations list.
+  "durable_objects": {
+    "bindings": [{ "name": "TRIP_STORE", "class_name": "TripStore" }],
+  },
+  "exports": {
+    "TripStore": { "type": "durable-object", "storage": "sqlite" },
+  },
   // The Access gate's configuration; all three values are public. The AUD tag
   // is the Worker-level Access application's.
   // .dev.vars supplies local values for `vp dev` and `vp preview`.

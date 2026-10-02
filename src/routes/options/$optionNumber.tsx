@@ -1,5 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
+import { ChooseItineraryButton } from '@/components/choose-itinerary'
 import { DayTimeline } from '@/components/day-timeline'
 import { ItineraryMap } from '@/components/itinerary-map'
 import { ItineraryReasoning } from '@/components/itinerary-reasoning'
@@ -34,6 +35,9 @@ function ItineraryPage() {
     <article className="mx-auto w-full max-w-3xl px-6 py-10 md:px-12 md:py-16">
       <ItinerarySummaryHeader summary={itinerary}>
         <VerifyClaims claims={itinerary.verifyClaims} className="mt-6" />
+        <div className="mt-8">
+          <ChooseItineraryButton optionNumber={itinerary.optionNumber} />
+        </div>
       </ItinerarySummaryHeader>
       <section aria-labelledby="map" className="mt-12">
         <h2 id="map" className="mb-4 text-xl font-semibold">

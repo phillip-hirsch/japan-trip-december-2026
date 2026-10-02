@@ -17,12 +17,16 @@ export const shigeharuDate = '2026-12-11' as IsoDate
 /** The Birthday: Tuesday, December 15, never a Move day. */
 export const birthdayDate = '2026-12-15' as IsoDate
 
+/** A formatter of moments, in US English. */
+const formatter = (options: Intl.DateTimeFormatOptions) => {
+  const dateTimeFormat = new Intl.DateTimeFormat('en-US', options)
+  return (date: Date) => dateTimeFormat.format(date)
+}
+
+/** A calendar date's formatter, which midnight UTC keeps on that date. */
 const format = (options: Intl.DateTimeFormatOptions) => {
-  const formatter = new Intl.DateTimeFormat('en-US', {
-    ...options,
-    timeZone: 'UTC',
-  })
-  return (isoDate: string) => formatter.format(new Date(`${isoDate}T00:00:00Z`))
+  const formatDate = formatter({ ...options, timeZone: 'UTC' })
+  return (isoDate: string) => formatDate(new Date(`${isoDate}T00:00:00Z`))
 }
 
 /** A calendar date as "Sunday, December 6". */
@@ -61,3 +65,14 @@ export const formatDurationRange = ({
   minMinutes === maxMinutes
     ? `about ${formatMinutes(minMinutes)}`
     : `${formatMinutes(minMinutes)} – ${formatMinutes(maxMinutes)}`
+
+const formatTokyoDate = formatter({
+  month: 'long',
+  day: 'numeric',
+  year: 'numeric',
+  timeZone: tripTimeZone,
+})
+
+/** A moment, such as when a Schedule was chosen, as "October 2, 2026" in Tokyo. */
+export const formatChosenAt = (isoInstant: string) =>
+  formatTokyoDate(new Date(isoInstant))
