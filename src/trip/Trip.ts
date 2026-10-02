@@ -13,6 +13,7 @@ import type { SqlClient } from 'effect/sql'
 
 import {
   birthdayDate,
+  isTripDate,
   shigeharuDate,
   tripDates,
   tripEndDate,
@@ -990,7 +991,7 @@ export class Trip extends Context.Service<
       }).pipe(Effect.withSpan('Trip.home'))
 
       const day = Effect.fn('Trip.day')(function* (date: IsoDate) {
-        if (!tripDates.includes(date)) return yield* new DayNotFound({ date })
+        if (!isTripDate(date)) return yield* new DayNotFound({ date })
         const schedule = yield* currentSchedule
         return Option.flatMap(schedule, (schedule) => dayPageOf(schedule, date))
       })

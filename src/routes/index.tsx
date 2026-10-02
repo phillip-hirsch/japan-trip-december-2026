@@ -6,7 +6,6 @@ import { DisplayJa } from '@/components/display-ja'
 import { ItineraryList } from '@/components/itinerary-list'
 import { ScheduleDayView } from '@/components/schedule-day'
 import { ScheduleSections } from '@/components/schedule-sections'
-import { cn } from '@/lib/utils'
 import { formatDay, tripEndDate, tripStartDate } from '@/trip/calendar'
 import type { HomeState, ItinerarySummary, ScheduleDetail } from '@/trip/domain'
 import { homeQuery } from '@/trip/queries'
@@ -32,7 +31,7 @@ function Home() {
       ) : (
         <Hero
           eyebrow="Today"
-          title={formatDay(home.date)}
+          title={<HeroTitle>{formatDay(home.date)}</HeroTitle>}
           lede="No Schedule yet. Choose an Itinerary, and Today appears here."
         >
           <HomeItineraries itineraries={home.itineraries} />
@@ -42,19 +41,14 @@ function Home() {
       return (
         <Hero
           eyebrow="After the Trip"
-          title="Welcome home"
+          title={<HeroTitle>Welcome home</HeroTitle>}
           lede={
             home.schedule
               ? 'Your Schedule, as a record of the Trip.'
               : 'No Schedule was chosen. The Itineraries are still here.'
           }
-          wide={home.schedule !== null}
         >
-          {home.schedule ? (
-            <HomeSchedule schedule={home.schedule} />
-          ) : (
-            <HomeItineraries itineraries={home.itineraries} />
-          )}
+          <ScheduleOrItineraries {...home} />
         </Hero>
       )
   }
@@ -69,14 +63,11 @@ function Hero({
   eyebrow,
   title,
   lede,
-  wide = false,
   children,
 }: {
   eyebrow: string
   title: ReactNode
   lede: ReactNode
-  /** Whether the content below spans the hero's width, as the Schedule does. */
-  wide?: boolean
   children: ReactNode
 }) {
   return (
@@ -93,10 +84,15 @@ function Hero({
         <p className="mt-10 max-w-sm text-sm leading-relaxed text-muted-foreground">
           {lede}
         </p>
-        <div className={cn('mt-12', !wide && 'max-w-md')}>{children}</div>
+        <div className="mt-12">{children}</div>
       </section>
     </div>
   )
+}
+
+/** A hero's title in words, where the countdown would otherwise be. */
+function HeroTitle({ children }: { children: ReactNode }) {
+  return <h1 className="mt-4 text-4xl font-semibold md:text-5xl">{children}</h1>
 }
 
 function BeforeTrip({
@@ -133,14 +129,24 @@ function BeforeTrip({
           {formatDay(tripStartDate)}.
         </>
       }
-      wide={schedule !== null}
     >
-      {schedule ? (
-        <HomeSchedule schedule={schedule} />
-      ) : (
-        <HomeItineraries itineraries={itineraries} />
-      )}
+      <ScheduleOrItineraries schedule={schedule} itineraries={itineraries} />
     </Hero>
+  )
+}
+
+/** Phillip's Schedule once chosen; the Itineraries until then. */
+function ScheduleOrItineraries({
+  schedule,
+  itineraries,
+}: {
+  schedule: ScheduleDetail | null
+  itineraries: ReadonlyArray<ItinerarySummary>
+}) {
+  return schedule ? (
+    <HomeSchedule schedule={schedule} />
+  ) : (
+    <HomeItineraries itineraries={itineraries} />
   )
 }
 
@@ -151,7 +157,7 @@ function HomeItineraries({
   itineraries: ReadonlyArray<ItinerarySummary>
 }) {
   return (
-    <section aria-labelledby="itineraries">
+    <section aria-labelledby="itineraries" className="max-w-md">
       <h2
         id="itineraries"
         className="mb-4 text-xs tracking-[0.3em] text-muted-foreground uppercase"

@@ -30,8 +30,8 @@ const homeWithAndWithoutSchedule = (instant: string) =>
     return { without, withSchedule, scheduleId }
   })
 
-/** A Home state by its phase and the Schedule, Today, or Itineraries shown. */
-const shape = (home: HomeState) => {
+/** Home by its phase, and which Schedule, Today or Itineraries it shows. */
+const homeSummary = (home: HomeState) => {
   switch (home._tag) {
     case 'BeforeTrip':
       return {
@@ -62,7 +62,10 @@ describe('Trip.home at the Trip boundaries', () => {
       const { without, withSchedule, scheduleId } =
         yield* homeWithAndWithoutSchedule('2026-12-05T14:59:59.999Z')
       assert.deepStrictEqual(
-        { without: shape(without), withSchedule: shape(withSchedule) },
+        {
+          without: homeSummary(without),
+          withSchedule: homeSummary(withSchedule),
+        },
         {
           without: {
             _tag: 'BeforeTrip',
@@ -87,7 +90,10 @@ describe('Trip.home at the Trip boundaries', () => {
         '2026-12-05T15:00:00Z',
       )
       assert.deepStrictEqual(
-        { without: shape(without), withSchedule: shape(withSchedule) },
+        {
+          without: homeSummary(without),
+          withSchedule: homeSummary(withSchedule),
+        },
         {
           without: {
             _tag: 'DuringTrip',
@@ -112,7 +118,10 @@ describe('Trip.home at the Trip boundaries', () => {
         '2026-12-20T14:59:59.999Z',
       )
       assert.deepStrictEqual(
-        { without: shape(without), withSchedule: shape(withSchedule) },
+        {
+          without: homeSummary(without),
+          withSchedule: homeSummary(withSchedule),
+        },
         {
           without: {
             _tag: 'DuringTrip',
@@ -136,7 +145,10 @@ describe('Trip.home at the Trip boundaries', () => {
       const { without, withSchedule, scheduleId } =
         yield* homeWithAndWithoutSchedule('2026-12-20T15:00:00Z')
       assert.deepStrictEqual(
-        { without: shape(without), withSchedule: shape(withSchedule) },
+        {
+          without: homeSummary(without),
+          withSchedule: homeSummary(withSchedule),
+        },
         {
           without: { _tag: 'AfterTrip', scheduleId: null, itineraries: [1, 2] },
           withSchedule: { _tag: 'AfterTrip', scheduleId, itineraries: [1, 2] },
@@ -163,7 +175,7 @@ describe('Trip.home Today', () => {
     Effect.gen(function* () {
       // 16:00 UTC on December 13 is 01:00 on December 14 in Tokyo.
       const home = yield* homeAt('2026-12-13T16:00:00Z')
-      assert.deepStrictEqual(shape(home), {
+      assert.deepStrictEqual(homeSummary(home), {
         _tag: 'DuringTrip',
         date: december(14),
         today: null,
@@ -176,7 +188,7 @@ describe('Trip.home Today', () => {
     Effect.gen(function* () {
       // 14:59 UTC on December 14 is 23:59 on December 14 in Tokyo.
       const home = yield* homeAt('2026-12-14T14:59:00Z')
-      assert.deepStrictEqual(shape(home), {
+      assert.deepStrictEqual(homeSummary(home), {
         _tag: 'DuringTrip',
         date: december(14),
         today: null,

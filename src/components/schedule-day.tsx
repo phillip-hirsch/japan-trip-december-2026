@@ -1,10 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import {
-  ArrowRightIcon,
-  BedIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
-} from 'lucide-react'
+import { BedIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { ButtonLink } from '@/components/button-link'
@@ -13,11 +8,11 @@ import {
   AnchorNotes,
   DayTripLine,
   isBirthday,
+  MoveRoute,
   MoveTravel,
 } from '@/components/day-details'
 import { DisplayJa } from '@/components/display-ja'
 import { NewPlaceBadge } from '@/components/new-place-badge'
-import { PlaceName } from '@/components/place-name'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -39,12 +34,7 @@ import {
   previousTripDate,
   tripDates,
 } from '@/trip/calendar'
-import type {
-  DayPage,
-  IsoDate,
-  NextMove as NextMoveDetail,
-  TonightsHotel as TonightsHotelDetail,
-} from '@/trip/domain'
+import type { DayPage, IsoDate, NextMove, TonightsHotel } from '@/trip/domain'
 
 /** A link to the Day before or after, or a disabled control at the Trip's ends. */
 function DayStep({
@@ -126,7 +116,7 @@ function DaySection({
 }
 
 /** Tonight's hotel: the Stay covering the night, and its hotel once recorded. */
-function TonightsHotel({ tonight }: { tonight: TonightsHotelDetail }) {
+function TonightsHotelCard({ tonight }: { tonight: TonightsHotel }) {
   return (
     <Item variant="outline">
       <ItemMedia className="w-14 justify-start">
@@ -163,7 +153,7 @@ function TonightsHotel({ tonight }: { tonight: TonightsHotelDetail }) {
 }
 
 /** The next Move: today's, or the first later one, with its travel. */
-function NextMove({ move, today }: { move: NextMoveDetail; today: IsoDate }) {
+function NextMoveCard({ move, today }: { move: NextMove; today: IsoDate }) {
   return (
     <Item variant="outline" className="flex-col items-stretch gap-2">
       <p className="text-xs tracking-widest text-muted-foreground uppercase">
@@ -173,13 +163,8 @@ function NextMove({ move, today }: { move: NextMoveDetail; today: IsoDate }) {
           <time dateTime={move.date}>{formatDay(move.date)}</time>
         )}
       </p>
-      <p className="flex flex-wrap items-center gap-2 text-base">
-        <PlaceName place={move.from} />
-        <ArrowRightIcon className="size-4 text-muted-foreground" aria-hidden />
-        <span className="sr-only">to</span>
-        <PlaceName place={move.to} />
-      </p>
-      <MoveTravel move={move} />
+      <MoveRoute move={move} className="text-base" />
+      <MoveTravel move={move} className="pl-5.5" />
     </Item>
   )
 }
@@ -236,7 +221,7 @@ export function ScheduleDayView({
         </div>
         <DayPager date={day.date} className="mt-8" />
       </header>
-      <DaySection id="plan" title="The day">
+      <DaySection id="the-day" title="The day">
         <div className="flex flex-col gap-3">
           {day.dayTrips.map((dayTrip) => (
             <DayTripLine
@@ -260,12 +245,12 @@ export function ScheduleDayView({
       </DaySection>
       {tonight && (
         <DaySection id="tonight" title="Tonight">
-          <TonightsHotel tonight={tonight} />
+          <TonightsHotelCard tonight={tonight} />
         </DaySection>
       )}
       {nextMove && (
         <DaySection id="next-move" title="Next Move">
-          <NextMove move={nextMove} today={day.date} />
+          <NextMoveCard move={nextMove} today={day.date} />
         </DaySection>
       )}
       <p className="mt-12 text-sm text-muted-foreground">
