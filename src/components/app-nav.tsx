@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import type { LinkProps } from '@tanstack/react-router'
-import { HouseIcon, RouteIcon } from 'lucide-react'
+import { CalendarDaysIcon, HouseIcon, RouteIcon } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import { DisplayJa } from '@/components/display-ja'
@@ -22,6 +22,7 @@ import {
 const navEntries = [
   { to: '/', label: 'Home', icon: HouseIcon, exact: true },
   { to: '/options', label: 'Options', icon: RouteIcon, exact: false },
+  { to: '/schedule', label: 'Schedule', icon: CalendarDaysIcon, exact: false },
 ] as const satisfies ReadonlyArray<{
   to: LinkProps['to']
   label: string
