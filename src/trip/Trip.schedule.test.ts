@@ -2,7 +2,15 @@
 // @effect-diagnostics unstableApiUsage:off
 import { SqliteClient, SqliteMigrator } from '@effect/sql-sqlite-node'
 import { assert, describe, it } from '@effect/vitest'
-import { DateTime, Effect, Layer, Option, Predicate, Struct } from 'effect'
+import {
+  DateTime,
+  Effect,
+  Exit,
+  Layer,
+  Option,
+  Predicate,
+  Struct,
+} from 'effect'
 import { TestClock } from 'effect/testing'
 
 import { december, ScheduleNotFound } from '@/trip/domain'
@@ -372,6 +380,39 @@ describe('Trip.choose again', () => {
         { tag: 'ItineraryNotFound', after: before, archived: [] },
       )
     }).pipe(Effect.provide([trip, storage])),
+  )
+
+  it.effect(
+    'archives nothing when storing the fresh Schedule fails part-way',
+    () =>
+      Effect.gen(function* () {
+        // Two Days on one date can't be stored, so the copy fails after the
+        // current Schedule has been archived in the same transaction.
+        const unstorable: ItineraryContent = {
+          ...option2,
+          days: [...option2.days, ...option2.days.slice(0, 1)],
+        }
+        const state = Effect.all({
+          current: currentSchedule,
+          archived: archivedSchedules,
+        })
+        const { first, before } = yield* Effect.gen(function* () {
+          const first = yield* choose(1, operation(1), null)
+          return { first, before: yield* state }
+        }).pipe(Effect.provide(trip))
+        const exit = yield* Effect.exit(
+          choose(2, operation(2), first.scheduleId).pipe(
+            Effect.provide(tripWith([unstorable])),
+          ),
+        )
+        assert.deepStrictEqual(
+          {
+            failed: Exit.isFailure(exit),
+            after: yield* state.pipe(Effect.provide(trip)),
+          },
+          { failed: true, after: before },
+        )
+      }).pipe(Effect.provide(storage)),
   )
 
   it.effect('refuses a choose naming an archived Schedule', () =>

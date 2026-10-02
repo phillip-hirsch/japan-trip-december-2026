@@ -23,8 +23,8 @@ const keys = {
   days: ['days'],
   scheduleSummary: ['schedule-summary'],
   archivedSchedules: ['archived-schedules'],
-  /** The prefix of every archived Schedule page's query. */
-  archivedSchedule: ['archived-schedule'],
+  /** The prefix of every query for one Schedule by its id. */
+  scheduleById: ['schedule-by-id'],
 } as const satisfies Record<string, QueryKey>
 
 // A page shown again must not open on data another device has since changed,
@@ -54,10 +54,13 @@ export const archivedSchedulesQuery = queryOptions({
   refetchOnMount: false,
 })
 
-/** One Schedule by id, for its archived page: null when none has that id. */
-export const archivedScheduleQuery = (scheduleId: string) =>
+/**
+ * One Schedule by id, current or archived, for an archived Schedule's page:
+ * null when none has that id.
+ */
+export const scheduleByIdQuery = (scheduleId: string) =>
   queryOptions({
-    queryKey: [...keys.archivedSchedule, scheduleId],
+    queryKey: [...keys.scheduleById, scheduleId],
     queryFn: () => getScheduleById({ data: { scheduleId } }),
     refetchOnMount: false,
   })
@@ -85,19 +88,20 @@ export const useScheduleSummary = () => useQuery(scheduleSummaryQuery).data
 export const shouldDehydrateQuery = (query: Query) =>
   query.queryKey[0] !== keys.scheduleSummary[0]
 
-/**
- * The invalidation contract: the queries each write affects. Every write
- * lists its own here.
- */
+/** What replacing the current Schedule, by choosing or restoring, affects. */
 const replacingTheSchedule = [
   keys.schedule,
   keys.days,
   keys.home,
   keys.scheduleSummary,
   keys.archivedSchedules,
-  keys.archivedSchedule,
+  keys.scheduleById,
 ] as const
 
+/**
+ * The invalidation contract: the queries each write affects. Every write
+ * lists its own here.
+ */
 const affectedBy = {
   choose: replacingTheSchedule,
   restore: replacingTheSchedule,

@@ -577,7 +577,7 @@ const scheduleDetailOf =
  * so a write from an out-of-date screen, or to an archived Schedule, writes
  * nothing.
  */
-const currentNamed = Effect.fnUntraced(function* (
+const requireCurrent = Effect.fnUntraced(function* (
   store: ScheduleStore,
   named: ScheduleId | null,
 ) {
@@ -585,6 +585,21 @@ const currentNamed = Effect.fnUntraced(function* (
   const currentId = Option.getOrNull(Option.map(current, ({ id }) => id))
   if (currentId !== named) return yield* new ScheduleChanged()
   return current
+})
+
+/**
+ * Archives the current Schedule that choosing or restoring replaces, at a
+ * moment given as an ISO 8601 UTC string; nothing when none exists yet.
+ */
+const archiveReplaced = Effect.fnUntraced(function* (
+  store: ScheduleStore,
+  replacing: ScheduleId | null,
+  archivedAt: string,
+) {
+  const current = yield* requireCurrent(store, replacing)
+  if (Option.isSome(current)) {
+    yield* store.archive(current.value.id, archivedAt)
+  }
 })
 
 /** Every way an Itinerary breaks the Trip's rules; empty when it keeps them. */
@@ -799,11 +814,8 @@ export class Trip extends Context.Service<
                 yield* store.recordedResult(ScheduleChosen)(operationId)
               if (Option.isSome(recorded)) return recorded.value.result
               const itinerary = yield* find(byOptionNumber, optionNumber)
-              const current = yield* currentNamed(store, replacing)
               const now = DateTime.formatIso(yield* DateTime.now)
-              if (Option.isSome(current)) {
-                yield* store.archive(current.value.id, now)
-              }
+              yield* archiveReplaced(store, replacing, now)
               const scheduleId = crypto.randomUUID() as ScheduleId
               yield* store.insert(
                 {
@@ -837,19 +849,15 @@ export class Trip extends Context.Service<
               const recorded =
                 yield* store.recordedResult(ScheduleRestored)(operationId)
               if (Option.isSome(recorded)) return recorded.value.result
-              const restoring = yield* store.record(scheduleId)
+              const restoring = yield* store.recordById(scheduleId)
               if (Option.isNone(restoring)) {
                 return yield* new ScheduleNotFound({ scheduleId })
               }
-              const current = yield* currentNamed(store, replacing)
-              // Restoring the current Schedule leaves it as it is.
-              if (restoring.value.status === 'archived') {
-                if (Option.isSome(current)) {
-                  const now = DateTime.formatIso(yield* DateTime.now)
-                  yield* store.archive(current.value.id, now)
-                }
-                yield* store.makeCurrent(scheduleId)
-              }
+              // Restoring the current Schedule archives it and makes it
+              // current again, leaving it as it was.
+              const now = DateTime.formatIso(yield* DateTime.now)
+              yield* archiveReplaced(store, replacing, now)
+              yield* store.makeCurrent(scheduleId)
               const restored = { scheduleId }
               yield* store.recordResult(ScheduleRestored)({
                 id: operationId,
@@ -865,7 +873,7 @@ export class Trip extends Context.Service<
       const schedule = Effect.fn('Trip.schedule')(
         function* (scheduleId: ScheduleId) {
           const store = yield* scheduleStore
-          const found = yield* store.transaction(store.byId(scheduleId))
+          const found = yield* store.transaction(store.scheduleById(scheduleId))
           if (Option.isNone(found)) {
             return yield* new ScheduleNotFound({ scheduleId })
           }

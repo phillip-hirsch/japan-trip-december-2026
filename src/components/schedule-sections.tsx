@@ -91,7 +91,8 @@ export function ArchivedScheduleList({
         Archived Schedules
       </h2>
       <p className="mt-1 mb-4 text-sm text-muted-foreground">
-        Archived when you chose again. Open one to read or restore it.
+        Earlier Schedules, as they were when archived. Open one to read or
+        restore it.
       </p>
       <ul className="flex flex-col gap-2">
         {schedules.map((schedule) => (

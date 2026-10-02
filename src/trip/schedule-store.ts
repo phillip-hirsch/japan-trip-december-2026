@@ -244,10 +244,10 @@ export const scheduleStore = Effect.gen(function* () {
     current: withCopy(findCurrent(undefined)),
 
     /** A Schedule's own fields, current or archived, if it exists. */
-    record: findById,
+    recordById: findById,
 
     /** A Schedule with its copy, current or archived, if it exists. */
-    byId: (id: ScheduleId) => withCopy(findById(id)),
+    scheduleById: (id: ScheduleId) => withCopy(findById(id)),
 
     /** Every archived Schedule, the most recently archived first. */
     archived: findArchived(undefined),

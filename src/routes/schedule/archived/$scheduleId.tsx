@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button'
 import { VerifyClaims } from '@/components/verify-claims'
 import { formatMoment } from '@/trip/calendar'
 import type { RestoreOutcome, ScheduleDetail } from '@/trip/domain'
-import { archivedScheduleQuery, useScheduleSummary } from '@/trip/queries'
+import { scheduleByIdQuery, useScheduleSummary } from '@/trip/queries'
 import { parseScheduleId } from '@/trip/params'
 import { restoreSchedule } from '@/trip/trip.functions'
 
@@ -39,7 +39,7 @@ export const Route = createFileRoute('/schedule/archived/$scheduleId')({
   loader: {
     handler: async ({ context, params: { scheduleId } }) => {
       const schedule = await context.queryClient.fetchQuery(
-        archivedScheduleQuery(scheduleId),
+        scheduleByIdQuery(scheduleId),
       )
       if (schedule === null) throw notFound()
       // The current Schedule lives at /schedule.
@@ -55,7 +55,7 @@ export const Route = createFileRoute('/schedule/archived/$scheduleId')({
 
 function ArchivedSchedulePage() {
   const { scheduleId } = Route.useParams()
-  const schedule = useSuspenseQuery(archivedScheduleQuery(scheduleId)).data
+  const schedule = useSuspenseQuery(scheduleByIdQuery(scheduleId)).data
   if (schedule === null) return <NotFound />
   // Restored, here or on another device: the current Schedule lives at
   // /schedule.
@@ -86,7 +86,7 @@ function ArchivedSchedulePage() {
         </p>
         <RevisionNotice schedule={schedule} className="mt-6" />
         <div className="mt-8 flex flex-wrap gap-2">
-          <RestoreSchedule schedule={schedule} />
+          <RestoreButton schedule={schedule} />
           <ButtonLink to="/schedule" size="lg" variant="outline">
             Open your Schedule
           </ButtonLink>
@@ -118,7 +118,7 @@ const answerOf = (outcome: RestoreOutcome): ReplaceAnswer => {
  * archiving the current one, and opens it. It waits for the Schedule summary,
  * which names the Schedule it archives.
  */
-function RestoreSchedule({ schedule }: { schedule: ScheduleDetail }) {
+function RestoreButton({ schedule }: { schedule: ScheduleDetail }) {
   const restore = useServerFn(restoreSchedule)
   const current = useScheduleSummary()
   if (current === undefined) {
