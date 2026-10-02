@@ -54,15 +54,16 @@ const retryDelay = 60_000
 /**
  * Home's state, kept on the right Day. It follows the date in Tokyo, so each
  * answer schedules a refetch a moment past the next Tokyo midnight after the
- * answer's own moment: a page hydrated after that midnight refetches at once,
+ * moment the server read it at (not after the answer arrived, which may be
+ * past that midnight already): an answer already overdue refetches at once,
  * and a refetch that fails is tried again until one answers.
  */
 export const useHome = () => {
   const queryClient = useQueryClient()
   const { data, dataUpdatedAt, errorUpdatedAt } = useSuspenseQuery(homeQuery)
+  const readAt = Date.parse(data.readAt)
   useEffect(() => {
-    const deadline =
-      dataUpdatedAt + millisecondsUntilTokyoMidnight(dataUpdatedAt) + 1000
+    const deadline = readAt + millisecondsUntilTokyoMidnight(readAt) + 1000
     const overdue = Date.now() >= deadline
     const failedSince = errorUpdatedAt > dataUpdatedAt
     const delay =
@@ -72,7 +73,7 @@ export const useHome = () => {
       delay,
     )
     return () => clearTimeout(timer)
-  }, [queryClient, dataUpdatedAt, errorUpdatedAt])
+  }, [queryClient, readAt, dataUpdatedAt, errorUpdatedAt])
   return data
 }
 

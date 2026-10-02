@@ -159,6 +159,13 @@ describe('Trip.home at the Trip boundaries', () => {
 })
 
 describe('Trip.home Today', () => {
+  it.effect('records the moment it was read at', () =>
+    Effect.gen(function* () {
+      const home = yield* homeAt('2026-12-05T14:59:59.999Z')
+      assert.strictEqual(home.readAt, '2026-12-05T14:59:59.999Z')
+    }).pipe(Effect.provide([trip, storage])),
+  )
+
   it.effect('is the Day page of the Tokyo date', () =>
     Effect.gen(function* () {
       yield* chooseOption1

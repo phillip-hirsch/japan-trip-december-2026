@@ -663,32 +663,42 @@ export class DayNotFound extends Schema.TaggedError<DayNotFound>()(
   { date: IsoDate },
 ) {}
 
+/** What every Home state carries. */
+const homeFields = {
+  /**
+   * The moment of the Clock the state was read at, as an ISO 8601 UTC
+   * string. The browser counts from it to the next Tokyo midnight.
+   */
+  readAt: Schema.String,
+  /** The Itineraries, shown until Phillip has chosen one. */
+  itineraries: Schema.Array(ItinerarySummary),
+}
+
 /**
  * What Home shows, by where the moment falls relative to the Trip in Tokyo:
- * 00:00 on December 6 to 23:59:59.999 on December 20, inclusive. The
- * Itineraries are what Home shows until Phillip has chosen one.
+ * 00:00 on December 6 to 23:59:59.999 on December 20, inclusive.
  */
 export const HomeState = Schema.TaggedUnion({
   BeforeTrip: {
+    ...homeFields,
     /**
      * Whole Tokyo calendar dates until the Trip starts. The time of day never
      * changes the count.
      */
     daysToGo: Schema.Int,
     schedule: Schema.NullOr(ScheduleDetail),
-    itineraries: Schema.Array(ItinerarySummary),
   },
   DuringTrip: {
+    ...homeFields,
     /** The Day in Tokyo. */
     date: IsoDate,
     /** Today: that Day's page, null until a Schedule exists. */
     today: Schema.NullOr(DayPage),
-    itineraries: Schema.Array(ItinerarySummary),
   },
   AfterTrip: {
+    ...homeFields,
     /** The Schedule as a record. */
     schedule: Schema.NullOr(ScheduleDetail),
-    itineraries: Schema.Array(ItinerarySummary),
   },
 })
 export type HomeState = typeof HomeState.Type

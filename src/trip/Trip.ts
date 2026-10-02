@@ -608,28 +608,29 @@ const homeStateOf = (
   itineraries: ReadonlyArray<ItinerarySummary>,
 ): HomeState => {
   const date = tokyoDateOf(now)
+  const shared = { readAt: DateTime.formatIso(now), itineraries }
   if (date < tripStartDate) {
     return {
       _tag: 'BeforeTrip',
+      ...shared,
       daysToGo: daysBetween(date, tripStartDate),
       schedule: Option.getOrNull(schedule),
-      itineraries,
     }
   }
   if (date > tripEndDate) {
     return {
       _tag: 'AfterTrip',
+      ...shared,
       schedule: Option.getOrNull(schedule),
-      itineraries,
     }
   }
   return {
     _tag: 'DuringTrip',
+    ...shared,
     date,
     today: Option.getOrNull(
       Option.flatMap(schedule, (schedule) => dayPageOf(schedule, date)),
     ),
-    itineraries,
   }
 }
 
