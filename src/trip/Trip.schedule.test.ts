@@ -74,10 +74,12 @@ const choose = (
 const setTime = (instant: string) =>
   TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe(instant)))
 
-const archivedSchedules = Trip.use((trip) => trip.archivedSchedules)
+const schedules = Trip.use((trip) => trip.schedules)
 
-const currentSchedule = Trip.use((trip) => trip.currentSchedule).pipe(
-  Effect.map(Option.getOrThrow),
+const archivedSchedules = Effect.map(schedules, ({ archived }) => archived)
+
+const currentSchedule = Effect.map(schedules, ({ current }) =>
+  Option.getOrThrow(current),
 )
 
 /**
@@ -111,11 +113,14 @@ const revisedOption1: ItineraryContent = {
   shigeharuVisit: { date: december(11), slot: 'afternoon' },
 }
 
-describe('Trip.currentSchedule', () => {
-  it.effect('is empty before anything is chosen', () =>
+describe('Trip.schedules', () => {
+  it.effect('has nothing before anything is chosen', () =>
     Effect.gen(function* () {
-      const schedule = yield* Trip.use((trip) => trip.currentSchedule)
-      assert.isTrue(Option.isNone(schedule))
+      const { current, archived } = yield* schedules
+      assert.deepStrictEqual(
+        { current: Option.isNone(current), archived: [...archived] },
+        { current: true, archived: [] },
+      )
     }).pipe(Effect.provide([trip, storage])),
   )
 })
@@ -264,9 +269,9 @@ describe('Trip.choose', () => {
           }),
         ),
       )
-      const schedule = yield* Trip.use((trip) => trip.currentSchedule)
+      const { current } = yield* schedules
       assert.deepStrictEqual(
-        { tag: error._tag, scheduleExists: Option.isSome(schedule) },
+        { tag: error._tag, scheduleExists: Option.isSome(current) },
         { tag: 'ItineraryNotFound', scheduleExists: false },
       )
     }).pipe(Effect.provide([trip, storage])),

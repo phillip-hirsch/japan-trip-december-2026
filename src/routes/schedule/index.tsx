@@ -9,16 +9,12 @@ import {
 } from '@/components/schedule-sections'
 import { VerifyClaims } from '@/components/verify-claims'
 import { formatMoment } from '@/trip/calendar'
-import { archivedSchedulesQuery, scheduleQuery } from '@/trip/queries'
+import { schedulesQuery } from '@/trip/queries'
 
 // Personal state, so never prerendered: each visit asks the Trip store.
 export const Route = createFileRoute('/schedule/')({
   loader: {
-    handler: ({ context }) =>
-      Promise.all([
-        context.queryClient.fetchQuery(scheduleQuery),
-        context.queryClient.fetchQuery(archivedSchedulesQuery),
-      ]),
+    handler: ({ context }) => context.queryClient.fetchQuery(schedulesQuery),
     staleReloadMode: 'blocking',
   },
   head: () => ({ meta: [{ title: 'Schedule · Japan · December 2026' }] }),
@@ -26,8 +22,7 @@ export const Route = createFileRoute('/schedule/')({
 })
 
 function SchedulePage() {
-  const schedule = useSuspenseQuery(scheduleQuery).data
-  const archived = useSuspenseQuery(archivedSchedulesQuery).data
+  const { current: schedule, archived } = useSuspenseQuery(schedulesQuery).data
   if (schedule === null) return <NoSchedule />
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-10 md:px-12 md:py-16">

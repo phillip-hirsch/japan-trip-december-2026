@@ -570,6 +570,17 @@ export const ArchivedScheduleSummary = Schema.Struct({
 export type ArchivedScheduleSummary = typeof ArchivedScheduleSummary.Type
 
 /**
+ * Phillip's Schedules as /schedule shows them: the current one, if chosen,
+ * and the archived ones, most recently archived first. Read together, so
+ * the page never shows two moments at once.
+ */
+export const Schedules = Schema.Struct({
+  current: Schema.NullOr(ScheduleDetail),
+  archived: Schema.Array(ArchivedScheduleSummary),
+})
+export type Schedules = typeof Schedules.Type
+
+/**
  * Choose an Itinerary, making a fresh copy of it Phillip's Schedule. It names
  * the current Schedule it archives, or null when there is none yet.
  */

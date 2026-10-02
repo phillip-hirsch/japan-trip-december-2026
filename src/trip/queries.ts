@@ -5,10 +5,9 @@ import { queryOptions, useQuery } from '@tanstack/react-query'
 import type { Query, QueryClient, QueryKey } from '@tanstack/react-query'
 
 import {
-  getArchivedSchedules,
   getHome,
-  getSchedule,
   getScheduleById,
+  getSchedules,
   getScheduleSummary,
 } from '@/trip/trip.functions'
 
@@ -18,11 +17,10 @@ import {
  */
 const keys = {
   home: ['home'],
-  schedule: ['schedule'],
+  schedules: ['schedules'],
   /** The prefix of every Day page's query. */
   days: ['days'],
   scheduleSummary: ['schedule-summary'],
-  archivedSchedules: ['archived-schedules'],
   /** The prefix of every query for one Schedule by its id. */
   scheduleById: ['schedule-by-id'],
 } as const satisfies Record<string, QueryKey>
@@ -41,16 +39,10 @@ export const homeQuery = queryOptions({
   refetchOnMount: false,
 })
 
-export const scheduleQuery = queryOptions({
-  queryKey: keys.schedule,
-  queryFn: () => getSchedule(),
-  refetchOnMount: false,
-})
-
-/** Every archived Schedule, for the list on /schedule. */
-export const archivedSchedulesQuery = queryOptions({
-  queryKey: keys.archivedSchedules,
-  queryFn: () => getArchivedSchedules(),
+/** The current Schedule and the archived ones, for /schedule. */
+export const schedulesQuery = queryOptions({
+  queryKey: keys.schedules,
+  queryFn: () => getSchedules(),
   refetchOnMount: false,
 })
 
@@ -90,11 +82,10 @@ export const shouldDehydrateQuery = (query: Query) =>
 
 /** What replacing the current Schedule, by choosing or restoring, affects. */
 const replacingTheSchedule = [
-  keys.schedule,
+  keys.schedules,
   keys.days,
   keys.home,
   keys.scheduleSummary,
-  keys.archivedSchedules,
   keys.scheduleById,
 ] as const
 

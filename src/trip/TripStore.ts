@@ -6,13 +6,13 @@ import { Effect, Exit, Layer, ManagedRuntime, Option } from 'effect'
 import type { SqlClient } from 'effect/sql'
 
 import type {
-  ArchivedScheduleSummary,
   ChooseItinerary,
   ChooseOutcome,
   RestoreOutcome,
   RestoreSchedule,
   ScheduleDetail,
   ScheduleId,
+  Schedules,
   ScheduleSummary,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
@@ -111,16 +111,17 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Every archived Schedule, the most recently archived first. */
-  archivedSchedules(): Promise<ReadonlyArray<ArchivedScheduleSummary>> {
-    return this.#run(Trip.use((trip) => trip.archivedSchedules))
-  }
-
-  /** The current Schedule, or null before Phillip chooses one. */
-  currentSchedule(): Promise<ScheduleDetail | null> {
+  /**
+   * The current Schedule (null before Phillip chooses one) and the archived
+   * ones, from one moment.
+   */
+  schedules(): Promise<Schedules> {
     return this.#run(
-      Trip.use((trip) => trip.currentSchedule).pipe(
-        Effect.map(Option.getOrNull),
+      Trip.use((trip) => trip.schedules).pipe(
+        Effect.map(({ current, archived }) => ({
+          current: Option.getOrNull(current),
+          archived,
+        })),
       ),
     )
   }

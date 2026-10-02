@@ -757,21 +757,22 @@ export class Trip extends Context.Service<
     schedule(
       scheduleId: ScheduleId,
     ): Effect.Effect<ScheduleDetail, ScheduleNotFound, SqlClient.SqlClient>
-    /** The current Schedule, if Phillip has chosen one. */
-    readonly currentSchedule: Effect.Effect<
-      Option.Option<ScheduleDetail>,
+    /**
+     * The current Schedule, if Phillip has chosen one, and every archived
+     * Schedule, the most recently archived first, read as one transaction so
+     * they never come from two moments.
+     */
+    readonly schedules: Effect.Effect<
+      {
+        readonly current: Option.Option<ScheduleDetail>
+        readonly archived: ReadonlyArray<ArchivedScheduleSummary>
+      },
       never,
       SqlClient.SqlClient
     >
     /** The current Schedule's summary, if Phillip has chosen one. */
     readonly scheduleSummary: Effect.Effect<
       Option.Option<ScheduleSummary>,
-      never,
-      SqlClient.SqlClient
-    >
-    /** Every archived Schedule, the most recently archived first. */
-    readonly archivedSchedules: Effect.Effect<
-      ReadonlyArray<ArchivedScheduleSummary>,
       never,
       SqlClient.SqlClient
     >
@@ -882,13 +883,15 @@ export class Trip extends Context.Service<
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
       )
 
-      const currentSchedule = Effect.gen(function* () {
+      const schedules = Effect.gen(function* () {
         const store = yield* scheduleStore
-        const current = yield* store.transaction(store.current)
-        return Option.map(current, scheduleDetail)
+        const { current, archived } = yield* store.transaction(
+          Effect.all({ current: store.current, archived: store.archived }),
+        )
+        return { current: Option.map(current, scheduleDetail), archived }
       }).pipe(
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-        Effect.withSpan('Trip.currentSchedule'),
+        Effect.withSpan('Trip.schedules'),
       )
 
       const scheduleSummary = Effect.gen(function* () {
@@ -900,14 +903,6 @@ export class Trip extends Context.Service<
       }).pipe(
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
         Effect.withSpan('Trip.scheduleSummary'),
-      )
-
-      const archivedSchedules = Effect.flatMap(
-        scheduleStore,
-        (store) => store.archived,
-      ).pipe(
-        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-        Effect.withSpan('Trip.archivedSchedules'),
       )
 
       return Trip.of({
@@ -924,9 +919,8 @@ export class Trip extends Context.Service<
         choose,
         restore,
         schedule,
-        currentSchedule,
+        schedules,
         scheduleSummary,
-        archivedSchedules,
       })
     }),
   )

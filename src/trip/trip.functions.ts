@@ -3,7 +3,6 @@ import { createServerFn } from '@tanstack/react-start'
 import { Effect, Schema } from 'effect'
 
 import {
-  ArchivedScheduleSummary,
   ChooseItinerary,
   ChooseOutcome,
   OptionNumber,
@@ -11,6 +10,7 @@ import {
   RestoreSchedule,
   ScheduleDetail,
   ScheduleId,
+  Schedules,
   ScheduleSummary,
 } from '@/trip/domain'
 import { runTrip } from '@/trip/runtime.server'
@@ -86,19 +86,12 @@ export const getScheduleById = createServerFn({ method: 'GET' })
     ),
   )
 
-/** Every archived Schedule, the most recently archived first. */
-export const getArchivedSchedules = createServerFn({ method: 'GET' }).handler(
-  () =>
-    callTripStore(Schema.Array(ArchivedScheduleSummary), (store) =>
-      store.archivedSchedules(),
-    ),
-)
-
-/** The current Schedule, or null before Phillip chooses one. */
-export const getSchedule = createServerFn({ method: 'GET' }).handler(() =>
-  callTripStore(Schema.NullOr(ScheduleDetail), (store) =>
-    store.currentSchedule(),
-  ),
+/**
+ * The current Schedule (null before Phillip chooses one) and the archived
+ * ones, from one moment.
+ */
+export const getSchedules = createServerFn({ method: 'GET' }).handler(() =>
+  callTripStore(Schedules, (store) => store.schedules()),
 )
 
 /**
