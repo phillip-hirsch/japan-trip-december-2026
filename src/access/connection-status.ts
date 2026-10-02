@@ -30,7 +30,8 @@ export const reportConnection = (next: ConnectionStatus) => {
   for (const listener of listeners) listener()
 }
 
-const subscribe = (listener: () => void) => {
+/** Calls the listener whenever the status changes; returns how to stop. */
+export const subscribeToConnection = (listener: () => void) => {
   listeners.add(listener)
   return () => {
     listeners.delete(listener)
@@ -40,7 +41,7 @@ const subscribe = (listener: () => void) => {
 /** The current connection status, for the banners. */
 export const useConnectionStatus = () =>
   useSyncExternalStore<ConnectionStatus>(
-    subscribe,
+    subscribeToConnection,
     () => status,
     () => connected,
   )

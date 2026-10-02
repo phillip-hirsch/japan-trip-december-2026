@@ -1,3 +1,4 @@
+import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { DayTimeline } from '@/components/day-timeline'
@@ -5,17 +6,17 @@ import { NoSchedule } from '@/components/no-schedule'
 import { StayList } from '@/components/stay-list'
 import { VerifyClaims } from '@/components/verify-claims'
 import { formatChosenAt } from '@/trip/calendar'
-import { getSchedule } from '@/trip/trip.functions'
+import { scheduleQuery } from '@/trip/queries'
 
 // Personal state, so never prerendered: each visit asks the Trip store.
 export const Route = createFileRoute('/schedule/')({
-  loader: () => getSchedule(),
+  loader: ({ context }) => context.queryClient.ensureQueryData(scheduleQuery),
   head: () => ({ meta: [{ title: 'Schedule · Japan · December 2026' }] }),
   component: SchedulePage,
 })
 
 function SchedulePage() {
-  const schedule = Route.useLoaderData()
+  const schedule = useSuspenseQuery(scheduleQuery).data
   if (schedule === null) return <NoSchedule />
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-10 md:px-12 md:py-16">

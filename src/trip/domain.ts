@@ -520,6 +520,15 @@ export const ScheduleRecord = Schema.Struct({
 export type ScheduleRecord = typeof ScheduleRecord.Type
 
 /**
+ * What every page needs to know about Phillip's Schedule: the Itinerary it
+ * came from. Its absence means none is chosen yet.
+ */
+export const ScheduleSummary = Schema.Struct(
+  Struct.pick(ScheduleRecord.fields, ['sourceOptionNumber']),
+)
+export type ScheduleSummary = typeof ScheduleSummary.Type
+
+/**
  * Phillip's Schedule as its page shows it: where it came from, and its Stays
  * and all 15 Days as copied when he chose it. Its Verify claims carry their
  * copies' ids.

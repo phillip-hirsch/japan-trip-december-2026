@@ -1,17 +1,18 @@
+import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 
 import { DisplayJa } from '@/components/display-ja'
 import { ItineraryList } from '@/components/itinerary-list'
 import { formatDay, tripStartDate } from '@/trip/calendar'
-import { getHome } from '@/trip/trip.functions'
+import { homeQuery } from '@/trip/queries'
 
 export const Route = createFileRoute('/')({
-  loader: () => getHome(),
+  loader: ({ context }) => context.queryClient.ensureQueryData(homeQuery),
   component: Home,
 })
 
 function Home() {
-  const { countdown, itineraries } = Route.useLoaderData()
+  const { countdown, itineraries } = useSuspenseQuery(homeQuery).data
   return (
     // No overflow clipping here: the hero grows with its content (the
     // Itineraries list must stay reachable on short phones), and the glow is
