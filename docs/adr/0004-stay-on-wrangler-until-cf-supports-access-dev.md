@@ -4,6 +4,6 @@ The Worker keeps `wrangler.jsonc`, `wrangler deploy` and `wrangler types` rather
 
 ## Consequences
 
-- Revisit when `cf` or plugin 2.0 can supply `ctx.access` locally (or the gate gets another dev identity) and both leave beta. Until then, don't run `cf migrate`.
+- Revisit when `cf` or plugin 2.0 can supply `ctx.access` locally (or the gate gets another dev identity) and both leave beta. Until then, run no `cf` project command here: `cf migrate`, and `cf init`, `cf dev`, `cf build`, `cf deploy`, `cf previews deploy`, `cf workers versions create` and `cf workers triggers deploy`, which auto-configure without reading `wrangler.jsonc` and, outside a terminal, apply the result unprompted ([automatic configuration](https://developers.cloudflare.com/cf/projects/#automatic-configuration)). Account commands such as `cf d1 list` are fine.
 - When migrating: the generated self-named `TRIP_STORE` binding and `TripStore` SQLite export match the deployed namespace, so keep the Worker and class names and ship with `cf deploy`. Local Durable Object data moves from `.wrangler/state` to `.cloudflare/state`.
 - Research: `docs/research/cf-cli-migration.md`.
