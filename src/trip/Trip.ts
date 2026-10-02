@@ -1,4 +1,15 @@
-import { Context, DateTime, Duration, Effect, Layer, Struct } from 'effect'
+// effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
+// @effect-diagnostics unstableApiUsage:off
+import {
+  Context,
+  DateTime,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Struct,
+} from 'effect'
+import type { SqlClient } from 'effect/sql'
 
 import {
   birthdayDate,
@@ -7,13 +18,19 @@ import {
   tripStartDate,
   tripTimeZone,
 } from '@/trip/calendar'
-import { ItineraryNotFound } from '@/trip/domain'
+import {
+  ItineraryNotFound,
+  ScheduleAlreadyChosen,
+  ScheduleChosen,
+} from '@/trip/domain'
 import type {
   Anchor,
   BaseNights,
+  ChooseItinerary,
   ComparisonMap,
   Coordinates,
   Countdown,
+  Day,
   DayTrip,
   DayTripDetail,
   HomeState,
@@ -25,15 +42,20 @@ import type {
   ItinerarySummary,
   MapDayTrip,
   MapRailSection,
+  Move,
   MoveDetail,
   MovesComparison,
   MoveSummary,
   Place,
   RailSectionDetail,
+  ScheduleDetail,
+  ScheduleId,
+  ScheduleRecord,
   Stay,
   StaySummary,
   Station,
   TripRuleBreak,
+  VerifyClaim,
   VerifyClaimAttachment,
   VerifyClaimDetail,
 } from '@/trip/domain'
@@ -43,6 +65,8 @@ import type { PlaceId } from '@/trip/places'
 import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
 import type { StationId } from '@/trip/rail'
 import { railGeometryAttribution, railGeometryOf } from '@/trip/rail-geometry'
+import { scheduleStore } from '@/trip/schedule-store'
+import type { ScheduleCopy } from '@/trip/schedule-store'
 
 const tripStart = DateTime.makeUnsafe(tripStartDate)
 
@@ -103,8 +127,17 @@ const stayBoundariesOf = (stays: ReadonlyArray<Stay>) =>
 
 const stationOf = (id: StationId): Station => ({ id, ...stations[id] })
 
-/** Each Move with the Stays it connects, by date. */
-const moveDetailsOf = ({ stays, moves }: Itinerary) =>
+/**
+ * Each Move with the Stays it connects, by date. A Schedule's Moves keep
+ * their ids.
+ */
+const moveDetailsOf = <M extends Move>({
+  stays,
+  moves,
+}: {
+  readonly stays: ReadonlyArray<Stay>
+  readonly moves: ReadonlyArray<M>
+}) =>
   new Map(
     stayBoundariesOf(stays).flatMap(({ date, from, to }) => {
       const move = moves.find((move) => move.date === date)
@@ -114,14 +147,13 @@ const moveDetailsOf = ({ stays, moves }: Itinerary) =>
         from: stationOf(section.from),
         to: stationOf(section.to),
       }))
-      const detail: MoveDetail = {
-        mode: move.mode,
+      const detail = {
+        ...Struct.omit(move, ['date', 'sections']),
         from: placeOf(from.base),
         to: placeOf(to.base),
         sections,
-        ...(move.duration && { duration: move.duration }),
         changes: sections.slice(1).map((section) => section.from),
-      }
+      } satisfies MoveDetail
       return [[date, detail] as const]
     }),
   )
@@ -169,7 +201,7 @@ const attachmentKey = (attachedTo: VerifyClaimAttachment) => {
 
 /** The Verify claims attached to one place, without their attachment. */
 const claimsAttachedTo = (
-  { verifyClaims }: Itinerary,
+  { verifyClaims }: { readonly verifyClaims: ReadonlyArray<VerifyClaim> },
   attachment: VerifyClaimAttachment,
 ): Array<VerifyClaimDetail> =>
   verifyClaims
@@ -395,41 +427,61 @@ const railSectionsOf = (
   return Array.from(sections.values())
 }
 
-const detailOf = (itinerary: Itinerary): ItineraryDetail => {
-  const anchors = anchorsOf(itinerary)
-  const moves = moveDetailsOf(itinerary)
+/**
+ * What Stays and Days are shown from: an Itinerary's content with its
+ * Anchors, or a Schedule's copy of them, whose entities keep their ids.
+ */
+interface Plan<
+  S extends Stay,
+  M extends Move,
+  T extends DayTrip,
+  A extends Anchor,
+> {
+  readonly stays: ReadonlyArray<S>
+  readonly days: ReadonlyArray<Day>
+  readonly moves: ReadonlyArray<M>
+  readonly dayTrips: ReadonlyArray<T>
+  readonly verifyClaims: ReadonlyArray<VerifyClaim>
+  readonly anchors: ReadonlyArray<A>
+}
+
+/** The Stays and all 15 Days, and the Verify claims about the whole. */
+const staysAndDaysOf = <
+  S extends Stay,
+  M extends Move,
+  T extends DayTrip,
+  A extends Anchor,
+>(
+  plan: Plan<S, M, T, A>,
+) => {
+  const moves = moveDetailsOf(plan)
   return {
-    ...summaryOf(itinerary),
-    ...Struct.pick(itinerary, [
-      'birthdayOutline',
-      'pros',
-      'cons',
-      'chooseThisIf',
-      'whyRecommended',
-      'travelNotes',
-    ]),
-    contentVersion: itinerary.contentVersion,
-    verifyClaims: claimsAttachedTo(itinerary, { _tag: 'Itinerary' }),
-    stays: itinerary.stays.map((stay) => ({
+    verifyClaims: claimsAttachedTo(plan, { _tag: 'Itinerary' }),
+    stays: plan.stays.map((stay) => ({
       ...stay,
       ...staySummaryOf(stay),
-      verifyClaims: claimsAttachedTo(itinerary, {
+      verifyClaims: claimsAttachedTo(plan, {
         _tag: 'Stay',
         checkIn: stay.checkIn,
       }),
     })),
-    days: itinerary.days.map((day) => {
-      const dayAnchors = anchors.filter((anchor) => anchor.date === day.date)
+    days: plan.days.map((day) => {
+      const dayAnchors = plan.anchors.filter(
+        (anchor) => anchor.date === day.date,
+      )
       const move = moves.get(day.date)
-      const dayTrips = itinerary.dayTrips
+      const dayTrips = plan.dayTrips
         .filter((dayTrip) => dayTrip.date === day.date)
-        .map(({ place, optional }) => ({ place: placeOf(place), optional }))
+        .map((dayTrip) => ({
+          ...Struct.omit(dayTrip, ['date', 'place']),
+          place: placeOf(dayTrip.place),
+        }))
       return {
         ...day,
         anchors: dayAnchors,
         ...(move && { move }),
         dayTrips,
-        verifyClaims: claimsAttachedTo(itinerary, {
+        verifyClaims: claimsAttachedTo(plan, {
           _tag: 'Day',
           date: day.date,
         }),
@@ -443,9 +495,51 @@ const detailOf = (itinerary: Itinerary): ItineraryDetail => {
           ),
       }
     }),
-    map: mapOf(itinerary),
   }
 }
+
+const detailOf = (itinerary: Itinerary): ItineraryDetail => ({
+  ...summaryOf(itinerary),
+  ...Struct.pick(itinerary, [
+    'birthdayOutline',
+    'pros',
+    'cons',
+    'chooseThisIf',
+    'whyRecommended',
+    'travelNotes',
+  ]),
+  contentVersion: itinerary.contentVersion,
+  ...staysAndDaysOf({ ...itinerary, anchors: anchorsOf(itinerary) }),
+  map: mapOf(itinerary),
+})
+
+/**
+ * A complete copy of an Itinerary for a new Schedule, with a fresh id for
+ * each Stay, Move, Day trip, Verify claim and Anchor.
+ */
+const copyOf = (itinerary: Itinerary): ScheduleCopy => {
+  const withFreshId = <A extends object>(entity: A) => ({
+    ...entity,
+    id: crypto.randomUUID(),
+  })
+  return {
+    stays: itinerary.stays.map(withFreshId),
+    days: itinerary.days,
+    moves: itinerary.moves.map(withFreshId),
+    dayTrips: itinerary.dayTrips.map(withFreshId),
+    verifyClaims: itinerary.verifyClaims.map(withFreshId),
+    anchors: anchorsOf(itinerary).map(withFreshId),
+  }
+}
+
+/** A Schedule as its page shows it, from its own record and copy alone. */
+const scheduleDetailOf = ({
+  schedule,
+  copy,
+}: {
+  readonly schedule: ScheduleRecord
+  readonly copy: ScheduleCopy
+}): ScheduleDetail => ({ ...schedule, ...staysAndDaysOf(copy) })
 
 /** Every way an Itinerary breaks the Trip's rules; empty when it keeps them. */
 const tripRuleBreaksOf = ({
@@ -539,7 +633,13 @@ const tripRuleBreaksOf = ({
   return breaks
 }
 
-/** The application seam: all Trip behaviour, independent of HTTP and React. */
+/**
+ * The application seam: all Trip behaviour, independent of HTTP and React.
+ *
+ * Its storage operations take the SQL client from their caller rather than
+ * from its layer: only the Durable Object has one (and the tests, over Node's
+ * SQLite), so the Worker can't run them by mistake.
+ */
 export class Trip extends Context.Service<
   Trip,
   {
@@ -566,6 +666,24 @@ export class Trip extends Context.Service<
      * geometry build and the tests call this.
      */
     readonly railSections: Effect.Effect<ReadonlyArray<MapRailSection>>
+    /**
+     * Copies an Itinerary into a new current Schedule, as one transaction
+     * that also records the operation id with its result. Repeating the
+     * operation id returns that result and writes nothing.
+     */
+    choose(
+      input: ChooseItinerary,
+    ): Effect.Effect<
+      ScheduleChosen,
+      ItineraryNotFound | ScheduleAlreadyChosen,
+      SqlClient.SqlClient
+    >
+    /** The current Schedule, if Phillip has chosen one. */
+    readonly currentSchedule: Effect.Effect<
+      Option.Option<ScheduleDetail>,
+      never,
+      SqlClient.SqlClient
+    >
   }
 >()('japan-trip/trip/Trip') {
   static readonly layer = Layer.effect(
@@ -595,6 +713,54 @@ export class Trip extends Context.Service<
         return found
       })
 
+      const choose = Effect.fn('Trip.choose')(
+        function* ({ operationId, optionNumber }: ChooseItinerary) {
+          const store = yield* scheduleStore
+          return yield* store.transaction(
+            Effect.gen(function* () {
+              const recorded =
+                yield* store.recordedResult(ScheduleChosen)(operationId)
+              if (Option.isSome(recorded)) return recorded.value.result
+              const itinerary = yield* find(byOptionNumber, optionNumber)
+              const current = yield* store.currentRecord
+              if (Option.isSome(current)) {
+                return yield* new ScheduleAlreadyChosen({
+                  sourceOptionNumber: current.value.sourceOptionNumber,
+                })
+              }
+              const scheduleId = crypto.randomUUID() as ScheduleId
+              yield* store.insert(
+                {
+                  id: scheduleId,
+                  status: 'current',
+                  sourceOptionNumber: itinerary.optionNumber,
+                  sourceContentVersion: itinerary.contentVersion,
+                  chosenAt: DateTime.formatIso(yield* DateTime.now),
+                  birthdayOutline: itinerary.birthdayOutline,
+                },
+                copyOf(itinerary),
+              )
+              const chosen = { scheduleId }
+              yield* store.recordResult(ScheduleChosen)({
+                id: operationId,
+                result: chosen,
+              })
+              return chosen
+            }),
+          )
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
+      const currentSchedule = Effect.gen(function* () {
+        const store = yield* scheduleStore
+        const current = yield* store.transaction(store.current)
+        return Option.map(current, scheduleDetailOf)
+      }).pipe(
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+        Effect.withSpan('Trip.currentSchedule'),
+      )
+
       return Trip.of({
         home: Effect.map(DateTime.now, (now) => ({
           countdown: countdownAt(now),
@@ -606,6 +772,8 @@ export class Trip extends Context.Service<
         tripRuleBreaks: (optionNumber) =>
           find(byOptionNumber, optionNumber).pipe(Effect.map(tripRuleBreaksOf)),
         railSections: Effect.succeed(railSections),
+        choose,
+        currentSchedule,
       })
     }),
   )

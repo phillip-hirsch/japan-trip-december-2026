@@ -13,22 +13,27 @@ export const tripRuntime = ManagedRuntime.make(
 )
 
 /**
- * The adapter every server function uses to call the Trip service.
+ * Runs an operation to a promise at a boundary Effect doesn't cross.
  *
  * - The caller maps each typed failure first, to a serialisable result or to
  *   a value it turns into `notFound()`, so only defects remain.
- * - A defect is logged here and reaches the browser as a generic error, so
- *   no stack or internal detail crosses the wire.
+ * - A defect is logged here and reaches the caller as a generic error, so no
+ *   stack or internal detail crosses the wire.
  * - The service returns plain Schema struct values, which are already in
  *   their encoded form; never return Schema class instances, which the
  *   serialiser rejects.
  */
-export const runTrip = async <A>(
-  operation: Effect.Effect<A, never, Trip>,
+export const runToPromise = async <A, R>(
+  runtime: ManagedRuntime.ManagedRuntime<R, never>,
+  operation: Effect.Effect<A, never, R>,
 ): Promise<A> => {
-  const exit = await tripRuntime.runPromiseExit(
+  const exit = await runtime.runPromiseExit(
     operation.pipe(Effect.tapCause(Effect.logError)),
   )
   if (Exit.isFailure(exit)) throw new Error('The Trip service failed.')
   return exit.value
 }
+
+/** The adapter every server function uses to call the Trip service. */
+export const runTrip = <A>(operation: Effect.Effect<A, never, Trip>) =>
+  runToPromise(tripRuntime, operation)

@@ -210,8 +210,7 @@ export const Itinerary = Schema.Struct({
 })
 export type Itinerary = typeof Itinerary.Type
 
-/** A fixed date every Itinerary must respect. */
-export const Anchor = Schema.TaggedUnion({
+const anchorFields = {
   Arrival: { date: IsoDate },
   ShigeharuVisit: {
     ...ShigeharuVisit.fields,
@@ -220,7 +219,10 @@ export const Anchor = Schema.TaggedUnion({
   },
   Birthday: { date: IsoDate },
   Departure: { date: IsoDate },
-})
+}
+
+/** A fixed date every Itinerary must respect. */
+export const Anchor = Schema.TaggedUnion(anchorFields)
 export type Anchor = typeof Anchor.Type
 
 /** A Verify claim as shown where it's attached. */
@@ -460,6 +462,87 @@ export const TripRuleBreak = Schema.TaggedUnion({
 })
 export type TripRuleBreak = typeof TripRuleBreak.Type
 
+/** The id of something copied into a Schedule, fresh in each Schedule. */
+export const CopyId = Schema.String
+
+export const ScheduleId = Schema.String.pipe(Schema.brand('ScheduleId'))
+export type ScheduleId = typeof ScheduleId.Type
+
+/**
+ * The client-generated id of a write, recorded with its result so that a
+ * retry returns that result instead of writing again.
+ */
+export const OperationId = Schema.String.check(Schema.isUUID()).pipe(
+  Schema.brand('OperationId'),
+)
+export type OperationId = typeof OperationId.Type
+
+/** An archived Schedule is read-only; at most one is current. */
+export const ScheduleStatus = Schema.Literals(['current', 'archived'])
+export type ScheduleStatus = typeof ScheduleStatus.Type
+
+/** An Anchor as copied into a Schedule. */
+export const ScheduleAnchor = Schema.TaggedUnion({
+  Arrival: { id: CopyId, ...anchorFields.Arrival },
+  ShigeharuVisit: { id: CopyId, ...anchorFields.ShigeharuVisit },
+  Birthday: { id: CopyId, ...anchorFields.Birthday },
+  Departure: { id: CopyId, ...anchorFields.Departure },
+})
+export type ScheduleAnchor = typeof ScheduleAnchor.Type
+
+export const ScheduleStayDetail = Schema.Struct({
+  id: CopyId,
+  ...StayDetail.fields,
+})
+export type ScheduleStayDetail = typeof ScheduleStayDetail.Type
+
+export const ScheduleDayDetail = Schema.Struct({
+  ...DayDetail.fields,
+  anchors: Schema.Array(ScheduleAnchor),
+  move: Schema.optionalKey(Schema.Struct({ id: CopyId, ...MoveDetail.fields })),
+  dayTrips: Schema.Array(
+    Schema.Struct({ id: CopyId, ...DayTripDetail.fields }),
+  ),
+})
+export type ScheduleDayDetail = typeof ScheduleDayDetail.Type
+
+/** A Schedule's own fields: where it came from and when. */
+export const ScheduleRecord = Schema.Struct({
+  id: ScheduleId,
+  status: ScheduleStatus,
+  sourceOptionNumber: OptionNumber,
+  /** The content version of the Itinerary when it was chosen. */
+  sourceContentVersion: Schema.String,
+  /** The moment it was chosen, as an ISO 8601 UTC string. */
+  chosenAt: Schema.String,
+  birthdayOutline: Schema.String,
+})
+export type ScheduleRecord = typeof ScheduleRecord.Type
+
+/**
+ * Phillip's Schedule as its page shows it: where it came from, and its Stays
+ * and all 15 Days as copied when he chose it. Its Verify claims carry their
+ * copies' ids.
+ */
+export const ScheduleDetail = Schema.Struct({
+  ...ScheduleRecord.fields,
+  /** The Verify claims about the Schedule as a whole. */
+  verifyClaims: Schema.Array(VerifyClaimDetail),
+  stays: Schema.Array(ScheduleStayDetail),
+  days: Schema.Array(ScheduleDayDetail),
+})
+export type ScheduleDetail = typeof ScheduleDetail.Type
+
+/** Choose an Itinerary, making a copy of it Phillip's Schedule. */
+export const ChooseItinerary = Schema.Struct({
+  operationId: OperationId,
+  optionNumber: OptionNumber,
+})
+export type ChooseItinerary = typeof ChooseItinerary.Type
+
+export const ScheduleChosen = Schema.Struct({ scheduleId: ScheduleId })
+export type ScheduleChosen = typeof ScheduleChosen.Type
+
 export class ItineraryNotFound extends Schema.TaggedError<ItineraryNotFound>()(
   'ItineraryNotFound',
   { optionNumber: Schema.Int },
@@ -481,3 +564,20 @@ export const HomeState = Schema.Struct({
   itineraries: Schema.Array(ItinerarySummary),
 })
 export type HomeState = typeof HomeState.Type
+
+/**
+ * Choosing while a Schedule is current. Until choosing again can archive it,
+ * there is never more than one, and nothing is overwritten.
+ */
+export class ScheduleAlreadyChosen extends Schema.TaggedError<ScheduleAlreadyChosen>()(
+  'ScheduleAlreadyChosen',
+  { sourceOptionNumber: OptionNumber },
+) {}
+
+/** What choosing an Itinerary did, as plain data for the browser. */
+export const ChooseOutcome = Schema.TaggedUnion({
+  Chosen: ScheduleChosen.fields,
+  ItineraryNotFound: ItineraryNotFound.fields,
+  ScheduleAlreadyChosen: ScheduleAlreadyChosen.fields,
+})
+export type ChooseOutcome = typeof ChooseOutcome.Type
