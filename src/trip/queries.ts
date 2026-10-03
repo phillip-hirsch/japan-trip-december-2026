@@ -2,17 +2,13 @@
 // Itinerary content changes only with a deploy, so its pages keep their route
 // loaders; this cache holds what Phillip's writes change.
 import {
+  partialMatchKey,
   queryOptions,
   useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query'
-import type {
-  InvalidateOptions,
-  Query,
-  QueryClient,
-  QueryKey,
-} from '@tanstack/react-query'
+import type { Query, QueryClient, QueryKey } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
 import { millisecondsUntilTokyoMidnight } from '@/trip/calendar'
@@ -160,24 +156,38 @@ export type TripWrite = keyof typeof affectedBy
 const invalidate = (
   queryClient: QueryClient,
   queryKeys: ReadonlyArray<QueryKey>,
-  options?: InvalidateOptions,
 ) =>
   Promise.all(
-    queryKeys.map((queryKey) =>
-      queryClient.invalidateQueries({ queryKey }, options),
-    ),
+    queryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
   )
 
 /**
  * Invalidates exactly the queries a successful write affects, and resolves
  * once the shown ones have refetched. The rest refetch when next shown.
- * With `throwOnError`, it rejects when a refetch fails.
  */
-export const invalidateAfter = (
+export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) =>
+  invalidate(queryClient, affectedBy[write])
+
+/**
+ * Calls back whenever a query a write affects is read successfully; returns
+ * how to stop.
+ */
+export const subscribeToReadsAfter = (
   queryClient: QueryClient,
   write: TripWrite,
-  options?: InvalidateOptions,
-) => invalidate(queryClient, affectedBy[write], options)
+  listener: () => void,
+) =>
+  queryClient.getQueryCache().subscribe((event) => {
+    if (
+      event.type === 'updated' &&
+      event.action.type === 'success' &&
+      affectedBy[write].some((queryKey) =>
+        partialMatchKey(event.query.queryKey, queryKey),
+      )
+    ) {
+      listener()
+    }
+  })
 
 /**
  * Refetches after a write was refused as "Schedule changed": another device

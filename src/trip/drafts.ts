@@ -8,7 +8,11 @@ import { useEffect, useRef, useState } from 'react'
 
 import { currentConnection } from '@/access/connection-status'
 import type { IsoDate, ScheduleId } from '@/trip/domain'
-import { invalidateAfter, invalidateAfterScheduleChanged } from '@/trip/queries'
+import {
+  invalidateAfter,
+  invalidateAfterScheduleChanged,
+  subscribeToReadsAfter,
+} from '@/trip/queries'
 import type { TripWrite } from '@/trip/queries'
 
 const storageKey = (target: string) => `draft:${target}`
@@ -79,7 +83,7 @@ export type SaveAnswer =
  *   two saves never race.
  * - NotSaved: a value whose save failed or was refused, or a draft restored
  *   from an earlier visit, with why. It stays marked while edited.
- * - Saved: the value just saved, until data is read again after it.
+ * - Saved: the value just saved, until what it affects is next read.
  */
 export type DraftedFieldState =
   | { readonly _tag: 'Clean'; readonly justSaved: boolean }
@@ -137,6 +141,19 @@ export const useDraftedField = ({
   savedRef.current = saved
   const scheduleIdRef = useRef(scheduleId)
   scheduleIdRef.current = scheduleId
+  // The stored draft this field wrote or restored: it only ever clears that
+  // one, never one another editor of the target, such as another tab, wrote.
+  const ownDraftId = useRef<string>(undefined)
+  const keepDraft = (next: string) => {
+    ownDraftId.current = writeDraft(target, next)
+    return ownDraftId.current
+  }
+  const clearOwnDraft = () => {
+    if (readDraft(target)?.id === ownDraftId.current) clearDraft(target)
+  }
+  // Stops waiting for the read that confirms the last save.
+  const stopAwaitingRead = useRef<() => void>(undefined)
+  useEffect(() => () => stopAwaitingRead.current?.(), [])
 
   // Local storage exists only in the browser, after hydration.
   useEffect(() => {
@@ -144,6 +161,7 @@ export const useDraftedField = ({
     if (draft === undefined) return
     if (draft.value === savedRef.current) clearDraft(target)
     else {
+      ownDraftId.current = draft.id
       setState({
         _tag: 'NotSaved',
         value: draft.value,
@@ -170,22 +188,14 @@ export const useDraftedField = ({
     )
   }, [scheduleId])
 
-  // When the refetch after a save failed, data read later ends Saved: a new
-  // value, or another Schedule's, which may hold the same value.
-  useEffect(() => {
-    setState((current) =>
-      current._tag === 'Saved' ? { _tag: 'Clean', justSaved: true } : current,
-    )
-  }, [saved, scheduleId])
-
   const value = state._tag === 'Clean' ? saved : state.value
 
   const edit = () => setState({ _tag: 'Editing', value })
 
   const change = (next: string) => {
     if (state._tag === 'Saving') return
-    if (next === savedRef.current) clearDraft(target)
-    else writeDraft(target, next)
+    if (next === savedRef.current) clearOwnDraft()
+    else keepDraft(next)
     setState(
       state._tag === 'NotSaved'
         ? { ...state, value: next }
@@ -194,7 +204,7 @@ export const useDraftedField = ({
   }
 
   const discard = () => {
-    clearDraft(target)
+    clearOwnDraft()
     setState(clean)
   }
 
@@ -202,7 +212,7 @@ export const useDraftedField = ({
     if (state._tag !== 'Editing' && state._tag !== 'NotSaved') return
     const sending = state.value
     const sentTo = scheduleIdRef.current
-    const draftId = writeDraft(target, sending)
+    const draftId = keepDraft(sending)
     setState({ _tag: 'Saving', value: sending })
     let answer: SaveAnswer
     try {
@@ -219,27 +229,21 @@ export const useDraftedField = ({
       // Another editor of the target, in this tab or another, may have kept
       // a newer draft since, even with the same text.
       if (readDraft(target)?.id === draftId) clearDraft(target)
-      // Data read during the save may already show the value.
-      setState(
-        savedRef.current === sending
-          ? { _tag: 'Clean', justSaved: true }
-          : { _tag: 'Saved', value: sending },
-      )
-      // Once the refetch completes, the field shows what the server holds,
-      // even a value equal to the one before the save.
-      const refetched = await invalidateAfter(queryClient, write, {
-        throwOnError: true,
-      }).then(
-        () => true,
-        () => false,
-      )
-      if (refetched) {
+      // The next successful read of what the write affects (its refetch, or
+      // a later one if that fails) shows what the server holds, even a value
+      // equal to the one before the save.
+      stopAwaitingRead.current?.()
+      const stop = subscribeToReadsAfter(queryClient, write, () => {
+        stop()
         setState((current) =>
           current._tag === 'Saved'
             ? { _tag: 'Clean', justSaved: true }
             : current,
         )
-      }
+      })
+      stopAwaitingRead.current = stop
+      setState({ _tag: 'Saved', value: sending })
+      await invalidateAfter(queryClient, write)
       return
     }
     setState({
