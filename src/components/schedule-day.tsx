@@ -170,6 +170,8 @@ function NextMoveCard({ move, today }: { move: NextMove; today: IsoDate }) {
   )
 }
 
+const noteHeadingId = 'note'
+
 /**
  * A Day of the Schedule, on its own page and as Today on Home: the Day's
  * source description and Day trips, Phillip's Day note, tonight's hotel and
@@ -245,13 +247,13 @@ export function ScheduleDayView({
           <VerifyClaims claims={day.verifyClaims} />
         </div>
       </DaySection>
-      <DaySection id="note" title="Note">
+      <DaySection id={noteHeadingId} title="Note">
         <DayNote
           key={day.date}
           scheduleId={scheduleId}
           date={day.date}
           note={day.note}
-          labelledBy="note"
+          labelledBy={noteHeadingId}
         />
       </DaySection>
       {tonight && (

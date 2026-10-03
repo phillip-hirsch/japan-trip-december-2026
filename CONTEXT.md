@@ -84,3 +84,7 @@ _Avoid_: caveat, warning
 **Checklist**:
 The things to book or confirm for the Schedule: mostly derived from its Stays, Moves, Anchors and Verify claims, plus Phillip's own.
 _Avoid_: todo list, tasks
+
+**Draft**:
+What Phillip has typed but not yet saved, kept on his device until its save succeeds, and restored marked "not saved" if it never did. Only his Save or Retry sends it.
+_Avoid_: autosave, unsaved changes

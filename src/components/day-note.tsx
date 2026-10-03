@@ -66,6 +66,7 @@ export function DayNote({
   const { state, value } = field
 
   if (state._tag === 'Clean' || state._tag === 'Saved') {
+    const justSaved = state._tag === 'Saved' || state.justSaved
     return (
       <div className="flex flex-col items-start gap-3">
         {value === '' ? (
@@ -79,7 +80,7 @@ export function DayNote({
             {value === '' ? 'Add a note' : 'Edit note'}
           </Button>
           <p role="status" className="text-sm text-muted-foreground">
-            {state._tag === 'Saved' && (
+            {justSaved && (
               <span className="inline-flex items-center gap-1">
                 <CheckIcon className="size-4" aria-hidden />
                 Saved
@@ -116,6 +117,8 @@ export function DayNote({
         aria-describedby={notSaved ? problemId : undefined}
         // Opening the editor focuses it; a restored draft opens unfocused.
         autoFocus={state._tag === 'Editing'}
+        // A save in flight fixes the value, so two saves never race.
+        readOnly={saving}
         value={value}
         onChange={(event) => field.change(event.target.value)}
         maxLength={dayNoteMaxLength}
