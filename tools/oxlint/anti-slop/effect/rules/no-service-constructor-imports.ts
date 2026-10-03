@@ -35,6 +35,29 @@ export const noServiceConstructorImportsRule = defineRule({
 				if (isTestFile || !isProjectLocalImport(node.source.value)) return;
 
 				for (const specifier of node.specifiers) {
+					if (specifier.type === "ImportNamespaceSpecifier") {
+						for (const variable of context.sourceCode.getDeclaredVariables(specifier)) {
+							for (const reference of variable.references) {
+								const member = reference.identifier.parent;
+								if (
+									member?.type !== "MemberExpression" ||
+									member.object !== reference.identifier ||
+									member.computed ||
+									member.property.type !== "Identifier" ||
+									!SERVICE_CONSTRUCTOR_NAME.test(member.property.name)
+								)
+									continue;
+
+								context.report({
+									node: member,
+									messageId: "serviceConstructorImport",
+									data: { name: member.property.name },
+								});
+							}
+						}
+						continue;
+					}
+
 					if (specifier.type !== "ImportSpecifier") continue;
 
 					const importedName = getImportedName(specifier);

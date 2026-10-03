@@ -14,5 +14,5 @@ Both are registered in `vite.config.ts` (`lint.jsPlugins`) with every rule at `e
 ## Intentional deviations
 
 - Upstream imports `@oxlint/plugins`. Here every import uses `vite-plus/lint/plugins` instead, to satisfy `vite-plus/prefer-vite-plus-imports`. That module re-exports `@oxlint/plugins` from Vite+, so there is no direct `@oxlint/plugins` dependency. The rewrite was already present in the skill's copy at `544e90d`.
-- `effect/rules/no-service-constructor-imports.ts` also treats `@/` imports as project-local. Upstream checks only `./` and `../`, but runtime source here imports `src/` through the `@/` alias, so the rule would otherwise never fire.
+- `effect/rules/no-service-constructor-imports.ts` also treats `@/` imports as project-local. Upstream checks only `./` and `../`, but runtime source here imports `src/` through the `@/` alias, so the rule would otherwise never fire. It also reports `make<Name>` accessed through a namespace import (`import * as X` then `X.makeX`), which upstream skips.
 - `vendor/eslint-stylistic/` keeps its own `LICENSE` and `UPSTREAM.md` verbatim; that file's `pnpm check` / `pnpm sync:skill-assets` steps refer to the upstream repository, not this one.
