@@ -1,5 +1,5 @@
-// The Trip's domain types, named as in CONTEXT.md. The schemas run on the
-// server only; the browser imports these types with `import type`.
+// The Trip's domain types, named as in CONTEXT.md. For browser imports, see
+// AGENTS.md: Effect in the browser.
 import { DateTime, Option, Schema, Struct } from 'effect'
 
 import { displayStrings } from '@/fonts/display-strings'
@@ -20,15 +20,15 @@ export const IsoDate = Schema.String.check(
     ),
   ),
 ).pipe(Schema.brand('IsoDate'))
+
 export type IsoDate = typeof IsoDate.Type
 
 /**
  * A date in December 2026, for Itinerary content. Content is trusted and
- * checked by the Trip-rule tests, so the brand is applied without a runtime
- * check.
+ * checked by the Trip-rule tests; the constructor also checks the date.
  */
 export const december = (day: number) =>
-  `2026-12-${String(day).padStart(2, '0')}` as IsoDate
+  IsoDate.make(`2026-12-${String(day).padStart(2, '0')}`)
 
 export const PlaceId = Schema.Literals(placeIds)
 
@@ -37,6 +37,7 @@ export const Coordinates = Schema.Struct({
   latitude: Schema.Finite,
   longitude: Schema.Finite,
 })
+
 export type Coordinates = typeof Coordinates.Type
 
 /** A place from the catalogue, with whether it's a New place for Phillip. */
@@ -47,6 +48,7 @@ export const Place = Schema.Struct({
   coordinates: Coordinates,
   newPlace: Schema.Boolean,
 })
+
 export type Place = typeof Place.Type
 
 /** The number that labels an Itinerary, shown as "Option 1". */
@@ -54,6 +56,7 @@ export const OptionNumber = Schema.Int.check(Schema.isGreaterThan(0))
 
 /** A Stay's accommodation: a ryokan only when the source says so. */
 export const AccommodationKind = Schema.Literals(['hotel', 'ryokan'])
+
 export type AccommodationKind = typeof AccommodationKind.Type
 
 /**
@@ -68,6 +71,7 @@ export const Stay = Schema.Struct({
   accommodation: AccommodationKind,
   highlights: Schema.Array(Schema.String),
 })
+
 export type Stay = typeof Stay.Type
 
 export const StationId = Schema.Literals(stationIds)
@@ -77,12 +81,14 @@ export const Station = Schema.Struct({
   name: Schema.String,
   coordinates: Coordinates,
 })
+
 export type Station = typeof Station.Type
 
 export const RailSectionMode = Schema.Literals([
   'shinkansen',
   'limited-express',
 ])
+
 export type RailSectionMode = typeof RailSectionMode.Type
 
 export const RailLineId = Schema.Literals(railLineIds)
@@ -94,6 +100,7 @@ export const RailSection = Schema.Struct({
   from: StationId,
   to: StationId,
 })
+
 export type RailSection = typeof RailSection.Type
 
 /**
@@ -104,10 +111,12 @@ export const DurationRange = Schema.Struct({
   minMinutes: Schema.Int,
   maxMinutes: Schema.Int,
 })
+
 export type DurationRange = typeof DurationRange.Type
 
 /** Local is a Move between two Stays in the same Base. */
 export const MoveMode = Schema.Literals(['train', 'flight', 'local'])
+
 export type MoveMode = typeof MoveMode.Type
 
 /**
@@ -121,6 +130,7 @@ export const Move = Schema.Struct({
   sections: Schema.Array(RailSection),
   duration: Schema.optionalKey(DurationRange),
 })
+
 export type Move = typeof Move.Type
 
 /**
@@ -133,6 +143,7 @@ export const DayTrip = Schema.Struct({
   place: PlaceId,
   optional: Schema.Boolean,
 })
+
 export type DayTrip = typeof DayTrip.Type
 
 /** One calendar date of the Trip, with what the source says about it. */
@@ -140,13 +151,16 @@ export const Day = Schema.Struct({
   date: IsoDate,
   description: Schema.optionalKey(Schema.String),
 })
+
 export type Day = typeof Day.Type
 
 export const DaySlot = Schema.Literals(['morning', 'afternoon', 'evening'])
+
 export type DaySlot = typeof DaySlot.Type
 
 /** When an Itinerary plans to visit Shigeharu. The visit is tentative. */
 export const ShigeharuVisit = Schema.Struct({ date: IsoDate, slot: DaySlot })
+
 export type ShigeharuVisit = typeof ShigeharuVisit.Type
 
 /**
@@ -158,6 +172,7 @@ export const VerifyClaimAttachment = Schema.TaggedUnion({
   Stay: { checkIn: IsoDate },
   Itinerary: {},
 })
+
 export type VerifyClaimAttachment = typeof VerifyClaimAttachment.Type
 
 export const VerifyClaim = Schema.Struct({
@@ -165,6 +180,7 @@ export const VerifyClaim = Schema.Struct({
   text: Schema.String,
   attachedTo: VerifyClaimAttachment,
 })
+
 export type VerifyClaim = typeof VerifyClaim.Type
 
 /**
@@ -179,6 +195,7 @@ export const ItineraryReasoning = Schema.Struct({
   whyRecommended: Schema.optionalKey(Schema.String),
   travelNotes: Schema.optionalKey(Schema.String),
 })
+
 export type ItineraryReasoning = typeof ItineraryReasoning.Type
 
 /**
@@ -198,6 +215,7 @@ export const ItineraryContent = Schema.Struct({
   shigeharuVisit: Schema.optionalKey(ShigeharuVisit),
   ...ItineraryReasoning.fields,
 })
+
 export type ItineraryContent = typeof ItineraryContent.Type
 
 /**
@@ -208,6 +226,7 @@ export const Itinerary = Schema.Struct({
   ...ItineraryContent.fields,
   contentVersion: Schema.String,
 })
+
 export type Itinerary = typeof Itinerary.Type
 
 const anchorFields = {
@@ -223,6 +242,7 @@ const anchorFields = {
 
 /** A fixed date every Itinerary must respect. */
 export const Anchor = Schema.TaggedUnion(anchorFields)
+
 export type Anchor = typeof Anchor.Type
 
 /** A Verify claim as shown where it's attached. */
@@ -230,6 +250,7 @@ export const VerifyClaimDetail = Schema.Struct({
   id: Schema.String,
   text: Schema.String,
 })
+
 export type VerifyClaimDetail = typeof VerifyClaimDetail.Type
 
 /** A Stay by its Base, dates and nights. */
@@ -239,6 +260,7 @@ export const StaySummary = Schema.Struct({
   checkOut: IsoDate,
   nights: Schema.Int,
 })
+
 export type StaySummary = typeof StaySummary.Type
 
 export const StayDetail = Schema.Struct({
@@ -246,6 +268,7 @@ export const StayDetail = Schema.Struct({
   ...StaySummary.fields,
   verifyClaims: Schema.Array(VerifyClaimDetail),
 })
+
 export type StayDetail = typeof StayDetail.Type
 
 export const RailSectionDetail = Schema.Struct({
@@ -253,6 +276,7 @@ export const RailSectionDetail = Schema.Struct({
   from: Station,
   to: Station,
 })
+
 export type RailSectionDetail = typeof RailSectionDetail.Type
 
 /**
@@ -267,12 +291,14 @@ export const MoveDetail = Schema.Struct({
   duration: Schema.optionalKey(DurationRange),
   changes: Schema.Array(Station),
 })
+
 export type MoveDetail = typeof MoveDetail.Type
 
 export const DayTripDetail = Schema.Struct({
   place: Place,
   optional: Schema.Boolean,
 })
+
 export type DayTripDetail = typeof DayTripDetail.Type
 
 export const DayDetail = Schema.Struct({
@@ -283,10 +309,12 @@ export const DayDetail = Schema.Struct({
   verifyClaims: Schema.Array(VerifyClaimDetail),
   freeDay: Schema.Boolean,
 })
+
 export type DayDetail = typeof DayDetail.Type
 
 /** The nights an Itinerary spends at one Base, across all its Stays there. */
 export const BaseNights = Schema.Struct({ base: Place, nights: Schema.Int })
+
 export type BaseNights = typeof BaseNights.Type
 
 /** An Itinerary's character at a glance, derived from its data. */
@@ -305,6 +333,7 @@ export const ItinerarySummary = Schema.Struct({
    */
   newToYou: Schema.Array(Place),
 })
+
 export type ItinerarySummary = typeof ItinerarySummary.Type
 
 /** A Move by its date, how it travels and the Bases it connects. */
@@ -314,6 +343,7 @@ export const MoveSummary = Schema.Struct({
   from: Place,
   to: Place,
 })
+
 export type MoveSummary = typeof MoveSummary.Type
 
 /** An Itinerary's Moves at a glance. */
@@ -327,6 +357,7 @@ export const MovesComparison = Schema.Struct({
   /** The train and flight Moves left out of the travel time. */
   durationNotGiven: Schema.Array(MoveSummary),
 })
+
 export type MovesComparison = typeof MovesComparison.Type
 
 /**
@@ -357,6 +388,7 @@ export const ItineraryComparison = Schema.Struct({
   flights: Schema.Array(MoveSummary),
   ryokanStays: Schema.Array(StaySummary),
 })
+
 export type ItineraryComparison = typeof ItineraryComparison.Type
 
 /**
@@ -367,6 +399,7 @@ export const MapRailSection = Schema.Struct({
   ...RailSectionDetail.fields,
   followsRailLine: Schema.Boolean,
 })
+
 export type MapRailSection = typeof MapRailSection.Type
 
 /**
@@ -378,6 +411,7 @@ export const MapTrainMove = Schema.Struct({
   date: IsoDate,
   path: Schema.Array(Coordinates),
 })
+
 export type MapTrainMove = typeof MapTrainMove.Type
 
 /** A Day trip as the map draws it, from its Base to its destination. */
@@ -387,6 +421,7 @@ export const MapDayTrip = Schema.Struct({
   /** Optional only when every Day trip between the two is. */
   optional: Schema.Boolean,
 })
+
 export type MapDayTrip = typeof MapDayTrip.Type
 
 /** An Itinerary on its map. Local Moves stay within a Base and draw nothing. */
@@ -404,6 +439,7 @@ export const ItineraryMap = Schema.Struct({
    */
   railAttribution: Schema.optionalKey(Schema.String),
 })
+
 export type ItineraryMap = typeof ItineraryMap.Type
 
 /** An Itinerary's Moves on the comparison map, drawn as on its own map. */
@@ -411,6 +447,7 @@ export const ComparisonMapItinerary = Schema.Struct({
   ...Struct.pick(ItinerarySummary.fields, ['optionNumber', 'recommended']),
   ...Struct.pick(ItineraryMap.fields, ['trainMoves', 'flights']),
 })
+
 export type ComparisonMapItinerary = typeof ComparisonMapItinerary.Type
 
 /** Every Itinerary's Moves and Bases overlaid on one map. */
@@ -424,6 +461,7 @@ export const ComparisonMap = Schema.Struct({
    */
   railAttribution: Schema.optionalKey(Schema.String),
 })
+
 export type ComparisonMap = typeof ComparisonMap.Type
 
 /**
@@ -440,6 +478,7 @@ export const ItineraryDetail = Schema.Struct({
   verifyClaims: Schema.Array(VerifyClaimDetail),
   map: ItineraryMap,
 })
+
 export type ItineraryDetail = typeof ItineraryDetail.Type
 
 /** Why an Itinerary breaks the Trip's rules. */
@@ -460,6 +499,7 @@ export const TripRuleBreak = Schema.TaggedUnion({
   UnattachedVerifyClaim: { id: Schema.String },
   EndsOutsideTokyo: { base: PlaceId },
 })
+
 export type TripRuleBreak = typeof TripRuleBreak.Type
 
 /** The id of something copied into a Schedule, fresh in each Schedule. */
@@ -468,6 +508,7 @@ export const CopyId = Schema.String
 export const ScheduleId = Schema.String.check(Schema.isUUID()).pipe(
   Schema.brand('ScheduleId'),
 )
+
 export type ScheduleId = typeof ScheduleId.Type
 
 /**
@@ -477,10 +518,12 @@ export type ScheduleId = typeof ScheduleId.Type
 export const OperationId = Schema.String.check(Schema.isUUID()).pipe(
   Schema.brand('OperationId'),
 )
+
 export type OperationId = typeof OperationId.Type
 
 /** An archived Schedule is read-only; at most one is current. */
 export const ScheduleStatus = Schema.Literals(['current', 'archived'])
+
 export type ScheduleStatus = typeof ScheduleStatus.Type
 
 /** An Anchor as copied into a Schedule. */
@@ -490,12 +533,14 @@ export const ScheduleAnchor = Schema.TaggedUnion({
   Birthday: { id: CopyId, ...anchorFields.Birthday },
   Departure: { id: CopyId, ...anchorFields.Departure },
 })
+
 export type ScheduleAnchor = typeof ScheduleAnchor.Type
 
 export const ScheduleStayDetail = Schema.Struct({
   id: CopyId,
   ...StayDetail.fields,
 })
+
 export type ScheduleStayDetail = typeof ScheduleStayDetail.Type
 
 /** A Move as copied into a Schedule, as its Day shows it. */
@@ -503,6 +548,7 @@ export const ScheduleMoveDetail = Schema.Struct({
   id: CopyId,
   ...MoveDetail.fields,
 })
+
 export type ScheduleMoveDetail = typeof ScheduleMoveDetail.Type
 
 export const ScheduleDayDetail = Schema.Struct({
@@ -515,6 +561,7 @@ export const ScheduleDayDetail = Schema.Struct({
     Schema.Struct({ id: CopyId, ...DayTripDetail.fields }),
   ),
 })
+
 export type ScheduleDayDetail = typeof ScheduleDayDetail.Type
 
 /**
@@ -522,6 +569,7 @@ export type ScheduleDayDetail = typeof ScheduleDayDetail.Type
  * details, so a Day page shows the Base marked "hotel not recorded".
  */
 export const Hotel = Schema.TaggedUnion({ NotRecorded: {} })
+
 export type Hotel = typeof Hotel.Type
 
 /** Tonight's hotel: the Stay covering the night a Day ends with. */
@@ -530,6 +578,7 @@ export const TonightsHotel = Schema.Struct({
   ...StaySummary.fields,
   hotel: Hotel,
 })
+
 export type TonightsHotel = typeof TonightsHotel.Type
 
 /** The next Move from a Day: the first dated that Day or later. */
@@ -537,6 +586,7 @@ export const NextMove = Schema.Struct({
   date: IsoDate,
   ...ScheduleMoveDetail.fields,
 })
+
 export type NextMove = typeof NextMove.Type
 
 /**
@@ -552,6 +602,7 @@ export const DayPage = Schema.Struct({
   /** Absent once no Moves are left. */
   nextMove: Schema.optionalKey(NextMove),
 })
+
 export type DayPage = typeof DayPage.Type
 
 /** A Schedule's own fields: where it came from and when. */
@@ -567,6 +618,7 @@ export const ScheduleRecord = Schema.Struct({
   archivedAt: Schema.NullOr(Schema.String),
   birthdayOutline: Schema.String,
 })
+
 export type ScheduleRecord = typeof ScheduleRecord.Type
 
 /**
@@ -576,6 +628,7 @@ export type ScheduleRecord = typeof ScheduleRecord.Type
 export const ScheduleSummary = Schema.Struct(
   Struct.pick(ScheduleRecord.fields, ['id', 'sourceOptionNumber']),
 )
+
 export type ScheduleSummary = typeof ScheduleSummary.Type
 
 /**
@@ -587,6 +640,7 @@ export const SourceItineraryStatus = Schema.Literals([
   'revised',
   'unavailable',
 ])
+
 export type SourceItineraryStatus = typeof SourceItineraryStatus.Type
 
 /**
@@ -602,6 +656,7 @@ export const ScheduleDetail = Schema.Struct({
   stays: Schema.Array(ScheduleStayDetail),
   days: Schema.Array(ScheduleDayDetail),
 })
+
 export type ScheduleDetail = typeof ScheduleDetail.Type
 
 /** An archived Schedule as /schedule lists it. */
@@ -613,6 +668,7 @@ export const ArchivedScheduleSummary = Schema.Struct({
   ]),
   archivedAt: Schema.String,
 })
+
 export type ArchivedScheduleSummary = typeof ArchivedScheduleSummary.Type
 
 /**
@@ -624,6 +680,7 @@ export const Schedules = Schema.Struct({
   current: Schema.NullOr(ScheduleDetail),
   archived: Schema.Array(ArchivedScheduleSummary),
 })
+
 export type Schedules = typeof Schedules.Type
 
 /**
@@ -635,9 +692,11 @@ export const ChooseItinerary = Schema.Struct({
   optionNumber: OptionNumber,
   replacing: Schema.NullOr(ScheduleId),
 })
+
 export type ChooseItinerary = typeof ChooseItinerary.Type
 
 export const ScheduleChosen = Schema.Struct({ scheduleId: ScheduleId })
+
 export type ScheduleChosen = typeof ScheduleChosen.Type
 
 /** Restore an archived Schedule, archiving the current one it names. */
@@ -646,9 +705,11 @@ export const RestoreSchedule = Schema.Struct({
   scheduleId: ScheduleId,
   replacing: Schema.NullOr(ScheduleId),
 })
+
 export type RestoreSchedule = typeof RestoreSchedule.Type
 
 export const ScheduleRestored = Schema.Struct({ scheduleId: ScheduleId })
+
 export type ScheduleRestored = typeof ScheduleRestored.Type
 
 export class ScheduleNotFound extends Schema.TaggedError<ScheduleNotFound>()(
@@ -705,6 +766,7 @@ export const HomeState = Schema.TaggedUnion({
     schedule: Schema.NullOr(ScheduleDetail),
   },
 })
+
 export type HomeState = typeof HomeState.Type
 
 /** What reading a Day page found, as plain data for the browser. */
@@ -713,6 +775,7 @@ export const DayOutcome = Schema.TaggedUnion({
   NoSchedule: {},
   DayNotFound: DayNotFound.fields,
 })
+
 export type DayOutcome = typeof DayOutcome.Type
 
 /**
@@ -734,6 +797,7 @@ export const WriteDayNote = Schema.Struct({
   date: IsoDate,
   note: Schema.String,
 })
+
 export type WriteDayNote = typeof WriteDayNote.Type
 
 /** A Day note longer than the Trip service accepts; nothing is written. */
@@ -749,6 +813,7 @@ export const WriteDayNoteOutcome = Schema.TaggedUnion({
   DayNotFound: DayNotFound.fields,
   DayNoteTooLong: DayNoteTooLong.fields,
 })
+
 export type WriteDayNoteOutcome = typeof WriteDayNoteOutcome.Type
 
 /** What choosing an Itinerary did, as plain data for the browser. */
@@ -757,6 +822,7 @@ export const ChooseOutcome = Schema.TaggedUnion({
   ItineraryNotFound: ItineraryNotFound.fields,
   ScheduleChanged: ScheduleChanged.fields,
 })
+
 export type ChooseOutcome = typeof ChooseOutcome.Type
 
 /** What restoring a Schedule did, as plain data for the browser. */
@@ -765,4 +831,5 @@ export const RestoreOutcome = Schema.TaggedUnion({
   ScheduleNotFound: ScheduleNotFound.fields,
   ScheduleChanged: ScheduleChanged.fields,
 })
+
 export type RestoreOutcome = typeof RestoreOutcome.Type

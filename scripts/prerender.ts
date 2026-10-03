@@ -42,10 +42,11 @@ const pageProblems = (
   html: string,
 ) => [
   ...(emailAddress.test(html) ? [`${file} contains an email address`] : []),
-  ...[...html.matchAll(optionsLink)]
-    .map(([, href]) => href)
-    .filter((href) => !prerenderedPaths.includes(href))
-    .map((href) => `${file} links to ${href}, which isn't prerendered`),
+  ...[...html.matchAll(optionsLink)].flatMap(([, href]) =>
+    !prerenderedPaths.includes(href)
+      ? [`${file} links to ${href}, which isn't prerendered`]
+      : [],
+  ),
 ]
 
 /**
@@ -68,10 +69,13 @@ export const checkPrerenderedHtml = (
         builder.config.root,
         builder.environments.client.config.build.outDir,
       )
+
       const expected = prerenderedPaths.map(htmlFile)
+
       const found = (await readdir(outDir, { recursive: true }))
         .filter((file) => file.endsWith('.html'))
         .map((file) => file.split(path.sep).join('/'))
+
       const contentProblems = await Promise.all(
         found.map(async (file) =>
           pageProblems(
@@ -81,15 +85,19 @@ export const checkPrerenderedHtml = (
           ),
         ),
       )
+
       const problems = [
-        ...expected
-          .filter((file) => !found.includes(file))
-          .map((file) => `${file} is missing`),
-        ...found
-          .filter((file) => !expected.includes(file))
-          .map((file) => `${file} is not a page meant to be prerendered`),
+        ...expected.flatMap((file) =>
+          !found.includes(file) ? [`${file} is missing`] : [],
+        ),
+        ...found.flatMap((file) =>
+          !expected.includes(file)
+            ? [`${file} is not a page meant to be prerendered`]
+            : [],
+        ),
         ...contentProblems.flat(),
       ]
+
       if (problems.length > 0) {
         throw new Error(
           `Prerendered HTML check failed:\n- ${problems.join('\n- ')}`,

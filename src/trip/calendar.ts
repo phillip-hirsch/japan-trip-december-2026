@@ -1,20 +1,23 @@
-// Trip dates and durations as plain values, safe to import in the browser
-// (no Effect).
+// Browser-safe Trip dates and durations. See AGENTS.md: Effect in the browser.
 import type { DurationRange, IsoDate } from '@/trip/domain'
 
 /** The Trip's time zone: every Day is a calendar date in Tokyo. */
 export const tripTimeZone = 'Asia/Tokyo'
 
 /** Arrival: the first Day of the Trip, as a Tokyo calendar date. */
+// SAFETY: valid ISO date literal for the Arrival.
 export const tripStartDate = '2026-12-06' as IsoDate
 
 /** Departure: the last Day of the Trip. */
+// SAFETY: valid ISO date literal for the Departure.
 export const tripEndDate = '2026-12-20' as IsoDate
 
 /** The Shigeharu visit: the morning of Friday, December 11. */
+// SAFETY: valid ISO date literal for the Shigeharu visit.
 export const shigeharuDate = '2026-12-11' as IsoDate
 
 /** The Birthday: Tuesday, December 15, never a Move day. */
+// SAFETY: valid ISO date literal for the Birthday.
 export const birthdayDate = '2026-12-15' as IsoDate
 
 const dayInMilliseconds = 24 * 60 * 60 * 1000
@@ -29,6 +32,7 @@ export const tripDates: ReadonlyArray<IsoDate> = Array.from(
         dayInMilliseconds +
       1,
   },
+  // SAFETY: UTC day steps between the valid endpoints yield ISO calendar dates; Trip tests cover all 15 Days.
   (_, index) =>
     new Date(midnightUtc(tripStartDate) + index * dayInMilliseconds)
       .toISOString()
@@ -44,12 +48,13 @@ const tokyoOffsetInMilliseconds = 9 * 60 * 60 * 1000
 /** How long until the date next changes in Tokyo, from a moment in epoch ms. */
 export const millisecondsUntilTokyoMidnight = (now: number) => {
   const tokyo = now + tokyoOffsetInMilliseconds
+
   return Math.ceil((tokyo + 1) / dayInMilliseconds) * dayInMilliseconds - tokyo
 }
 
 /** Whether a string names a Day of the Trip. */
 export const isTripDate = (date: string): date is IsoDate =>
-  tripDates.includes(date as IsoDate)
+  tripDates.some((tripDate) => tripDate === date)
 
 /** The Day before, or undefined on December 6. */
 export const previousTripDate = (date: IsoDate) =>
@@ -62,12 +67,14 @@ export const nextTripDate = (date: IsoDate) =>
 /** A formatter of moments, in US English. */
 const formatter = (options: Intl.DateTimeFormatOptions) => {
   const dateTimeFormat = new Intl.DateTimeFormat('en-US', options)
+
   return (date: Date) => dateTimeFormat.format(date)
 }
 
 /** A calendar date's formatter, which midnight UTC keeps on that date. */
 const format = (options: Intl.DateTimeFormatOptions) => {
   const formatDate = formatter({ ...options, timeZone: 'UTC' })
+
   return (isoDate: string) => formatDate(new Date(`${isoDate}T00:00:00Z`))
 }
 
@@ -94,6 +101,7 @@ export const formatDayOfMonth = format({ day: 'numeric' })
 const formatMinutes = (minutes: number) => {
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
+
   return [hours > 0 && `${hours} h`, rest > 0 && `${rest} min`]
     .filter(Boolean)
     .join(' ')

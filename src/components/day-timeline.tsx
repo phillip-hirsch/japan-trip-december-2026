@@ -32,6 +32,7 @@ import type { DayDetail, StayDetail } from '@/trip/domain'
 /** A Day, opening its own page when the timeline links its Days. */
 function DayItem({ day, linked }: { day: DayDetail; linked: boolean }) {
   const birthday = isBirthday(day.anchors)
+
   return (
     <Item
       size="sm"
@@ -111,6 +112,7 @@ export function DayTimeline({
   // Move day opens the Stay it moves to and Departure closes the last one.
   const sections = stays.map((stay, index) => {
     const next = stays[index + 1]
+
     return {
       stay,
       days: days.filter(
@@ -120,6 +122,7 @@ export function DayTimeline({
       ),
     }
   })
+
   return (
     <div className="flex flex-col gap-6">
       {sections.map(({ stay, days }) => (

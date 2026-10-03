@@ -25,11 +25,14 @@ export function useSwipe({
   onSwipeRight?: () => void
 }) {
   const start = useRef<{ x: number; y: number } | null>(null)
+
   return {
     onTouchStart: (event: TouchEvent) => {
       const touch = event.touches[0]
+
       const inField =
         event.target instanceof Element && event.target.closest(editable)
+
       start.current =
         event.touches.length === 1 && touch && !inField
           ? { x: touch.clientX, y: touch.clientY }
@@ -39,15 +42,18 @@ export function useSwipe({
       const from = start.current
       const touch = event.changedTouches[0]
       start.current = null
+
       if (from === null || touch === undefined) return
       const dx = touch.clientX - from.x
       const dy = touch.clientY - from.y
+
       if (
         Math.abs(dx) < minDistance ||
         Math.abs(dx) < Math.abs(dy) * minRatio
       ) {
         return
       }
+
       ;(dx < 0 ? onSwipeLeft : onSwipeRight)?.()
     },
     onTouchCancel: () => {

@@ -3,10 +3,11 @@ import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query
 import { NotFound } from '@/components/not-found'
 import { routeTree } from '@/routeTree.gen'
 import { shouldDehydrateQuery } from '@/trip/queries'
-import { makeQueryClient } from '@/trip/query-client'
+import { createQueryClient } from '@/trip/query-client'
 
 export function getRouter() {
-  const queryClient = makeQueryClient()
+  const queryClient = createQueryClient()
+
   const router = createTanStackRouter({
     routeTree,
     context: { queryClient },
@@ -15,6 +16,7 @@ export function getRouter() {
     defaultPreloadStaleTime: 0,
     defaultNotFoundComponent: NotFound,
   })
+
   // Carries the queries a server render fetched into the browser's cache,
   // and provides the QueryClient to components.
   setupRouterSsrQueryIntegration({

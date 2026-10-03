@@ -23,7 +23,9 @@ export const Route = createFileRoute('/schedule/')({
 
 function SchedulePage() {
   const { current: schedule, archived } = useSuspenseQuery(schedulesQuery).data
+
   if (schedule === null) return <NoSchedule />
+
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-10 md:px-12 md:py-16">
       <header>

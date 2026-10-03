@@ -14,7 +14,9 @@ export const Route = createFileRoute('/options/$optionNumber')({
   params: {
     parse: (params) => {
       const optionNumber = parseOptionNumber(params.optionNumber)
+
       if (optionNumber === undefined) throw notFound()
+
       return { optionNumber }
     },
     stringify: ({ optionNumber }) => ({ optionNumber: String(optionNumber) }),
@@ -31,6 +33,7 @@ export const Route = createFileRoute('/options/$optionNumber')({
 
 function ItineraryPage() {
   const itinerary = Route.useLoaderData()
+
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-10 md:px-12 md:py-16">
       <ItinerarySummaryHeader summary={itinerary}>

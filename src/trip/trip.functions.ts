@@ -47,14 +47,14 @@ export const getDay = createServerFn({ method: 'GET' })
     const outcome = await callTripStore(DayOutcome, (store) =>
       store.day(data.date),
     )
-    switch (outcome._tag) {
-      case 'Day':
-        return outcome.page
-      case 'NoSchedule':
-        return null
-      case 'DayNotFound':
+
+    return DayOutcome.match(outcome, {
+      Day: (outcome) => outcome.page,
+      NoSchedule: () => null,
+      DayNotFound: () => {
         throw notFound()
-    }
+      },
+    })
   })
 
 /** Every Itinerary with its comparison rows. */
@@ -78,7 +78,9 @@ export const getItinerary = createServerFn({ method: 'GET' })
         Effect.catchTag('ItineraryNotFound', () => Effect.succeed(null)),
       ),
     )
+
     if (itinerary === null) throw notFound()
+
     return itinerary
   })
 

@@ -2,6 +2,7 @@ import type { CustomFetch } from '@tanstack/react-start'
 
 import {
   connected,
+  ConnectionStatus,
   currentConnection,
   offline,
   reportConnection,
@@ -11,9 +12,11 @@ let reloadScheduled = false
 
 // Long enough to read the banner before the page goes away.
 const reloadDelayMs = 1500
+
 // A login takes longer than this; landing back on an expired session sooner
 // means the reload isn't fixing it, so stop instead of looping.
 const reloadLoopWindowMs = 60_000
+
 const lastReloadKey = 'access:login-reload-at'
 
 const readLastReload = () => {
@@ -27,6 +30,7 @@ const readLastReload = () => {
 const recordReload = (at: number) => {
   try {
     sessionStorage.setItem(lastReloadKey, String(at))
+
     return true
   } catch {
     // Without a record the guard can't work, so don't reload automatically.
@@ -41,15 +45,19 @@ const recordReload = (at: number) => {
 const reloadToLogIn = () => {
   if (reloadScheduled) return true
   const now = Date.now()
+
   if (now - readLastReload() < reloadLoopWindowMs) return false
+
   if (!recordReload(now)) return false
   reloadScheduled = true
   setTimeout(() => window.location.reload(), reloadDelayMs)
+
   return true
 }
 
 // Soon after going offline, then once a minute.
 const probeDelaysMs = [2_000, 5_000, 15_000, 30_000, 60_000]
+
 let probing = false
 
 /**
@@ -74,11 +82,13 @@ const probeUntilAnswered = () => {
     window.removeEventListener('online', probe)
     document.removeEventListener('visibilitychange', probeIfVisible)
   }
+
   const schedule = () => {
     const delay = probeDelaysMs[Math.min(attempt, probeDelaysMs.length - 1)]
     attempt += 1
     timer = setTimeout(probeIfVisible, delay)
   }
+
   function probe() {
     if (inFlight) return
     inFlight = true
@@ -87,10 +97,12 @@ const probeUntilAnswered = () => {
       .catch(() => {})
       .finally(() => {
         inFlight = false
+
         if (currentConnection() === offline) schedule()
         else stop()
       })
   }
+
   function probeIfVisible() {
     if (document.visibilityState === 'visible') probe()
   }
@@ -122,6 +134,7 @@ export const serverFnFetch: CustomFetch = async (url, init) => {
   const headers = new Headers(init?.headers)
   headers.set('X-Requested-With', 'XMLHttpRequest')
   let response: Response
+
   try {
     response = await fetch(url, { ...init, headers, redirect: 'manual' })
   } catch (error) {
@@ -129,15 +142,20 @@ export const serverFnFetch: CustomFetch = async (url, init) => {
       reportConnection(offline)
       probeUntilAnswered()
     }
+
     throw error
   }
+
   if (response.status === 401 || response.type === 'opaqueredirect') {
     const reloading = reloadToLogIn()
-    reportConnection({ _tag: 'LoginExpired', reloading })
+    reportConnection(ConnectionStatus.LoginExpired({ reloading }))
+
     // Keep the current page in place until the reload replaces it.
     if (reloading) return new Promise<never>(() => {})
     throw new Error('Login expired')
   }
+
   reportConnection(connected)
+
   return response
 }

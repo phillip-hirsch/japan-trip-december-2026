@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import {
   ArrowRightIcon,
   BuildingIcon,
@@ -29,7 +30,7 @@ const anchorBadges: Record<
 }
 
 export const isBirthday = (anchors: ReadonlyArray<Anchor>) =>
-  anchors.some((anchor) => anchor._tag === 'Birthday')
+  anchors.some((anchor) => Predicate.isTagged('Birthday')(anchor))
 
 /** A Day's Anchors as badges, and Free day when it is one; nothing otherwise. */
 export function AnchorBadges({
@@ -42,15 +43,19 @@ export function AnchorBadges({
   className?: string
 }) {
   if (anchors.length === 0 && !freeDay) return null
+
   return (
     <div className={cn('flex flex-wrap gap-1.5', className)}>
       {anchors.map((anchor) => {
         const badge = anchorBadges[anchor._tag]
+
         return (
           <Badge
             key={anchor._tag}
             variant={badge.variant}
-            className={cn(anchor._tag === 'ShigeharuVisit' && 'border-dashed')}
+            className={cn(
+              Predicate.isTagged('ShigeharuVisit')(anchor) && 'border-dashed',
+            )}
           >
             {badge.label}
           </Badge>
@@ -71,7 +76,7 @@ export function AnchorBadges({
 /** What an Anchor adds in words: only the Shigeharu visit has a note. */
 export function AnchorNotes({ anchors }: { anchors: ReadonlyArray<Anchor> }) {
   return anchors.map((anchor) =>
-    anchor._tag === 'ShigeharuVisit' ? (
+    Predicate.isTagged('ShigeharuVisit')(anchor) ? (
       <p key={anchor._tag} className="text-xs text-muted-foreground">
         Tentative, in the {anchor.slot}
         {anchor.thursdayBackup && ', with Thursday morning as a backup'}.
@@ -115,6 +120,7 @@ export function MoveTravel({
   className?: string
 }) {
   const { label, icon: Icon } = moveModes[move.mode]
+
   return (
     <p
       className={cn(

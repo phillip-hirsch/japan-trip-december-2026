@@ -1,5 +1,5 @@
-// Plain data, no Effect. The rail schemas in domain.ts read their ids from
-// here, like the place catalogue.
+// Browser-safe catalogue; see AGENTS.md: Effect in the browser. The rail
+// schemas read their ids here, like the place catalogue.
 import type { CatalogueCoordinates } from '@/trip/places'
 
 /**
@@ -41,6 +41,7 @@ export const stations = {
 
 export type StationId = keyof typeof stations
 
+// SAFETY: stations is the closed catalogue literal above; its enumerable own keys are exactly StationId.
 export const stationIds = Object.keys(stations) as ReadonlyArray<StationId>
 
 /**

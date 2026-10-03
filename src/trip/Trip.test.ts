@@ -1,15 +1,14 @@
 import { assert, describe, it, layer } from '@effect/vitest'
-import { Effect, Predicate } from 'effect'
+import { Effect, Predicate, Schema } from 'effect'
 import type { Layer } from 'effect'
 
-import { december } from '@/trip/domain'
-import type {
-  Coordinates,
+import {
+  december,
   ItineraryContent,
-  MoveSummary,
-  RailSectionDetail,
   TripRuleBreak,
+  VerifyClaimAttachment,
 } from '@/trip/domain'
+import type { Coordinates, MoveSummary, RailSectionDetail } from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
 import { places } from '@/trip/places'
@@ -61,6 +60,7 @@ layer(liveTrip)('Every Itinerary', (it) => {
   it.effect('satisfies every Trip rule', () =>
     Effect.gen(function* () {
       const trip = yield* Trip
+
       for (const { optionNumber } of yield* trip.itineraries) {
         assert.deepStrictEqual(
           { optionNumber, breaks: yield* trip.tripRuleBreaks(optionNumber) },
@@ -143,21 +143,21 @@ describe('Trip rules', () => {
     [
       'Shigeharu missing',
       option1With({ shigeharuVisit: undefined }),
-      [{ _tag: 'ShigeharuMissing' }],
+      [TripRuleBreak.cases.ShigeharuMissing.make({})],
     ],
     [
       'Shigeharu on the wrong date',
       option1With({
         shigeharuVisit: { date: december(12), slot: 'morning' },
       }),
-      [{ _tag: 'ShigeharuWrongDate', date: december(12) }],
+      [TripRuleBreak.cases.ShigeharuWrongDate.make({ date: december(12) })],
     ],
     [
       'Shigeharu not in the morning',
       option1With({
         shigeharuVisit: { date: december(11), slot: 'afternoon' },
       }),
-      [{ _tag: 'ShigeharuNotInMorning', slot: 'afternoon' }],
+      [TripRuleBreak.cases.ShigeharuNotInMorning.make({ slot: 'afternoon' })],
     ],
     [
       'a Move on December 15',
@@ -169,7 +169,7 @@ describe('Trip rules', () => {
           ['tokyo', 17, 20],
         ),
       }),
-      [{ _tag: 'MoveOnBirthday' }],
+      [TripRuleBreak.cases.MoveOnBirthday.make({})],
     ],
     [
       'a gap',
@@ -181,7 +181,7 @@ describe('Trip rules', () => {
           ['tokyo', 17, 20],
         ),
       }),
-      [{ _tag: 'Gap', from: december(13), to: december(14) }],
+      [TripRuleBreak.cases.Gap.make({ from: december(13), to: december(14) })],
     ],
     [
       'an overlap',
@@ -193,14 +193,19 @@ describe('Trip rules', () => {
           ['tokyo', 17, 20],
         ),
       }),
-      [{ _tag: 'Overlap', from: december(12), to: december(13) }],
+      [
+        TripRuleBreak.cases.Overlap.make({
+          from: december(12),
+          to: december(13),
+        }),
+      ],
     ],
     [
       'ending outside Tokyo',
       option1With({
         ...withStays(['tokyo', 6, 9], ['kyoto', 9, 13], ['kanazawa', 13, 20]),
       }),
-      [{ _tag: 'EndsOutsideTokyo', base: 'kanazawa' }],
+      [TripRuleBreak.cases.EndsOutsideTokyo.make({ base: 'kanazawa' })],
     ],
     [
       'not waking up in Kyoto on December 11',
@@ -212,7 +217,7 @@ describe('Trip rules', () => {
           ['tokyo', 17, 20],
         ),
       }),
-      [{ _tag: 'NotWakingUpInKyoto', base: 'tokyo' }],
+      [TripRuleBreak.cases.NotWakingUpInKyoto.make({ base: 'tokyo' })],
     ],
     [
       'a Stay without nights',
@@ -225,7 +230,7 @@ describe('Trip rules', () => {
           ['tokyo', 17, 20],
         ),
       }),
-      [{ _tag: 'StayWithoutNights', checkIn: december(13) }],
+      [TripRuleBreak.cases.StayWithoutNights.make({ checkIn: december(13) })],
     ],
     [
       'not covering December 6 to December 20',
@@ -238,14 +243,17 @@ describe('Trip rules', () => {
         ),
       }),
       [
-        {
-          _tag: 'NotTheTripDates',
+        TripRuleBreak.cases.NotTheTripDates.make({
           checkIn: december(7),
           checkOut: december(21),
-        },
+        }),
       ],
     ],
-    ['no Stays', option1With(withStays()), [{ _tag: 'NoStays' }]],
+    [
+      'no Stays',
+      option1With(withStays()),
+      [TripRuleBreak.cases.NoStays.make({})],
+    ],
     [
       'a Move where no Stays meet',
       option1With({
@@ -254,14 +262,22 @@ describe('Trip rules', () => {
           { date: december(11), mode: 'local', sections: [] },
         ],
       }),
-      [{ _tag: 'MoveWithoutStayBoundary', date: december(11) }],
+      [
+        TripRuleBreak.cases.MoveWithoutStayBoundary.make({
+          date: december(11),
+        }),
+      ],
     ],
     [
       'Stays that meet without a Move',
       option1With({
         moves: option1.moves.filter((move) => move.date !== december(13)),
       }),
-      [{ _tag: 'StayBoundaryWithoutMove', date: december(13) }],
+      [
+        TripRuleBreak.cases.StayBoundaryWithoutMove.make({
+          date: december(13),
+        }),
+      ],
     ],
     [
       'a Verify claim attached to no Stay',
@@ -270,11 +286,13 @@ describe('Trip rules', () => {
           {
             id: 'kyoto-crowds',
             text: 'Kyoto is quieter in December.',
-            attachedTo: { _tag: 'Stay', checkIn: december(10) },
+            attachedTo: VerifyClaimAttachment.cases.Stay.make({
+              checkIn: december(10),
+            }),
           },
         ],
       }),
-      [{ _tag: 'UnattachedVerifyClaim', id: 'kyoto-crowds' }],
+      [TripRuleBreak.cases.UnattachedVerifyClaim.make({ id: 'kyoto-crowds' })],
     ],
     [
       'a Verify claim attached to no Day',
@@ -283,20 +301,21 @@ describe('Trip rules', () => {
           {
             id: 'late-checkout',
             text: 'Late checkout is free.',
-            attachedTo: { _tag: 'Day', date: december(21) },
+            attachedTo: VerifyClaimAttachment.cases.Day.make({
+              date: december(21),
+            }),
           },
         ],
       }),
-      [{ _tag: 'UnattachedVerifyClaim', id: 'late-checkout' }],
+      [TripRuleBreak.cases.UnattachedVerifyClaim.make({ id: 'late-checkout' })],
     ],
     [
       'Days other than the 15 Trip Days',
       option1With({ days: option1.days.slice(1) }),
       [
-        {
-          _tag: 'NotTheTripDays',
+        TripRuleBreak.cases.NotTheTripDays.make({
           dates: option1.days.slice(1).map((day) => day.date),
-        },
+        }),
       ],
     ],
   ]
@@ -325,6 +344,7 @@ describe('Free days', () => {
           ]),
         ),
       )
+
       assert.deepStrictEqual(
         days.filter((day) => day.freeDay).map((day) => day.date),
         [december(16)],
@@ -351,6 +371,7 @@ describe('Route', () => {
           ]),
         ),
       )
+
       assert.deepStrictEqual(
         route.map((place) => place.romaji),
         ['Tokyo', 'Kyoto', 'Kanazawa', 'Tokyo'],
@@ -374,6 +395,7 @@ describe('New to you', () => {
           ]),
         ),
       )
+
       assert.deepStrictEqual(
         newToYou.map((place) => place.romaji),
         ['Kamakura', 'Uji', 'Kanazawa', 'Enoshima'],
@@ -395,13 +417,14 @@ describe('Verify claims', () => {
                 {
                   id: 'rail-pass',
                   text: 'Rail pass prices change in October.',
-                  attachedTo: { _tag: 'Itinerary' },
+                  attachedTo: VerifyClaimAttachment.cases.Itinerary.make({}),
                 },
               ],
             }),
           ]),
         ),
       )
+
       assert.deepStrictEqual(verifyClaims, [
         { id: 'rail-pass', text: 'Rail pass prices change in October.' },
       ])
@@ -417,14 +440,33 @@ describe('Itinerary content version', () => {
     )
 
   /** The same data with every object's keys in reverse order. */
-  const reencoded = (content: ItineraryContent): ItineraryContent =>
-    JSON.parse(
-      JSON.stringify(content, (_key, value: unknown) =>
-        Predicate.isObject(value) && !Array.isArray(value)
-          ? Object.fromEntries(Object.entries(value).reverse())
-          : value,
+  const reverseKeys = (value: Schema.Json): Schema.Json => {
+    if (Array.isArray(value)) return value.map(reverseKeys)
+
+    if (Predicate.isObjectKeyword(value)) {
+      return Object.fromEntries(
+        Object.entries<Schema.Json>(value)
+          .reverse()
+          .map(([key, nested]) => [key, reverseKeys(nested)]),
+      )
+    }
+
+    return value
+  }
+
+  const reencoded = (content: ItineraryContent): ItineraryContent => {
+    const reordered = reverseKeys(
+      Schema.decodeSync(Schema.fromJsonString(Schema.Json))(
+        JSON.stringify(content),
       ),
     )
+
+    // Check the shape without decoding: decoding restores schema key order.
+    if (!Schema.is(ItineraryContent)(reordered))
+      return assert.fail('Re-encoding must preserve Itinerary content')
+
+    return reordered
+  }
 
   it.effect('stays the same when the data is re-encoded', () =>
     Effect.gen(function* () {
@@ -438,6 +480,7 @@ describe('Itinerary content version', () => {
   it.effect('changes when any field changes', () =>
     Effect.gen(function* () {
       const original = yield* versionOf(option1)
+
       const changed: ReadonlyArray<ItineraryContent> = [
         option1With({ name: 'Kyoto + Kanazawa, revised' }),
         option1With({ bestFor: 'Crab season' }),
@@ -484,6 +527,7 @@ describe('Itinerary content version', () => {
           })),
         }),
       ]
+
       for (const content of changed) {
         assert.notStrictEqual(yield* versionOf(content), original)
       }
@@ -511,6 +555,7 @@ describe('Comparison rows', () => {
           ),
         }),
       )
+
       assert.deepStrictEqual(
         {
           count: compared?.moves.count,
@@ -538,6 +583,7 @@ describe('Comparison rows', () => {
           })),
         }),
       )
+
       assert.deepStrictEqual(
         {
           count: compared?.moves.count,
@@ -566,6 +612,7 @@ describe('Comparison rows', () => {
         ['tokyo', 17, 18],
         ['tokyo', 18, 20],
       )
+
       const compared = yield* comparisonOf(
         option1With({
           ...stays,
@@ -574,6 +621,7 @@ describe('Comparison rows', () => {
           ),
         }),
       )
+
       assert.deepStrictEqual(
         {
           count: compared?.moves.count,
@@ -605,6 +653,7 @@ describe('Comparison rows', () => {
               ),
             }),
           ).pipe(Effect.map((compared) => compared?.thursdayBackup))
+
         assert.deepStrictEqual(
           {
             'December 9 to 11': yield* backupWith(9, 11),
@@ -631,6 +680,7 @@ describe('Comparison rows', () => {
           ],
         }),
       )
+
       assert.deepStrictEqual(
         compared?.dayTrips.map(
           ({ place, optional }) =>
@@ -707,6 +757,7 @@ describe('Itinerary map', () => {
   const kmFrom = (point: Coordinates, path: ReadonlyArray<Coordinates>) => {
     // Kilometres east and north of the point: close enough at map scale.
     const kmPerDegree = 111.32
+
     const toKm = ({ latitude, longitude }: Coordinates) => ({
       x:
         (longitude - point.longitude) *
@@ -714,18 +765,22 @@ describe('Itinerary map', () => {
         Math.cos((point.latitude * Math.PI) / 180),
       y: (latitude - point.latitude) * kmPerDegree,
     })
+
     const kmFromSegment = (start: Coordinates, end: Coordinates) => {
       const a = toKm(start)
       const b = toKm(end)
       const dx = b.x - a.x
       const dy = b.y - a.y
       const lengthSquared = dx ** 2 + dy ** 2
+
       const along =
         lengthSquared === 0
           ? 0
           : Math.min(1, Math.max(0, -(a.x * dx + a.y * dy) / lengthSquared))
+
       return Math.hypot(a.x + along * dx, a.y + along * dy)
     }
+
     return Math.min(
       ...path
         .slice(1)
@@ -736,6 +791,7 @@ describe('Itinerary map', () => {
   // Stations on each line that a straight line between the Bases would miss
   // by kilometres.
   const shizuoka = { latitude: 34.9712, longitude: 138.3886 }
+
   const linesThrough = [
     [1, 9, 'Shizuoka', shizuoka],
     [1, 13, 'Ōmi-Imazu', { latitude: 35.3978, longitude: 136.0321 }],
@@ -802,6 +858,7 @@ describe('Itinerary map', () => {
               : move,
           ),
         })
+
         assert.deepStrictEqual(trainMoves.at(-1), {
           date: december(17),
           path: [
@@ -830,6 +887,7 @@ describe('Itinerary map', () => {
           moves: option1.moves.map((move) => ({ ...move, sections: [] })),
         }),
       )
+
       assert.isUndefined(railAttribution)
     }),
   )
@@ -862,6 +920,7 @@ describe('Itinerary map', () => {
         ['tokyo', 17, 18],
         ['tokyo', 18, 20],
       )
+
       const { trainMoves, flights } = yield* mapOf(
         option1With({
           ...stays,
@@ -870,6 +929,7 @@ describe('Itinerary map', () => {
           ),
         }),
       )
+
       assert.deepStrictEqual(
         [...trainMoves, ...flights].map((move) => move.date),
         [december(9), december(13), december(17)],
@@ -891,6 +951,7 @@ describe('Itinerary map', () => {
             ],
           }),
         )
+
         assert.deepStrictEqual(
           dayTrips.map(
             ({ from, to, optional }) =>
@@ -921,10 +982,12 @@ describe('Comparison map', () => {
     Effect.gen(function* () {
       const trip = yield* Trip
       const { itineraries } = yield* trip.comparisonMap
+
       const pages = yield* Effect.forEach(
         yield* trip.itineraries,
         ({ optionNumber }) => trip.itinerary(optionNumber),
       )
+
       assert.deepStrictEqual(
         itineraries,
         pages.map(({ optionNumber, recommended, map }) => ({
@@ -965,6 +1028,7 @@ describe('Comparison map', () => {
           ]),
         ),
       )
+
       assert.isUndefined(railAttribution)
     }),
   )

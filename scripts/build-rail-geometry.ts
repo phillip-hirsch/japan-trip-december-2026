@@ -22,13 +22,17 @@ import type { RailLineId } from '../src/trip/rail.ts'
 import { readTrip } from './trip.ts'
 
 const source = 'https://nlftp.mlit.go.jp/ksj/gml/data/N02/N02-25/N02-25_GML.zip'
+
 const sourceEntry = 'N02-25_GML/UTF-8/N02-25_RailroadSection.geojson'
+
 const output = 'src/trip/rail-geometry.json'
 
 /** The ceiling on the gzipped GeoJSON, which ships in every Itinerary page. */
 const budgetBytes = 15 * 1024
+
 /** How far the simplified line may stray from the real one. */
 const toleranceKm = 0.03
+
 /** How far a station may be from its line before the build gives up. */
 const stationReachKm = 1
 
@@ -88,6 +92,7 @@ const positionOf = ({ longitude, latitude }: Coordinates): Position => [
 const planarFrom = (origin: Position) => {
   const kmPerDegree = 111.32
   const kmPerLongitude = kmPerDegree * Math.cos((origin[1] * Math.PI) / 180)
+
   return ([longitude, latitude]: Position) => ({
     x: (longitude - origin[0]) * kmPerLongitude,
     y: (latitude - origin[1]) * kmPerDegree,
@@ -96,6 +101,7 @@ const planarFrom = (origin: Position) => {
 
 const kmBetween = (a: Position, b: Position) => {
   const { x, y } = planarFrom(a)(b)
+
   return Math.hypot(x, y)
 }
 
@@ -111,15 +117,21 @@ const graphOf = (
         (operator === undefined || properties.N02_004 === operator),
     ),
   )
+
   if (pieces.length === 0) throw new Error(`No MLIT track for ${line}.`)
+
   const keyOf = ([longitude, latitude]: Position) =>
     `${longitude.toFixed(5)},${latitude.toFixed(5)}`
+
   const positions = new Map<string, Position>()
   const edges = new Map<string, Array<{ to: string; km: number }>>()
+
   const connect = (a: Position, b: Position) => {
     const [from, to] = [keyOf(a), keyOf(b)]
+
     if (from === to) return
     const km = kmBetween(a, b)
+
     for (const [start, end, position] of [
       [from, to, a],
       [to, from, b],
@@ -128,11 +140,13 @@ const graphOf = (
       edges.set(start, [...(edges.get(start) ?? []), { to: end, km }])
     }
   }
+
   for (const { geometry } of pieces) {
     geometry.coordinates.slice(1).forEach((end, index) => {
       connect(geometry.coordinates[index] ?? end, end)
     })
   }
+
   return { positions, edges }
 }
 
@@ -146,28 +160,38 @@ const trackBetween = (
   const nearest = (station: Station) => {
     const target = positionOf(station.coordinates)
     let best: { key: string; km: number } | undefined
+
     for (const [key, position] of positions) {
       const km = kmBetween(target, position)
+
       if (best === undefined || km < best.km) best = { key, km }
     }
+
     if (best === undefined || best.km > stationReachKm) {
       throw new Error(`${station.name} is not on ${section.line}.`)
     }
+
     return best.key
   }
+
   const [start, end] = [nearest(section.from), nearest(section.to)]
   const distance = new Map([[start, 0]])
   const previous = new Map<string, string>()
   const unvisited = new Set([start])
+
   while (unvisited.size > 0) {
     let current = start
     let currentKm = Infinity
+
     for (const key of unvisited) {
       const km = distance.get(key) ?? Infinity
+
       if (km < currentKm) [current, currentKm] = [key, km]
     }
+
     if (current === end) break
     unvisited.delete(current)
+
     for (const { to, km } of edges.get(current) ?? []) {
       if (currentKm + km < (distance.get(to) ?? Infinity)) {
         distance.set(to, currentKm + km)
@@ -176,12 +200,15 @@ const trackBetween = (
       }
     }
   }
+
   if (!distance.has(end)) {
     throw new Error(
       `No track on ${section.line} from ${section.from.name} to ${section.to.name}.`,
     )
   }
+
   const keys = [end]
+
   for (
     let key = previous.get(end);
     key !== undefined;
@@ -189,8 +216,10 @@ const trackBetween = (
   ) {
     keys.unshift(key)
   }
+
   return keys.flatMap((key) => {
     const position = positions.get(key)
+
     return position ? [position] : []
   })
 }
@@ -198,33 +227,42 @@ const trackBetween = (
 /** Ramer–Douglas–Peucker: drops vertices within the tolerance of the line. */
 const simplified = (path: ReadonlyArray<Position>): Array<Position> => {
   const first = path[0]
+
   if (first === undefined || path.length < 3) return [...path]
   const toKm = planarFrom(first)
   const points = path.map(toKm)
   const keep = new Set([0, path.length - 1])
   const ranges: Array<readonly [number, number]> = [[0, path.length - 1]]
+
   for (let range = ranges.pop(); range !== undefined; range = ranges.pop()) {
     const [from, to] = range
     const a = points[from]
     const b = points[to]
+
     if (a === undefined || b === undefined) continue
     const length = Math.hypot(b.x - a.x, b.y - a.y)
     let farthest = { index: from, km: 0 }
+
     for (let index = from + 1; index < to; index++) {
       const p = points[index]
+
       if (p === undefined) continue
+
       const km =
         length === 0
           ? Math.hypot(p.x - a.x, p.y - a.y)
           : Math.abs((b.x - a.x) * (a.y - p.y) - (a.x - p.x) * (b.y - a.y)) /
             length
+
       if (km > farthest.km) farthest = { index, km }
     }
+
     if (farthest.km > toleranceKm) {
       keep.add(farthest.index)
       ranges.push([from, farthest.index], [farthest.index, to])
     }
   }
+
   return path.filter((_, index) => keep.has(index))
 }
 
@@ -238,10 +276,15 @@ const rounded = ([longitude, latitude]: Position): Position => [
 const sections = await readTrip((trip) => trip.railSections)
 
 const work = mkdtempSync(join(tmpdir(), 'rail-geometry-'))
+
 const archive = join(work, 'N02-25_GML.zip')
+
 const response = await fetch(source)
+
 if (!response.ok) throw new Error(`MLIT download failed: ${response.status}`)
+
 writeFileSync(archive, Buffer.from(await response.arrayBuffer()))
+
 const { features } = Schema.decodeSync(
   Schema.fromJsonString(MlitRailroadSections),
 )(
@@ -251,6 +294,7 @@ const { features } = Schema.decodeSync(
 )
 
 const graphs = new Map<RailLineId, TrackGraph>()
+
 const geometry = {
   type: 'FeatureCollection',
   features: sections.map((section) => {
@@ -258,15 +302,18 @@ const geometry = {
     graphs.set(section.line, graph)
     const ids = railSectionIdsOf(section)
     const track = simplified(trackBetween(graph, section)).map(rounded)
+
     // End exactly at the stations, so consecutive sections join up.
     const path = [
       positionOf(section.from.coordinates),
       ...track.slice(1, -1),
       positionOf(section.to.coordinates),
     ]
+
     console.log(
       `${section.line} ${section.from.name} → ${section.to.name}: ${path.length} points`,
     )
+
     return {
       type: 'Feature',
       id: railSectionKey(ids),
@@ -277,11 +324,15 @@ const geometry = {
 }
 
 const json = JSON.stringify(geometry)
+
 const gzippedBytes = gzipSync(json, { level: 9 }).length
+
 console.log(`${json.length} bytes, ${gzippedBytes} gzipped`)
+
 if (gzippedBytes > budgetBytes) {
   throw new Error(
     `The rail geometry is ${gzippedBytes} bytes gzipped, over its ${budgetBytes}-byte budget.`,
   )
 }
+
 writeFileSync(output, `${json}\n`)

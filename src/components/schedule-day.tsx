@@ -1,3 +1,4 @@
+import { Predicate } from 'effect'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { BedIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -46,12 +47,14 @@ function DayStep({
   direction: 'previous' | 'next'
 }) {
   const Icon = direction === 'previous' ? ChevronLeftIcon : ChevronRightIcon
+
   const icon = (
     <Icon
       aria-hidden
       data-icon={direction === 'previous' ? 'inline-start' : 'inline-end'}
     />
   )
+
   if (date === undefined) {
     return (
       <Button
@@ -66,6 +69,7 @@ function DayStep({
       </Button>
     )
   }
+
   return (
     <ButtonLink
       to="/schedule/$date"
@@ -129,7 +133,7 @@ function TonightsHotelCard({ tonight }: { tonight: TonightsHotel }) {
           <NewPlaceBadge place={tonight.base} />
         </ItemTitle>
         <ItemDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          {tonight.hotel._tag === 'NotRecorded' && (
+          {Predicate.isTagged('NotRecorded')(tonight.hotel) && (
             <Badge variant="outline" className="text-muted-foreground">
               <BedIcon data-icon="inline-start" aria-hidden />
               Hotel not recorded
@@ -186,18 +190,23 @@ export function ScheduleDayView({
   eyebrow: ReactNode
 }) {
   const navigate = useNavigate()
+
   const stepTo = (date: IsoDate | undefined) => {
     if (date !== undefined) {
       void navigate({ to: '/schedule/$date', params: { date } })
     }
   }
+
   const swipe = useSwipe({
     onSwipeLeft: () => stepTo(nextTripDate(day.date)),
     onSwipeRight: () => stepTo(previousTripDate(day.date)),
   })
+
   const birthday = isBirthday(day.anchors)
+
   const nothingPlanned =
     day.description === undefined && day.dayTrips.length === 0
+
   return (
     <article
       className="mx-auto w-full max-w-3xl px-6 py-10 md:px-12 md:py-16"

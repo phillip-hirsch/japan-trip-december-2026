@@ -1,6 +1,9 @@
 import { KeyRoundIcon, WifiOffIcon } from 'lucide-react'
 
-import { useConnectionStatus } from '@/access/connection-status'
+import {
+  ConnectionStatus,
+  useConnectionStatus,
+} from '@/access/connection-status'
 import { logInAgain } from '@/access/server-fn-fetch'
 import { Button } from '@/components/ui/button'
 
@@ -10,9 +13,10 @@ import { Button } from '@/components/ui/button'
  */
 export function ConnectionBanner() {
   const status = useConnectionStatus()
-  if (status._tag === 'Connected') return null
 
-  if (status._tag === 'Offline') {
+  if (ConnectionStatus.$is('Connected')(status)) return null
+
+  if (ConnectionStatus.$is('Offline')(status)) {
     return (
       <div
         role="status"

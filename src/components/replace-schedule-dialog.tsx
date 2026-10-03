@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { Data, Match } from 'effect'
 import { useRef, useState } from 'react'
 import type { ReactElement, ReactNode } from 'react'
 
@@ -14,34 +15,59 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
+import type { ChooseOutcome, RestoreOutcome } from '@/trip/domain'
 import { invalidateAfter } from '@/trip/queries'
 import type { TripWrite } from '@/trip/queries'
 
+type Refusal = { readonly problem: string; readonly final: boolean }
+
 /** What a write replacing the current Schedule answered. */
-export type ReplaceAnswer =
-  | { readonly _tag: 'Replaced' }
-  | {
-      readonly _tag: 'Refused'
-      readonly problem: string
-      /** Whether confirming again can't help. */
-      readonly final: boolean
-    }
+export type ReplaceAnswer = Data.TaggedEnum<{
+  Replaced: {}
+  Refused: Refusal
+}>
+
+export const ReplaceAnswer = Data.taggedEnum<ReplaceAnswer>()
 
 /** The refusal of a write made from an out-of-date screen. */
-export const scheduleChanged: ReplaceAnswer = {
-  _tag: 'Refused',
+export const scheduleChanged: ReplaceAnswer = ReplaceAnswer.Refused({
   problem:
     'Your Schedule changed on another device, so nothing changed. Check what happens now, then confirm again.',
   final: false,
-}
+})
 
-type DialogState =
-  | { readonly _tag: 'Confirming' }
-  | { readonly _tag: 'Working' }
-  | Extract<ReplaceAnswer, { readonly _tag: 'Refused' }>
-  | { readonly _tag: 'Failed' }
+/** Maps writes that replace the Schedule to the confirmation dialog's answer. */
+export const replacementAnswerOf = (
+  outcome: ChooseOutcome | RestoreOutcome,
+): ReplaceAnswer =>
+  Match.value(outcome).pipe(
+    Match.tagsExhaustive({
+      Chosen: () => ReplaceAnswer.Replaced(),
+      Restored: () => ReplaceAnswer.Replaced(),
+      ItineraryNotFound: (outcome) =>
+        ReplaceAnswer.Refused({
+          problem: `Option ${outcome.optionNumber} is no longer available, so nothing changed.`,
+          final: true,
+        }),
+      ScheduleNotFound: () =>
+        ReplaceAnswer.Refused({
+          problem: 'This Schedule no longer exists, so nothing changed.',
+          final: true,
+        }),
+      ScheduleChanged: () => scheduleChanged,
+    }),
+  )
 
-const confirming: DialogState = { _tag: 'Confirming' }
+type DialogState = Data.TaggedEnum<{
+  Confirming: {}
+  Working: {}
+  Refused: Refusal
+  Failed: {}
+}>
+
+const DialogState = Data.taggedEnum<DialogState>()
+
+const confirming: DialogState = DialogState.Confirming()
 
 /**
  * A write that replaces the current Schedule (choosing or restoring), after
@@ -94,31 +120,36 @@ export function ReplaceScheduleDialog({
     if (operation.current?.target !== target) {
       operation.current = { target, id: crypto.randomUUID() }
     }
+
     const operationId = operation.current.id
-    setState({ _tag: 'Working' })
+    setState(DialogState.Working())
+
     try {
       const answer = await run(operationId)
+
       // Either it changed the Schedule, or a refusal says this screen is out
       // of date; both make what's shown stale.
-      if (answer._tag === 'Replaced') setOpen(false)
+      if (ReplaceAnswer.$is('Replaced')(answer)) setOpen(false)
       await invalidateAfter(queryClient, write)
-      if (answer._tag === 'Replaced') {
+
+      if (ReplaceAnswer.$is('Replaced')(answer)) {
         await navigate({ to: '/schedule' })
       } else {
         setState(answer)
       }
     } catch {
-      setState({ _tag: 'Failed' })
+      setState(DialogState.Failed())
     }
   }
 
-  const problem =
-    state._tag === 'Refused'
-      ? state.problem
-      : state._tag === 'Failed'
-        ? failed
-        : undefined
-  const final = state._tag === 'Refused' && state.final
+  const problem = DialogState.$match(state, {
+    Confirming: () => undefined,
+    Working: () => undefined,
+    Refused: ({ problem }) => problem,
+    Failed: () => failed,
+  })
+
+  const final = DialogState.$is('Refused')(state) && state.final
 
   return (
     <AlertDialog
@@ -149,9 +180,9 @@ export function ReplaceScheduleDialog({
           {!final && (
             <AlertDialogAction
               onClick={confirm}
-              disabled={state._tag === 'Working'}
+              disabled={DialogState.$is('Working')(state)}
             >
-              {state._tag === 'Working' ? working : action}
+              {DialogState.$is('Working')(state) ? working : action}
             </AlertDialogAction>
           )}
         </AlertDialogFooter>

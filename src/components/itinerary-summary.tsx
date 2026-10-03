@@ -70,6 +70,7 @@ export function NewToYou({ places }: { places: ReadonlyArray<Place> }) {
   if (places.length === 0) {
     return <span className="text-muted-foreground">None</span>
   }
+
   return (
     <ul className="flex flex-wrap gap-x-5 gap-y-1">
       {places.map((place) => (

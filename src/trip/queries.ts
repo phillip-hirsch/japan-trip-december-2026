@@ -67,14 +67,18 @@ export const useHome = () => {
     const deadline = readAt + millisecondsUntilTokyoMidnight(readAt) + 1000
     const overdue = Date.now() >= deadline
     const failedSince = errorUpdatedAt > dataUpdatedAt
+
     const delay =
       overdue && failedSince ? retryDelay : Math.max(deadline - Date.now(), 0)
+
     const timer = setTimeout(
       () => void queryClient.invalidateQueries({ queryKey: keys.home }),
       delay,
     )
+
     return () => clearTimeout(timer)
   }, [queryClient, readAt, dataUpdatedAt, errorUpdatedAt])
+
   return data
 }
 

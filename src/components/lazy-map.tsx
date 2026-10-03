@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils'
 const supportsWebGl2 = () => {
   const context = document.createElement('canvas').getContext('webgl2')
   context?.getExtension('WEBGL_lose_context')?.loseContext()
+
   return context !== null
 }
 
@@ -22,15 +23,20 @@ function useMapState() {
   const [state, setState] = useState<MapState>('waiting')
   useEffect(() => {
     const element = ref.current
+
     if (state !== 'waiting' || element === null) return
+
     const observer = new IntersectionObserver(([entry]) => {
       if (!entry?.isIntersecting) return
       observer.disconnect()
       setState(supportsWebGl2() ? 'shown' : 'unsupported')
     })
+
     observer.observe(element)
+
     return () => observer.disconnect()
   }, [state])
+
   return [ref, state] as const
 }
 
@@ -89,6 +95,7 @@ export function LazyMap({
   children: ReactNode
 }) {
   const [ref, state] = useMapState()
+
   return (
     <div
       ref={ref}

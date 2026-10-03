@@ -3,7 +3,7 @@
 import { assert, layer } from '@effect/vitest'
 import { Effect, Layer } from 'effect'
 
-import { december } from '@/trip/domain'
+import { Anchor, december } from '@/trip/domain'
 import type {
   AccommodationKind,
   IsoDate,
@@ -713,9 +713,11 @@ for (const expected of expectedItineraries) {
     it.effect('lines up on every comparison row', () =>
       Effect.gen(function* () {
         const itineraries = yield* Trip.use((trip) => trip.itineraries)
+
         const compared = itineraries.find(
           (itinerary) => itinerary.optionNumber === expected.optionNumber,
         )
+
         assert.isDefined(compared)
         const { travelTime } = compared.moves
         assert.deepStrictEqual(
@@ -787,6 +789,7 @@ for (const expected of expectedItineraries) {
           whyRecommended,
           travelNotes,
         } = yield* detail
+
         assert.deepStrictEqual(
           {
             birthdayOutline,
@@ -934,16 +937,15 @@ for (const expected of expectedItineraries) {
         assert.deepStrictEqual(
           days.flatMap((day) => day.anchors),
           [
-            { _tag: 'Arrival', date: december(6) },
-            {
-              _tag: 'ShigeharuVisit',
+            Anchor.cases.Arrival.make({ date: december(6) }),
+            Anchor.cases.ShigeharuVisit.make({
               date: december(11),
               slot: 'morning',
               tentative: true,
               thursdayBackup: expected.thursdayBackup,
-            },
-            { _tag: 'Birthday', date: december(15) },
-            { _tag: 'Departure', date: december(20) },
+            }),
+            Anchor.cases.Birthday.make({ date: december(15) }),
+            Anchor.cases.Departure.make({ date: december(20) }),
           ],
         )
       }),

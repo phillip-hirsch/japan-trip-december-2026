@@ -82,6 +82,10 @@ Before writing any Effect code, first read `node_modules/effect/AGENTS.md`
 If you need to learn more about particular Effect apis and concepts that the
 guide doesn't cover, search through the source code in `node_modules/effect/src`.
 
+### Effect in the browser
+
+Browser code may value-import only `Predicate`, `Data` and `Match` from `effect`, and must use `import type` for `@/trip/domain`. Keep `Schema`, `SchemaParser`, `Effect` and the rest server-only: Schema plus the Effect runtime costs about 75 KB gzip ([research](docs/research/effect-v4.md)); Predicate, Data and Match are small and runtime-free.
+
 ### Imports
 
 Import from `src/` with the `@/` alias (`@/routes/...` for `src/routes/...`).

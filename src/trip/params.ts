@@ -1,10 +1,11 @@
-// Route params, checked in the browser by small synchronous checks (no Effect
-// in the browser). The server validates them again.
+// Route params, checked synchronously in the browser and validated again on
+// the server. See AGENTS.md: Effect in the browser.
 import { isTripDate } from '@/trip/calendar'
 
 /** An Option number from the address, or undefined when it is malformed. */
 export const parseOptionNumber = (param: string) => {
   const optionNumber = Number(param)
+
   return /^[1-9]\d*$/.test(param) && Number.isSafeInteger(optionNumber)
     ? optionNumber
     : undefined

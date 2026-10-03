@@ -1,6 +1,7 @@
 import { focusManager, QueryClient } from '@tanstack/react-query'
 
 import {
+  ConnectionStatus,
   currentConnection,
   subscribeToConnection,
 } from '@/access/connection-status'
@@ -19,18 +20,21 @@ const refetchOnReturn = (queryClient: QueryClient) => {
     const listener = () => onFocus()
     window.addEventListener('visibilitychange', listener)
     window.addEventListener('focus', listener)
+
     return () => {
       window.removeEventListener('visibilitychange', listener)
       window.removeEventListener('focus', listener)
     }
   })
-  let wasOffline = currentConnection()._tag === 'Offline'
+  let wasOffline = ConnectionStatus.$is('Offline')(currentConnection())
   subscribeToConnection(() => {
     const connection = currentConnection()
-    if (wasOffline && connection._tag === 'Connected') {
+
+    if (wasOffline && ConnectionStatus.$is('Connected')(connection)) {
       queryClient.getQueryCache().onOnline()
     }
-    wasOffline = connection._tag === 'Offline'
+
+    wasOffline = ConnectionStatus.$is('Offline')(connection)
   })
 }
 
@@ -39,8 +43,10 @@ const refetchOnReturn = (queryClient: QueryClient) => {
  * in the browser. Its data is stale at once, so opening the app, focusing it
  * and reconnecting all refetch whatever is shown.
  */
-export const makeQueryClient = () => {
+export const createQueryClient = () => {
   const queryClient = new QueryClient()
+
   if (typeof window !== 'undefined') refetchOnReturn(queryClient)
+
   return queryClient
 }

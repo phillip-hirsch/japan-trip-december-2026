@@ -7,6 +7,7 @@ import {
   Effect,
   Layer,
   Option,
+  Predicate,
   Struct,
 } from 'effect'
 import type { SqlClient } from 'effect/sql'
@@ -21,16 +22,22 @@ import {
   tripTimeZone,
 } from '@/trip/calendar'
 import {
+  Anchor,
   DayNotFound,
   DayNoteTooLong,
+  HomeState,
+  Hotel,
+  IsoDate,
   ItineraryNotFound,
   ScheduleChanged,
   ScheduleChosen,
+  ScheduleId,
   ScheduleNotFound,
   ScheduleRestored,
+  TripRuleBreak,
+  VerifyClaimAttachment,
 } from '@/trip/domain'
 import type {
-  Anchor,
   ArchivedScheduleSummary,
   BaseNights,
   ChooseItinerary,
@@ -40,8 +47,6 @@ import type {
   DayPage,
   DayTrip,
   DayTripDetail,
-  HomeState,
-  IsoDate,
   Itinerary,
   ItineraryComparison,
   ItineraryDetail,
@@ -57,16 +62,13 @@ import type {
   RailSectionDetail,
   RestoreSchedule,
   ScheduleDetail,
-  ScheduleId,
   ScheduleRecord,
   ScheduleSummary,
   SourceItineraryStatus,
   Stay,
   StaySummary,
   Station,
-  TripRuleBreak,
   VerifyClaim,
-  VerifyClaimAttachment,
   VerifyClaimDetail,
   WriteDayNote,
 } from '@/trip/domain'
@@ -82,9 +84,11 @@ import type { ScheduleCopy, ScheduleStore } from '@/trip/schedule-store'
 
 /** The calendar date in Tokyo at a moment. */
 const tokyoDateOf = (now: DateTime.DateTime) =>
-  DateTime.formatIsoDate(
-    DateTime.removeTime(DateTime.setZoneNamedUnsafe(now, tripTimeZone)),
-  ) as IsoDate
+  IsoDate.make(
+    DateTime.formatIsoDate(
+      DateTime.removeTime(DateTime.setZoneNamedUnsafe(now, tripTimeZone)),
+    ),
+  )
 
 const daysBetween = (from: IsoDate, to: IsoDate) =>
   Math.round(
@@ -94,9 +98,9 @@ const daysBetween = (from: IsoDate, to: IsoDate) =>
   )
 
 const addDays = (date: IsoDate, days: number) =>
-  DateTime.formatIsoDate(
-    DateTime.add(DateTime.makeUnsafe(date), { days }),
-  ) as IsoDate
+  IsoDate.make(
+    DateTime.formatIsoDate(DateTime.add(DateTime.makeUnsafe(date), { days })),
+  )
 
 const nightsOf = (stay: Stay) => daysBetween(stay.checkIn, stay.checkOut)
 
@@ -126,6 +130,7 @@ const stayForNight = <S extends Pick<Stay, 'checkIn' | 'checkOut'>>(
 const stayBoundariesOf = (stays: ReadonlyArray<Stay>) =>
   stays.slice(1).flatMap((to, index) => {
     const from = stays[index]
+
     return from?.checkOut === to.checkIn ? [{ date: to.checkIn, from, to }] : []
   })
 
@@ -145,12 +150,15 @@ const moveDetailsOf = <M extends Move>({
   new Map(
     stayBoundariesOf(stays).flatMap(({ date, from, to }) => {
       const move = moves.find((move) => move.date === date)
+
       if (move === undefined) return []
+
       const sections = move.sections.map((section) => ({
         ...section,
         from: stationOf(section.from),
         to: stationOf(section.to),
       }))
+
       const detail = {
         ...Struct.omit(move, ['date', 'sections']),
         from: placeOf(from.base),
@@ -158,6 +166,7 @@ const moveDetailsOf = <M extends Move>({
         sections,
         changes: sections.slice(1).map((section) => section.from),
       } satisfies MoveDetail
+
       return [[date, detail] as const]
     }),
   )
@@ -176,32 +185,27 @@ const hasThursdayBackup = (stays: ReadonlyArray<Stay>) =>
   )
 
 const anchorsOf = ({ stays, shigeharuVisit }: Itinerary): Array<Anchor> => [
-  { _tag: 'Arrival', date: tripStartDate },
+  Anchor.cases.Arrival.make({ date: tripStartDate }),
   ...(shigeharuVisit
     ? [
-        {
-          _tag: 'ShigeharuVisit' as const,
+        Anchor.cases.ShigeharuVisit.make({
           ...shigeharuVisit,
-          tentative: true as const,
+          tentative: true,
           thursdayBackup: hasThursdayBackup(stays),
-        },
+        }),
       ]
     : []),
-  { _tag: 'Birthday', date: birthdayDate },
-  { _tag: 'Departure', date: tripEndDate },
+  Anchor.cases.Birthday.make({ date: birthdayDate }),
+  Anchor.cases.Departure.make({ date: tripEndDate }),
 ]
 
 /** One key per place a Verify claim can attach to, for matching. */
-const attachmentKey = (attachedTo: VerifyClaimAttachment) => {
-  switch (attachedTo._tag) {
-    case 'Day':
-      return `Day ${attachedTo.date}`
-    case 'Stay':
-      return `Stay ${attachedTo.checkIn}`
-    case 'Itinerary':
-      return 'Itinerary'
-  }
-}
+const attachmentKey = (attachedTo: VerifyClaimAttachment) =>
+  VerifyClaimAttachment.match(attachedTo, {
+    Day: (attachedTo) => `Day ${attachedTo.date}`,
+    Stay: (attachedTo) => `Stay ${attachedTo.checkIn}`,
+    Itinerary: () => 'Itinerary',
+  })
 
 /** The Verify claims attached to one place, without their attachment. */
 const claimsAttachedTo = (
@@ -216,9 +220,11 @@ const claimsAttachedTo = (
 
 const nightsPerBaseOf = (stays: ReadonlyArray<Stay>): Array<BaseNights> => {
   const nights = new Map<PlaceId, number>()
+
   for (const stay of stays) {
     nights.set(stay.base, (nights.get(stay.base) ?? 0) + nightsOf(stay))
   }
+
   return Array.from(nights, ([base, nights]) => ({
     base: placeOf(base),
     nights,
@@ -230,6 +236,7 @@ const newToYouOf = ({ stays, dayTrips }: Itinerary): Array<Place> => {
     ...stays.map((stay) => ({ date: stay.checkIn, place: stay.base })),
     ...dayTrips.map(({ date, place }) => ({ date, place })),
   ].sort((a, b) => a.date.localeCompare(b.date))
+
   return Array.from(new Set(visits.map((visit) => visit.place)))
     .map(placeOf)
     .filter((place) => place.newPlace)
@@ -259,6 +266,7 @@ const moveSummaryOf = (move: DatedMove): MoveSummary =>
 const movesOf = (moves: ReadonlyArray<DatedMove>): MovesComparison => {
   const travelling = moves.filter((move) => move.mode !== 'local')
   const timed = travelling.flatMap((move) => move.duration ?? [])
+
   return {
     count: moves.length,
     ...(timed.length > 0 && {
@@ -267,14 +275,15 @@ const movesOf = (moves: ReadonlyArray<DatedMove>): MovesComparison => {
         maxMinutes: timed.reduce((sum, { maxMinutes }) => sum + maxMinutes, 0),
       },
     }),
-    durationNotGiven: travelling
-      .filter((move) => move.duration === undefined)
-      .map(moveSummaryOf),
+    durationNotGiven: travelling.flatMap((move) =>
+      move.duration === undefined ? [moveSummaryOf(move)] : [],
+    ),
   }
 }
 
 const birthdayOf = ({ stays, birthdayOutline }: Itinerary) => {
   const stay = stayForNight(stays, birthdayDate)
+
   return {
     ...(stay && { base: placeOf(stay.base) }),
     outline: birthdayOutline,
@@ -292,8 +301,10 @@ const groupedDayTrips = (
 ) => {
   const groups = new Map<string, { first: DayTrip; optional: boolean }>()
   const byDate = [...dayTrips].sort((a, b) => a.date.localeCompare(b.date))
+
   for (const dayTrip of byDate) {
     const group = groupOf(dayTrip)
+
     if (group === undefined) continue
     const seen = groups.get(group)
     groups.set(group, {
@@ -301,6 +312,7 @@ const groupedDayTrips = (
       optional: (seen?.optional ?? true) && dayTrip.optional,
     })
   }
+
   return Array.from(groups.values())
 }
 
@@ -310,10 +322,11 @@ const dayTripsOf = ({ dayTrips }: Itinerary): Array<DayTripDetail> =>
   )
 
 const flightsOf = (moves: ReadonlyArray<DatedMove>) =>
-  moves.filter((move) => move.mode === 'flight').map(moveSummaryOf)
+  moves.flatMap((move) => (move.mode === 'flight' ? [moveSummaryOf(move)] : []))
 
 const comparisonOf = (itinerary: Itinerary): ItineraryComparison => {
   const moves = datedMovesOf(itinerary)
+
   return {
     ...summaryOf(itinerary),
     birthday: birthdayOf(itinerary),
@@ -331,6 +344,7 @@ const comparisonOf = (itinerary: Itinerary): ItineraryComparison => {
 const withoutRepeats = (path: ReadonlyArray<Coordinates>) =>
   path.filter((point, index) => {
     const previous = path[index - 1]
+
     return (
       previous?.latitude !== point.latitude ||
       previous.longitude !== point.longitude
@@ -340,11 +354,14 @@ const withoutRepeats = (path: ReadonlyArray<Coordinates>) =>
 /** Each pair of Base and Day trip destination once. */
 const mapDayTripsOf = ({ stays, dayTrips }: Itinerary): Array<MapDayTrip> => {
   const baseOf = (dayTrip: DayTrip) => stayForNight(stays, dayTrip.date)?.base
+
   return groupedDayTrips(dayTrips, (dayTrip) => {
     const base = baseOf(dayTrip)
+
     return base && `${base} ${dayTrip.place}`
   }).flatMap(({ first, optional }) => {
     const base = baseOf(first)
+
     return base
       ? [{ from: placeOf(base), to: placeOf(first.place), optional }]
       : []
@@ -357,6 +374,7 @@ const mapDayTripsOf = ({ stays, dayTrips }: Itinerary): Array<MapDayTrip> => {
  */
 const railPathOf = (section: RailSectionDetail) => {
   const path = railGeometryOf(railSectionIdsOf(section))
+
   return path
     ? { path, followsRailLine: true }
     : {
@@ -367,9 +385,11 @@ const railPathOf = (section: RailSectionDetail) => {
 
 const mapOf = (itinerary: Itinerary): ItineraryMap => {
   const moves = datedMovesOf(itinerary)
+
   const trainMoves = moves
     .filter((move) => move.mode === 'train')
     .map((move) => ({ move, railPaths: move.sections.map(railPathOf) }))
+
   return {
     bases: Array.from(new Set(itinerary.stays.map((stay) => stay.base))).map(
       placeOf,
@@ -396,6 +416,7 @@ const comparisonMapOf = (
   const railAttribution = details
     .map(({ map }) => map.railAttribution)
     .find(Boolean)
+
   return {
     bases: Array.from(
       new Map(
@@ -420,14 +441,17 @@ const railSectionsOf = (
   itineraries: ReadonlyArray<Itinerary>,
 ): Array<MapRailSection> => {
   const sections = new Map<string, MapRailSection>()
+
   for (const move of itineraries.flatMap(datedMovesOf)) {
     for (const section of move.sections) {
       const key = railSectionKey(railSectionIdsOf(section))
+
       if (sections.has(key)) continue
       const { followsRailLine } = railPathOf(section)
       sections.set(key, { ...section, followsRailLine })
     }
   }
+
   return Array.from(sections.values())
 }
 
@@ -462,43 +486,51 @@ const staysAndDaysOf = <
   plan: Plan<S, D, M, T, A>,
 ) => {
   const moves = moveDetailsOf(plan)
+
   return {
-    verifyClaims: claimsAttachedTo(plan, { _tag: 'Itinerary' }),
+    verifyClaims: claimsAttachedTo(
+      plan,
+      VerifyClaimAttachment.cases.Itinerary.make({}),
+    ),
     stays: plan.stays.map((stay) => ({
       ...stay,
       ...staySummaryOf(stay),
-      verifyClaims: claimsAttachedTo(plan, {
-        _tag: 'Stay',
-        checkIn: stay.checkIn,
-      }),
+      verifyClaims: claimsAttachedTo(
+        plan,
+        VerifyClaimAttachment.cases.Stay.make({ checkIn: stay.checkIn }),
+      ),
     })),
     days: plan.days.map((day) => {
       const dayAnchors = plan.anchors.filter(
         (anchor) => anchor.date === day.date,
       )
+
       const move = moves.get(day.date)
+
       const dayTrips = plan.dayTrips
         .filter((dayTrip) => dayTrip.date === day.date)
         .map((dayTrip) => ({
           ...Struct.omit(dayTrip, ['date', 'place']),
           place: placeOf(dayTrip.place),
         }))
+
       return {
         ...day,
         anchors: dayAnchors,
         ...(move && { move }),
         dayTrips,
-        verifyClaims: claimsAttachedTo(plan, {
-          _tag: 'Day',
-          date: day.date,
-        }),
+        verifyClaims: claimsAttachedTo(
+          plan,
+          VerifyClaimAttachment.cases.Day.make({ date: day.date }),
+        ),
         freeDay:
           day.description === undefined &&
           move === undefined &&
           dayTrips.length === 0 &&
           !dayAnchors.some(
             (anchor) =>
-              anchor._tag === 'Arrival' || anchor._tag === 'Departure',
+              Predicate.isTagged('Arrival')(anchor) ||
+              Predicate.isTagged('Departure')(anchor),
           ),
       }
     }),
@@ -529,6 +561,7 @@ const copyOf = (itinerary: Itinerary): ScheduleCopy => {
     ...entity,
     id: crypto.randomUUID(),
   })
+
   return {
     stays: itinerary.stays.map(withFreshId),
     days: itinerary.days,
@@ -548,7 +581,9 @@ const sourceItineraryOf = (
   itineraries: ReadonlyMap<number, Itinerary>,
 ): SourceItineraryStatus => {
   const source = itineraries.get(schedule.sourceOptionNumber)
+
   if (source === undefined) return 'unavailable'
+
   return source.contentVersion === schedule.sourceContentVersion
     ? 'unchanged'
     : 'revised'
@@ -583,12 +618,14 @@ const dayPageOf = (schedule: ScheduleDetail, date: IsoDate) =>
     (day): DayPage => {
       const tonight =
         date === tripEndDate ? undefined : stayForNight(schedule.stays, date)
+
       const nextMove = schedule.days
         .filter((later) => later.date >= date)
         .flatMap((later) =>
           later.move ? [{ date: later.date, ...later.move }] : [],
         )
         .at(0)
+
       return {
         scheduleId: schedule.id,
         day,
@@ -596,7 +633,7 @@ const dayPageOf = (schedule: ScheduleDetail, date: IsoDate) =>
           tonight: {
             id: tonight.id,
             ...Struct.pick(tonight, ['base', 'checkIn', 'checkOut', 'nights']),
-            hotel: { _tag: 'NotRecorded' },
+            hotel: Hotel.cases.NotRecorded.make({}),
           },
         }),
         ...(nextMove && { nextMove }),
@@ -616,29 +653,29 @@ const homeStateOf = (
 ): HomeState => {
   const date = tokyoDateOf(now)
   const shared = { readAt: DateTime.formatIso(now), itineraries }
+
   if (date < tripStartDate) {
-    return {
-      _tag: 'BeforeTrip',
+    return HomeState.cases.BeforeTrip.make({
       ...shared,
       daysToGo: daysBetween(date, tripStartDate),
       schedule: Option.getOrNull(schedule),
-    }
+    })
   }
+
   if (date > tripEndDate) {
-    return {
-      _tag: 'AfterTrip',
+    return HomeState.cases.AfterTrip.make({
       ...shared,
       schedule: Option.getOrNull(schedule),
-    }
+    })
   }
-  return {
-    _tag: 'DuringTrip',
+
+  return HomeState.cases.DuringTrip.make({
     ...shared,
     date,
     today: Option.getOrNull(
       Option.flatMap(schedule, (schedule) => dayPageOf(schedule, date)),
     ),
-  }
+  })
 }
 
 /**
@@ -653,7 +690,9 @@ const requireCurrent = Effect.fnUntraced(function* (
 ) {
   const current = yield* store.currentRecord
   const currentId = Option.getOrNull(Option.map(current, ({ id }) => id))
+
   if (currentId !== named) return yield* new ScheduleChanged()
+
   return current
 })
 
@@ -667,6 +706,7 @@ const archiveReplaced = Effect.fnUntraced(function* (
   archivedAt: string,
 ) {
   const current = yield* requireCurrent(store, replacing)
+
   if (Option.isSome(current)) {
     yield* store.archive(current.value.id, archivedAt)
   }
@@ -682,85 +722,125 @@ const tripRuleBreaksOf = ({
 }: Itinerary): Array<TripRuleBreak> => {
   const first = stays[0]
   const last = stays.at(-1)
-  if (first === undefined || last === undefined) return [{ _tag: 'NoStays' }]
+
+  if (first === undefined || last === undefined)
+    return [TripRuleBreak.cases.NoStays.make({})]
 
   const breaks: Array<TripRuleBreak> = []
+
   if (first.checkIn !== tripStartDate || last.checkOut !== tripEndDate) {
-    breaks.push({
-      _tag: 'NotTheTripDates',
-      checkIn: first.checkIn,
-      checkOut: last.checkOut,
-    })
+    breaks.push(
+      TripRuleBreak.cases.NotTheTripDates.make({
+        checkIn: first.checkIn,
+        checkOut: last.checkOut,
+      }),
+    )
   }
+
   for (const stay of stays) {
     if (stay.checkOut <= stay.checkIn) {
-      breaks.push({ _tag: 'StayWithoutNights', checkIn: stay.checkIn })
+      breaks.push(
+        TripRuleBreak.cases.StayWithoutNights.make({ checkIn: stay.checkIn }),
+      )
     }
   }
+
   stays.slice(1).forEach((next, index) => {
     const previous = stays[index]
+
     if (previous === undefined) return
+
     if (previous.checkOut < next.checkIn) {
-      breaks.push({ _tag: 'Gap', from: previous.checkOut, to: next.checkIn })
+      breaks.push(
+        TripRuleBreak.cases.Gap.make({
+          from: previous.checkOut,
+          to: next.checkIn,
+        }),
+      )
     } else if (next.checkIn < previous.checkOut) {
-      breaks.push({
-        _tag: 'Overlap',
-        from: next.checkIn,
-        to: previous.checkOut,
-      })
+      breaks.push(
+        TripRuleBreak.cases.Overlap.make({
+          from: next.checkIn,
+          to: previous.checkOut,
+        }),
+      )
     }
   })
   const boundaryDates = new Set(stayBoundariesOf(stays).map(({ date }) => date))
   const moveDates = new Set(moves.map((move) => move.date))
+
   for (const date of moveDates) {
     if (!boundaryDates.has(date)) {
-      breaks.push({ _tag: 'MoveWithoutStayBoundary', date })
+      breaks.push(TripRuleBreak.cases.MoveWithoutStayBoundary.make({ date }))
     }
   }
+
   for (const date of boundaryDates) {
     if (!moveDates.has(date)) {
-      breaks.push({ _tag: 'StayBoundaryWithoutMove', date })
+      breaks.push(TripRuleBreak.cases.StayBoundaryWithoutMove.make({ date }))
     }
   }
+
   const dates = days.map((day) => day.date)
+
   if (dates.join() !== tripDates.join()) {
-    breaks.push({ _tag: 'NotTheTripDays', dates })
+    breaks.push(TripRuleBreak.cases.NotTheTripDays.make({ dates }))
   }
+
   const shigeharuEve = stayForNight(stays, thursdayBeforeShigeharu)
+
   if (shigeharuEve?.base !== 'kyoto') {
-    breaks.push({
-      _tag: 'NotWakingUpInKyoto',
-      ...(shigeharuEve && { base: shigeharuEve.base }),
-    })
+    breaks.push(
+      TripRuleBreak.cases.NotWakingUpInKyoto.make({
+        ...(shigeharuEve && { base: shigeharuEve.base }),
+      }),
+    )
   }
+
   if (shigeharuVisit === undefined) {
-    breaks.push({ _tag: 'ShigeharuMissing' })
+    breaks.push(TripRuleBreak.cases.ShigeharuMissing.make({}))
   } else {
     if (shigeharuVisit.date !== shigeharuDate) {
-      breaks.push({ _tag: 'ShigeharuWrongDate', date: shigeharuVisit.date })
+      breaks.push(
+        TripRuleBreak.cases.ShigeharuWrongDate.make({
+          date: shigeharuVisit.date,
+        }),
+      )
     }
+
     if (shigeharuVisit.slot !== 'morning') {
-      breaks.push({ _tag: 'ShigeharuNotInMorning', slot: shigeharuVisit.slot })
+      breaks.push(
+        TripRuleBreak.cases.ShigeharuNotInMorning.make({
+          slot: shigeharuVisit.slot,
+        }),
+      )
     }
   }
+
   if (moveDates.has(birthdayDate)) {
-    breaks.push({ _tag: 'MoveOnBirthday' })
+    breaks.push(TripRuleBreak.cases.MoveOnBirthday.make({}))
   }
+
   const attachments = new Set(
     [
-      { _tag: 'Itinerary' as const },
-      ...days.map(({ date }) => ({ _tag: 'Day' as const, date })),
-      ...stays.map(({ checkIn }) => ({ _tag: 'Stay' as const, checkIn })),
+      VerifyClaimAttachment.cases.Itinerary.make({}),
+      ...days.map(({ date }) => VerifyClaimAttachment.cases.Day.make({ date })),
+      ...stays.map(({ checkIn }) =>
+        VerifyClaimAttachment.cases.Stay.make({ checkIn }),
+      ),
     ].map(attachmentKey),
   )
+
   for (const { id, attachedTo } of verifyClaims) {
     if (!attachments.has(attachmentKey(attachedTo))) {
-      breaks.push({ _tag: 'UnattachedVerifyClaim', id })
+      breaks.push(TripRuleBreak.cases.UnattachedVerifyClaim.make({ id }))
     }
   }
+
   if (last.base !== 'tokyo') {
-    breaks.push({ _tag: 'EndsOutsideTokyo', base: last.base })
+    breaks.push(TripRuleBreak.cases.EndsOutsideTokyo.make({ base: last.base }))
   }
+
   return breaks
 }
 
@@ -880,13 +960,16 @@ export class Trip extends Context.Service<
       const summaries = all.map(summaryOf)
       const comparisons = all.map(comparisonOf)
       const railSections = railSectionsOf(all)
+
       const byOptionNumber = new Map(
         all.map((itinerary) => [itinerary.optionNumber, itinerary]),
       )
+
       // Content never changes while the Worker runs, so derive it once.
       const details = new Map(
         all.map((itinerary) => [itinerary.optionNumber, detailOf(itinerary)]),
       )
+
       const comparisonMap = comparisonMapOf(Array.from(details.values()))
       const scheduleDetail = scheduleDetailOf(byOptionNumber)
 
@@ -895,24 +978,28 @@ export class Trip extends Context.Service<
         optionNumber: number,
       ) {
         const found = entries.get(optionNumber)
+
         if (found === undefined) {
           return yield* new ItineraryNotFound({ optionNumber })
         }
+
         return found
       })
 
       const choose = Effect.fn('Trip.choose')(
         function* ({ operationId, optionNumber, replacing }: ChooseItinerary) {
           const store = yield* scheduleStore
+
           return yield* store.transaction(
             Effect.gen(function* () {
               const recorded =
                 yield* store.recordedResult(ScheduleChosen)(operationId)
+
               if (Option.isSome(recorded)) return recorded.value.result
               const itinerary = yield* find(byOptionNumber, optionNumber)
               const now = DateTime.formatIso(yield* DateTime.now)
               yield* archiveReplaced(store, replacing, now)
-              const scheduleId = crypto.randomUUID() as ScheduleId
+              const scheduleId = ScheduleId.make(crypto.randomUUID())
               yield* store.insert(
                 {
                   id: scheduleId,
@@ -930,6 +1017,7 @@ export class Trip extends Context.Service<
                 id: operationId,
                 result: chosen,
               })
+
               return chosen
             }),
           )
@@ -940,15 +1028,19 @@ export class Trip extends Context.Service<
       const restore = Effect.fn('Trip.restore')(
         function* ({ operationId, scheduleId, replacing }: RestoreSchedule) {
           const store = yield* scheduleStore
+
           return yield* store.transaction(
             Effect.gen(function* () {
               const recorded =
                 yield* store.recordedResult(ScheduleRestored)(operationId)
+
               if (Option.isSome(recorded)) return recorded.value.result
               const restoring = yield* store.recordById(scheduleId)
+
               if (Option.isNone(restoring)) {
                 return yield* new ScheduleNotFound({ scheduleId })
               }
+
               // Restoring the current Schedule archives it and makes it
               // current again, leaving it as it was.
               const now = DateTime.formatIso(yield* DateTime.now)
@@ -959,6 +1051,7 @@ export class Trip extends Context.Service<
                 id: operationId,
                 result: restored,
               })
+
               return restored
             }),
           )
@@ -970,9 +1063,11 @@ export class Trip extends Context.Service<
         function* (scheduleId: ScheduleId) {
           const store = yield* scheduleStore
           const found = yield* store.transaction(store.scheduleById(scheduleId))
+
           if (Option.isNone(found)) {
             return yield* new ScheduleNotFound({ scheduleId })
           }
+
           return scheduleDetail(found.value)
         },
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
@@ -980,9 +1075,11 @@ export class Trip extends Context.Service<
 
       const schedules = Effect.gen(function* () {
         const store = yield* scheduleStore
+
         const { current, archived } = yield* store.transaction(
           Effect.all({ current: store.current, archived: store.archived }),
         )
+
         return { current: Option.map(current, scheduleDetail), archived }
       }).pipe(
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
@@ -992,6 +1089,7 @@ export class Trip extends Context.Service<
       const scheduleSummary = Effect.gen(function* () {
         const store = yield* scheduleStore
         const current = yield* store.currentRecord
+
         return Option.map(current, (schedule) =>
           Struct.pick(schedule, ['id', 'sourceOptionNumber']),
         )
@@ -1004,17 +1102,20 @@ export class Trip extends Context.Service<
       const currentSchedule = Effect.gen(function* () {
         const store = yield* scheduleStore
         const current = yield* store.transaction(store.current)
+
         return Option.map(current, scheduleDetail)
       }).pipe(Effect.catchTag(['SqlError', 'SchemaError'], Effect.die))
 
       const home = Effect.gen(function* () {
         const now = yield* DateTime.now
+
         return homeStateOf(now, yield* currentSchedule, summaries)
       }).pipe(Effect.withSpan('Trip.home'))
 
       const day = Effect.fn('Trip.day')(function* (date: IsoDate) {
         if (!isTripDate(date)) return yield* new DayNotFound({ date })
         const schedule = yield* currentSchedule
+
         return Option.flatMap(schedule, (schedule) => dayPageOf(schedule, date))
       })
 
@@ -1023,13 +1124,16 @@ export class Trip extends Context.Service<
           if (note.length > dayNoteMaxLength) {
             return yield* new DayNoteTooLong({ maxLength: dayNoteMaxLength })
           }
+
           const store = yield* scheduleStore
           yield* store.transaction(
             Effect.gen(function* () {
               yield* requireCurrent(store, scheduleId)
+
               if (!(yield* store.hasDay(scheduleId, date))) {
                 return yield* new DayNotFound({ date })
               }
+
               yield* store.writeDayNote(scheduleId, date, note)
             }),
           )

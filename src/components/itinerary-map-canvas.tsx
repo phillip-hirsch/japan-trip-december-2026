@@ -13,7 +13,9 @@ import type { ItineraryMap, Place } from '@/trip/domain'
 // --paper, --chart-1 and --muted-foreground in hex. Vermilion stays reserved
 // for the recommended Itinerary and the Birthday.
 const trainColor = '#eee7d9'
+
 const flightColor = '#a1c3db'
+
 const dayTripColor = '#aba397'
 
 /**
@@ -22,6 +24,7 @@ const dayTripColor = '#aba397'
  */
 function DestinationMarker({ place }: { place: Place }) {
   const { latitude, longitude } = place.coordinates
+
   return (
     <MapMarker latitude={latitude} longitude={longitude}>
       <MarkerContent>
@@ -45,9 +48,11 @@ function DestinationMarker({ place }: { place: Place }) {
  */
 export default function ItineraryMapCanvas({ map }: { map: ItineraryMap }) {
   const baseIds = new Set(map.bases.map((base) => base.id))
+
   const destinations = Array.from(
     new Map(map.dayTrips.map(({ to }) => [to.id, to])).values(),
   ).filter((place) => !baseIds.has(place.id))
+
   return (
     <TripMapView
       points={[

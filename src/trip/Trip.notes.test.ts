@@ -1,8 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option } from 'effect'
+import { Effect, Option, Predicate } from 'effect'
 
-import { december } from '@/trip/domain'
-import type { IsoDate, ScheduleId } from '@/trip/domain'
+import { december, IsoDate } from '@/trip/domain'
+import type { ScheduleId } from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
 import { operation, setTime, storage, tripWith } from '@/trip/testing'
@@ -54,9 +54,11 @@ describe('Trip.writeDayNote', () => {
         // Another device chooses again, so this screen's Schedule is stale.
         const current = yield* choose(2, 2, stale)
         yield* writeDayNote(current, december(14), 'Pack for the Alps.')
+
         const error = yield* Effect.flip(
           writeDayNote(stale, december(14), 'Written on an old screen.'),
         )
+
         assert.deepStrictEqual(
           { tag: error._tag, note: yield* dayNote(december(14)) },
           { tag: 'ScheduleChanged', note: 'Pack for the Alps.' },
@@ -71,9 +73,11 @@ describe('Trip.writeDayNote', () => {
         const archived = yield* choose(1, 1, null)
         yield* writeDayNote(archived, december(14), 'Book the onsen.')
         yield* choose(2, 2, archived)
+
         const error = yield* Effect.flip(
           writeDayNote(archived, december(14), 'Rewritten after archiving.'),
         )
+
         const schedule = yield* Trip.use((trip) => trip.schedule(archived))
         assert.deepStrictEqual(
           {
@@ -93,13 +97,17 @@ describe('Trip.writeDayNote', () => {
   it.effect('fails with DayNotFound for a Day the Schedule lacks', () =>
     Effect.gen(function* () {
       const scheduleId = yield* choose(1, 1, null)
+
       const error = yield* Effect.flip(
-        writeDayNote(scheduleId, '2026-12-21' as IsoDate, 'After the Trip.'),
+        writeDayNote(scheduleId, IsoDate.make('2026-12-21'), 'After the Trip.'),
       )
+
       assert.deepStrictEqual(
         {
           tag: error._tag,
-          date: error._tag === 'DayNotFound' ? error.date : undefined,
+          date: Predicate.isTagged('DayNotFound')(error)
+            ? error.date
+            : undefined,
         },
         { tag: 'DayNotFound', date: '2026-12-21' },
       )
@@ -111,13 +119,17 @@ describe('Trip.writeDayNote', () => {
       const scheduleId = yield* choose(1, 1, null)
       const longest = 'あ'.repeat(10_000)
       yield* writeDayNote(scheduleId, december(14), longest)
+
       const error = yield* Effect.flip(
         writeDayNote(scheduleId, december(14), `${longest}!`),
       )
+
       assert.deepStrictEqual(
         {
           tag: error._tag,
-          maxLength: error._tag === 'DayNoteTooLong' ? error.maxLength : 0,
+          maxLength: Predicate.isTagged('DayNoteTooLong')(error)
+            ? error.maxLength
+            : 0,
           kept: (yield* dayNote(december(14))) === longest,
         },
         { tag: 'DayNoteTooLong', maxLength: 10_000, kept: true },
@@ -141,7 +153,7 @@ describe('Trip.writeDayNote', () => {
       yield* setTime('2026-12-14T01:00:00Z')
       const home = yield* Trip.use((trip) => trip.home)
       assert.deepStrictEqual(
-        home._tag === 'DuringTrip' && home.today
+        Predicate.isTagged('DuringTrip')(home) && home.today
           ? { scheduleId: home.today.scheduleId, note: home.today.day.note }
           : undefined,
         { scheduleId, note: 'Book the onsen.' },

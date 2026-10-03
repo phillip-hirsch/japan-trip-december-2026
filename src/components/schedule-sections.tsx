@@ -60,6 +60,7 @@ export function RevisionNotice({
   className?: string
 }) {
   if (sourceItinerary === 'unchanged') return null
+
   return (
     <div
       role="status"
@@ -98,6 +99,7 @@ export function ArchivedScheduleList({
   schedules: ReadonlyArray<ArchivedScheduleSummary>
 }) {
   if (schedules.length === 0) return null
+
   return (
     <section aria-labelledby="archived" className="mt-12">
       <h2 id="archived" className="text-xl font-semibold">

@@ -1,5 +1,5 @@
 // Converted from docs/itinerary.md, "1. Tokyo → Kyoto → Kanazawa → Tokyo".
-import { december } from '@/trip/domain'
+import { december, VerifyClaimAttachment } from '@/trip/domain'
 import type { ItineraryContent } from '@/trip/domain'
 import { shigeharuOpeningDays } from '@/trip/itineraries/shigeharu'
 
@@ -119,12 +119,16 @@ export const option1: ItineraryContent = {
     {
       id: 'kanazawa-crab-season',
       text: 'December also falls within local crab season, which makes a special seafood dinner an appealing birthday plan.',
-      attachedTo: { _tag: 'Stay', checkIn: december(13) },
+      attachedTo: VerifyClaimAttachment.cases.Stay.make({
+        checkIn: december(13),
+      }),
     },
     {
       id: 'kanazawa-snow',
       text: 'Kanazawa can be wet and wintry; snow during your dates is possible, not guaranteed.',
-      attachedTo: { _tag: 'Stay', checkIn: december(13) },
+      attachedTo: VerifyClaimAttachment.cases.Stay.make({
+        checkIn: december(13),
+      }),
     },
   ],
   shigeharuVisit: { date: december(11), slot: 'morning' },

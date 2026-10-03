@@ -7,7 +7,8 @@ import { SqliteClient, SqliteMigrator } from '@effect/sql-sqlite-node'
 import { DateTime, Layer } from 'effect'
 import { TestClock } from 'effect/testing'
 
-import type { ItineraryContent, OperationId } from '@/trip/domain'
+import type { ItineraryContent } from '@/trip/domain'
+import { OperationId } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
 import { migrations } from '@/trip/migrations'
 import { Trip } from '@/trip/Trip'
@@ -30,4 +31,4 @@ export const setTime = (instant: string) =>
 
 /** The nth client-generated operation id of a test. */
 export const operation = (n: number) =>
-  `00000000-0000-4000-8000-${String(n).padStart(12, '0')}` as OperationId
+  OperationId.make(`00000000-0000-4000-8000-${String(n).padStart(12, '0')}`)
