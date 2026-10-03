@@ -169,8 +169,9 @@ export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) =>
   invalidate(queryClient, affectedBy[write])
 
 /**
- * Calls back whenever a query a write affects is read successfully; returns
- * how to stop.
+ * Calls back whenever a shown query a write affects is read successfully;
+ * returns how to stop. Only shown ones count, the ones whose data is on
+ * screen, never one preloaded for a page not yet open.
  */
 export const subscribeToReadsAfter = (
   queryClient: QueryClient,
@@ -181,6 +182,7 @@ export const subscribeToReadsAfter = (
     if (
       event.type === 'updated' &&
       event.action.type === 'success' &&
+      event.query.isActive() &&
       affectedBy[write].some((queryKey) =>
         partialMatchKey(event.query.queryKey, queryKey),
       )
