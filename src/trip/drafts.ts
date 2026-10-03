@@ -7,7 +7,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 
 import { currentConnection } from '@/access/connection-status'
-import type { IsoDate } from '@/trip/domain'
+import type { IsoDate, ScheduleId } from '@/trip/domain'
 import { invalidateAfter, invalidateAfterScheduleChanged } from '@/trip/queries'
 import type { TripWrite } from '@/trip/queries'
 
@@ -94,12 +94,15 @@ const unansweredProblem = () =>
  */
 export const useDraftedField = ({
   target,
+  scheduleId,
   saved,
   write,
   run,
 }: {
   /** What the value is for, such as the Day note on a date. */
   target: string
+  /** The Schedule the saved value was read from. */
+  scheduleId: ScheduleId
   /** The value as last read from the server. */
   saved: string
   write: TripWrite
@@ -119,12 +122,13 @@ export const useDraftedField = ({
     else setState({ _tag: 'NotSaved', value: draft, problem: restoredProblem })
   }, [target])
 
-  // Once data read after a save arrives, the field follows it again.
+  // Once data read after a save arrives, the field follows it again: a new
+  // value, or another Schedule's, which may hold the same value.
   useEffect(() => {
     setState((current) =>
       current._tag === 'Saved' ? { _tag: 'Clean', justSaved: true } : current,
     )
-  }, [saved])
+  }, [saved, scheduleId])
 
   const value = state._tag === 'Clean' ? saved : state.value
 

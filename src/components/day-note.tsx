@@ -55,6 +55,7 @@ export function DayNote({
   const write = useServerFn(writeDayNote)
   const field = useDraftedField({
     target: dayNoteTarget(date),
+    scheduleId,
     saved: note ?? '',
     write: 'dayNote',
     // The Schedule this screen shows now, so a retry after a refusal names
