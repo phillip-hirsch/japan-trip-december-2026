@@ -2,7 +2,7 @@
 
 Source: [dmmulroy/anti-slop](https://github.com/dmmulroy/anti-slop), commit `e6676e8d0bf17c678cb45b9dacb2bd6ca8dea53a`, path `skills/install-anti-slop/assets/anti-slop/`.
 
-Copied from the repo-local `install-anti-slop` skill with its `scripts/install.mjs`. The skill lives in `.agents/skills/install-anti-slop/` (symlinked from `.claude/skills/`, pinned in `skills-lock.json`, added in `544e90d`). Every file was checked against the upstream commit's blobs. All 38 files are present, and the only differences are the deviations listed below.
+Copied with the upstream `install-anti-slop` skill's `scripts/install.mjs`. The skill was vendored in `544e90d` for the install and later removed; to update, add the skill again from upstream and follow its update procedure against the commit above. Every file was checked against the upstream commit's blobs. All 38 files are present, and the only differences are the deviations listed below.
 
 ## Installed plugins
 
