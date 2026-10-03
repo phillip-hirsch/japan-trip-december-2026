@@ -6,7 +6,7 @@ const SERVICE_CONSTRUCTOR_NAME = /^make[A-Z]/u;
 const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/u;
 
 function isProjectLocalImport(source: string): boolean {
-	return source.startsWith("./") || source.startsWith("../");
+	return source.startsWith("./") || source.startsWith("../") || source.startsWith("@/");
 }
 
 function getImportedName(specifier: ESTree.ImportSpecifier): string {

@@ -43,7 +43,7 @@ const refetchOnReturn = (queryClient: QueryClient) => {
  * in the browser. Its data is stale at once, so opening the app, focusing it
  * and reconnecting all refetch whatever is shown.
  */
-export const makeQueryClient = () => {
+export const createQueryClient = () => {
   const queryClient = new QueryClient()
 
   if (typeof window !== 'undefined') refetchOnReturn(queryClient)
