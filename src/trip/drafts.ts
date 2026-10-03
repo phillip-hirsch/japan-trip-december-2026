@@ -124,6 +124,24 @@ export const useDraftedField = ({
     else setState({ _tag: 'NotSaved', value: draft, problem: restoredProblem })
   }, [target])
 
+  // An edit made for a Schedule that has since been replaced is kept, but
+  // marked as for a changed Schedule, so it's never saved there unseen.
+  const shownScheduleId = useRef(scheduleId)
+  useEffect(() => {
+    if (shownScheduleId.current === scheduleId) return
+    shownScheduleId.current = scheduleId
+    setState((current) =>
+      (current._tag === 'Editing' || current._tag === 'NotSaved') &&
+      current.value !== savedRef.current
+        ? {
+            _tag: 'NotSaved',
+            value: current.value,
+            problem: scheduleChangedProblem,
+          }
+        : current,
+    )
+  }, [scheduleId])
+
   // When the refetch after a save failed, data read later ends Saved: a new
   // value, or another Schedule's, which may hold the same value.
   useEffect(() => {
