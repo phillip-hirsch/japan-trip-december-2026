@@ -113,6 +113,8 @@ export const useDraftedField = ({
   const [state, setState] = useState<DraftedFieldState>(clean)
   const savedRef = useRef(saved)
   savedRef.current = saved
+  const scheduleIdRef = useRef(scheduleId)
+  scheduleIdRef.current = scheduleId
 
   // Local storage exists only in the browser, after hydration.
   useEffect(() => {
@@ -153,6 +155,7 @@ export const useDraftedField = ({
   const save = async () => {
     if (state._tag !== 'Editing' && state._tag !== 'NotSaved') return
     const sending = state.value
+    const sentTo = scheduleIdRef.current
     writeDraft(target, sending)
     setState({ _tag: 'Saving', value: sending })
     let answer: SaveAnswer
@@ -161,9 +164,19 @@ export const useDraftedField = ({
     } catch {
       answer = { _tag: 'Refused', problem: unansweredProblem() }
     }
+    // Data read during the save showing another Schedule means the value
+    // went to one that is no longer shown: keep it, as if refused.
+    if (answer._tag === 'Saved' && scheduleIdRef.current !== sentTo) {
+      answer = { _tag: 'ScheduleChanged' }
+    }
     if (answer._tag === 'Saved') {
       clearDraft(target)
-      setState({ _tag: 'Saved', value: sending })
+      // Data read during the save may already show the value.
+      setState(
+        savedRef.current === sending
+          ? { _tag: 'Clean', justSaved: true }
+          : { _tag: 'Saved', value: sending },
+      )
       await invalidateAfter(queryClient, write)
       return
     }
