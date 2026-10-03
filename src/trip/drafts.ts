@@ -155,6 +155,10 @@ export const useDraftedField = ({
   const clearOwnDraft = () => {
     if (readDraft(target)?.id === ownDraftId.current) clearDraft(target)
   }
+  /** Whether a stored draft holds what its Schedule, shown now, has saved. */
+  const savedAlready = (draft: Draft) =>
+    draft.scheduleId === scheduleIdRef.current &&
+    draft.value === savedRef.current
   // Stops waiting for the read that confirms the last save.
   const stopAwaitingRead = useRef<() => void>(undefined)
   useEffect(() => () => stopAwaitingRead.current?.(), [])
@@ -163,7 +167,7 @@ export const useDraftedField = ({
   useEffect(() => {
     const draft = readDraft(target)
     if (draft === undefined) return
-    if (draft.value === savedRef.current) clearDraft(target)
+    if (savedAlready(draft)) clearDraft(target)
     else {
       ownDraftId.current = draft.id
       setState({
@@ -198,19 +202,17 @@ export const useDraftedField = ({
 
   // Data read later holding a value marked not saved means it was saved after
   // all, such as a restored draft whose save, from before the field was
-  // reopened, has since landed. Only new data does this, never typing.
+  // reopened, has since landed. Only new data does this, never typing; and
+  // never for a draft typed for another Schedule, which equal text there
+  // doesn't save.
   const lastSaved = useRef(saved)
   useEffect(() => {
     if (lastSaved.current === saved) return
     lastSaved.current = saved
     const draft = readDraft(target)
-    if (
-      draft !== undefined &&
-      draft.id === ownDraftId.current &&
-      draft.value === saved
-    ) {
-      clearDraft(target)
-    }
+    const own = draft !== undefined && draft.id === ownDraftId.current
+    if (own && draft.scheduleId !== scheduleIdRef.current) return
+    if (own && savedAlready(draft)) clearDraft(target)
     setState((current) =>
       current._tag === 'NotSaved' && current.value === saved ? clean : current,
     )
