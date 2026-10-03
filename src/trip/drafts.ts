@@ -13,21 +13,43 @@ import type { TripWrite } from '@/trip/queries'
 
 const storageKey = (target: string) => `draft:${target}`
 
+/**
+ * A stored draft. Each write has its own id, so a save clears only the draft
+ * it wrote, never a later one with the same text.
+ */
+interface Draft {
+  readonly value: string
+  readonly id: string
+}
+
 // Storage can be unavailable or full; the field still holds the text then.
-const readDraft = (target: string) => {
+const readDraft = (target: string): Draft | undefined => {
   try {
-    return localStorage.getItem(storageKey(target)) ?? undefined
+    const stored = localStorage.getItem(storageKey(target))
+    if (stored === null) return undefined
+    const draft: unknown = JSON.parse(stored)
+    return typeof draft === 'object' &&
+      draft !== null &&
+      'value' in draft &&
+      typeof draft.value === 'string' &&
+      'id' in draft &&
+      typeof draft.id === 'string'
+      ? { value: draft.value, id: draft.id }
+      : undefined
   } catch {
     return undefined
   }
 }
 
+/** Keeps a value as the target's draft, returning that write's id. */
 const writeDraft = (target: string, value: string) => {
+  const draft: Draft = { value, id: crypto.randomUUID() }
   try {
-    localStorage.setItem(storageKey(target), value)
+    localStorage.setItem(storageKey(target), JSON.stringify(draft))
   } catch {
     // Nothing else can keep it; the field still holds it.
   }
+  return draft.id
 }
 
 const clearDraft = (target: string) => {
@@ -120,8 +142,14 @@ export const useDraftedField = ({
   useEffect(() => {
     const draft = readDraft(target)
     if (draft === undefined) return
-    if (draft === savedRef.current) clearDraft(target)
-    else setState({ _tag: 'NotSaved', value: draft, problem: restoredProblem })
+    if (draft.value === savedRef.current) clearDraft(target)
+    else {
+      setState({
+        _tag: 'NotSaved',
+        value: draft.value,
+        problem: restoredProblem,
+      })
+    }
   }, [target])
 
   // An edit made for a Schedule that has since been replaced is kept, but
@@ -174,7 +202,7 @@ export const useDraftedField = ({
     if (state._tag !== 'Editing' && state._tag !== 'NotSaved') return
     const sending = state.value
     const sentTo = scheduleIdRef.current
-    writeDraft(target, sending)
+    const draftId = writeDraft(target, sending)
     setState({ _tag: 'Saving', value: sending })
     let answer: SaveAnswer
     try {
@@ -189,8 +217,8 @@ export const useDraftedField = ({
     }
     if (answer._tag === 'Saved') {
       // Another editor of the target, in this tab or another, may have kept
-      // a newer draft since.
-      if (readDraft(target) === sending) clearDraft(target)
+      // a newer draft since, even with the same text.
+      if (readDraft(target)?.id === draftId) clearDraft(target)
       // Data read during the save may already show the value.
       setState(
         savedRef.current === sending
