@@ -56,7 +56,8 @@ export const noServiceConstructorImportsRule = defineRule({
 
 		return {
 			ImportDeclaration(node) {
-				if (isTestFile || !isProjectLocalImport(node.source.value)) return;
+				// Type-only imports are erased, so they carry no runtime service dependency.
+				if (isTestFile || node.importKind === "type" || !isProjectLocalImport(node.source.value)) return;
 
 				for (const specifier of node.specifiers) {
 					if (specifier.type === "ImportNamespaceSpecifier") {
@@ -76,7 +77,7 @@ export const noServiceConstructorImportsRule = defineRule({
 						continue;
 					}
 
-					if (specifier.type !== "ImportSpecifier") continue;
+					if (specifier.type !== "ImportSpecifier" || specifier.importKind === "type") continue;
 
 					const importedName = getImportedName(specifier);
 					if (!SERVICE_CONSTRUCTOR_NAME.test(importedName)) continue;
