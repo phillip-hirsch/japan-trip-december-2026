@@ -188,7 +188,9 @@ export const useDraftedField = ({
       answer = { _tag: 'ScheduleChanged' }
     }
     if (answer._tag === 'Saved') {
-      clearDraft(target)
+      // Another editor of the target, in this tab or another, may have kept
+      // a newer draft since.
+      if (readDraft(target) === sending) clearDraft(target)
       // Data read during the save may already show the value.
       setState(
         savedRef.current === sending
