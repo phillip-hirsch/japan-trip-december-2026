@@ -188,6 +188,26 @@ export const useDraftedField = ({
     )
   }, [scheduleId])
 
+  // Data read later holding a value marked not saved means it was saved after
+  // all, such as a restored draft whose save, from before the field was
+  // reopened, has since landed. Only new data does this, never typing.
+  const lastSaved = useRef(saved)
+  useEffect(() => {
+    if (lastSaved.current === saved) return
+    lastSaved.current = saved
+    const draft = readDraft(target)
+    if (
+      draft !== undefined &&
+      draft.id === ownDraftId.current &&
+      draft.value === saved
+    ) {
+      clearDraft(target)
+    }
+    setState((current) =>
+      current._tag === 'NotSaved' && current.value === saved ? clean : current,
+    )
+  }, [saved, target])
+
   const value = state._tag === 'Clean' ? saved : state.value
 
   const edit = () => setState({ _tag: 'Editing', value })
