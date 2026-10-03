@@ -22,6 +22,7 @@ import {
 } from '@/trip/calendar'
 import {
   DayNotFound,
+  DayNoteTooLong,
   ItineraryNotFound,
   ScheduleChanged,
   ScheduleChosen,
@@ -67,8 +68,10 @@ import type {
   VerifyClaim,
   VerifyClaimAttachment,
   VerifyClaimDetail,
+  WriteDayNote,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
+import { dayNoteMaxLength } from '@/trip/limits'
 import { places, visitedPlaceIds } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
 import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
@@ -430,16 +433,18 @@ const railSectionsOf = (
 
 /**
  * What Stays and Days are shown from: an Itinerary's content with its
- * Anchors, or a Schedule's copy of them, whose entities keep their ids.
+ * Anchors, or a Schedule's copy of them, whose entities keep their ids and
+ * whose Days carry Phillip's Day notes.
  */
 interface Plan<
   S extends Stay,
+  D extends Day,
   M extends Move,
   T extends DayTrip,
   A extends Anchor,
 > {
   readonly stays: ReadonlyArray<S>
-  readonly days: ReadonlyArray<Day>
+  readonly days: ReadonlyArray<D>
   readonly moves: ReadonlyArray<M>
   readonly dayTrips: ReadonlyArray<T>
   readonly verifyClaims: ReadonlyArray<VerifyClaim>
@@ -449,11 +454,12 @@ interface Plan<
 /** The Stays and all 15 Days, and the Verify claims about the whole. */
 const staysAndDaysOf = <
   S extends Stay,
+  D extends Day,
   M extends Move,
   T extends DayTrip,
   A extends Anchor,
 >(
-  plan: Plan<S, M, T, A>,
+  plan: Plan<S, D, M, T, A>,
 ) => {
   const moves = moveDetailsOf(plan)
   return {
@@ -584,6 +590,7 @@ const dayPageOf = (schedule: ScheduleDetail, date: IsoDate) =>
         )
         .at(0)
       return {
+        scheduleId: schedule.id,
         day,
         ...(tonight && {
           tonight: {
@@ -850,6 +857,20 @@ export class Trip extends Context.Service<
       never,
       SqlClient.SqlClient
     >
+    /**
+     * Writes the Day note on a Day of the Schedule named, as a whole value,
+     * so the last write wins. An empty note removes it. ScheduleChanged when
+     * the Schedule named isn't current, archived ones included; DayNotFound
+     * when it has no Day on the date; DayNoteTooLong past 10,000 characters.
+     * A refused write writes nothing.
+     */
+    writeDayNote(
+      input: WriteDayNote,
+    ): Effect.Effect<
+      void,
+      ScheduleChanged | DayNotFound | DayNoteTooLong,
+      SqlClient.SqlClient
+    >
   }
 >()('japan-trip/trip/Trip') {
   static readonly layer = Layer.effect(
@@ -997,6 +1018,25 @@ export class Trip extends Context.Service<
         return Option.flatMap(schedule, (schedule) => dayPageOf(schedule, date))
       })
 
+      const writeDayNote = Effect.fn('Trip.writeDayNote')(
+        function* ({ scheduleId, date, note }: WriteDayNote) {
+          if (note.length > dayNoteMaxLength) {
+            return yield* new DayNoteTooLong({ maxLength: dayNoteMaxLength })
+          }
+          const store = yield* scheduleStore
+          yield* store.transaction(
+            Effect.gen(function* () {
+              yield* requireCurrent(store, scheduleId)
+              if (!(yield* store.hasDay(scheduleId, date))) {
+                return yield* new DayNotFound({ date })
+              }
+              yield* store.writeDayNote(scheduleId, date, note)
+            }),
+          )
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
       return Trip.of({
         home,
         day,
@@ -1011,6 +1051,7 @@ export class Trip extends Context.Service<
         schedule,
         schedules,
         scheduleSummary,
+        writeDayNote,
       })
     }),
   )

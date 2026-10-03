@@ -29,8 +29,12 @@ One calendar date of the Trip in Tokyo time, December 6 through December 20.
 One thing planned on a Day of the Schedule.
 _Avoid_: event, item
 
+**Day note**:
+Phillip's own plain-text note on a Day of the Schedule, shown on its Day page. It belongs to that Schedule: choosing again starts without Day notes, and restoring brings them back.
+_Avoid_: day memo, comment
+
 **Day page**:
-A Day of the Schedule on its own page at /schedule/$date: the Day's source description and Day trips, Tonight's hotel and the Next Move.
+A Day of the Schedule on its own page at /schedule/$date: the Day's source description and Day trips, its Day note, Tonight's hotel and the Next Move.
 
 **Today**:
 During the Trip, Home showing the Day page of the current Day in Tokyo, in place.

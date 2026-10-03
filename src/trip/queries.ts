@@ -145,17 +145,32 @@ const replacingTheSchedule = [
 const affectedBy = {
   choose: replacingTheSchedule,
   restore: replacingTheSchedule,
+  // Every query carrying the current Schedule's Days: the Day pages, Today
+  // on Home, and the Schedule itself, by id too.
+  dayNote: [keys.days, keys.home, keys.schedules, keys.scheduleById],
 } as const satisfies Record<string, ReadonlyArray<QueryKey>>
 
 export type TripWrite = keyof typeof affectedBy
+
+const invalidate = (
+  queryClient: QueryClient,
+  queryKeys: ReadonlyArray<QueryKey>,
+) =>
+  Promise.all(
+    queryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+  )
 
 /**
  * Invalidates exactly the queries a successful write affects, and resolves
  * once the shown ones have refetched. The rest refetch when next shown.
  */
 export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) =>
-  Promise.all(
-    affectedBy[write].map((queryKey) =>
-      queryClient.invalidateQueries({ queryKey }),
-    ),
-  )
+  invalidate(queryClient, affectedBy[write])
+
+/**
+ * Refetches after a write was refused as "Schedule changed": another device
+ * replaced the Schedule this screen shows, so everything replacing it
+ * affects is stale.
+ */
+export const invalidateAfterScheduleChanged = (queryClient: QueryClient) =>
+  invalidate(queryClient, replacingTheSchedule)

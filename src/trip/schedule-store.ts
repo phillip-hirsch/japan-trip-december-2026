@@ -26,13 +26,16 @@ import type { Day } from '@/trip/domain'
 
 type Copied<A> = A & { readonly id: string }
 
+/** A Day of a Schedule, with Phillip's Day note once he writes one. */
+export type ScheduleDay = Day & { readonly note?: string }
+
 /**
  * Everything a Schedule copies from the Itinerary chosen, each Stay, Move, Day
- * trip, Verify claim and Anchor with its own id.
+ * trip, Verify claim and Anchor with its own id, and Phillip's Day notes.
  */
 export interface ScheduleCopy {
   readonly stays: ReadonlyArray<Copied<Stay>>
-  readonly days: ReadonlyArray<Day>
+  readonly days: ReadonlyArray<ScheduleDay>
   readonly moves: ReadonlyArray<Copied<Move>>
   readonly dayTrips: ReadonlyArray<Copied<DayTrip>>
   readonly verifyClaims: ReadonlyArray<VerifyClaim>
@@ -55,6 +58,7 @@ const DayRow = Schema.Struct({
   ...ofSchedule,
   date: IsoDate,
   description: Schema.NullOr(Schema.String),
+  note: Schema.NullOr(Schema.String),
 })
 
 const MoveRow = Schema.Struct({
@@ -149,6 +153,26 @@ export const scheduleStore = Effect.gen(function* () {
       `,
   })
 
+  const findDay = SqlSchema.findOneOption({
+    Request: Schema.Struct({ scheduleId: ScheduleId, date: IsoDate }),
+    Result: Schema.Struct({ date: IsoDate }),
+    execute: ({ scheduleId, date }) =>
+      sql`SELECT date FROM days WHERE scheduleId = ${scheduleId} AND date = ${date}`,
+  })
+
+  const updateDayNote = SqlSchema.void({
+    Request: Schema.Struct({
+      scheduleId: ScheduleId,
+      date: IsoDate,
+      note: Schema.NullOr(Schema.String),
+    }),
+    execute: ({ scheduleId, date, note }) =>
+      sql`
+        UPDATE days SET note = ${note}
+        WHERE scheduleId = ${scheduleId} AND date = ${date}
+      `,
+  })
+
   const rowsOf = <S extends Schema.Top>(
     Result: S,
     execute: (scheduleId: string) => Statement.Statement<unknown>,
@@ -198,9 +222,10 @@ export const scheduleStore = Effect.gen(function* () {
       ])
     const copy: ScheduleCopy = {
       stays: stays.map(withoutSchedule),
-      days: days.map(({ date, description }) => ({
+      days: days.map(({ date, description, note }) => ({
         date,
         ...(description !== null && { description }),
+        ...(note !== null && { note }),
       })),
       moves: moves.map(({ duration, ...move }) => ({
         ...withoutSchedule(move),
@@ -259,6 +284,14 @@ export const scheduleStore = Effect.gen(function* () {
     /** Makes an archived Schedule current again. */
     makeCurrent: makeScheduleCurrent,
 
+    /** Whether a Schedule has a Day on a date. */
+    hasDay: (scheduleId: ScheduleId, date: IsoDate) =>
+      Effect.map(findDay({ scheduleId, date }), Option.isSome),
+
+    /** Replaces the Day note on a Day of a Schedule; empty removes it. */
+    writeDayNote: (scheduleId: ScheduleId, date: IsoDate, note: string) =>
+      updateDayNote({ scheduleId, date, note: note === '' ? null : note }),
+
     /**
      * Stores a new Schedule with its copy, one row per statement to stay well
      * under any limit on bound parameters.
@@ -281,6 +314,7 @@ export const scheduleStore = Effect.gen(function* () {
             scheduleId,
             date: day.date,
             description: day.description ?? null,
+            note: day.note ?? null,
           }),
         { discard: true },
       )

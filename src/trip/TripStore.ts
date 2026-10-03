@@ -17,6 +17,8 @@ import type {
   ScheduleId,
   Schedules,
   ScheduleSummary,
+  WriteDayNote,
+  WriteDayNoteOutcome,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
 import { migrations } from '@/trip/migrations'
@@ -125,6 +127,26 @@ export class TripStore extends DurableObject<Env> {
             }),
           ScheduleChanged: () =>
             Effect.succeed<RestoreOutcome>({ _tag: 'ScheduleChanged' }),
+        }),
+      ),
+    )
+  }
+
+  /** Writes the Day note on a Day of the current Schedule, as a whole. */
+  writeDayNote(input: WriteDayNote): Promise<WriteDayNoteOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.writeDayNote(input)).pipe(
+        Effect.as<WriteDayNoteOutcome>({ _tag: 'Written' }),
+        Effect.catchTags({
+          ScheduleChanged: () =>
+            Effect.succeed<WriteDayNoteOutcome>({ _tag: 'ScheduleChanged' }),
+          DayNotFound: ({ date }) =>
+            Effect.succeed<WriteDayNoteOutcome>({ _tag: 'DayNotFound', date }),
+          DayNoteTooLong: ({ maxLength }) =>
+            Effect.succeed<WriteDayNoteOutcome>({
+              _tag: 'DayNoteTooLong',
+              maxLength,
+            }),
         }),
       ),
     )

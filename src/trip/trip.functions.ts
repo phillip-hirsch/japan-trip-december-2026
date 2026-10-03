@@ -15,6 +15,8 @@ import {
   ScheduleId,
   Schedules,
   ScheduleSummary,
+  WriteDayNote,
+  WriteDayNoteOutcome,
 } from '@/trip/domain'
 import { runTrip } from '@/trip/runtime.server'
 import { Trip } from '@/trip/Trip'
@@ -100,6 +102,17 @@ export const restoreSchedule = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(RestoreSchedule))
   .handler(({ data }) =>
     callTripStore(RestoreOutcome, (store) => store.restore(data)),
+  )
+
+/**
+ * Writes the Day note on a Day of the Schedule named, as a whole value. The
+ * write is idempotent, so it carries no operation id; the Trip service
+ * enforces the length cap and refuses a Schedule that isn't current.
+ */
+export const writeDayNote = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(WriteDayNote))
+  .handler(({ data }) =>
+    callTripStore(WriteDayNoteOutcome, (store) => store.writeDayNote(data)),
   )
 
 /** One Schedule, current or archived, or null when none has that id. */
