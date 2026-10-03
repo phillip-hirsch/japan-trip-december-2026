@@ -2,7 +2,11 @@ import handler from '@tanstack/react-start/server-entry'
 import { env } from 'cloudflare:workers'
 import { ConfigProvider, Effect, Exit, Layer, ManagedRuntime } from 'effect'
 
-import { AccessGate, KeySetTransport } from '@/access/AccessGate'
+import {
+  AccessDecision,
+  AccessGate,
+  KeySetTransport,
+} from '@/access/AccessGate'
 
 // The Durable Object class, exported for the Wrangler configuration (ADR 0001).
 export { TripStore } from '@/trip/TripStore'
@@ -38,10 +42,13 @@ export default {
         Effect.tapCause(Effect.logError),
       ),
     )
+
     // A defect in the gate refuses the request rather than letting it through.
     if (Exit.isFailure(exit)) return refusal(503)
     const decision = exit.value
-    if (decision._tag === 'Refused') return refusal(decision.status)
+
+    if (AccessDecision.$is('Refused')(decision)) return refusal(decision.status)
+
     return handler.fetch(request, { context: { email: decision.email } })
   },
 } satisfies ExportedHandler<Env>

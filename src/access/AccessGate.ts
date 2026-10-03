@@ -1,14 +1,27 @@
-import { Clock, Config, Context, Effect, Layer, Option, Schema } from 'effect'
+import {
+  Clock,
+  Config,
+  Context,
+  Data,
+  Effect,
+  Layer,
+  Option,
+  Schema,
+} from 'effect'
 import { createRemoteJWKSet, customFetch, errors, jwtVerify } from 'jose'
 import type { JWTVerifyGetKey } from 'jose'
 
 /** What the gate decided for one request. */
-export type AccessDecision =
-  | { readonly _tag: 'Allowed'; readonly email: string }
-  | { readonly _tag: 'Refused'; readonly status: 403 | 503 }
+export type AccessDecision = Data.TaggedEnum<{
+  Allowed: { readonly email: string }
+  Refused: { readonly status: 403 | 503 }
+}>
 
-const forbidden: AccessDecision = { _tag: 'Refused', status: 403 }
-const unavailable: AccessDecision = { _tag: 'Refused', status: 503 }
+export const AccessDecision = Data.taggedEnum<AccessDecision>()
+
+const forbidden: AccessDecision = AccessDecision.Refused({ status: 403 })
+
+const unavailable: AccessDecision = AccessDecision.Refused({ status: 503 })
 
 /** The request carries no identity, or one that isn't Phillip's. */
 class IdentityRejected extends Schema.TaggedError<IdentityRejected>()(
@@ -50,6 +63,7 @@ const AccessConfig = Config.all({
 })
 
 const EmailClaim = Schema.Struct({ email: Schema.String })
+
 const decodeEmailClaim = Schema.decodeUnknownOption(EmailClaim)
 
 /** Key lookups that fail because of the token, not because of the key set. */
@@ -90,12 +104,15 @@ export class AccessGate extends Context.Service<
     Effect.gen(function* () {
       const transport = yield* KeySetTransport
       const config = yield* Effect.option(AccessConfig)
+
       if (Option.isNone(config)) {
         yield* Effect.logError(
           'Access gate: ACCESS_TEAM_DOMAIN, ACCESS_AUD or ACCESS_ALLOWED_EMAIL is missing or invalid, so every request is refused.',
         )
+
         return AccessGate.of({ check: () => Effect.succeed(unavailable) })
       }
+
       const { teamDomain, audience, allowedEmail, devSimulation } = config.value
       const issuer = teamDomain.origin
 
@@ -103,6 +120,7 @@ export class AccessGate extends Context.Service<
         new URL('/cdn-cgi/access/certs', issuer),
         { [customFetch]: transport.fetch },
       )
+
       // Separates "the key set can't be fetched" from "the token is bad".
       const resolveKey: JWTVerifyGetKey = (header, token) =>
         keySet(header, token).catch((cause: unknown) => {
@@ -113,6 +131,7 @@ export class AccessGate extends Context.Service<
 
       const tokenEmail = Effect.fnUntraced(function* (token: string) {
         const currentDate = new Date(yield* Clock.currentTimeMillis)
+
         const { payload } = yield* Effect.tryPromise({
           try: () =>
             jwtVerify(token, resolveKey, {
@@ -126,6 +145,7 @@ export class AccessGate extends Context.Service<
               ? cause
               : new IdentityRejected({ reason: `token: ${String(cause)}` }),
         })
+
         return decodeEmailClaim(payload)
       })
 
@@ -137,11 +157,13 @@ export class AccessGate extends Context.Service<
             reason: 'Access context is for another application',
           })
         }
+
         const identity = yield* Effect.tryPromise({
           try: () => access.getIdentity(),
           catch: (cause) =>
             new AccessUnavailable({ reason: `identity: ${String(cause)}` }),
         })
+
         return decodeEmailClaim(identity)
       })
 
@@ -154,20 +176,25 @@ export class AccessGate extends Context.Service<
           IdentityRejected | AccessUnavailable
         > {
           const token = request.headers.get('Cf-Access-Jwt-Assertion')
+
           const claim =
             token !== null
               ? yield* tokenEmail(token)
               : devSimulation && access !== undefined
                 ? yield* simulatedEmail(access)
                 : yield* new IdentityRejected({ reason: 'no identity' })
+
           if (Option.isNone(claim)) {
             return yield* new IdentityRejected({ reason: 'no email claim' })
           }
+
           const { email } = claim.value
+
           if (email !== allowedEmail) {
             return yield* new IdentityRejected({ reason: 'email not allowed' })
           }
-          return { _tag: 'Allowed', email }
+
+          return AccessDecision.Allowed({ email })
         },
         Effect.catchTags({
           IdentityRejected: ({ reason }) =>

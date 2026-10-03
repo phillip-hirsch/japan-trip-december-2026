@@ -10,6 +10,7 @@ import { getComparisonMap } from '@/trip/trip.functions'
 // takes the theme's --vermilion; the others take hues that also differ in
 // lightness, so they stay apart without full colour vision.
 const recommendedColor = '#e85336'
+
 const otherColors = ['#7cc1e9', '#e8be62', '#eee7d9', '#bba3e8', '#75cca7']
 
 /** How far apart, in pixels, the Itineraries run where they share a path. */
@@ -21,9 +22,9 @@ let comparisonMap: Promise<ComparisonMap> | undefined
 
 /** The map's data, fetched once, and again after a failure. */
 const loadComparisonMap = () =>
-  (comparisonMap ??= getComparisonMap().catch((error: unknown) => {
+  (comparisonMap ??= getComparisonMap().catch((cause: unknown) => {
     comparisonMap = undefined
-    throw error
+    throw cause
   }))
 
 /**
@@ -32,6 +33,7 @@ const loadComparisonMap = () =>
  */
 const westToEast = (path: ReadonlyArray<Coordinates>) => {
   const [first, last] = [path[0], path.at(-1)]
+
   return first && last && first.longitude > last.longitude
     ? [...path].reverse()
     : path
@@ -46,6 +48,7 @@ const withColorAndLane = (itineraries: ComparisonMap['itineraries']) =>
     const others = itineraries
       .slice(0, index)
       .filter((other) => !other.recommended).length
+
     return {
       ...itinerary,
       color: itinerary.recommended
@@ -87,6 +90,7 @@ function Legend({ itineraries }: { itineraries: ReadonlyArray<Line> }) {
 export default function ComparisonMapCanvas() {
   const { bases, itineraries, railAttribution } = use(loadComparisonMap())
   const lines = withColorAndLane(itineraries)
+
   return (
     <TripMapView
       points={[

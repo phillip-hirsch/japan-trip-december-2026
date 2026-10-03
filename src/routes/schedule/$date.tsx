@@ -14,7 +14,9 @@ export const Route = createFileRoute('/schedule/$date')({
   params: {
     parse: (params) => {
       const date = parseTripDate(params.date)
+
       if (date === undefined) throw notFound()
+
       return { date }
     },
     stringify: ({ date }) => ({ date }),
@@ -37,6 +39,8 @@ export const Route = createFileRoute('/schedule/$date')({
 function DayPage() {
   const { date } = Route.useParams()
   const page = useSuspenseQuery(dayQuery(date)).data
+
   if (page === null) return <NoSchedule />
+
   return <ScheduleDayView page={page} eyebrow="Schedule" />
 }

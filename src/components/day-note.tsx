@@ -1,4 +1,5 @@
 import { useServerFn } from '@tanstack/react-start'
+import { Match } from 'effect'
 import { CheckIcon, PencilIcon } from 'lucide-react'
 import { useId } from 'react'
 
@@ -8,32 +9,33 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDay } from '@/trip/calendar'
 import type { IsoDate, ScheduleId, WriteDayNoteOutcome } from '@/trip/domain'
-import { dayNoteTarget, useDraftedField } from '@/trip/drafts'
-import type { SaveAnswer } from '@/trip/drafts'
+import {
+  dayNoteTarget,
+  DraftedFieldState,
+  SaveAnswer,
+  useDraftedField,
+} from '@/trip/drafts'
 import { dayNoteMaxLength } from '@/trip/limits'
 import { writeDayNote } from '@/trip/trip.functions'
 
 // The count shows only once the note nears the cap.
 const countFrom = dayNoteMaxLength - 1_000
 
-const answerOf = (outcome: WriteDayNoteOutcome): SaveAnswer => {
-  switch (outcome._tag) {
-    case 'Written':
-      return { _tag: 'Saved' }
-    case 'ScheduleChanged':
-      return { _tag: 'ScheduleChanged' }
-    case 'DayNotFound':
-      return {
-        _tag: 'Refused',
-        problem: `${formatDay(outcome.date)} is no longer a Day of your Schedule. Your text is kept here.`,
-      }
-    case 'DayNoteTooLong':
-      return {
-        _tag: 'Refused',
-        problem: `A Day note can be at most ${outcome.maxLength.toLocaleString('en')} characters.`,
-      }
-  }
-}
+const answerOf = (outcome: WriteDayNoteOutcome): SaveAnswer =>
+  Match.value(outcome).pipe(
+    Match.tagsExhaustive({
+      Written: () => SaveAnswer.Saved(),
+      ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
+      DayNotFound: (outcome) =>
+        SaveAnswer.Refused({
+          problem: `${formatDay(outcome.date)} is no longer a Day of your Schedule. Your text is kept here.`,
+        }),
+      DayNoteTooLong: (outcome) =>
+        SaveAnswer.Refused({
+          problem: `A Day note can be at most ${outcome.maxLength.toLocaleString('en')} characters.`,
+        }),
+    }),
+  )
 
 /**
  * Phillip's plain-text note on a Day, saved as a whole with an explicit Save
@@ -53,6 +55,7 @@ export function DayNote({
   labelledBy: string
 }) {
   const write = useServerFn(writeDayNote)
+
   const field = useDraftedField({
     target: dayNoteTarget(date),
     scheduleId,
@@ -63,11 +66,16 @@ export function DayNote({
     run: async (value) =>
       answerOf(await write({ data: { scheduleId, date, note: value } })),
   })
+
   const problemId = useId()
   const { state, value } = field
 
-  if (state._tag === 'Clean' || state._tag === 'Saved') {
-    const justSaved = state._tag === 'Saved' || state.justSaved
+  if (
+    DraftedFieldState.$is('Clean')(state) ||
+    DraftedFieldState.$is('Saved')(state)
+  ) {
+    const justSaved = DraftedFieldState.$is('Saved')(state) || state.justSaved
+
     return (
       <div className="flex flex-col items-start gap-3">
         {value === '' ? (
@@ -93,8 +101,9 @@ export function DayNote({
     )
   }
 
-  const notSaved = state._tag === 'NotSaved'
-  const saving = state._tag === 'Saving'
+  const notSaved = DraftedFieldState.$is('NotSaved')(state)
+  const saving = DraftedFieldState.$is('Saving')(state)
+
   return (
     <form
       className="flex flex-col gap-3"
@@ -117,7 +126,7 @@ export function DayNote({
         aria-labelledby={labelledBy}
         aria-describedby={notSaved ? problemId : undefined}
         // Opening the editor focuses it; a restored draft opens unfocused.
-        autoFocus={state._tag === 'Editing'}
+        autoFocus={DraftedFieldState.$is('Editing')(state)}
         // A save in flight fixes the value, so two saves never race.
         readOnly={saving}
         value={value}

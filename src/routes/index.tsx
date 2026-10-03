@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { Match } from 'effect'
 import type { ReactNode } from 'react'
 
 import { DisplayJa } from '@/components/display-ja'
@@ -21,23 +22,23 @@ export const Route = createFileRoute('/')({
 
 function Home() {
   const home = useHome()
-  switch (home._tag) {
-    case 'BeforeTrip':
-      return <BeforeTrip home={home} />
-    case 'DuringTrip':
-      return home.today ? (
-        <ScheduleDayView page={home.today} eyebrow="Today" />
-      ) : (
-        <Hero
-          eyebrow="Today"
-          title={<HeroTitle>{formatDay(home.date)}</HeroTitle>}
-          lede="No Schedule yet. Choose an Itinerary, and Today appears here."
-        >
-          <HomeItineraries itineraries={home.itineraries} />
-        </Hero>
-      )
-    case 'AfterTrip':
-      return (
+
+  return Match.value(home).pipe(
+    Match.tagsExhaustive({
+      BeforeTrip: (home) => <BeforeTrip home={home} />,
+      DuringTrip: (home) =>
+        home.today ? (
+          <ScheduleDayView page={home.today} eyebrow="Today" />
+        ) : (
+          <Hero
+            eyebrow="Today"
+            title={<HeroTitle>{formatDay(home.date)}</HeroTitle>}
+            lede="No Schedule yet. Choose an Itinerary, and Today appears here."
+          >
+            <HomeItineraries itineraries={home.itineraries} />
+          </Hero>
+        ),
+      AfterTrip: (home) => (
         <Hero
           eyebrow="After the Trip"
           title={<HeroTitle>Welcome home</HeroTitle>}
@@ -49,8 +50,9 @@ function Home() {
         >
           <ScheduleOrItineraries {...home} />
         </Hero>
-      )
-  }
+      ),
+    }),
+  )
 }
 
 /**

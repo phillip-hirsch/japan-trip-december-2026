@@ -3,11 +3,16 @@ import { ConfigProvider, DateTime, Effect, Layer } from 'effect'
 import { TestClock } from 'effect/testing'
 import { SignJWT, exportJWK, generateKeyPair } from 'jose'
 
-import { AccessGate, KeySetTransport } from '@/access/AccessGate'
-import type { AccessDecision } from '@/access/AccessGate'
+import {
+  AccessDecision,
+  AccessGate,
+  KeySetTransport,
+} from '@/access/AccessGate'
 
 const teamDomain = 'https://japan-trip.cloudflareaccess.com'
+
 const audience = 'japan-trip-aud'
+
 const allowedEmail = 'phillip@350home.com'
 
 const configuration = {
@@ -17,10 +22,12 @@ const configuration = {
 }
 
 const now = DateTime.makeUnsafe('2026-10-01T09:00:00Z')
+
 const nowSeconds = DateTime.toEpochMillis(now) / 1000
 
 // A locally generated signing key, published in the key set as Access would.
 const signingKey = await generateKeyPair('RS256')
+
 const keySet = {
   keys: [
     {
@@ -60,8 +67,9 @@ const accessToken = (options: TokenOptions = {}) =>
 
 const otherKey = await generateKeyPair('RS256')
 
-const forbidden: AccessDecision = { _tag: 'Refused', status: 403 }
-const unavailable: AccessDecision = { _tag: 'Refused', status: 503 }
+const forbidden: AccessDecision = AccessDecision.Refused({ status: 403 })
+
+const unavailable: AccessDecision = AccessDecision.Refused({ status: 503 })
 
 const requestWith = (token?: string) =>
   new Request('https://japan-trip.workers.dev/options', {
@@ -91,6 +99,7 @@ const check = (
   Effect.gen(function* () {
     yield* TestClock.setTime(DateTime.toEpochMillis(now))
     const gate = yield* AccessGate
+
     return yield* gate.check(request, options?.access)
   }).pipe(Effect.provide(gateWith(options)))
 
@@ -119,10 +128,10 @@ describe('AccessGate.check', () => {
     Effect.gen(function* () {
       const token = yield* Effect.promise(() => accessToken())
       const decision = yield* check(requestWith(token))
-      assert.deepStrictEqual(decision, {
-        _tag: 'Allowed',
-        email: allowedEmail,
-      })
+      assert.deepStrictEqual(
+        decision,
+        AccessDecision.Allowed({ email: allowedEmail }),
+      )
     }),
   )
 
@@ -145,6 +154,7 @@ describe('AccessGate.check', () => {
       const decision = yield* checkToken({
         issuer: 'https://someone-else.cloudflareaccess.com',
       })
+
       assert.deepStrictEqual(decision, forbidden)
     }),
   )
@@ -162,6 +172,7 @@ describe('AccessGate.check', () => {
         algorithm: 'HS256',
         signingKey: new TextEncoder().encode('a shared secret anyone knows'),
       })
+
       assert.deepStrictEqual(decision, forbidden)
     }),
   )
@@ -183,11 +194,13 @@ describe('AccessGate.check', () => {
   it.effect('is unavailable when the key set is unreachable', () =>
     Effect.gen(function* () {
       const token = yield* Effect.promise(() => accessToken())
+
       const decision = yield* check(requestWith(token), {
         transport: KeySetTransport.of({
           fetch: () => Promise.reject(new TypeError('fetch failed')),
         }),
       })
+
       assert.deepStrictEqual(decision, unavailable)
     }),
   )
@@ -195,12 +208,14 @@ describe('AccessGate.check', () => {
   it.effect('is unavailable when the key set responds with an error', () =>
     Effect.gen(function* () {
       const token = yield* Effect.promise(() => accessToken())
+
       const decision = yield* check(requestWith(token), {
         transport: KeySetTransport.of({
           fetch: () =>
             Promise.resolve(new Response('Bad gateway', { status: 502 })),
         }),
       })
+
       assert.deepStrictEqual(decision, unavailable)
     }),
   )
@@ -209,11 +224,13 @@ describe('AccessGate.check', () => {
     it.effect(`is unavailable without ${missing}`, () =>
       Effect.gen(function* () {
         const token = yield* Effect.promise(() => accessToken())
+
         const decision = yield* check(requestWith(token), {
           configuration: Object.fromEntries(
             Object.entries(configuration).filter(([name]) => name !== missing),
           ),
         })
+
         assert.deepStrictEqual(decision, unavailable)
       }),
     )
@@ -227,6 +244,7 @@ describe('AccessGate.check with the Access dev simulation', () => {
         configuration,
         access: simulatedAccess(audience, { email: allowedEmail }),
       })
+
       assert.deepStrictEqual(decision, forbidden)
     }),
   )
@@ -237,10 +255,11 @@ describe('AccessGate.check with the Access dev simulation', () => {
         configuration: simulationConfiguration,
         access: simulatedAccess(audience, { email: allowedEmail }),
       })
-      assert.deepStrictEqual(decision, {
-        _tag: 'Allowed',
-        email: allowedEmail,
-      })
+
+      assert.deepStrictEqual(
+        decision,
+        AccessDecision.Allowed({ email: allowedEmail }),
+      )
     }),
   )
 
@@ -250,6 +269,7 @@ describe('AccessGate.check with the Access dev simulation', () => {
         configuration: simulationConfiguration,
         access: simulatedAccess('another-aud', { email: allowedEmail }),
       })
+
       assert.deepStrictEqual(decision, forbidden)
     }),
   )
@@ -260,6 +280,7 @@ describe('AccessGate.check with the Access dev simulation', () => {
         configuration: simulationConfiguration,
         access: simulatedAccess(audience, { email: 'someone@example.com' }),
       })
+
       assert.deepStrictEqual(decision, forbidden)
     }),
   )
@@ -270,6 +291,7 @@ describe('AccessGate.check with the Access dev simulation', () => {
         configuration: simulationConfiguration,
         access: simulatedAccess(audience, {}),
       })
+
       assert.deepStrictEqual(decision, forbidden)
     }),
   )

@@ -25,12 +25,14 @@ type NavEntry = {
 }
 
 const home: NavEntry = { to: '/', label: 'Home', icon: HouseIcon, exact: true }
+
 const options: NavEntry = {
   to: '/options',
   label: 'Options',
   icon: RouteIcon,
   exact: false,
 }
+
 const schedule: NavEntry = {
   to: '/schedule',
   label: 'Schedule',
@@ -46,6 +48,7 @@ const schedule: NavEntry = {
  */
 const useNavEntries = (): ReadonlyArray<NavEntry | undefined> => {
   const summary = useScheduleSummary()
+
   return [
     home,
     summary === undefined ? undefined : summary === null ? options : schedule,
@@ -67,6 +70,7 @@ const navLinkProps = ({ to, exact }: NavEntry) => ({
 /** Desktop navigation. */
 export function AppSidebar() {
   const entries = useNavEntries()
+
   return (
     // Not collapsible: it is the only desktop nav, so the Cmd/Ctrl+B shortcut
     // must not be able to hide it.
@@ -119,6 +123,7 @@ export function AppSidebar() {
 /** Mobile navigation, within reach of the thumb. */
 export function BottomTabBar() {
   const entries = useNavEntries()
+
   return (
     <nav
       aria-label="Primary"

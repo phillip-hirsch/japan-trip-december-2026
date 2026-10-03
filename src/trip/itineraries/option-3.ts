@@ -1,5 +1,5 @@
 // Converted from docs/itinerary.md, "3. Tokyo → Kyoto → Tokyo".
-import { december } from '@/trip/domain'
+import { december, VerifyClaimAttachment } from '@/trip/domain'
 import type { ItineraryContent } from '@/trip/domain'
 import { shigeharuOpeningDays } from '@/trip/itineraries/shigeharu'
 
@@ -95,12 +95,12 @@ export const option3: ItineraryContent = {
     {
       id: 'nikko-toshogu-winter-hours',
       text: 'Toshogu closes at 16:00 in winter.',
-      attachedTo: { _tag: 'Day', date: december(16) },
+      attachedTo: VerifyClaimAttachment.cases.Day.make({ date: december(16) }),
     },
     {
       id: 'enoshima-winter-illumination',
       text: 'Enoshima’s announced winter illumination dates cover your trip, making it a good afternoon-and-evening excursion.',
-      attachedTo: { _tag: 'Day', date: december(18) },
+      attachedTo: VerifyClaimAttachment.cases.Day.make({ date: december(18) }),
     },
   ],
   shigeharuVisit: { date: december(11), slot: 'morning' },

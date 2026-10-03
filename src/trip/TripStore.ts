@@ -7,17 +7,19 @@ import type { SqlClient } from 'effect/sql'
 
 import type {
   ChooseItinerary,
-  ChooseOutcome,
-  DayOutcome,
   HomeState,
   IsoDate,
-  RestoreOutcome,
   RestoreSchedule,
   ScheduleDetail,
   ScheduleId,
   Schedules,
   ScheduleSummary,
   WriteDayNote,
+} from '@/trip/domain'
+import {
+  ChooseOutcome,
+  DayOutcome,
+  RestoreOutcome,
   WriteDayNoteOutcome,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
@@ -65,6 +67,7 @@ export class TripStore extends DurableObject<Env> {
         new Error('The Trip store refuses requests: its migrations failed.'),
       )
     }
+
     return runToPromise(this.#runtime, operation)
   }
 
@@ -82,12 +85,14 @@ export class TripStore extends DurableObject<Env> {
       Trip.use((trip) => trip.day(date)).pipe(
         Effect.map(
           Option.match({
-            onNone: (): DayOutcome => ({ _tag: 'NoSchedule' }),
-            onSome: (page): DayOutcome => ({ _tag: 'Day', page }),
+            onNone: (): DayOutcome => DayOutcome.cases.NoSchedule.make({}),
+            onSome: (page): DayOutcome => DayOutcome.cases.Day.make({ page }),
           }),
         ),
         Effect.catchTag('DayNotFound', ({ date }) =>
-          Effect.succeed<DayOutcome>({ _tag: 'DayNotFound', date }),
+          Effect.succeed<DayOutcome>(
+            DayOutcome.cases.DayNotFound.make({ date }),
+          ),
         ),
       ),
     )
@@ -97,15 +102,18 @@ export class TripStore extends DurableObject<Env> {
   choose(input: ChooseItinerary): Promise<ChooseOutcome> {
     return this.#run(
       Trip.use((trip) => trip.choose(input)).pipe(
-        Effect.map((chosen): ChooseOutcome => ({ _tag: 'Chosen', ...chosen })),
+        Effect.map((chosen): ChooseOutcome =>
+          ChooseOutcome.cases.Chosen.make(chosen),
+        ),
         Effect.catchTags({
           ItineraryNotFound: ({ optionNumber }) =>
-            Effect.succeed<ChooseOutcome>({
-              _tag: 'ItineraryNotFound',
-              optionNumber,
-            }),
+            Effect.succeed<ChooseOutcome>(
+              ChooseOutcome.cases.ItineraryNotFound.make({ optionNumber }),
+            ),
           ScheduleChanged: () =>
-            Effect.succeed<ChooseOutcome>({ _tag: 'ScheduleChanged' }),
+            Effect.succeed<ChooseOutcome>(
+              ChooseOutcome.cases.ScheduleChanged.make({}),
+            ),
         }),
       ),
     )
@@ -115,18 +123,18 @@ export class TripStore extends DurableObject<Env> {
   restore(input: RestoreSchedule): Promise<RestoreOutcome> {
     return this.#run(
       Trip.use((trip) => trip.restore(input)).pipe(
-        Effect.map((restored): RestoreOutcome => ({
-          _tag: 'Restored',
-          ...restored,
-        })),
+        Effect.map((restored): RestoreOutcome =>
+          RestoreOutcome.cases.Restored.make(restored),
+        ),
         Effect.catchTags({
           ScheduleNotFound: ({ scheduleId }) =>
-            Effect.succeed<RestoreOutcome>({
-              _tag: 'ScheduleNotFound',
-              scheduleId,
-            }),
+            Effect.succeed<RestoreOutcome>(
+              RestoreOutcome.cases.ScheduleNotFound.make({ scheduleId }),
+            ),
           ScheduleChanged: () =>
-            Effect.succeed<RestoreOutcome>({ _tag: 'ScheduleChanged' }),
+            Effect.succeed<RestoreOutcome>(
+              RestoreOutcome.cases.ScheduleChanged.make({}),
+            ),
         }),
       ),
     )
@@ -136,17 +144,22 @@ export class TripStore extends DurableObject<Env> {
   writeDayNote(input: WriteDayNote): Promise<WriteDayNoteOutcome> {
     return this.#run(
       Trip.use((trip) => trip.writeDayNote(input)).pipe(
-        Effect.as<WriteDayNoteOutcome>({ _tag: 'Written' }),
+        Effect.as<WriteDayNoteOutcome>(
+          WriteDayNoteOutcome.cases.Written.make({}),
+        ),
         Effect.catchTags({
           ScheduleChanged: () =>
-            Effect.succeed<WriteDayNoteOutcome>({ _tag: 'ScheduleChanged' }),
+            Effect.succeed<WriteDayNoteOutcome>(
+              WriteDayNoteOutcome.cases.ScheduleChanged.make({}),
+            ),
           DayNotFound: ({ date }) =>
-            Effect.succeed<WriteDayNoteOutcome>({ _tag: 'DayNotFound', date }),
+            Effect.succeed<WriteDayNoteOutcome>(
+              WriteDayNoteOutcome.cases.DayNotFound.make({ date }),
+            ),
           DayNoteTooLong: ({ maxLength }) =>
-            Effect.succeed<WriteDayNoteOutcome>({
-              _tag: 'DayNoteTooLong',
-              maxLength,
-            }),
+            Effect.succeed<WriteDayNoteOutcome>(
+              WriteDayNoteOutcome.cases.DayNoteTooLong.make({ maxLength }),
+            ),
         }),
       ),
     )

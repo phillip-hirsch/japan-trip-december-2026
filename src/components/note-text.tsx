@@ -2,7 +2,10 @@ import { cn } from '@/lib/utils'
 
 const webLink = /\bhttps?:\/\/[^\s<>"]+/gi
 
-const closerOf: Partial<Record<string, string>> = { '(': ')', '[': ']' }
+const closerOf = new Map([
+  ['(', ')'],
+  ['[', ']'],
+])
 
 /**
  * A link as written, without the punctuation that usually ends its sentence
@@ -12,25 +15,32 @@ const closerOf: Partial<Record<string, string>> = { '(': ')', '[': ']' }
  */
 const trimmed = (link: string) => {
   const unmatched = new Map<string, number>()
+
   for (const char of link) {
-    const closer = closerOf[char]
+    const closer = closerOf.get(char)
+
     if (closer !== undefined) {
       unmatched.set(closer, (unmatched.get(closer) ?? 0) - 1)
     } else if (char === ')' || char === ']') {
       unmatched.set(char, (unmatched.get(char) ?? 0) + 1)
     }
   }
+
   let end = link.length
+
   while (end > 0) {
     const last = link[end - 1] ?? ''
     const closes = unmatched.get(last)
+
     if (closes !== undefined && closes > 0) {
       unmatched.set(last, closes - 1)
     } else if (!/[.,;:!?']/.test(last)) {
       break
     }
+
     end -= 1
   }
+
   return link.slice(0, end)
 }
 
@@ -38,6 +48,7 @@ const trimmed = (link: string) => {
 const hrefOf = (link: string) => {
   try {
     const url = new URL(link)
+
     return url.protocol === 'http:' || url.protocol === 'https:'
       ? url.href
       : undefined
@@ -58,21 +69,25 @@ export function NoteText({
   text: string
   className?: string
 }) {
-  const parts: Array<string | { link: string; href: string }> = []
+  const parts: Array<{ text: string; href?: string }> = []
   let from = 0
+
   for (const match of text.matchAll(webLink)) {
     const link = trimmed(match[0])
     const href = hrefOf(link)
+
     if (href === undefined) continue
-    parts.push(text.slice(from, match.index), { link, href })
+    parts.push({ text: text.slice(from, match.index) }, { text: link, href })
     from = match.index + link.length
   }
-  parts.push(text.slice(from))
+
+  parts.push({ text: text.slice(from) })
+
   return (
     <p className={cn('break-words whitespace-pre-wrap', className)}>
       {parts.map((part, index) =>
-        typeof part === 'string' ? (
-          part
+        part.href === undefined ? (
+          part.text
         ) : (
           <a
             key={index}
@@ -81,7 +96,7 @@ export function NoteText({
             rel="noopener noreferrer"
             className="text-foreground underline underline-offset-3 [overflow-wrap:anywhere]"
           >
-            {part.link}
+            {part.text}
           </a>
         ),
       )}

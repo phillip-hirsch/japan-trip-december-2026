@@ -10,10 +10,9 @@ import { useServerFn } from '@tanstack/react-start'
 import { ButtonLink } from '@/components/button-link'
 import { NotFound } from '@/components/not-found'
 import {
+  replacementAnswerOf,
   ReplaceScheduleDialog,
-  scheduleChanged,
 } from '@/components/replace-schedule-dialog'
-import type { ReplaceAnswer } from '@/components/replace-schedule-dialog'
 import {
   RevisionNotice,
   ScheduleSections,
@@ -21,7 +20,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { VerifyClaims } from '@/components/verify-claims'
 import { formatMoment } from '@/trip/calendar'
-import type { RestoreOutcome, ScheduleDetail } from '@/trip/domain'
+import type { ScheduleDetail } from '@/trip/domain'
 import { scheduleByIdQuery, useScheduleSummary } from '@/trip/queries'
 import { parseScheduleId } from '@/trip/params'
 import { restoreSchedule } from '@/trip/trip.functions'
@@ -31,7 +30,9 @@ export const Route = createFileRoute('/schedule/archived/$scheduleId')({
   params: {
     parse: (params) => {
       const scheduleId = parseScheduleId(params.scheduleId)
+
       if (scheduleId === undefined) throw notFound()
+
       return { scheduleId }
     },
     stringify: ({ scheduleId }) => ({ scheduleId }),
@@ -41,7 +42,9 @@ export const Route = createFileRoute('/schedule/archived/$scheduleId')({
       const schedule = await context.queryClient.fetchQuery(
         scheduleByIdQuery(scheduleId),
       )
+
       if (schedule === null) throw notFound()
+
       // The current Schedule lives at /schedule.
       if (schedule.status === 'current') throw redirect({ to: '/schedule' })
     },
@@ -56,10 +59,13 @@ export const Route = createFileRoute('/schedule/archived/$scheduleId')({
 function ArchivedSchedulePage() {
   const { scheduleId } = Route.useParams()
   const schedule = useSuspenseQuery(scheduleByIdQuery(scheduleId)).data
+
   if (schedule === null) return <NotFound />
+
   // Restored, here or on another device: the current Schedule lives at
   // /schedule.
   if (schedule.status === 'current') return <Navigate to="/schedule" />
+
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-10 md:px-12 md:py-16">
       <header>
@@ -98,21 +104,6 @@ function ArchivedSchedulePage() {
   )
 }
 
-const answerOf = (outcome: RestoreOutcome): ReplaceAnswer => {
-  switch (outcome._tag) {
-    case 'Restored':
-      return { _tag: 'Replaced' }
-    case 'ScheduleNotFound':
-      return {
-        _tag: 'Refused',
-        problem: 'This Schedule no longer exists, so nothing changed.',
-        final: true,
-      }
-    case 'ScheduleChanged':
-      return scheduleChanged
-  }
-}
-
 /**
  * Restore, after a confirmation: makes this Schedule current again,
  * archiving the current one, and opens it. It waits for the Schedule summary,
@@ -121,6 +112,7 @@ const answerOf = (outcome: RestoreOutcome): ReplaceAnswer => {
 function RestoreButton({ schedule }: { schedule: ScheduleDetail }) {
   const restore = useServerFn(restoreSchedule)
   const current = useScheduleSummary()
+
   if (current === undefined) {
     return (
       <Button size="lg" disabled>
@@ -128,12 +120,13 @@ function RestoreButton({ schedule }: { schedule: ScheduleDetail }) {
       </Button>
     )
   }
+
   return (
     <ReplaceScheduleDialog
       write="restore"
       target={schedule.id}
       run={async (operationId) =>
-        answerOf(
+        replacementAnswerOf(
           await restore({
             data: {
               operationId,

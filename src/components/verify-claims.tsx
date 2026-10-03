@@ -13,6 +13,7 @@ export function VerifyClaims({
   className?: string
 }) {
   if (claims.length === 0) return null
+
   return (
     <ul className={cn('flex flex-col gap-1.5', className)}>
       {claims.map((claim) => (

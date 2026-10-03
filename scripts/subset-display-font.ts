@@ -10,15 +10,21 @@ import { displayStrings } from '../src/fonts/display-strings.ts'
 
 const source =
   'https://raw.githubusercontent.com/google/fonts/d0b2d1307ad5d6b579d627a6e5abd25952484b96/ofl/shipporimincho/ShipporiMincho-SemiBold.ttf'
+
 const output = 'src/fonts/shippori-mincho-600-display.woff2'
 
 const work = mkdtempSync(join(tmpdir(), 'display-font-'))
+
 const ttf = join(work, 'ShipporiMincho-SemiBold.ttf')
+
 const text = join(work, 'display-strings.txt')
 
 const response = await fetch(source)
+
 if (!response.ok) throw new Error(`Font download failed: ${response.status}`)
+
 writeFileSync(ttf, Buffer.from(await response.arrayBuffer()))
+
 writeFileSync(text, displayStrings.join(''))
 
 execFileSync(

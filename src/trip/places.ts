@@ -1,5 +1,5 @@
-// Plain data, no Effect. The Place schema in domain.ts reads its ids from
-// here, so this shape can't be derived from that schema without a cycle.
+// Browser-safe catalogue; see AGENTS.md: Effect in the browser. The Place
+// schema reads its ids here, so deriving this shape from it would create a cycle.
 import type { DisplayString } from '@/fonts/display-strings'
 
 /** A point in decimal degrees, shared by the place and station catalogues. */
@@ -85,6 +85,7 @@ export const places = {
 
 export type PlaceId = keyof typeof places
 
+// SAFETY: places is the closed catalogue literal above; its enumerable own keys are exactly PlaceId.
 export const placeIds = Object.keys(places) as ReadonlyArray<PlaceId>
 
 /** Places Phillip saw on a previous trip. Every other place is a New place. */

@@ -22,10 +22,13 @@ export const railGeometryOf = (
   section: RailSectionIds,
 ): Array<Coordinates> | undefined => {
   const feature = featuresByKey.get(railSectionKey(section))
+
   if (feature === undefined) return undefined
+
   const path = feature.geometry.coordinates.map(([longitude, latitude]) => ({
     latitude,
     longitude,
   }))
+
   return feature.properties.from === section.from ? path : path.reverse()
 }

@@ -1,13 +1,14 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Exit, Option, Predicate, Struct } from 'effect'
+import { Effect, Exit, Option, Predicate, Schema, Struct } from 'effect'
 
-import { december, ScheduleNotFound } from '@/trip/domain'
-import type {
-  ItineraryContent,
+import {
+  december,
   OperationId,
-  ScheduleDetail,
   ScheduleId,
+  ScheduleNotFound,
+  VerifyClaimAttachment,
 } from '@/trip/domain'
+import type { ItineraryContent, ScheduleDetail } from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
 import { operation, setTime, storage, tripWith } from '@/trip/testing'
@@ -21,15 +22,16 @@ const option1WithEveryAttachment: ItineraryContent = {
     {
       id: 'rail-pass',
       text: 'Rail pass prices change in October.',
-      attachedTo: { _tag: 'Itinerary' },
+      attachedTo: VerifyClaimAttachment.cases.Itinerary.make({}),
     },
   ],
 }
 
 const trip = tripWith([option1WithEveryAttachment, option2])
 
-const firstChoose = '7d1f8c2e-4b6a-4f0e-9a3d-2c5b8e1f4a60' as OperationId
-const secondChoose = 'c4e2a9b1-3f7d-4e8a-b6c0-9d1e5f2a7b38' as OperationId
+const firstChoose = OperationId.make('7d1f8c2e-4b6a-4f0e-9a3d-2c5b8e1f4a60')
+
+const secondChoose = OperationId.make('c4e2a9b1-3f7d-4e8a-b6c0-9d1e5f2a7b38')
 
 const chooseOption1 = (operationId: OperationId) =>
   Trip.use((trip) =>
@@ -55,12 +57,12 @@ const currentSchedule = Effect.map(schedules, ({ current }) =>
  * A value with every `id` removed, at any depth, to compare a Schedule's copy
  * with the Itinerary it came from.
  */
-const withoutIds = (value: unknown): unknown =>
+const withoutIds = (value: Schema.Json): Schema.Json =>
   Array.isArray(value)
     ? value.map(withoutIds)
-    : Predicate.isObject(value)
+    : Predicate.isObjectKeyword(value)
       ? Object.fromEntries(
-          Object.entries(value)
+          Object.entries<Schema.Json>(value)
             .filter(([key]) => key !== 'id')
             .map(([key, nested]) => [key, withoutIds(nested)]),
         )
@@ -176,10 +178,13 @@ describe('Trip.choose', () => {
           ...stays.flatMap((stay) => stay.verifyClaims),
           ...verifyClaims,
         ]
+
         const ids = copied.map((entity) => entity.id)
+
         const contentIds = option1WithEveryAttachment.verifyClaims.map(
           (claim) => claim.id,
         )
+
         assert.deepStrictEqual(
           {
             allDistinct: new Set(ids).size === ids.length,
@@ -195,6 +200,7 @@ describe('Trip.choose', () => {
       const first = yield* chooseOption1(firstChoose)
       const before = yield* currentSchedule
       const repeated = yield* chooseOption1(firstChoose)
+
       // The same operation id names the same choose, whatever it now asks.
       const reworded = yield* Trip.use((trip) =>
         trip.choose({
@@ -203,6 +209,7 @@ describe('Trip.choose', () => {
           replacing: null,
         }),
       )
+
       assert.deepStrictEqual(
         { repeated, reworded, after: yield* currentSchedule },
         { repeated: first, reworded: first, after: before },
@@ -236,6 +243,7 @@ describe('Trip.choose', () => {
           }),
         ),
       )
+
       const { current } = yield* schedules
       assert.deepStrictEqual(
         { tag: error._tag, scheduleExists: Option.isSome(current) },
@@ -290,8 +298,10 @@ describe('Trip.choose again', () => {
         const before = yield* currentSchedule
         const second = yield* choose(1, operation(2), first.scheduleId)
         const after = yield* currentSchedule
+
         const stayIds = (schedule: typeof before) =>
           schedule.stays.map((stay) => stay.id)
+
         assert.deepStrictEqual(
           {
             fresh: second.scheduleId !== first.scheduleId,
@@ -340,9 +350,11 @@ describe('Trip.choose again', () => {
     Effect.gen(function* () {
       const first = yield* choose(1, operation(1), null)
       const before = yield* currentSchedule
+
       const error = yield* Effect.flip(
         choose(99, operation(2), first.scheduleId),
       )
+
       assert.deepStrictEqual(
         {
           tag: error._tag,
@@ -364,19 +376,24 @@ describe('Trip.choose again', () => {
           ...option2,
           days: [...option2.days, ...option2.days.slice(0, 1)],
         }
+
         const state = Effect.all({
           current: currentSchedule,
           archived: archivedSchedules,
         })
+
         const { first, before } = yield* Effect.gen(function* () {
           const first = yield* choose(1, operation(1), null)
+
           return { first, before: yield* state }
         }).pipe(Effect.provide(trip))
+
         const exit = yield* Effect.exit(
           choose(2, operation(2), first.scheduleId).pipe(
             Effect.provide(tripWith([unstorable])),
           ),
         )
+
         assert.deepStrictEqual(
           {
             failed: Exit.isFailure(exit),
@@ -393,9 +410,11 @@ describe('Trip.choose again', () => {
       yield* choose(2, operation(2), first.scheduleId)
       const before = yield* currentSchedule
       const archivedBefore = yield* archivedSchedules
+
       const error = yield* Effect.flip(
         choose(1, operation(3), first.scheduleId),
       )
+
       assert.deepStrictEqual(
         {
           tag: error._tag,
@@ -422,6 +441,7 @@ describe('Trip.restore', () => {
           const original = yield* currentSchedule
           yield* setTime('2026-10-02T09:30:00Z')
           const second = yield* choose(2, operation(2), first.scheduleId)
+
           return { first, original, second }
         }).pipe(Effect.provide(trip))
 
@@ -429,6 +449,7 @@ describe('Trip.restore', () => {
           const archived = yield* Trip.use((trip) =>
             trip.schedule(first.scheduleId),
           )
+
           const restored = yield* Trip.use((trip) =>
             trip.restore({
               operationId: operation(3),
@@ -436,6 +457,7 @@ describe('Trip.restore', () => {
               replacing: second.scheduleId,
             }),
           )
+
           return {
             archived,
             restored,
@@ -487,6 +509,7 @@ describe('Trip.restore', () => {
       yield* setTime('2026-10-02T09:00:00Z')
       const second = yield* choose(2, operation(2), first.scheduleId)
       yield* setTime('2026-10-03T09:00:00Z')
+
       const restore = (replacing: ScheduleId) =>
         Trip.use((trip) =>
           trip.restore({
@@ -495,13 +518,16 @@ describe('Trip.restore', () => {
             replacing,
           }),
         )
+
       const restored = yield* restore(second.scheduleId)
       yield* setTime('2026-10-04T09:00:00Z')
       const third = yield* choose(1, operation(4), first.scheduleId)
+
       const before = {
         current: yield* currentSchedule,
         archived: yield* archivedSchedules,
       }
+
       yield* setTime('2026-10-05T09:00:00Z')
       const repeated = yield* restore(third.scheduleId)
       assert.deepStrictEqual(
@@ -520,10 +546,12 @@ describe('Trip.restore', () => {
       const first = yield* choose(1, operation(1), null)
       const second = yield* choose(2, operation(2), first.scheduleId)
       yield* choose(1, operation(3), second.scheduleId)
+
       const before = {
         current: yield* currentSchedule,
         archived: yield* archivedSchedules,
       }
+
       const error = yield* Effect.flip(
         Trip.use((trip) =>
           trip.restore({
@@ -533,6 +561,7 @@ describe('Trip.restore', () => {
           }),
         ),
       )
+
       assert.deepStrictEqual(
         {
           tag: error._tag,
@@ -547,7 +576,8 @@ describe('Trip.restore', () => {
   it.effect('fails with ScheduleNotFound for an unknown Schedule', () =>
     Effect.gen(function* () {
       const first = yield* choose(1, operation(1), null)
-      const unknown = '00000000-0000-4000-8000-ffffffffffff' as ScheduleId
+      const unknown = ScheduleId.make('00000000-0000-4000-8000-ffffffffffff')
+
       const error = yield* Effect.flip(
         Trip.use((trip) =>
           trip.restore({
@@ -557,6 +587,7 @@ describe('Trip.restore', () => {
           }),
         ),
       )
+
       const current = yield* currentSchedule
       assert.deepStrictEqual(
         { error, current: current.id },
@@ -572,10 +603,12 @@ describe('Trip.restore', () => {
 describe('Trip.schedule', () => {
   it.effect('fails with ScheduleNotFound for an unknown Schedule', () =>
     Effect.gen(function* () {
-      const unknown = '00000000-0000-4000-8000-ffffffffffff' as ScheduleId
+      const unknown = ScheduleId.make('00000000-0000-4000-8000-ffffffffffff')
+
       const error = yield* Effect.flip(
         Trip.use((trip) => trip.schedule(unknown)),
       )
+
       assert.deepStrictEqual(
         error,
         new ScheduleNotFound({ scheduleId: unknown }),
@@ -631,9 +664,11 @@ describe('A Schedule', () => {
         Effect.andThen(currentSchedule),
         Effect.provide(trip),
       )
+
       const afterRevision = yield* currentSchedule.pipe(
         Effect.provide(tripWith([revisedOption1])),
       )
+
       assert.deepStrictEqual(
         Struct.omit(afterRevision, ['sourceItinerary']),
         Struct.omit(chosen, ['sourceItinerary']),

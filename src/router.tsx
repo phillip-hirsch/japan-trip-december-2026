@@ -7,6 +7,7 @@ import { makeQueryClient } from '@/trip/query-client'
 
 export function getRouter() {
   const queryClient = makeQueryClient()
+
   const router = createTanStackRouter({
     routeTree,
     context: { queryClient },
@@ -15,6 +16,7 @@ export function getRouter() {
     defaultPreloadStaleTime: 0,
     defaultNotFoundComponent: NotFound,
   })
+
   // Carries the queries a server render fetched into the browser's cache,
   // and provides the QueryClient to components.
   setupRouterSsrQueryIntegration({

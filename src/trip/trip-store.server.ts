@@ -15,7 +15,7 @@ import type { TripStore } from '@/trip/TripStore'
  */
 export const callTripStore = <S extends Schema.Decoder<unknown>>(
   Result: S,
-  call: (store: DurableObjectStub<TripStore>) => Promise<unknown>,
+  call: (store: DurableObjectStub<TripStore>) => Promise<S['Encoded']>,
 ) =>
   runToPromise(
     tripRuntime,

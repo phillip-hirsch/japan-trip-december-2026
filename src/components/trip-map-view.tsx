@@ -23,6 +23,7 @@ export const lngLatOf = ({
 const boundsOf = (points: ReadonlyArray<Coordinates>): LngLatBoundsLike => {
   const longitudes = points.map((point) => point.longitude)
   const latitudes = points.map((point) => point.latitude)
+
   return [
     [Math.min(...longitudes), Math.min(...latitudes)],
     [Math.max(...longitudes), Math.max(...latitudes)],
@@ -32,6 +33,7 @@ const boundsOf = (points: ReadonlyArray<Coordinates>): LngLatBoundsLike => {
 /** A Base: a point with its name always shown. */
 export function BaseMarker({ place }: { place: Place }) {
   const { latitude, longitude } = place.coordinates
+
   return (
     <MapMarker latitude={latitude} longitude={longitude}>
       <MarkerContent className="cursor-default">

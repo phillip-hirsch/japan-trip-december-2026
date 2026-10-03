@@ -30,7 +30,9 @@ export const runToPromise = async <A, R>(
   const exit = await runtime.runPromiseExit(
     operation.pipe(Effect.tapCause(Effect.logError)),
   )
+
   if (Exit.isFailure(exit)) throw new Error('The Trip service failed.')
+
   return exit.value
 }
 

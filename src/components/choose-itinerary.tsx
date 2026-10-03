@@ -2,30 +2,14 @@ import { useServerFn } from '@tanstack/react-start'
 
 import { ButtonLink } from '@/components/button-link'
 import {
+  replacementAnswerOf,
   ReplaceScheduleDialog,
-  scheduleChanged,
 } from '@/components/replace-schedule-dialog'
-import type { ReplaceAnswer } from '@/components/replace-schedule-dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { ChooseOutcome, ScheduleSummary } from '@/trip/domain'
+import type { ScheduleSummary } from '@/trip/domain'
 import { useScheduleSummary } from '@/trip/queries'
 import { chooseItinerary } from '@/trip/trip.functions'
-
-const answerOf = (outcome: ChooseOutcome): ReplaceAnswer => {
-  switch (outcome._tag) {
-    case 'Chosen':
-      return { _tag: 'Replaced' }
-    case 'ItineraryNotFound':
-      return {
-        _tag: 'Refused',
-        problem: `Option ${outcome.optionNumber} is no longer available, so nothing changed.`,
-        final: true,
-      }
-    case 'ScheduleChanged':
-      return scheduleChanged
-  }
-}
 
 /**
  * What an Itinerary's page offers about Phillip's Schedule, from the Schedule
@@ -34,10 +18,13 @@ const answerOf = (outcome: ChooseOutcome): ReplaceAnswer => {
  */
 export function ChooseItinerary({ optionNumber }: { optionNumber: number }) {
   const summary = useScheduleSummary()
+
   if (summary === undefined) {
     return <Skeleton aria-hidden className="h-10 w-40" />
   }
+
   const fromThis = summary?.sourceOptionNumber === optionNumber
+
   // Choose keeps its identity (its key) whichever links surround it, so an
   // open dialog stays open while the summary changes under it.
   return (
@@ -95,7 +82,7 @@ function ChooseItineraryButton({
       write="choose"
       target={`Option ${optionNumber}`}
       run={async (operationId) =>
-        answerOf(
+        replacementAnswerOf(
           await choose({
             data: { operationId, optionNumber, replacing: current?.id ?? null },
           }),

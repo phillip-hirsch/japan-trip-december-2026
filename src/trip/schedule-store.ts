@@ -45,6 +45,7 @@ export interface ScheduleCopy {
 // Rows: lists and unions are stored as JSON, and lists of entities keep the
 // Itinerary's order by position.
 const ofSchedule = { scheduleId: ScheduleId }
+
 const ordered = { position: Schema.Int }
 
 const StayRow = Schema.Struct({
@@ -98,12 +99,17 @@ export type ScheduleStore = Effect.Success<typeof scheduleStore>
 export const scheduleStore = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
 
-  const insertInto = (table: string) => (row: Record<string, unknown>) =>
+  const insertInto = (table: string) => (row: Schema.JsonObject) =>
     sql`INSERT INTO ${sql(table)} ${sql.insert(row)}`
-  const inserter = <S extends Schema.Encoder<Record<string, unknown>>>(
+
+  const inserter = <S extends Schema.Encoder<Schema.JsonObject>>(
     table: string,
     Request: S,
-  ) => SqlSchema.void({ Request, execute: insertInto(table) })
+  ) =>
+    SqlSchema.void({
+      Request,
+      execute: insertInto(table),
+    })
 
   const insertSchedule = inserter('schedules', ScheduleRecord)
   const insertStay = inserter('stays', StayRow)
@@ -182,24 +188,29 @@ export const scheduleStore = Effect.gen(function* () {
     StayRow,
     (id) => sql`SELECT * FROM stays WHERE scheduleId = ${id} ORDER BY checkIn`,
   )
+
   const findDays = rowsOf(
     DayRow,
     (id) => sql`SELECT * FROM days WHERE scheduleId = ${id} ORDER BY date`,
   )
+
   const findMoves = rowsOf(
     MoveRow,
     (id) => sql`SELECT * FROM moves WHERE scheduleId = ${id} ORDER BY date`,
   )
+
   const findDayTrips = rowsOf(
     DayTripRow,
     (id) =>
       sql`SELECT * FROM dayTrips WHERE scheduleId = ${id} ORDER BY position`,
   )
+
   const findVerifyClaims = rowsOf(
     VerifyClaimRow,
     (id) =>
       sql`SELECT * FROM verifyClaims WHERE scheduleId = ${id} ORDER BY position`,
   )
+
   const findAnchors = rowsOf(
     AnchorRow,
     (id) =>
@@ -220,6 +231,7 @@ export const scheduleStore = Effect.gen(function* () {
         findVerifyClaims(scheduleId),
         findAnchors(scheduleId),
       ])
+
     const copy: ScheduleCopy = {
       stays: stays.map(withoutSchedule),
       days: days.map(({ date, description, note }) => ({
@@ -239,6 +251,7 @@ export const scheduleStore = Effect.gen(function* () {
       ),
       anchors: anchors.map((row) => row.anchor),
     }
+
     return copy
   })
 

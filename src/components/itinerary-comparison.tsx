@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { CheckIcon, ChevronRightIcon, XIcon } from 'lucide-react'
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 
 import {
   NewToYou,
@@ -10,6 +10,7 @@ import {
 } from '@/components/itinerary-summary'
 import { OptionalBadge } from '@/components/optional-badge'
 import { PlaceName } from '@/components/place-name'
+import type { StyleWithVariables } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import {
   formatDurationRange,
@@ -42,6 +43,7 @@ function MoveBases({ move }: { move: MoveSummary }) {
 
 function Moves({ moves }: { moves: MovesComparison }) {
   if (moves.count === 0) return <Muted>No Moves</Muted>
+
   return (
     <div className="flex flex-col gap-1">
       <p>
@@ -66,6 +68,7 @@ function Moves({ moves }: { moves: MovesComparison }) {
 
 function ThursdayBackup({ backup }: { backup: boolean }) {
   const Icon = backup ? CheckIcon : XIcon
+
   return (
     <span
       className={cn(
@@ -81,6 +84,7 @@ function ThursdayBackup({ backup }: { backup: boolean }) {
 
 function DayTrips({ dayTrips }: { dayTrips: ItineraryComparison['dayTrips'] }) {
   if (dayTrips.length === 0) return <Muted>None</Muted>
+
   return (
     <ul className="flex flex-col gap-1">
       {dayTrips.map(({ place, optional }) => (
@@ -100,6 +104,7 @@ function FlightsAndRyokan({
   if (flights.length === 0 && ryokanStays.length === 0) {
     return <Muted>None</Muted>
   }
+
   return (
     <ul className="flex flex-col gap-1">
       {flights.map((flight) => (
@@ -187,6 +192,7 @@ const labelClassName =
 
 function ItineraryCard({ itinerary }: { itinerary: ItineraryComparison }) {
   const headingId = `option-${itinerary.optionNumber}`
+
   return (
     <article
       aria-labelledby={headingId}
@@ -239,15 +245,15 @@ export function ComparisonRows({
 }: {
   itineraries: ReadonlyArray<ItineraryComparison>
 }) {
+  const comparisonStyle: StyleWithVariables = {
+    '--columns': itineraries.length,
+    '--rows': rows.length,
+    '--card-rows': rows.length + 1,
+  }
+
   return (
     <div
-      style={
-        {
-          '--columns': itineraries.length,
-          '--rows': rows.length,
-          '--card-rows': rows.length + 1,
-        } as CSSProperties
-      }
+      style={comparisonStyle}
       className="relative -mx-6 flex items-start snap-x snap-mandatory scroll-px-6 gap-3 overflow-x-auto px-6 pb-4 md:-mx-12 md:scroll-px-12 md:px-12 xl:mx-0 xl:grid xl:items-stretch xl:snap-none xl:grid-cols-[9rem_repeat(var(--columns),minmax(11rem,1fr))] xl:gap-x-4 xl:gap-y-3 xl:px-0"
     >
       <div
