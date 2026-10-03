@@ -57,7 +57,7 @@ export type SaveAnswer =
  *   two saves never race.
  * - NotSaved: a value whose save failed or was refused, or a draft restored
  *   from an earlier visit, with why. It stays marked while edited.
- * - Saved: the value just saved, until the refetched data shows it.
+ * - Saved: the value just saved, until data is read again after it.
  */
 export type DraftedFieldState =
   | { readonly _tag: 'Clean'; readonly justSaved: boolean }
@@ -124,7 +124,7 @@ export const useDraftedField = ({
     else setState({ _tag: 'NotSaved', value: draft, problem: restoredProblem })
   }, [target])
 
-  // Once data read after a save arrives, the field follows it again: a new
+  // When the refetch after a save failed, data read later ends Saved: a new
   // value, or another Schedule's, which may hold the same value.
   useEffect(() => {
     setState((current) =>
@@ -177,7 +177,21 @@ export const useDraftedField = ({
           ? { _tag: 'Clean', justSaved: true }
           : { _tag: 'Saved', value: sending },
       )
-      await invalidateAfter(queryClient, write)
+      // Once the refetch completes, the field shows what the server holds,
+      // even a value equal to the one before the save.
+      const refetched = await invalidateAfter(queryClient, write, {
+        throwOnError: true,
+      }).then(
+        () => true,
+        () => false,
+      )
+      if (refetched) {
+        setState((current) =>
+          current._tag === 'Saved'
+            ? { _tag: 'Clean', justSaved: true }
+            : current,
+        )
+      }
       return
     }
     setState({

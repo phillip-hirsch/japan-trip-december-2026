@@ -7,7 +7,12 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query'
-import type { Query, QueryClient, QueryKey } from '@tanstack/react-query'
+import type {
+  InvalidateOptions,
+  Query,
+  QueryClient,
+  QueryKey,
+} from '@tanstack/react-query'
 import { useEffect } from 'react'
 
 import { millisecondsUntilTokyoMidnight } from '@/trip/calendar'
@@ -155,17 +160,24 @@ export type TripWrite = keyof typeof affectedBy
 const invalidate = (
   queryClient: QueryClient,
   queryKeys: ReadonlyArray<QueryKey>,
+  options?: InvalidateOptions,
 ) =>
   Promise.all(
-    queryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+    queryKeys.map((queryKey) =>
+      queryClient.invalidateQueries({ queryKey }, options),
+    ),
   )
 
 /**
  * Invalidates exactly the queries a successful write affects, and resolves
  * once the shown ones have refetched. The rest refetch when next shown.
+ * With `throwOnError`, it rejects when a refetch fails.
  */
-export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) =>
-  invalidate(queryClient, affectedBy[write])
+export const invalidateAfter = (
+  queryClient: QueryClient,
+  write: TripWrite,
+  options?: InvalidateOptions,
+) => invalidate(queryClient, affectedBy[write], options)
 
 /**
  * Refetches after a write was refused as "Schedule changed": another device
