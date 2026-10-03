@@ -18,11 +18,13 @@ import type { TripWrite } from '@/trip/queries'
 const storageKey = (target: string) => `draft:${target}`
 
 /**
- * A stored draft. Each write has its own id, so a save clears only the draft
- * it wrote, never a later one with the same text.
+ * A stored draft, with the Schedule it was typed for. Each write has its own
+ * id, so a save clears only the draft it wrote, never a later one with the
+ * same text.
  */
 interface Draft {
   readonly value: string
+  readonly scheduleId: string
   readonly id: string
 }
 
@@ -36,9 +38,11 @@ const readDraft = (target: string): Draft | undefined => {
       draft !== null &&
       'value' in draft &&
       typeof draft.value === 'string' &&
+      'scheduleId' in draft &&
+      typeof draft.scheduleId === 'string' &&
       'id' in draft &&
       typeof draft.id === 'string'
-      ? { value: draft.value, id: draft.id }
+      ? { value: draft.value, scheduleId: draft.scheduleId, id: draft.id }
       : undefined
   } catch {
     return undefined
@@ -46,8 +50,8 @@ const readDraft = (target: string): Draft | undefined => {
 }
 
 /** Keeps a value as the target's draft, returning that write's id. */
-const writeDraft = (target: string, value: string) => {
-  const draft: Draft = { value, id: crypto.randomUUID() }
+const writeDraft = (target: string, value: string, scheduleId: string) => {
+  const draft: Draft = { value, scheduleId, id: crypto.randomUUID() }
   try {
     localStorage.setItem(storageKey(target), JSON.stringify(draft))
   } catch {
@@ -145,7 +149,7 @@ export const useDraftedField = ({
   // one, never one another editor of the target, such as another tab, wrote.
   const ownDraftId = useRef<string>(undefined)
   const keepDraft = (next: string) => {
-    ownDraftId.current = writeDraft(target, next)
+    ownDraftId.current = writeDraft(target, next, scheduleIdRef.current)
     return ownDraftId.current
   }
   const clearOwnDraft = () => {
@@ -165,7 +169,11 @@ export const useDraftedField = ({
       setState({
         _tag: 'NotSaved',
         value: draft.value,
-        problem: restoredProblem,
+        // Typed for a Schedule since replaced, it's never saved there unseen.
+        problem:
+          draft.scheduleId === scheduleIdRef.current
+            ? restoredProblem
+            : scheduleChangedProblem,
       })
     }
   }, [target])
