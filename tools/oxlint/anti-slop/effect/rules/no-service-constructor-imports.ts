@@ -14,6 +14,30 @@ function getImportedName(specifier: ESTree.ImportSpecifier): string {
 	return specifier.imported.value;
 }
 
+/** A statically known property name: `x.name`, `x["name"]` or `{ name }` / `{ "name": … }`. */
+function staticPropertyName(key: ESTree.Node, computed: boolean): string | undefined {
+	if (!computed && key.type === "Identifier") return key.name;
+	if (key.type === "Literal" && typeof key.value === "string") return key.value;
+	return undefined;
+}
+
+/** Members read from a namespace binding by name: `Ns.make`, `Ns["make"]` or `const { make } = Ns`. */
+function namespaceMembers(identifier: ESTree.Node): Array<{ node: ESTree.Node; name: string }> {
+	const parent = identifier.parent;
+	if (parent?.type === "MemberExpression" && parent.object === identifier) {
+		const name = staticPropertyName(parent.property, parent.computed);
+		return name === undefined ? [] : [{ node: parent, name }];
+	}
+	if (parent?.type === "VariableDeclarator" && parent.init === identifier && parent.id.type === "ObjectPattern") {
+		return parent.id.properties.flatMap((property) => {
+			if (property.type !== "Property") return [];
+			const name = staticPropertyName(property.key, property.computed);
+			return name === undefined ? [] : [{ node: property, name }];
+		});
+	}
+	return [];
+}
+
 /** Keep dependency-bearing Effect service constructors local to their owning capability modules. */
 export const noServiceConstructorImportsRule = defineRule({
 	meta: {
@@ -38,21 +62,15 @@ export const noServiceConstructorImportsRule = defineRule({
 					if (specifier.type === "ImportNamespaceSpecifier") {
 						for (const variable of context.sourceCode.getDeclaredVariables(specifier)) {
 							for (const reference of variable.references) {
-								const member = reference.identifier.parent;
-								if (
-									member?.type !== "MemberExpression" ||
-									member.object !== reference.identifier ||
-									member.computed ||
-									member.property.type !== "Identifier" ||
-									!SERVICE_CONSTRUCTOR_NAME.test(member.property.name)
-								)
-									continue;
+								for (const { node: member, name } of namespaceMembers(reference.identifier)) {
+									if (!SERVICE_CONSTRUCTOR_NAME.test(name)) continue;
 
-								context.report({
-									node: member,
-									messageId: "serviceConstructorImport",
-									data: { name: member.property.name },
-								});
+									context.report({
+										node: member,
+										messageId: "serviceConstructorImport",
+										data: { name },
+									});
+								}
 							}
 						}
 						continue;
