@@ -507,6 +507,8 @@ export type ScheduleMoveDetail = typeof ScheduleMoveDetail.Type
 
 export const ScheduleDayDetail = Schema.Struct({
   ...DayDetail.fields,
+  /** Phillip's Day note, absent until he writes one. */
+  note: Schema.optionalKey(Schema.String),
   anchors: Schema.Array(ScheduleAnchor),
   move: Schema.optionalKey(ScheduleMoveDetail),
   dayTrips: Schema.Array(
@@ -542,6 +544,8 @@ export type NextMove = typeof NextMove.Type
  * during the Trip.
  */
 export const DayPage = Schema.Struct({
+  /** The Schedule the Day belongs to, which every write to it names. */
+  scheduleId: ScheduleId,
   day: ScheduleDayDetail,
   /** Absent on December 20, the Departure Day, when Phillip flies home. */
   tonight: Schema.optionalKey(TonightsHotel),
@@ -720,6 +724,32 @@ export class ScheduleChanged extends Schema.TaggedError<ScheduleChanged>()(
   'ScheduleChanged',
   {},
 ) {}
+
+/**
+ * Write the Day note on a Day of the Schedule named, as a whole value: an
+ * empty note removes it. The last write wins.
+ */
+export const WriteDayNote = Schema.Struct({
+  scheduleId: ScheduleId,
+  date: IsoDate,
+  note: Schema.String,
+})
+export type WriteDayNote = typeof WriteDayNote.Type
+
+/** A Day note longer than the Trip service accepts; nothing is written. */
+export class DayNoteTooLong extends Schema.TaggedError<DayNoteTooLong>()(
+  'DayNoteTooLong',
+  { maxLength: Schema.Int },
+) {}
+
+/** What writing a Day note did, as plain data for the browser. */
+export const WriteDayNoteOutcome = Schema.TaggedUnion({
+  Written: {},
+  ScheduleChanged: ScheduleChanged.fields,
+  DayNotFound: DayNotFound.fields,
+  DayNoteTooLong: DayNoteTooLong.fields,
+})
+export type WriteDayNoteOutcome = typeof WriteDayNoteOutcome.Type
 
 /** What choosing an Itinerary did, as plain data for the browser. */
 export const ChooseOutcome = Schema.TaggedUnion({

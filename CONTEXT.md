@@ -29,8 +29,12 @@ One calendar date of the Trip in Tokyo time, December 6 through December 20.
 One thing planned on a Day of the Schedule.
 _Avoid_: event, item
 
+**Day note**:
+Phillip's own plain-text note on a Day of the Schedule, shown on its Day page. It belongs to that Schedule: choosing again starts without Day notes, and restoring brings them back.
+_Avoid_: day memo, comment
+
 **Day page**:
-A Day of the Schedule on its own page at /schedule/$date: the Day's source description and Day trips, Tonight's hotel and the Next Move.
+A Day of the Schedule on its own page at /schedule/$date: the Day's source description and Day trips, its Day note, Tonight's hotel and the Next Move.
 
 **Today**:
 During the Trip, Home showing the Day page of the current Day in Tokyo, in place.
@@ -80,3 +84,7 @@ _Avoid_: caveat, warning
 **Checklist**:
 The things to book or confirm for the Schedule: mostly derived from its Stays, Moves, Anchors and Verify claims, plus Phillip's own.
 _Avoid_: todo list, tasks
+
+**Draft**:
+What Phillip has typed but not yet saved, kept on his device until its save succeeds, and restored marked "not saved" if it never did. Only his Save or Retry sends it.
+_Avoid_: autosave, unsaved changes

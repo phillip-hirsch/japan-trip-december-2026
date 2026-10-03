@@ -11,6 +11,7 @@ import {
   MoveRoute,
   MoveTravel,
 } from '@/components/day-details'
+import { DayNote } from '@/components/day-note'
 import { DisplayJa } from '@/components/display-ja'
 import { NewPlaceBadge } from '@/components/new-place-badge'
 import { Badge } from '@/components/ui/badge'
@@ -169,13 +170,16 @@ function NextMoveCard({ move, today }: { move: NextMove; today: IsoDate }) {
   )
 }
 
+const noteHeadingId = 'note'
+
 /**
  * A Day of the Schedule, on its own page and as Today on Home: the Day's
- * source description and Day trips, tonight's hotel and the next Move, with
- * controls to step between Days. On a touch screen, swiping steps too.
+ * source description and Day trips, Phillip's Day note, tonight's hotel and
+ * the next Move, with controls to step between Days. On a touch screen,
+ * swiping steps too.
  */
 export function ScheduleDayView({
-  page: { day, tonight, nextMove },
+  page: { scheduleId, day, tonight, nextMove },
   eyebrow,
 }: {
   page: DayPage
@@ -242,6 +246,15 @@ export function ScheduleDayView({
           )}
           <VerifyClaims claims={day.verifyClaims} />
         </div>
+      </DaySection>
+      <DaySection id={noteHeadingId} title="Note">
+        <DayNote
+          key={day.date}
+          scheduleId={scheduleId}
+          date={day.date}
+          note={day.note}
+          labelledBy={noteHeadingId}
+        />
       </DaySection>
       {tonight && (
         <DaySection id="tonight" title="Tonight">

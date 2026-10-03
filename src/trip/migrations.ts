@@ -101,4 +101,9 @@ export const migrations = Migrator.fromRecord({
     const sql = yield* SqlClient.SqlClient
     yield* sql`ALTER TABLE schedules ADD COLUMN archivedAt TEXT`
   }),
+  // Phillip's Day note on each Day; null while he has written none.
+  '0003_days_note': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+    yield* sql`ALTER TABLE days ADD COLUMN note TEXT`
+  }),
 })

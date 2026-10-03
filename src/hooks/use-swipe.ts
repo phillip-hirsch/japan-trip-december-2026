@@ -7,10 +7,15 @@ const minDistance = 48
 /** How much further sideways than up or down, so scrolling is never a swipe. */
 const minRatio = 1.5
 
+/** Where a drag selects text or moves the caret rather than swipes. */
+const editable =
+  'input, textarea, [contenteditable]:not([contenteditable="false"])'
+
 /**
  * Touch handlers that call back when one finger swipes across the element.
  * Vertical scrolling is left alone, and nothing is prevented, so the page
- * still scrolls during the gesture.
+ * still scrolls during the gesture. A gesture starting in a field is never a
+ * swipe.
  */
 export function useSwipe({
   onSwipeLeft,
@@ -23,8 +28,10 @@ export function useSwipe({
   return {
     onTouchStart: (event: TouchEvent) => {
       const touch = event.touches[0]
+      const inField =
+        event.target instanceof Element && event.target.closest(editable)
       start.current =
-        event.touches.length === 1 && touch
+        event.touches.length === 1 && touch && !inField
           ? { x: touch.clientX, y: touch.clientY }
           : null
     },

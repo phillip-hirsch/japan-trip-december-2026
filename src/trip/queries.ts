@@ -2,6 +2,7 @@
 // Itinerary content changes only with a deploy, so its pages keep their route
 // loaders; this cache holds what Phillip's writes change.
 import {
+  partialMatchKey,
   queryOptions,
   useQuery,
   useQueryClient,
@@ -145,17 +146,55 @@ const replacingTheSchedule = [
 const affectedBy = {
   choose: replacingTheSchedule,
   restore: replacingTheSchedule,
+  // Every query carrying the current Schedule's Days: the Day pages, Today
+  // on Home, and the Schedule itself, by id too.
+  dayNote: [keys.days, keys.home, keys.schedules, keys.scheduleById],
 } as const satisfies Record<string, ReadonlyArray<QueryKey>>
 
 export type TripWrite = keyof typeof affectedBy
+
+const invalidate = (
+  queryClient: QueryClient,
+  queryKeys: ReadonlyArray<QueryKey>,
+) =>
+  Promise.all(
+    queryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+  )
 
 /**
  * Invalidates exactly the queries a successful write affects, and resolves
  * once the shown ones have refetched. The rest refetch when next shown.
  */
 export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) =>
-  Promise.all(
-    affectedBy[write].map((queryKey) =>
-      queryClient.invalidateQueries({ queryKey }),
-    ),
-  )
+  invalidate(queryClient, affectedBy[write])
+
+/**
+ * Calls back whenever a shown query a write affects is read successfully;
+ * returns how to stop. Only shown ones count, the ones whose data is on
+ * screen, never one preloaded for a page not yet open.
+ */
+export const subscribeToReadsAfter = (
+  queryClient: QueryClient,
+  write: TripWrite,
+  listener: () => void,
+) =>
+  queryClient.getQueryCache().subscribe((event) => {
+    if (
+      event.type === 'updated' &&
+      event.action.type === 'success' &&
+      event.query.isActive() &&
+      affectedBy[write].some((queryKey) =>
+        partialMatchKey(event.query.queryKey, queryKey),
+      )
+    ) {
+      listener()
+    }
+  })
+
+/**
+ * Refetches after a write was refused as "Schedule changed": another device
+ * replaced the Schedule this screen shows, so everything replacing it
+ * affects is stale.
+ */
+export const invalidateAfterScheduleChanged = (queryClient: QueryClient) =>
+  invalidate(queryClient, replacingTheSchedule)
