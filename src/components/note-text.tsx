@@ -2,25 +2,33 @@ import { cn } from '@/lib/utils'
 
 const webLink = /\bhttps?:\/\/[^\s<>"]+/gi
 
-const count = (text: string, char: string) => text.split(char).length - 1
-
-const openerOf: Partial<Record<string, string>> = { ')': '(', ']': '[' }
+const closerOf: Partial<Record<string, string>> = { '(': ')', '[': ']' }
 
 /**
  * A link as written, without the punctuation that usually ends its sentence
  * rather than the link. A closing bracket stays when the link opened it, as
- * in Wikipedia's addresses.
+ * in Wikipedia's addresses. One pass counts each bracket's unmatched closes,
+ * and one backward pass trims, so it stays linear however long the note.
  */
 const trimmed = (link: string) => {
+  const unmatched = new Map<string, number>()
+  for (const char of link) {
+    const closer = closerOf[char]
+    if (closer !== undefined) {
+      unmatched.set(closer, (unmatched.get(closer) ?? 0) - 1)
+    } else if (char === ')' || char === ']') {
+      unmatched.set(char, (unmatched.get(char) ?? 0) + 1)
+    }
+  }
   let end = link.length
   while (end > 0) {
-    const head = link.slice(0, end)
-    const last = head.at(-1) ?? ''
-    const opener = openerOf[last]
-    const ends =
-      /[.,;:!?']/.test(last) ||
-      (opener !== undefined && count(head, last) > count(head, opener))
-    if (!ends) break
+    const last = link[end - 1] ?? ''
+    const closes = unmatched.get(last)
+    if (closes !== undefined && closes > 0) {
+      unmatched.set(last, closes - 1)
+    } else if (!/[.,;:!?']/.test(last)) {
+      break
+    }
     end -= 1
   }
   return link.slice(0, end)
