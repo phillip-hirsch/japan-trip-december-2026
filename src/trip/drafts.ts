@@ -240,9 +240,10 @@ export const useDraftedField = ({
     } catch {
       answer = { _tag: 'Refused', problem: unansweredProblem() }
     }
-    // Data read during the save showing another Schedule means the value
-    // went to one that is no longer shown: keep it, as if refused.
-    if (answer._tag === 'Saved' && scheduleIdRef.current !== sentTo) {
+    // Data read during the save showing another Schedule means the value was
+    // meant for one no longer shown, whatever the answer: keep it, refused,
+    // so it is never saved to the new one unseen.
+    if (scheduleIdRef.current !== sentTo) {
       answer = { _tag: 'ScheduleChanged' }
     }
     if (answer._tag === 'Saved') {
