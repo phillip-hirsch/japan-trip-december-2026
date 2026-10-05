@@ -1,6 +1,6 @@
 # Adding or revising an Itinerary
 
-Phillip hands over gpt-6-astra markdown. It is either a **Revision** of an existing Itinerary or a **new Itinerary**. Either way, convert it the same way every time: strictly, inventing nothing, and checked against the Trip's rules (ADR 0003). The terms below are from `CONTEXT.md`.
+Phillip hands over gpt-6-astra markdown. It is either a **Revision** of an existing Itinerary or a **new Itinerary**. Either way, convert it the same way every time: strictly, inventing nothing, and checked against the Trip's rules (ADR 0003). The terms below are from `GLOSSARY.md`.
 
 ## Steps
 

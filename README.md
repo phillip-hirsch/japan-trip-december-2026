@@ -58,7 +58,7 @@ The repo is public. Itineraries and these docs are in git. The schedule, checkli
 - `src/trip`: domain, Options 1–4, rail geometry
 - `src/access`: Access gate
 - `src/components`: UI, maps, tab bar, and sidebar
-- [`CONTEXT.md`](CONTEXT.md): glossary
+- [`GLOSSARY.md`](GLOSSARY.md): glossary
 - [`docs/adr`](docs/adr): storage, Access, itineraries as repo content
 - [`docs/itinerary.md`](docs/itinerary.md): source write-up
 - [`docs/agents/itineraries.md`](docs/agents/itineraries.md): add or revise an itinerary
