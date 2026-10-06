@@ -9,3 +9,6 @@ export const noteMaxLength = 10_000
 
 /** The longest own Checklist item's text the Trip service accepts. */
 export const checklistTextMaxLength = 500
+
+/** The longest Activity title the Trip service accepts. */
+export const activityTitleMaxLength = 200

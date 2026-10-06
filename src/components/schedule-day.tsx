@@ -3,6 +3,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { BedIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
+import { Activities } from '@/components/activities'
 import { ButtonLink } from '@/components/button-link'
 import {
   AnchorBadges,
@@ -174,13 +175,15 @@ function NextMoveCard({ move, today }: { move: NextMove; today: IsoDate }) {
   )
 }
 
+const activitiesHeadingId = 'activities'
+
 const noteHeadingId = 'note'
 
 /**
  * A Day of the Schedule, on its own page and as Today on Home: the Day's
- * source description and Day trips, Phillip's Day note, tonight's hotel and
- * the next Move, with controls to step between Days. On a touch screen,
- * swiping steps too.
+ * source description and Day trips, Phillip's Activities and Day note,
+ * tonight's hotel and the next Move, with controls to step between Days. On
+ * a touch screen, swiping steps too.
  */
 export function ScheduleDayView({
   page: { scheduleId, day, tonight, nextMove },
@@ -255,6 +258,15 @@ export function ScheduleDayView({
           )}
           <VerifyClaims claims={day.verifyClaims} />
         </div>
+      </DaySection>
+      <DaySection id={activitiesHeadingId} title="Activities">
+        <Activities
+          key={day.date}
+          scheduleId={scheduleId}
+          date={day.date}
+          activities={day.activities}
+          labelledBy={activitiesHeadingId}
+        />
       </DaySection>
       <DaySection id={noteHeadingId} title="Note">
         <DayNote

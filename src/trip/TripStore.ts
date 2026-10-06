@@ -6,16 +6,20 @@ import { Effect, Exit, Layer, ManagedRuntime, Option } from 'effect'
 import type { SqlClient } from 'effect/sql'
 
 import type {
+  AddActivity,
   AddOwnChecklistItem,
   Checklist,
   ChooseItinerary,
+  EditActivity,
   HomeState,
   IsoDate,
+  MoveActivity,
   RestoreSchedule,
   ScheduleDetail,
   ScheduleId,
   Schedules,
   ScheduleSummary,
+  RemoveActivity,
   RemoveOwnChecklistItem,
   TickChecklistItem,
   TickOwnChecklistItem,
@@ -24,9 +28,13 @@ import type {
   WriteTripNote,
 } from '@/trip/domain'
 import {
+  AddActivityOutcome,
   AddOwnChecklistItemOutcome,
   ChooseOutcome,
   DayOutcome,
+  EditActivityOutcome,
+  MoveActivityOutcome,
+  RemoveActivityOutcome,
   RemoveOwnChecklistItemOutcome,
   RestoreOutcome,
   TickChecklistItemOutcome,
@@ -298,6 +306,108 @@ export class TripStore extends DurableObject<Env> {
         Effect.as<RemoveOwnChecklistItemOutcome>(
           RemoveOwnChecklistItemOutcome.cases.Removed.make({}),
         ),
+      ),
+    )
+  }
+
+  /** Adds an Activity on a Day of the current Schedule. */
+  addActivity(input: AddActivity): Promise<AddActivityOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.addActivity(input)).pipe(
+        Effect.map((added): AddActivityOutcome =>
+          AddActivityOutcome.cases.Added.make(added),
+        ),
+        Effect.catchTags({
+          ScheduleChanged: () =>
+            Effect.succeed<AddActivityOutcome>(
+              AddActivityOutcome.cases.ScheduleChanged.make({}),
+            ),
+          DayNotFound: ({ date }) =>
+            Effect.succeed<AddActivityOutcome>(
+              AddActivityOutcome.cases.DayNotFound.make({ date }),
+            ),
+          ActivityTitleInvalid: ({ maxLength }) =>
+            Effect.succeed<AddActivityOutcome>(
+              AddActivityOutcome.cases.ActivityTitleInvalid.make({ maxLength }),
+            ),
+          NoteTooLong: ({ maxLength }) =>
+            Effect.succeed<AddActivityOutcome>(
+              AddActivityOutcome.cases.NoteTooLong.make({ maxLength }),
+            ),
+        }),
+      ),
+    )
+  }
+
+  /** Writes the fields an edit carries on an Activity of the current Schedule. */
+  editActivity(input: EditActivity): Promise<EditActivityOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.editActivity(input)).pipe(
+        Effect.as<EditActivityOutcome>(
+          EditActivityOutcome.cases.Edited.make({}),
+        ),
+        Effect.catchTags({
+          ScheduleChanged: () =>
+            Effect.succeed<EditActivityOutcome>(
+              EditActivityOutcome.cases.ScheduleChanged.make({}),
+            ),
+          ActivityNotFound: ({ activityId }) =>
+            Effect.succeed<EditActivityOutcome>(
+              EditActivityOutcome.cases.ActivityNotFound.make({ activityId }),
+            ),
+          ActivityTitleInvalid: ({ maxLength }) =>
+            Effect.succeed<EditActivityOutcome>(
+              EditActivityOutcome.cases.ActivityTitleInvalid.make({
+                maxLength,
+              }),
+            ),
+          NoteTooLong: ({ maxLength }) =>
+            Effect.succeed<EditActivityOutcome>(
+              EditActivityOutcome.cases.NoteTooLong.make({ maxLength }),
+            ),
+        }),
+      ),
+    )
+  }
+
+  /** Removes an Activity of the current Schedule. */
+  removeActivity(input: RemoveActivity): Promise<RemoveActivityOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.removeActivity(input)).pipe(
+        Effect.as<RemoveActivityOutcome>(
+          RemoveActivityOutcome.cases.Removed.make({}),
+        ),
+        Effect.catchTags({
+          ScheduleChanged: () =>
+            Effect.succeed<RemoveActivityOutcome>(
+              RemoveActivityOutcome.cases.ScheduleChanged.make({}),
+            ),
+          ActivityNotFound: ({ activityId }) =>
+            Effect.succeed<RemoveActivityOutcome>(
+              RemoveActivityOutcome.cases.ActivityNotFound.make({ activityId }),
+            ),
+        }),
+      ),
+    )
+  }
+
+  /** Moves an Activity of the current Schedule within its Day. */
+  moveActivity(input: MoveActivity): Promise<MoveActivityOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.moveActivity(input)).pipe(
+        Effect.as<MoveActivityOutcome>(
+          MoveActivityOutcome.cases.Moved.make({}),
+        ),
+        Effect.catchTags({
+          ScheduleChanged: () =>
+            Effect.succeed<MoveActivityOutcome>(
+              MoveActivityOutcome.cases.ScheduleChanged.make({}),
+            ),
+          ActivityNotFound: ({ activityId }) =>
+            Effect.succeed<MoveActivityOutcome>(
+              MoveActivityOutcome.cases.ActivityNotFound.make({ activityId }),
+            ),
+        }),
       ),
     )
   }

@@ -99,6 +99,15 @@ export const stayNoteTarget = (stayId: string) => `stay-note:${stayId}`
 /** The draft target of the Trip note. */
 export const tripNoteTarget = 'trip-note'
 
+/** The draft target of a new Activity on a Day, by its date. */
+export const newActivityTarget = (date: IsoDate) => `activity:new:${date}`
+
+/**
+ * The draft target of an edit to an Activity, by its id, which is fresh in
+ * each Schedule, as a Stay's is.
+ */
+export const activityTarget = (activityId: string) => `activity:${activityId}`
+
 /** The draft target of a new own Checklist item. */
 export const newChecklistItemTarget = 'checklist-item:new'
 

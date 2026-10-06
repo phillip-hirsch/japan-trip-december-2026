@@ -1,10 +1,14 @@
 import { useServerFn } from '@tanstack/react-start'
 import { Match, Predicate } from 'effect'
-import { BadgeAlertIcon, BellIcon, CheckIcon, Trash2Icon } from 'lucide-react'
+import { BadgeAlertIcon, BellIcon, Trash2Icon } from 'lucide-react'
 import { useId } from 'react'
 
 import { ButtonLink } from '@/components/button-link'
-import { NotSavedAlert } from '@/components/not-saved-alert'
+import {
+  NotSavedAlert,
+  RetryOrDismiss,
+  SavedStatus,
+} from '@/components/not-saved-alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -135,26 +139,6 @@ const ownTickAnswerOf = (outcome: TickOwnChecklistItemOutcome): SaveAnswer =>
       ChecklistItemNotFound: () => notFound,
     }),
   )
-
-/** Retrying or dismissing a one-tap save that didn't go through. */
-function RetryOrDismiss({
-  onRetry,
-  onDismiss,
-}: {
-  onRetry: () => void
-  onDismiss: () => void
-}) {
-  return (
-    <div className="flex gap-2">
-      <Button type="button" size="sm" onClick={onRetry}>
-        Retry
-      </Button>
-      <Button type="button" size="sm" variant="ghost" onClick={onDismiss}>
-        Dismiss
-      </Button>
-    </div>
-  )
-}
 
 /**
  * One Checklist item: its tick, what it asks for and when, and for Phillip's
@@ -449,14 +433,9 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
             {notSaved ? 'Discard' : 'Clear'}
           </Button>
         )}
-        <p role="status" className="text-sm text-muted-foreground">
-          {SaveState.$is('Clean')(state) && state.justSaved && (
-            <span className="inline-flex items-center gap-1">
-              <CheckIcon className="size-4" aria-hidden />
-              Added
-            </span>
-          )}
-        </p>
+        <SavedStatus saved={SaveState.$is('Clean')(state) && state.justSaved}>
+          Added
+        </SavedStatus>
       </div>
     </form>
   )

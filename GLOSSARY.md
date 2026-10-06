@@ -26,7 +26,7 @@ _Avoid_: chosen itinerary, plan
 One calendar date of the Trip in Tokyo time, December 6 through December 20.
 
 **Activity**:
-One thing planned on a Day of the Schedule.
+One thing planned on a Day of the Schedule, with a title and optionally a Tokyo time and a note, such as a flight at its Tokyo-side time or the birthday dinner reservation. A Day keeps its Activities in Phillip's own order, never re-sorted by time; a new timed one goes before the first with a later time. Like a Day note, it belongs to that Schedule, and it never moves to another Day.
 _Avoid_: event, item
 
 **Day note**:
@@ -42,7 +42,7 @@ Phillip's one plain-text note about the whole Trip, shown on the Schedule page. 
 _Avoid_: general note, global note
 
 **Day page**:
-A Day of the Schedule on its own page at /schedule/$date: the Day's source description and Day trips, its Day note, Tonight's hotel and the Next Move.
+A Day of the Schedule on its own page at /schedule/$date: the Day's source description and Day trips, its Activities, its Day note, Tonight's hotel and the Next Move.
 
 **Today**:
 During the Trip, Home showing the Day page of the current Day in Tokyo, in place.
