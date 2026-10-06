@@ -383,7 +383,10 @@ function ActivityRow({
     SaveState.$is('Saved')(editing.state) ||
     (SaveState.$is('Clean')(editing.state) && editing.state.justSaved)
 
-  const { title, time, note } = activity
+  // What the row shows: the value just saved until a read confirms it,
+  // then what the server holds.
+  const { title, time, note } = editing.value
+  const savedEdit = SaveState.$is('Saved')(editing.state)
 
   return (
     <div
@@ -395,13 +398,13 @@ function ActivityRow({
       {showing ? (
         <div className="grid grid-cols-[3.25rem_1fr_auto] items-start gap-x-3">
           <p className="pt-px font-heading text-base tabular-nums">
-            {time === undefined ? (
+            {time === '' ? (
               <span className="text-muted-foreground">
                 <span aria-hidden>—</span>
                 <span className="sr-only">No time</span>
               </span>
             ) : (
-              <time dateTime={timeOfDayOf(time)}>{timeOfDayOf(time)}</time>
+              <time dateTime={time}>{time}</time>
             )}
           </p>
           <div className="flex min-w-0 flex-col gap-1">
@@ -411,7 +414,7 @@ function ActivityRow({
             >
               {title}
             </p>
-            {note !== undefined && (
+            {note !== '' && (
               <NoteText text={note} className="text-sm text-muted-foreground" />
             )}
             <SavedStatus saved={justSaved}>Saved</SavedStatus>
@@ -448,7 +451,8 @@ function ActivityRow({
               size="icon-sm"
               aria-label="Edit"
               aria-describedby={titleId}
-              disabled={settling || removing}
+              // A new edit starts from the value the confirming read brings.
+              disabled={settling || removing || savedEdit}
               onClick={editing.edit}
               className="text-muted-foreground"
             >
