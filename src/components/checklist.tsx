@@ -88,7 +88,7 @@ const wordingOf = (
   )
 
 const verifyNotes = {
-  'reminder-date': 'Seats open about a month before; verify the date',
+  'reminder-date': 'Verify: seats open about a month before',
   'when-booking-opens': 'Verify when booking opens',
 }
 
@@ -245,7 +245,10 @@ function ChecklistRow({
               </span>
             )}
             {verifyNote !== undefined && (
-              <Badge variant="outline">
+              <Badge
+                variant="outline"
+                className="h-auto min-h-5 whitespace-normal"
+              >
                 <BadgeAlertIcon data-icon="inline-start" aria-hidden />
                 {verifyNote}
               </Badge>
