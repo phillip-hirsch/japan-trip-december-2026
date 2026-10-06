@@ -7,7 +7,7 @@ import {
   PlusIcon,
   Trash2Icon,
 } from 'lucide-react'
-import { useId } from 'react'
+import { useEffect, useId } from 'react'
 import type { ReactNode } from 'react'
 
 import {
@@ -19,6 +19,7 @@ import { NoteText } from '@/components/note-text'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import { formatDay, timeOfDayOf, timeOfDayPattern } from '@/trip/calendar'
 import type {
@@ -133,18 +134,34 @@ const removeAnswerOf = (outcome: RemoveActivityOutcome): SaveAnswer =>
     }),
   )
 
-const moveAnswerOf = (outcome: MoveActivityOutcome): SaveAnswer =>
-  Match.value(outcome).pipe(
-    Match.tagsExhaustive({
-      Moved: () => SaveAnswer.Saved(),
-      ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-      ActivityNotFound: () =>
-        SaveAnswer.Gone({
-          problem:
-            'This Activity, or the one it was moving past, is no longer on this Day.',
-        }),
-    }),
-  )
+/** What moving an Activity answered, by the id of the one moving. */
+const moveAnswerOf =
+  (moving: string) =>
+  (outcome: MoveActivityOutcome): SaveAnswer =>
+    Match.value(outcome).pipe(
+      Match.tagsExhaustive({
+        Moved: () => SaveAnswer.Saved(),
+        ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
+        ActivityNotFound: ({ activityId }) => {
+          if (activityId === moving) {
+            return SaveAnswer.Gone({
+              problem: 'This Activity is no longer on this Day.',
+            })
+          }
+
+          // Its neighbour is gone, so retrying the same move never could
+          // land: settle it, and say so where it outlives the refetch.
+          toast.add({
+            type: 'warning',
+            title: 'The Activity wasn’t moved',
+            description:
+              'The one it was moving past was removed, perhaps on another device. Move it again if you still want to.',
+          })
+
+          return SaveAnswer.Saved()
+        },
+      }),
+    )
 
 /**
  * The fields of an Activity being added or edited, with what saves it and
@@ -331,7 +348,7 @@ function ActivityRow({
     saved: nextId,
     write: 'activity',
     run: async (before) =>
-      moveAnswerOf(
+      moveAnswerOf(activity.id)(
         await move({ data: { scheduleId, activityId: activity.id, before } }),
       ),
   })
@@ -486,12 +503,14 @@ function ActivityRow({
 }
 
 /**
- * A new Activity as typed, with the operation id its save carries. Any
- * change takes a fresh operation id; a retry of the same Activity keeps it,
- * so a save whose answer was lost is never added twice.
+ * A new Activity as typed, with the operation id its save carries and the
+ * Schedule that id was made for. Any change takes a fresh operation id; a
+ * retry of the same Activity on the same Schedule keeps it, so a save whose
+ * answer was lost is never added twice.
  */
 interface NewActivity extends ActivityFields {
   readonly operationId: string
+  readonly operationScheduleId: string
 }
 
 const noNewActivity: NewActivity = {
@@ -499,6 +518,7 @@ const noNewActivity: NewActivity = {
   time: '',
   note: '',
   operationId: '',
+  operationScheduleId: '',
 }
 
 const newActivityDraft = (date: IsoDate): DraftKeeping<NewActivity> => ({
@@ -506,7 +526,8 @@ const newActivityDraft = (date: IsoDate): DraftKeeping<NewActivity> => ({
   isValue: (value): value is NewActivity =>
     isActivityFields(value) &&
     Predicate.isObject(value) &&
-    Predicate.isString(value.operationId),
+    Predicate.isString(value.operationId) &&
+    Predicate.isString(value.operationScheduleId),
 })
 
 /** Adds an Activity on a Day, kept as a draft until saved. Key it by date. */
@@ -541,7 +562,23 @@ function AddActivity({
       ),
   })
 
-  const { state } = field
+  const { state, value } = field
+
+  // A draft kept across a Schedule change takes a fresh operation id: its
+  // own may already be recorded with an Activity added to the Schedule it
+  // was made for, which a retry here would answer with instead of adding.
+  useEffect(() => {
+    if (
+      SaveState.$is('NotSaved')(state) &&
+      value.operationScheduleId !== scheduleId
+    ) {
+      field.change({
+        ...value,
+        operationId: crypto.randomUUID(),
+        operationScheduleId: scheduleId,
+      })
+    }
+  }, [state, scheduleId])
 
   if (SaveState.$is('Clean')(state)) {
     return (
@@ -558,12 +595,13 @@ function AddActivity({
   return (
     <ActivityEditor
       state={state}
-      value={field.value}
+      value={value}
       onChange={(next) =>
         field.change({
-          ...field.value,
+          ...value,
           ...next,
           operationId: crypto.randomUUID(),
+          operationScheduleId: scheduleId,
         })
       }
       onSubmit={() => void field.save()}
