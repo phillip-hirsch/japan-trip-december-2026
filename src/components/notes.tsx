@@ -216,20 +216,15 @@ const stayNoteAnswerOf = (outcome: WriteStayNoteOutcome): SaveAnswer =>
     }),
   )
 
-/**
- * Phillip's Stay note on a Stay of the Schedule. Key it by the Stay's
- * check-in date.
- */
+/** Phillip's Stay note on a Stay of the Schedule. Key it by the Stay's id. */
 export function StayNote({
   scheduleId,
   stayId,
-  checkIn,
   note,
   labelledBy,
 }: {
   scheduleId: ScheduleId
   stayId: string
-  checkIn: IsoDate
   note: string | undefined
   /** The id of the heading naming the note. */
   labelledBy: string
@@ -238,12 +233,10 @@ export function StayNote({
 
   return (
     <NoteField
-      target={stayNoteTarget(checkIn)}
+      target={stayNoteTarget(stayId)}
       scheduleId={scheduleId}
       saved={note ?? ''}
       write="stayNote"
-      // The Schedule and Stay this screen shows now, so a retry after a
-      // refusal names the ones the refreshed page shows.
       run={async (value) =>
         stayNoteAnswerOf(
           await write({ data: { scheduleId, stayId, note: value } }),

@@ -82,12 +82,13 @@ const clearDraft = (target: string) => {
 export const dayNoteTarget = (date: IsoDate) => `day-note:${date}`
 
 /**
- * The draft target of the Stay note on the Stay checking in on a date. Not by
- * the Stay's id, which is fresh in each Schedule: like a Day note's, a draft
- * refused because the Schedule changed then reopens on the replacement's
- * Stay, marked as typed for another Schedule.
+ * The draft target of the Stay note on a Stay, by its id. Not by its dates:
+ * a Stay keeps its id when they change, and another Schedule's Stay checking
+ * in on the same date may be somewhere else entirely. Its id is fresh in each
+ * Schedule, so a draft refused because the Schedule changed is kept, and
+ * reopens only if its own Schedule is restored.
  */
-export const stayNoteTarget = (checkIn: IsoDate) => `stay-note:${checkIn}`
+export const stayNoteTarget = (stayId: string) => `stay-note:${stayId}`
 
 /** The draft target of the Trip note. */
 export const tripNoteTarget = 'trip-note'

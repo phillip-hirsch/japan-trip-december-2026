@@ -38,10 +38,9 @@ function ScheduleStayNote({
       </h3>
       {schedule.status === 'current' ? (
         <StayNote
-          key={stay.checkIn}
+          key={stay.id}
           scheduleId={schedule.id}
           stayId={stay.id}
-          checkIn={stay.checkIn}
           note={stay.note}
           labelledBy={headingId}
         />
