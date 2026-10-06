@@ -1,15 +1,16 @@
 // effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
 // @effect-diagnostics unstableApiUsage:off
-// How Schedules and the Trip note are stored, row by row, with the operation
-// ids of writes that carry one and their results. Only the Trip service uses
-// it, inside the Durable Object or over Node's SQLite in the tests; tables
-// stay behind it.
+// How Schedules, the Trip note and the Checklist are stored, row by row, with
+// the operation ids of writes that carry one and their results. Only the Trip
+// service uses it, inside the Durable Object or over Node's SQLite in the
+// tests; tables stay behind it.
 import { Effect, Option, Schema, Struct } from 'effect'
 import { SqlClient, SqlSchema } from 'effect/sql'
 import type { Statement } from 'effect/sql'
 
 import {
   ArchivedScheduleSummary,
+  ChecklistItemId,
   CopyId,
   DayTrip,
   DurationRange,
@@ -101,6 +102,16 @@ const AnchorRow = Schema.Struct({
   ...ordered,
   anchor: Schema.fromJsonString(ScheduleAnchor),
 })
+
+const OwnChecklistItemRow = Schema.Struct({
+  id: ChecklistItemId,
+  text: Schema.String,
+  reminderDate: Schema.NullOr(IsoDate),
+  ticked: Schema.BooleanFromBit,
+})
+
+/** One of Phillip's own Checklist items, as stored. */
+export type OwnChecklistItem = typeof OwnChecklistItemRow.Type
 
 export type ScheduleStore = Effect.Success<typeof scheduleStore>
 
@@ -226,6 +237,75 @@ export const scheduleStore = Effect.gen(function* () {
   const deleteTripNote = SqlSchema.void({
     Request: Schema.Void,
     execute: () => sql`DELETE FROM tripNote`,
+  })
+
+  const findTicks = SqlSchema.findAll({
+    Request: ScheduleId,
+    Result: Schema.Struct({ itemId: ChecklistItemId }),
+    execute: (scheduleId) =>
+      sql`SELECT itemId FROM checklistTicks WHERE scheduleId = ${scheduleId}`,
+  })
+
+  const TickRow = Schema.Struct({
+    scheduleId: ScheduleId,
+    itemId: ChecklistItemId,
+  })
+
+  const insertTick = SqlSchema.void({
+    Request: TickRow,
+    execute: (row) =>
+      sql`INSERT INTO checklistTicks ${sql.insert(row)} ON CONFLICT DO NOTHING`,
+  })
+
+  const deleteTick = SqlSchema.void({
+    Request: TickRow,
+    execute: ({ scheduleId, itemId }) =>
+      sql`
+        DELETE FROM checklistTicks
+        WHERE scheduleId = ${scheduleId} AND itemId = ${itemId}
+      `,
+  })
+
+  const findOwnItems = SqlSchema.findAll({
+    Request: Schema.Void,
+    Result: OwnChecklistItemRow,
+    execute: () =>
+      sql`
+        SELECT id, text, reminderDate, ticked FROM ownChecklistItems
+        ORDER BY position
+      `,
+  })
+
+  const insertOwnItem = SqlSchema.void({
+    Request: Schema.Struct({
+      id: ChecklistItemId,
+      text: Schema.String,
+      reminderDate: Schema.NullOr(IsoDate),
+    }),
+    execute: ({ id, text, reminderDate }) =>
+      sql`
+        INSERT INTO ownChecklistItems (id, position, text, reminderDate, ticked)
+        SELECT ${id}, COALESCE(MAX(position), 0) + 1, ${text}, ${reminderDate}, 0
+        FROM ownChecklistItems
+      `,
+  })
+
+  const updateOwnTick = SqlSchema.findOneOption({
+    Request: Schema.Struct({
+      id: ChecklistItemId,
+      ticked: Schema.BooleanFromBit,
+    }),
+    Result: Schema.Struct({ id: ChecklistItemId }),
+    execute: ({ id, ticked }) =>
+      sql`
+        UPDATE ownChecklistItems SET ticked = ${ticked} WHERE id = ${id}
+        RETURNING id
+      `,
+  })
+
+  const deleteOwnItem = SqlSchema.void({
+    Request: ChecklistItemId,
+    execute: (id) => sql`DELETE FROM ownChecklistItems WHERE id = ${id}`,
   })
 
   const rowsOf = <S extends Schema.Top>(
@@ -374,6 +454,32 @@ export const scheduleStore = Effect.gen(function* () {
     /** Replaces the Trip note; empty removes it. */
     writeTripNote: (note: string) =>
       note === '' ? deleteTripNote(undefined) : upsertTripNote(note),
+
+    /** The ids of what a Schedule's ticked Checklist items refer to. */
+    ticks: (scheduleId: ScheduleId) =>
+      Effect.map(
+        findTicks(scheduleId),
+        (rows): ReadonlySet<string> =>
+          new Set(rows.map(({ itemId }) => itemId)),
+      ),
+
+    /** Sets the tick on a Schedule's item, by the id of what it refers to. */
+    writeTick: (scheduleId: ScheduleId, itemId: string, ticked: boolean) =>
+      (ticked ? insertTick : deleteTick)({ scheduleId, itemId }),
+
+    /** Phillip's own Checklist items, in the order he added them. */
+    ownItems: findOwnItems(undefined),
+
+    /** Adds one of Phillip's own Checklist items, unticked, after the rest. */
+    addOwnItem: (id: string, text: string, reminderDate: IsoDate | null) =>
+      insertOwnItem({ id, text, reminderDate }),
+
+    /** Sets the tick on one of Phillip's own items: false when none has the id. */
+    writeOwnTick: (id: string, ticked: boolean) =>
+      Effect.map(updateOwnTick({ id, ticked }), Option.isSome),
+
+    /** Removes one of Phillip's own items, if it is still there. */
+    removeOwnItem: deleteOwnItem,
 
     /**
      * Stores a new Schedule with its copy, one row per statement to stay well

@@ -1,6 +1,11 @@
 import { Link } from '@tanstack/react-router'
 import type { LinkProps } from '@tanstack/react-router'
-import { CalendarDaysIcon, HouseIcon, RouteIcon } from 'lucide-react'
+import {
+  CalendarDaysIcon,
+  HouseIcon,
+  ListChecksIcon,
+  RouteIcon,
+} from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 import { DisplayJa } from '@/components/display-ja'
@@ -40,6 +45,13 @@ const schedule: NavEntry = {
   exact: false,
 }
 
+const checklist: NavEntry = {
+  to: '/checklist',
+  label: 'Checklist',
+  icon: ListChecksIcon,
+  exact: false,
+}
+
 /**
  * The destinations shared by the bottom tab bar and the sidebar. Add an entry
  * only once its page exists. Options becomes Schedule once one exists; until
@@ -52,6 +64,7 @@ const useNavEntries = (): ReadonlyArray<NavEntry | undefined> => {
   return [
     home,
     summary === undefined ? undefined : summary === null ? options : schedule,
+    checklist,
   ]
 }
 

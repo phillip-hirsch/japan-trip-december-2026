@@ -122,4 +122,26 @@ export const migrations = Migrator.fromRecord({
       )
     `
   }),
+  // The Checklist. Ticks on items derived from a Schedule belong to it, one
+  // row per ticked item by the id of what it refers to. Phillip's own items
+  // belong to the Trip, in the order he added them.
+  '0006_checklist': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+    yield* sql`
+      CREATE TABLE checklistTicks (
+        scheduleId TEXT NOT NULL REFERENCES schedules (id),
+        itemId TEXT NOT NULL,
+        PRIMARY KEY (scheduleId, itemId)
+      )
+    `
+    yield* sql`
+      CREATE TABLE ownChecklistItems (
+        id TEXT PRIMARY KEY,
+        position INTEGER NOT NULL UNIQUE,
+        text TEXT NOT NULL,
+        reminderDate TEXT,
+        ticked INTEGER NOT NULL
+      )
+    `
+  }),
 })

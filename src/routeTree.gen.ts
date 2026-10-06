@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ChecklistRouteImport } from './routes/checklist'
 import { Route as OptionsIndexRouteImport } from './routes/options/index'
 import { Route as OptionsOptionNumberRouteImport } from './routes/options/$optionNumber'
 import { Route as ScheduleIndexRouteImport } from './routes/schedule/index'
@@ -19,6 +20,11 @@ import { Route as ScheduleArchivedScheduleIdRouteImport } from './routes/schedul
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ChecklistRoute = ChecklistRouteImport.update({
+  id: '/checklist',
+  path: '/checklist',
   getParentRoute: () => rootRouteImport,
 } as any)
 const OptionsIndexRoute = OptionsIndexRouteImport.update({
@@ -50,6 +56,7 @@ const ScheduleArchivedScheduleIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/checklist': typeof ChecklistRoute
   '/options/$optionNumber': typeof OptionsOptionNumberRoute
   '/schedule/$date': typeof ScheduleDateRoute
   '/options/': typeof OptionsIndexRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/checklist': typeof ChecklistRoute
   '/options/$optionNumber': typeof OptionsOptionNumberRoute
   '/schedule/$date': typeof ScheduleDateRoute
   '/options': typeof OptionsIndexRoute
@@ -67,6 +75,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/checklist': typeof ChecklistRoute
   '/options/$optionNumber': typeof OptionsOptionNumberRoute
   '/schedule/$date': typeof ScheduleDateRoute
   '/options/': typeof OptionsIndexRoute
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/checklist'
     | '/options/$optionNumber'
     | '/schedule/$date'
     | '/options/'
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/checklist'
     | '/options/$optionNumber'
     | '/schedule/$date'
     | '/options'
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/checklist'
     | '/options/$optionNumber'
     | '/schedule/$date'
     | '/options/'
@@ -102,6 +114,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ChecklistRoute: typeof ChecklistRoute
   OptionsOptionNumberRoute: typeof OptionsOptionNumberRoute
   ScheduleDateRoute: typeof ScheduleDateRoute
   OptionsIndexRoute: typeof OptionsIndexRoute
@@ -116,6 +129,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checklist': {
+      id: '/checklist'
+      path: '/checklist'
+      fullPath: '/checklist'
+      preLoaderRoute: typeof ChecklistRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/options/': {
@@ -158,6 +178,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ChecklistRoute: ChecklistRoute,
   OptionsOptionNumberRoute: OptionsOptionNumberRoute,
   ScheduleDateRoute: ScheduleDateRoute,
   OptionsIndexRoute: OptionsIndexRoute,
