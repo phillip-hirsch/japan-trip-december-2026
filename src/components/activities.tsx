@@ -111,10 +111,11 @@ const editAnswerOf = (outcome: EditActivityOutcome): SaveAnswer =>
     Match.tagsExhaustive({
       Edited: () => SaveAnswer.Saved(),
       ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
+      // Removed, perhaps on another device: the refetch takes its row away.
       ActivityNotFound: () =>
-        SaveAnswer.Refused({
+        SaveAnswer.Gone({
           problem:
-            'This Activity is no longer on this Day, perhaps removed on another device. Your changes are kept here.',
+            'This Activity is no longer on this Day, perhaps removed on another device.',
         }),
       ActivityTitleInvalid: ({ maxLength }) => titleInvalid(maxLength),
       NoteTooLong: ({ maxLength }) => noteTooLong(maxLength),
@@ -354,10 +355,11 @@ function ActivityRow({
 
   const removing = !SaveState.$is('Clean')(removal.state)
 
-  const settling =
-    SaveState.$is('Saving')(removal.state) ||
-    SaveState.$is('Saved')(removal.state) ||
-    SaveState.$is('Saving')(moving.state)
+  // A move or removal holds the row until the read that confirms it, so no
+  // control acts on its neighbours from before the move.
+  const settling = [removal.state, moving.state].some(
+    (state) => SaveState.$is('Saving')(state) || SaveState.$is('Saved')(state),
+  )
 
   const showing =
     SaveState.$is('Clean')(editing.state) ||
