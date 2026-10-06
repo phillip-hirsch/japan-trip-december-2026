@@ -3,15 +3,23 @@ import { createServerFn } from '@tanstack/react-start'
 import { Effect, Schema } from 'effect'
 
 import {
+  AddActivity,
+  AddActivityOutcome,
   AddOwnChecklistItem,
   AddOwnChecklistItemOutcome,
   Checklist,
   ChooseItinerary,
   ChooseOutcome,
   DayOutcome,
+  EditActivity,
+  EditActivityOutcome,
   HomeState,
   IsoDate,
+  MoveActivity,
+  MoveActivityOutcome,
   OptionNumber,
+  RemoveActivity,
+  RemoveActivityOutcome,
   RemoveOwnChecklistItem,
   RemoveOwnChecklistItemOutcome,
   RestoreOutcome,
@@ -237,4 +245,46 @@ export const removeOwnChecklistItem = createServerFn({ method: 'POST' })
     callTripStore(RemoveOwnChecklistItemOutcome, (store) =>
       store.removeOwnChecklistItem(data),
     ),
+  )
+
+/**
+ * Adds an Activity on a Day of the Schedule named. Repeating the operation id
+ * returns the first result, so a retry never adds it twice.
+ */
+export const addActivity = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(AddActivity))
+  .handler(({ data }) =>
+    callTripStore(AddActivityOutcome, (store) => store.addActivity(data)),
+  )
+
+/**
+ * Writes the fields an edit carries on an Activity of the Schedule named.
+ * Each field is a whole value, so the write is idempotent and carries no
+ * operation id.
+ */
+export const editActivity = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(EditActivity))
+  .handler(({ data }) =>
+    callTripStore(EditActivityOutcome, (store) => store.editActivity(data)),
+  )
+
+/**
+ * Removes an Activity of the Schedule named. A retry after it landed finds
+ * nothing to remove and answers not-found.
+ */
+export const removeActivity = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(RemoveActivity))
+  .handler(({ data }) =>
+    callTripStore(RemoveActivityOutcome, (store) => store.removeActivity(data)),
+  )
+
+/**
+ * Moves an Activity of the Schedule named before another on its Day, or
+ * last. Moving to the same place again changes nothing, so it carries no
+ * operation id.
+ */
+export const moveActivity = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(MoveActivity))
+  .handler(({ data }) =>
+    callTripStore(MoveActivityOutcome, (store) => store.moveActivity(data)),
   )

@@ -1,9 +1,9 @@
 import { useServerFn } from '@tanstack/react-start'
 import { Match } from 'effect'
-import { CheckIcon, PencilIcon } from 'lucide-react'
+import { PencilIcon } from 'lucide-react'
 import { useId } from 'react'
 
-import { NotSavedAlert } from '@/components/not-saved-alert'
+import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
 import { NoteText } from '@/components/note-text'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -82,14 +82,7 @@ function NoteField({
             <PencilIcon data-icon="inline-start" aria-hidden />
             {value === '' ? 'Add a note' : 'Edit note'}
           </Button>
-          <p role="status" className="text-sm text-muted-foreground">
-            {justSaved && (
-              <span className="inline-flex items-center gap-1">
-                <CheckIcon className="size-4" aria-hidden />
-                Saved
-              </span>
-            )}
-          </p>
+          <SavedStatus saved={justSaved}>Saved</SavedStatus>
         </div>
       </div>
     )

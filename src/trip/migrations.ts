@@ -144,4 +144,25 @@ export const migrations = Migrator.fromRecord({
       )
     `
   }),
+  // Phillip's Activities, belonging to a Day of a Schedule, in the order he
+  // keeps them on that Day. A time is a zoned date-time in Tokyo on that
+  // Day's date; null while it has none, as is a note.
+  '0007_activities': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+    yield* sql`
+      CREATE TABLE activities (
+        id TEXT PRIMARY KEY,
+        scheduleId TEXT NOT NULL,
+        date TEXT NOT NULL,
+        position INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        time TEXT,
+        note TEXT,
+        FOREIGN KEY (scheduleId, date) REFERENCES days (scheduleId, date)
+      )
+    `
+    yield* sql`
+      CREATE INDEX activitiesByDay ON activities (scheduleId, date, position)
+    `
+  }),
 })

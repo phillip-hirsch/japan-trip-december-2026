@@ -8,7 +8,7 @@ import {
   ScheduleNotFound,
   VerifyClaimAttachment,
 } from '@/trip/domain'
-import type { ItineraryContent, ScheduleDetail } from '@/trip/domain'
+import type { DayDetail, ItineraryContent, ScheduleDetail } from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
 import { operation, setTime, storage, tripWith } from '@/trip/testing'
@@ -67,6 +67,10 @@ const withoutIds = (value: Schema.Json): Schema.Json =>
             .map(([key, nested]) => [key, withoutIds(nested)]),
         )
       : value
+
+/** An Itinerary's Days as a fresh Schedule copies them, without Activities. */
+const withoutActivities = (days: ReadonlyArray<DayDetail>) =>
+  days.map((day) => ({ ...day, activities: [] }))
 
 /** Option 1 after a Revision that changes everything a Schedule copies. */
 const revisedOption1: ItineraryContent = {
@@ -144,7 +148,8 @@ describe('Trip.choose', () => {
       )
       // Stays with their highlights and accommodation; each Day's
       // description, Anchors, Move with its rail sections and duration, Day
-      // trips and Verify claims; and the Verify claims about the whole.
+      // trips and Verify claims, with no Activities yet; and the Verify
+      // claims about the whole.
       assert.deepStrictEqual(
         withoutIds({
           stays: schedule.stays,
@@ -153,7 +158,7 @@ describe('Trip.choose', () => {
         }),
         withoutIds({
           stays: itinerary.stays,
-          days: itinerary.days,
+          days: withoutActivities(itinerary.days),
           verifyClaims: itinerary.verifyClaims,
         }),
       )
@@ -339,7 +344,10 @@ describe('Trip.choose again', () => {
         {
           sourceOptionNumber: 2,
           birthdayOutline: option2.birthdayOutline,
-          copy: withoutIds({ stays: itinerary.stays, days: itinerary.days }),
+          copy: withoutIds({
+            stays: itinerary.stays,
+            days: withoutActivities(itinerary.days),
+          }),
           archived: [first.scheduleId],
         },
       )

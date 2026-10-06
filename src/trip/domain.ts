@@ -3,6 +3,7 @@
 import { DateTime, Option, Schema, Struct } from 'effect'
 
 import { displayStrings } from '@/fonts/display-strings'
+import { timeOfDayPattern } from '@/trip/calendar'
 import { placeIds } from '@/trip/places'
 import { railLineIds, stationIds } from '@/trip/rail'
 
@@ -553,10 +554,38 @@ export const ScheduleMoveDetail = Schema.Struct({
 
 export type ScheduleMoveDetail = typeof ScheduleMoveDetail.Type
 
+/** An Activity's id, fresh for each Activity Phillip adds. */
+export const ActivityId = Schema.String
+
+/** A time of day in Tokyo, as HH:MM on the 24-hour clock. */
+export const TimeOfDay = Schema.String.check(
+  Schema.isPattern(timeOfDayPattern),
+).pipe(Schema.brand('TimeOfDay'))
+
+export type TimeOfDay = typeof TimeOfDay.Type
+
+/**
+ * One thing planned on a Day of the Schedule. Its time is a zoned date-time
+ * in Asia/Tokyo on its Day's date, as ISO 8601 with the zone, such as
+ * 2026-12-15T19:00:00.000+09:00[Asia/Tokyo].
+ */
+export const Activity = Schema.Struct({
+  id: ActivityId,
+  title: Schema.String,
+  /** Absent for an Activity without a time. */
+  time: Schema.optionalKey(Schema.String),
+  /** Absent until Phillip writes one. */
+  note: Schema.optionalKey(Schema.String),
+})
+
+export type Activity = typeof Activity.Type
+
 export const ScheduleDayDetail = Schema.Struct({
   ...DayDetail.fields,
   /** Phillip's Day note, absent until he writes one. */
   note: Schema.optionalKey(Schema.String),
+  /** Phillip's Activities, in the order he keeps them. */
+  activities: Schema.Array(Activity),
   anchors: Schema.Array(ScheduleAnchor),
   move: Schema.optionalKey(ScheduleMoveDetail),
   dayTrips: Schema.Array(
@@ -863,6 +892,115 @@ export const WriteTripNoteOutcome = Schema.TaggedUnion({
 })
 
 export type WriteTripNoteOutcome = typeof WriteTripNoteOutcome.Type
+
+/**
+ * Add an Activity on a Day of the Schedule named. A timed one goes before
+ * the first Activity with a later time; one without a time goes last.
+ */
+export const AddActivity = Schema.Struct({
+  operationId: OperationId,
+  scheduleId: ScheduleId,
+  date: IsoDate,
+  title: Schema.String,
+  time: Schema.optionalKey(TimeOfDay),
+  note: Schema.optionalKey(Schema.String),
+})
+
+export type AddActivity = typeof AddActivity.Type
+
+export const ActivityAdded = Schema.Struct({ activityId: ActivityId })
+
+export type ActivityAdded = typeof ActivityAdded.Type
+
+/**
+ * Edit an Activity of the Schedule named, writing only the fields it
+ * carries, so the last write wins for each field. A null time or an empty
+ * note removes it. Its Day never changes.
+ */
+export const EditActivity = Schema.Struct({
+  scheduleId: ScheduleId,
+  activityId: ActivityId,
+  title: Schema.optionalKey(Schema.String),
+  time: Schema.optionalKey(Schema.NullOr(TimeOfDay)),
+  note: Schema.optionalKey(Schema.String),
+})
+
+export type EditActivity = typeof EditActivity.Type
+
+/** Remove an Activity of the Schedule named. */
+export const RemoveActivity = Schema.Struct({
+  scheduleId: ScheduleId,
+  activityId: ActivityId,
+})
+
+export type RemoveActivity = typeof RemoveActivity.Type
+
+/**
+ * Move an Activity of the Schedule named to just before another on its Day,
+ * or after the rest when that is null.
+ */
+export const MoveActivity = Schema.Struct({
+  scheduleId: ScheduleId,
+  activityId: ActivityId,
+  before: Schema.NullOr(ActivityId),
+})
+
+export type MoveActivity = typeof MoveActivity.Type
+
+/**
+ * The Schedule named has no Activity with that id on the Day concerned, such
+ * as one removed on another device.
+ */
+export class ActivityNotFound extends Schema.TaggedError<ActivityNotFound>()(
+  'ActivityNotFound',
+  { activityId: ActivityId },
+) {}
+
+/** An Activity's title is blank or too long; nothing is written. */
+export class ActivityTitleInvalid extends Schema.TaggedError<ActivityTitleInvalid>()(
+  'ActivityTitleInvalid',
+  { maxLength: Schema.Int },
+) {}
+
+/** What adding an Activity did, as plain data for the browser. */
+export const AddActivityOutcome = Schema.TaggedUnion({
+  Added: ActivityAdded.fields,
+  ScheduleChanged: ScheduleChanged.fields,
+  DayNotFound: DayNotFound.fields,
+  ActivityTitleInvalid: ActivityTitleInvalid.fields,
+  NoteTooLong: NoteTooLong.fields,
+})
+
+export type AddActivityOutcome = typeof AddActivityOutcome.Type
+
+/** What editing an Activity did, as plain data for the browser. */
+export const EditActivityOutcome = Schema.TaggedUnion({
+  Edited: {},
+  ScheduleChanged: ScheduleChanged.fields,
+  ActivityNotFound: ActivityNotFound.fields,
+  ActivityTitleInvalid: ActivityTitleInvalid.fields,
+  NoteTooLong: NoteTooLong.fields,
+})
+
+export type EditActivityOutcome = typeof EditActivityOutcome.Type
+
+/** What removing an Activity did, as plain data for the browser. */
+export const RemoveActivityOutcome = Schema.TaggedUnion({
+  Removed: {},
+  ScheduleChanged: ScheduleChanged.fields,
+  ActivityNotFound: ActivityNotFound.fields,
+})
+
+export type RemoveActivityOutcome = typeof RemoveActivityOutcome.Type
+
+/** What moving an Activity did, as plain data for the browser. */
+export const MoveActivityOutcome = Schema.TaggedUnion({
+  Moved: {},
+  ScheduleChanged: ScheduleChanged.fields,
+  ActivityNotFound: ActivityNotFound.fields,
+})
+
+export type MoveActivityOutcome = typeof MoveActivityOutcome.Type
 
 /** What choosing an Itinerary did, as plain data for the browser. */
 export const ChooseOutcome = Schema.TaggedUnion({

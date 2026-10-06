@@ -23,6 +23,9 @@ import {
   tripTimeZone,
 } from '@/trip/calendar'
 import {
+  ActivityAdded,
+  ActivityNotFound,
+  ActivityTitleInvalid,
   Anchor,
   ChecklistItem,
   ChecklistItemNotFound,
@@ -45,6 +48,8 @@ import {
   VerifyClaimAttachment,
 } from '@/trip/domain'
 import type {
+  Activity,
+  AddActivity,
   AddOwnChecklistItem,
   ArchivedScheduleSummary,
   BaseNights,
@@ -56,6 +61,7 @@ import type {
   DayPage,
   DayTrip,
   DayTripDetail,
+  EditActivity,
   Itinerary,
   ItineraryComparison,
   ItineraryDetail,
@@ -64,11 +70,13 @@ import type {
   MapDayTrip,
   MapRailSection,
   Move,
+  MoveActivity,
   MoveDetail,
   MovesComparison,
   MoveSummary,
   Place,
   RailSectionDetail,
+  RemoveActivity,
   RemoveOwnChecklistItem,
   RestoreSchedule,
   ScheduleDetail,
@@ -80,6 +88,7 @@ import type {
   Station,
   TickChecklistItem,
   TickOwnChecklistItem,
+  TimeOfDay,
   VerifyClaim,
   VerifyClaimDetail,
   WriteDayNote,
@@ -88,7 +97,11 @@ import type {
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
 import { reminderDateOf } from '@/trip/checklist-items'
-import { checklistTextMaxLength, noteMaxLength } from '@/trip/limits'
+import {
+  activityTitleMaxLength,
+  checklistTextMaxLength,
+  noteMaxLength,
+} from '@/trip/limits'
 import { places, visitedPlaceIds } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
 import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
@@ -591,7 +604,7 @@ const copyOf = (itinerary: Itinerary): ScheduleCopy => {
 
   return {
     stays: itinerary.stays.map(withFreshId),
-    days: itinerary.days,
+    days: itinerary.days.map((day) => ({ ...day, activities: [] })),
     moves: itinerary.moves.map(withFreshId),
     dayTrips: itinerary.dayTrips.map(withFreshId),
     verifyClaims: itinerary.verifyClaims.map(withFreshId),
@@ -900,18 +913,70 @@ const checklistOf = (
       (reminderDateOf(a) ?? '').localeCompare(reminderDateOf(b) ?? ''),
   )
 
+/** Text trimmed; the failure made for the cap when that is blank or too long. */
+const requireText = <E>(
+  text: string,
+  maxLength: number,
+  invalid: (maxLength: number) => E,
+) => {
+  const trimmed = text.trim()
+
+  return trimmed === '' || trimmed.length > maxLength
+    ? Effect.fail(invalid(maxLength))
+    : Effect.succeed(trimmed)
+}
+
 /**
  * An own Checklist item's text, trimmed; ChecklistTextInvalid when that is
  * blank or too long.
  */
-const requireChecklistText = (text: string) => {
-  const trimmed = text.trim()
+const requireChecklistText = (text: string) =>
+  requireText(
+    text,
+    checklistTextMaxLength,
+    (maxLength) => new ChecklistTextInvalid({ maxLength }),
+  )
 
-  return trimmed === '' || trimmed.length > checklistTextMaxLength
-    ? Effect.fail(
-        new ChecklistTextInvalid({ maxLength: checklistTextMaxLength }),
-      )
-    : Effect.succeed(trimmed)
+/**
+ * An Activity's title, trimmed; ActivityTitleInvalid when that is blank or
+ * too long.
+ */
+const requireActivityTitle = (title: string) =>
+  requireText(
+    title,
+    activityTitleMaxLength,
+    (maxLength) => new ActivityTitleInvalid({ maxLength }),
+  )
+
+/**
+ * An Activity's time: the time of day in Tokyo on its Day's date, as a zoned
+ * date-time. Tokyo keeps UTC+9 all year, so every time of day exists once.
+ */
+const activityTimeOf = (date: IsoDate, time: TimeOfDay) =>
+  DateTime.formatIsoZoned(
+    DateTime.makeZonedUnsafe(`${date}T${time}:00`, {
+      timeZone: tripTimeZone,
+      adjustForTimeZone: true,
+    }),
+  )
+
+/**
+ * Where a new Activity goes among a Day's: a timed one before the first with
+ * a later time, any other last. The times on one Day share its date and
+ * Tokyo's offset, so their strings sort in time order.
+ */
+const insertionIndexOf = (
+  activities: ReadonlyArray<Activity>,
+  time: string | undefined,
+) => {
+  const later =
+    time === undefined
+      ? -1
+      : activities.findIndex(
+          (activity) => activity.time !== undefined && activity.time > time,
+        )
+
+  return later === -1 ? activities.length : later
 }
 
 /** Every way an Itinerary breaks the Trip's rules; empty when it keeps them. */
@@ -1225,6 +1290,63 @@ export class Trip extends Context.Service<
     removeOwnChecklistItem(
       input: RemoveOwnChecklistItem,
     ): Effect.Effect<void, never, SqlClient.SqlClient>
+    /**
+     * Adds an Activity on a Day of the Schedule named, its title trimmed, as
+     * one transaction that also records the operation id with its result.
+     * Repeating the operation id returns that result and writes nothing. A
+     * timed Activity goes before the first with a later time; any other
+     * goes last. ScheduleChanged when the Schedule named isn't current,
+     * archived ones included; DayNotFound when it has no Day on the date;
+     * ActivityTitleInvalid for a blank title or one past 200 characters;
+     * NoteTooLong past 10,000 characters.
+     */
+    addActivity(
+      input: AddActivity,
+    ): Effect.Effect<
+      ActivityAdded,
+      ScheduleChanged | DayNotFound | ActivityTitleInvalid | NoteTooLong,
+      SqlClient.SqlClient
+    >
+    /**
+     * Writes the fields an edit carries on an Activity of the Schedule
+     * named, so the last write wins for each field; its time stays on its
+     * Day's date and its place in the order stays. ScheduleChanged when the
+     * Schedule named isn't current; ActivityNotFound when it has no Activity
+     * with the id; ActivityTitleInvalid and NoteTooLong as when adding. A
+     * refused write writes nothing.
+     */
+    editActivity(
+      input: EditActivity,
+    ): Effect.Effect<
+      void,
+      ScheduleChanged | ActivityNotFound | ActivityTitleInvalid | NoteTooLong,
+      SqlClient.SqlClient
+    >
+    /**
+     * Removes an Activity of the Schedule named. ScheduleChanged when the
+     * Schedule named isn't current; ActivityNotFound when it has no Activity
+     * with the id, such as one already removed.
+     */
+    removeActivity(
+      input: RemoveActivity,
+    ): Effect.Effect<
+      void,
+      ScheduleChanged | ActivityNotFound,
+      SqlClient.SqlClient
+    >
+    /**
+     * Moves an Activity of the Schedule named to just before another on the
+     * same Day, or after the rest. ScheduleChanged when the Schedule named
+     * isn't current; ActivityNotFound when it has no Activity with either
+     * id on that Day, so an Activity never moves to another Day.
+     */
+    moveActivity(
+      input: MoveActivity,
+    ): Effect.Effect<
+      void,
+      ScheduleChanged | ActivityNotFound,
+      SqlClient.SqlClient
+    >
   }
 >()('japan-trip/trip/Trip') {
   static readonly layer = Layer.effect(
@@ -1549,6 +1671,156 @@ export class Trip extends Context.Service<
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
       )
 
+      const addActivity = Effect.fn('Trip.addActivity')(
+        function* ({
+          operationId,
+          scheduleId,
+          date,
+          title,
+          time,
+          note = '',
+        }: AddActivity) {
+          const trimmed = yield* requireActivityTitle(title)
+          yield* requireNoteLength(note)
+          const store = yield* scheduleStore
+
+          return yield* store.transaction(
+            Effect.gen(function* () {
+              const recorded =
+                yield* store.recordedResult(ActivityAdded)(operationId)
+
+              if (Option.isSome(recorded)) return recorded.value.result
+              yield* requireCurrent(store, scheduleId)
+
+              if (!(yield* store.hasDay(scheduleId, date))) {
+                return yield* new DayNotFound({ date })
+              }
+
+              const activity: Activity = {
+                id: crypto.randomUUID(),
+                title: trimmed,
+                ...(time !== undefined && { time: activityTimeOf(date, time) }),
+                ...(note !== '' && { note }),
+              }
+
+              const activities = yield* store.activitiesOn(scheduleId, date)
+              const ids = activities.map(({ id }) => id)
+              ids.splice(
+                insertionIndexOf(activities, activity.time),
+                0,
+                activity.id,
+              )
+              yield* store.addActivity(scheduleId, date, activity, ids.length)
+              yield* store.writeActivityOrder(scheduleId, ids)
+              const added = { activityId: activity.id }
+              yield* store.recordResult(ActivityAdded)({
+                id: operationId,
+                result: added,
+              })
+
+              return added
+            }),
+          )
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
+      /**
+       * The Day of the current Schedule's Activity named; ScheduleChanged or
+       * ActivityNotFound otherwise.
+       */
+      const requireActivityDay = Effect.fnUntraced(function* (
+        store: ScheduleStore,
+        scheduleId: ScheduleId,
+        activityId: string,
+      ) {
+        yield* requireCurrent(store, scheduleId)
+        const date = yield* store.activityDate(scheduleId, activityId)
+
+        if (Option.isNone(date)) {
+          return yield* new ActivityNotFound({ activityId })
+        }
+
+        return date.value
+      })
+
+      const editActivity = Effect.fn('Trip.editActivity')(
+        function* ({
+          scheduleId,
+          activityId,
+          title,
+          time,
+          note,
+        }: EditActivity) {
+          const trimmed =
+            title === undefined ? undefined : yield* requireActivityTitle(title)
+
+          if (note !== undefined) yield* requireNoteLength(note)
+          const store = yield* scheduleStore
+          yield* store.transaction(
+            Effect.gen(function* () {
+              const date = yield* requireActivityDay(
+                store,
+                scheduleId,
+                activityId,
+              )
+
+              yield* store.editActivity(scheduleId, activityId, {
+                ...(trimmed !== undefined && { title: trimmed }),
+                ...(time !== undefined && {
+                  time: time === null ? null : activityTimeOf(date, time),
+                }),
+                ...(note !== undefined && { note }),
+              })
+            }),
+          )
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
+      const removeActivity = Effect.fn('Trip.removeActivity')(
+        function* ({ scheduleId, activityId }: RemoveActivity) {
+          const store = yield* scheduleStore
+          yield* store.transaction(
+            Effect.gen(function* () {
+              yield* requireActivityDay(store, scheduleId, activityId)
+              yield* store.removeActivity(scheduleId, activityId)
+            }),
+          )
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
+      const moveActivity = Effect.fn('Trip.moveActivity')(
+        function* ({ scheduleId, activityId, before }: MoveActivity) {
+          const store = yield* scheduleStore
+          yield* store.transaction(
+            Effect.gen(function* () {
+              const date = yield* requireActivityDay(
+                store,
+                scheduleId,
+                activityId,
+              )
+
+              const ids = (yield* store.activitiesOn(scheduleId, date)).map(
+                ({ id }) => id,
+              )
+
+              if (before !== null && !ids.includes(before)) {
+                return yield* new ActivityNotFound({ activityId: before })
+              }
+
+              if (before === activityId) return
+              const rest = ids.filter((id) => id !== activityId)
+              const index = before === null ? rest.length : rest.indexOf(before)
+              rest.splice(index, 0, activityId)
+              yield* store.writeActivityOrder(scheduleId, rest)
+            }),
+          )
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
       return Trip.of({
         home,
         day,
@@ -1571,6 +1843,10 @@ export class Trip extends Context.Service<
         addOwnChecklistItem,
         tickOwnChecklistItem,
         removeOwnChecklistItem,
+        addActivity,
+        editActivity,
+        removeActivity,
+        moveActivity,
       })
     }),
   )

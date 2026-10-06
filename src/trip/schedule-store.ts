@@ -9,6 +9,7 @@ import { SqlClient, SqlSchema } from 'effect/sql'
 import type { Statement } from 'effect/sql'
 
 import {
+  ActivityId,
   ArchivedScheduleSummary,
   ChecklistItemId,
   CopyId,
@@ -24,20 +25,26 @@ import {
   VerifyClaim,
   VerifyClaimAttachment,
 } from '@/trip/domain'
-import type { Day } from '@/trip/domain'
+import type { Activity, Day } from '@/trip/domain'
 
 type Copied<A> = A & { readonly id: string }
 
 /** A Stay of a Schedule, with Phillip's Stay note once he writes one. */
 export type ScheduleStay = Copied<Stay> & { readonly note?: string }
 
-/** A Day of a Schedule, with Phillip's Day note once he writes one. */
-export type ScheduleDay = Day & { readonly note?: string }
+/**
+ * A Day of a Schedule, with Phillip's Day note once he writes one and his
+ * Activities, in the order he keeps them.
+ */
+export type ScheduleDay = Day & {
+  readonly note?: string
+  readonly activities: ReadonlyArray<Activity>
+}
 
 /**
  * Everything a Schedule copies from the Itinerary chosen, each Stay, Move, Day
  * trip, Verify claim and Anchor with its own id, and Phillip's Stay and Day
- * notes.
+ * notes and Activities.
  */
 export interface ScheduleCopy {
   readonly stays: ReadonlyArray<ScheduleStay>
@@ -103,6 +110,53 @@ const AnchorRow = Schema.Struct({
   anchor: Schema.fromJsonString(ScheduleAnchor),
 })
 
+const ActivityRow = Schema.Struct({
+  id: ActivityId,
+  ...ofSchedule,
+  date: IsoDate,
+  ...ordered,
+  title: Schema.String,
+  time: Schema.NullOr(Schema.String),
+  note: Schema.NullOr(Schema.String),
+})
+
+const activityOf = ({
+  id,
+  title,
+  time,
+  note,
+}: typeof ActivityRow.Type): Activity => ({
+  id,
+  title,
+  ...(time !== null && { time }),
+  ...(note !== null && { note }),
+})
+
+/** An Activity's row on a Day of a Schedule, at a position. */
+const activityRowOf = (
+  scheduleId: ScheduleId,
+  date: IsoDate,
+  activity: Activity,
+  position: number,
+): typeof ActivityRow.Type => ({
+  ...activity,
+  scheduleId,
+  date,
+  position,
+  time: activity.time ?? null,
+  note: activity.note ?? null,
+})
+
+/**
+ * The fields an Activity edit writes, as stored: a null time or note removes
+ * it.
+ */
+export interface ActivityChanges {
+  readonly title?: string
+  readonly time?: string | null
+  readonly note?: string
+}
+
 const OwnChecklistItemRow = Schema.Struct({
   id: ChecklistItemId,
   text: Schema.String,
@@ -138,6 +192,7 @@ export const scheduleStore = Effect.gen(function* () {
   const insertDayTrip = inserter('dayTrips', DayTripRow)
   const insertVerifyClaim = inserter('verifyClaims', VerifyClaimRow)
   const insertAnchor = inserter('anchors', AnchorRow)
+  const insertActivity = inserter('activities', ActivityRow)
 
   const findCurrent = SqlSchema.findOneOption({
     Request: Schema.Void,
@@ -237,6 +292,59 @@ export const scheduleStore = Effect.gen(function* () {
   const deleteTripNote = SqlSchema.void({
     Request: Schema.Void,
     execute: () => sql`DELETE FROM tripNote`,
+  })
+
+  const DayKey = Schema.Struct({ scheduleId: ScheduleId, date: IsoDate })
+
+  const ActivityKey = Schema.Struct({
+    scheduleId: ScheduleId,
+    id: ActivityId,
+  })
+
+  const findActivitiesOn = SqlSchema.findAll({
+    Request: DayKey,
+    Result: ActivityRow,
+    execute: ({ scheduleId, date }) =>
+      sql`
+        SELECT * FROM activities WHERE scheduleId = ${scheduleId} AND date = ${date}
+        ORDER BY position
+      `,
+  })
+
+  const findActivityDate = SqlSchema.findOneOption({
+    Request: ActivityKey,
+    Result: Schema.Struct({ date: IsoDate }),
+    execute: ({ scheduleId, id }) =>
+      sql`SELECT date FROM activities WHERE scheduleId = ${scheduleId} AND id = ${id}`,
+  })
+
+  const updateActivity = SqlSchema.void({
+    Request: Schema.Struct({
+      ...ActivityKey.fields,
+      title: Schema.optionalKey(Schema.String),
+      time: Schema.optionalKey(Schema.NullOr(Schema.String)),
+      note: Schema.optionalKey(Schema.NullOr(Schema.String)),
+    }),
+    execute: ({ scheduleId, id, ...changes }) =>
+      sql`
+        UPDATE activities SET ${sql.update(changes)}
+        WHERE scheduleId = ${scheduleId} AND id = ${id}
+      `,
+  })
+
+  const deleteActivity = SqlSchema.void({
+    Request: ActivityKey,
+    execute: ({ scheduleId, id }) =>
+      sql`DELETE FROM activities WHERE scheduleId = ${scheduleId} AND id = ${id}`,
+  })
+
+  const updateActivityPosition = SqlSchema.void({
+    Request: Schema.Struct({ ...ActivityKey.fields, ...ordered }),
+    execute: ({ scheduleId, id, position }) =>
+      sql`
+        UPDATE activities SET position = ${position}
+        WHERE scheduleId = ${scheduleId} AND id = ${id}
+      `,
   })
 
   const findTicks = SqlSchema.findAll({
@@ -346,12 +454,18 @@ export const scheduleStore = Effect.gen(function* () {
       sql`SELECT * FROM anchors WHERE scheduleId = ${id} ORDER BY position`,
   )
 
+  const findActivities = rowsOf(
+    ActivityRow,
+    (id) =>
+      sql`SELECT * FROM activities WHERE scheduleId = ${id} ORDER BY date, position`,
+  )
+
   const withoutSchedule = <A extends { readonly scheduleId: string }>(row: A) =>
     Struct.omit(row, ['scheduleId'])
 
   /** A Schedule's copy, read back from its rows alone. */
   const findCopy = Effect.fnUntraced(function* (scheduleId: ScheduleId) {
-    const [stays, days, moves, dayTrips, verifyClaims, anchors] =
+    const [stays, days, moves, dayTrips, verifyClaims, anchors, activities] =
       yield* Effect.all([
         findStays(scheduleId),
         findDays(scheduleId),
@@ -359,6 +473,7 @@ export const scheduleStore = Effect.gen(function* () {
         findDayTrips(scheduleId),
         findVerifyClaims(scheduleId),
         findAnchors(scheduleId),
+        findActivities(scheduleId),
       ])
 
     const copy: ScheduleCopy = {
@@ -370,6 +485,9 @@ export const scheduleStore = Effect.gen(function* () {
         date,
         ...(description !== null && { description }),
         ...(note !== null && { note }),
+        activities: activities
+          .filter((activity) => activity.date === date)
+          .map(activityOf),
       })),
       moves: moves.map(({ duration, ...move }) => ({
         ...withoutSchedule(move),
@@ -437,6 +555,58 @@ export const scheduleStore = Effect.gen(function* () {
     writeDayNote: (scheduleId: ScheduleId, date: IsoDate, note: string) =>
       updateDayNote({ scheduleId, date, note: storedNote(note) }),
 
+    /** The Activities on a Day of a Schedule, in the order kept. */
+    activitiesOn: (scheduleId: ScheduleId, date: IsoDate) =>
+      Effect.map(findActivitiesOn({ scheduleId, date }), (rows) =>
+        rows.map(activityOf),
+      ),
+
+    /** The Day of a Schedule's Activity with an id, if it has one. */
+    activityDate: (scheduleId: ScheduleId, id: string) =>
+      Effect.map(
+        findActivityDate({ scheduleId, id }),
+        Option.map(({ date }) => date),
+      ),
+
+    /**
+     * Stores a new Activity on a Day of a Schedule, at a position until the
+     * Day's order is next written.
+     */
+    addActivity: (
+      scheduleId: ScheduleId,
+      date: IsoDate,
+      activity: Activity,
+      position: number,
+    ) => insertActivity(activityRowOf(scheduleId, date, activity, position)),
+
+    /** Writes the fields an edit changes on a Schedule's Activity. */
+    editActivity: (
+      scheduleId: ScheduleId,
+      id: string,
+      { note, ...changes }: ActivityChanges,
+    ) => {
+      const stored = {
+        ...changes,
+        ...(note !== undefined && { note: storedNote(note) }),
+      }
+
+      return Object.keys(stored).length === 0
+        ? Effect.void
+        : updateActivity({ scheduleId, id, ...stored })
+    },
+
+    /** Removes a Schedule's Activity. */
+    removeActivity: (scheduleId: ScheduleId, id: string) =>
+      deleteActivity({ scheduleId, id }),
+
+    /** Keeps a Day's Activities in the order of their ids. */
+    writeActivityOrder: (scheduleId: ScheduleId, ids: ReadonlyArray<string>) =>
+      Effect.forEach(
+        ids,
+        (id, position) => updateActivityPosition({ scheduleId, id, position }),
+        { discard: true },
+      ),
+
     /** Whether a Schedule has a Stay with an id. */
     hasStay: (scheduleId: ScheduleId, stayId: string) =>
       Effect.map(findStay({ scheduleId, stayId }), Option.isSome),
@@ -482,8 +652,8 @@ export const scheduleStore = Effect.gen(function* () {
     removeOwnItem: deleteOwnItem,
 
     /**
-     * Stores a new Schedule with its copy, one row per statement to stay well
-     * under any limit on bound parameters.
+     * Stores a new Schedule with its copy, its Activities included, one row
+     * per statement to stay well under any limit on bound parameters.
      */
     insert: Effect.fnUntraced(function* (
       schedule: ScheduleRecord,
@@ -527,6 +697,15 @@ export const scheduleStore = Effect.gen(function* () {
         copy.verifyClaims,
         (claim, position) =>
           insertVerifyClaim({ ...claim, scheduleId, position }),
+        { discard: true },
+      )
+      yield* Effect.forEach(
+        copy.days.flatMap(({ date, activities }) =>
+          activities.map((activity, position) =>
+            activityRowOf(scheduleId, date, activity, position),
+          ),
+        ),
+        insertActivity,
         { discard: true },
       )
       yield* Effect.forEach(

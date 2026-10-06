@@ -163,6 +163,8 @@ const affectedBy = {
   // Every query carrying the current Schedule's Days: the Day pages, Today
   // on Home, and the Schedule itself, by id too.
   dayNote: [keys.days, keys.home, keys.schedules, keys.scheduleById],
+  // Activities are carried by the Days, as Day notes are.
+  activity: [keys.days, keys.home, keys.schedules, keys.scheduleById],
   // Every query carrying the current Schedule's Stays: the Schedule on Home
   // before and after the Trip, and the Schedule itself, by id too.
   stayNote: [keys.home, keys.schedules, keys.scheduleById],
