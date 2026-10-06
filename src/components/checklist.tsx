@@ -4,6 +4,7 @@ import { BadgeAlertIcon, BellIcon, CheckIcon, Trash2Icon } from 'lucide-react'
 import { useId } from 'react'
 
 import { ButtonLink } from '@/components/button-link'
+import { NotSavedAlert } from '@/components/not-saved-alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -31,6 +32,7 @@ import {
   useSave,
 } from '@/trip/drafts'
 import type { DraftKeeping } from '@/trip/drafts'
+import { reminderDateOf } from '@/trip/checklist-items'
 import { checklistTextMaxLength } from '@/trip/limits'
 import {
   addOwnChecklistItem,
@@ -85,22 +87,18 @@ const wordingOf = (
     }),
   )
 
+const verifyNotes = {
+  'reminder-date': 'Seats open about a month before; verify the date',
+  'when-booking-opens': 'Verify when booking opens',
+}
+
 /** What, if anything, an item says to verify, beside its reminder date. */
 const verifyNoteOf = (item: ChecklistItem) =>
   Match.value(item).pipe(
     Match.tags({
-      ReserveSeats: () => 'Seats open about a month before; verify the date',
-      BookFlight: () => 'Verify when booking opens',
+      ReserveSeats: ({ verify }) => verifyNotes[verify],
+      BookFlight: ({ verify }) => verifyNotes[verify],
       VerifyClaim: () => 'Verify',
-    }),
-    Match.orElse(() => undefined),
-  )
-
-const reminderDateOf = (item: ChecklistItem) =>
-  Match.value(item).pipe(
-    Match.tags({
-      ReserveSeats: ({ reminderDate }) => reminderDate,
-      Own: ({ reminderDate }) => reminderDate,
     }),
     Match.orElse(() => undefined),
   )
@@ -126,35 +124,22 @@ const ownTickAnswerOf = (outcome: TickOwnChecklistItemOutcome): SaveAnswer =>
     }),
   )
 
-/** A save's problem, with a retry. */
-function NotSavedAlert({
-  problem,
+/** Retrying or dismissing a one-tap save that didn't go through. */
+function RetryOrDismiss({
   onRetry,
   onDismiss,
 }: {
-  problem: string
   onRetry: () => void
   onDismiss: () => void
 }) {
   return (
-    <div role="alert" className="flex flex-col items-start gap-2">
-      <p className="text-sm">
-        <Badge
-          variant="outline"
-          className="mr-2 border-primary align-text-bottom text-primary"
-        >
-          Not saved
-        </Badge>
-        {problem}
-      </p>
-      <div className="flex gap-2">
-        <Button type="button" size="sm" onClick={onRetry}>
-          Retry
-        </Button>
-        <Button type="button" size="sm" variant="ghost" onClick={onDismiss}>
-          Dismiss
-        </Button>
-      </div>
+    <div className="flex gap-2">
+      <Button type="button" size="sm" onClick={onRetry}>
+        Retry
+      </Button>
+      <Button type="button" size="sm" variant="ghost" onClick={onDismiss}>
+        Dismiss
+      </Button>
     </div>
   )
 }
@@ -268,18 +253,20 @@ function ChecklistRow({
           </div>
         )}
         {SaveState.$is('NotSaved')(tick.state) && (
-          <NotSavedAlert
-            problem={tick.state.problem}
-            onRetry={() => void tick.save()}
-            onDismiss={tick.discard}
-          />
+          <NotSavedAlert problem={tick.state.problem}>
+            <RetryOrDismiss
+              onRetry={() => void tick.save()}
+              onDismiss={tick.discard}
+            />
+          </NotSavedAlert>
         )}
         {SaveState.$is('NotSaved')(removal.state) && (
-          <NotSavedAlert
-            problem={removal.state.problem}
-            onRetry={() => void removal.save()}
-            onDismiss={removal.discard}
-          />
+          <NotSavedAlert problem={removal.state.problem}>
+            <RetryOrDismiss
+              onRetry={() => void removal.save()}
+              onDismiss={removal.discard}
+            />
+          </NotSavedAlert>
         )}
       </div>
       {own && (
@@ -377,15 +364,19 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
     saved: noNewItem,
     write: 'checklist',
     run: async ({ text, reminderDate, operationId }) =>
-      addAnswerOf(
-        await add({
-          data: {
-            operationId,
-            text,
-            ...(reminderDate !== '' && { reminderDate }),
-          },
-        }),
-      ),
+      reminderDate !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(reminderDate)
+        ? SaveAnswer.Refused({
+            problem: 'Choose a reminder date with a four-digit year.',
+          })
+        : addAnswerOf(
+            await add({
+              data: {
+                operationId,
+                text,
+                ...(reminderDate !== '' && { reminderDate }),
+              },
+            }),
+          ),
   })
 
   const { state, value } = field
@@ -406,14 +397,7 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
       }}
     >
       {notSaved && (
-        <div role="alert" className="flex flex-col items-start gap-2">
-          <Badge variant="outline" className="border-primary text-primary">
-            Not saved
-          </Badge>
-          <p id={problemId} className="text-sm">
-            {state.problem}
-          </p>
-        </div>
+        <NotSavedAlert problem={state.problem} problemId={problemId} />
       )}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <Input

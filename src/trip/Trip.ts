@@ -87,6 +87,7 @@ import type {
   WriteTripNote,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
+import { reminderDateOf } from '@/trip/checklist-items'
 import { checklistTextMaxLength, noteMaxLength } from '@/trip/limits'
 import { places, visitedPlaceIds } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
@@ -862,21 +863,18 @@ const derivedChecklistOf = (
     .map(({ item }) => item)
 }
 
-const reminderDateOf = (item: ChecklistItem) =>
-  ChecklistItem.isAnyOf(['ReserveSeats', 'Own'])(item)
-    ? item.reminderDate
-    : undefined
-
 /**
  * Where an item falls on the Checklist before its reminder date counts:
  * derived items without one, dated items, then own items without one.
  */
+const checklistGroups = { undatedDerived: 0, dated: 1, undatedOwn: 2 }
+
 const checklistGroupOf = (item: ChecklistItem) =>
   reminderDateOf(item) !== undefined
-    ? 1
+    ? checklistGroups.dated
     : ChecklistItem.guards.Own(item)
-      ? 2
-      : 0
+      ? checklistGroups.undatedOwn
+      : checklistGroups.undatedDerived
 
 /**
  * The derived items, in Trip order, with Phillip's own, in the order added,

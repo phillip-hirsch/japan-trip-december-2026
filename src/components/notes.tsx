@@ -3,8 +3,8 @@ import { Match } from 'effect'
 import { CheckIcon, PencilIcon } from 'lucide-react'
 import { useId } from 'react'
 
+import { NotSavedAlert } from '@/components/not-saved-alert'
 import { NoteText } from '@/components/note-text'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDay } from '@/trip/calendar'
@@ -107,14 +107,7 @@ function NoteField({
       }}
     >
       {notSaved && (
-        <div role="alert" className="flex flex-col items-start gap-2">
-          <Badge variant="outline" className="border-primary text-primary">
-            Not saved
-          </Badge>
-          <p id={problemId} className="text-sm">
-            {state.problem}
-          </p>
-        </div>
+        <NotSavedAlert problem={state.problem} problemId={problemId} />
       )}
       <Textarea
         aria-labelledby={labelledBy}
