@@ -1,4 +1,4 @@
-// The Trip's domain types, named as in CONTEXT.md. For browser imports, see
+// The Trip's domain types, named as in GLOSSARY.md. For browser imports, see
 // AGENTS.md: Effect in the browser.
 import { DateTime, Option, Schema, Struct } from 'effect'
 

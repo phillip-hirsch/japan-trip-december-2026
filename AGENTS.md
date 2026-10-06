@@ -118,7 +118,7 @@ Router integration (Base UI, so no `asChild`):
 Tests are colocated with the modules they exercise (`*.test.ts` under `src/`), written with `@effect/vitest` and run by `vp test`. Every test honours this contract:
 
 - Drive behaviour only through a public seam: the Trip service or the Access gate.
-- Assert only on returned values, described in glossary terms (`CONTEXT.md`).
+- Assert only on returned values, described in glossary terms (`GLOSSARY.md`).
 - Build the module under test for real; substitute only its dependencies (Itinerary catalogue, Clock, SQL client, configuration, key-set transport, link resolver) through layers.
 - Read state back through the seam; tables, internal helpers and component internals stay uninspected.
 
@@ -126,7 +126,7 @@ Tests are colocated with the modules they exercise (`*.test.ts` under `src/`), w
 
 ### Issue tracker
 
-Issues and PRDs are tracked in GitHub Issues using the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues and specs are tracked in GitHub Issues using the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
