@@ -19,20 +19,21 @@ import type { TripWrite } from '@/trip/queries'
 const storageKey = (target: string) => `draft:${target}`
 
 /**
- * A stored draft, with the Schedule it was typed for. Each write has its own
- * id, so a save clears only the draft it wrote, never a later one with the
- * same text.
+ * A stored draft, with the Schedule it was typed for, or null for a value
+ * tied to none, such as the Trip note. Each write has its own id, so a save
+ * clears only the draft it wrote, never a later one with the same text.
  */
 interface Draft {
   readonly value: string
-  readonly scheduleId: string
+  readonly scheduleId: string | null
   readonly id: string
 }
 
 const isDraft = (value: unknown): value is Draft =>
   Predicate.isObject(value) &&
   Predicate.isString(value.value) &&
-  Predicate.isString(value.scheduleId) &&
+  (Predicate.isString(value.scheduleId) ||
+    Predicate.isNull(value.scheduleId)) &&
   Predicate.isString(value.id)
 
 // Storage can be unavailable or full; the field still holds the text then.
@@ -53,7 +54,11 @@ const readDraft = (target: string): Draft | undefined => {
 }
 
 /** Keeps a value as the target's draft, returning that write's id. */
-const writeDraft = (target: string, value: string, scheduleId: string) => {
+const writeDraft = (
+  target: string,
+  value: string,
+  scheduleId: string | null,
+) => {
   const draft: Draft = { value, scheduleId, id: crypto.randomUUID() }
 
   try {
@@ -75,6 +80,18 @@ const clearDraft = (target: string) => {
 
 /** The draft target of the Day note on a date. */
 export const dayNoteTarget = (date: IsoDate) => `day-note:${date}`
+
+/**
+ * The draft target of the Stay note on a Stay, by its id. Not by its dates:
+ * a Stay keeps its id when they change, and another Schedule's Stay checking
+ * in on the same date may be somewhere else entirely. Its id is fresh in each
+ * Schedule, so a draft refused because the Schedule changed is kept, and
+ * reopens only if its own Schedule is restored.
+ */
+export const stayNoteTarget = (stayId: string) => `stay-note:${stayId}`
+
+/** The draft target of the Trip note. */
+export const tripNoteTarget = 'trip-note'
 
 /** What a save answered, when it got an answer. */
 export type SaveAnswer = Data.TaggedEnum<{
@@ -138,8 +155,11 @@ export const useDraftedField = ({
 }: {
   /** What the value is for, such as the Day note on a date. */
   target: string
-  /** The Schedule the saved value was read from. */
-  scheduleId: ScheduleId
+  /**
+   * The Schedule the saved value was read from, or null for a value tied to
+   * none, such as the Trip note, which a Schedule change never affects.
+   */
+  scheduleId: ScheduleId | null
   /** The value as last read from the server. */
   saved: string
   write: TripWrite

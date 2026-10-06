@@ -2,6 +2,7 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { NoSchedule } from '@/components/no-schedule'
+import { TripNote } from '@/components/notes'
 import {
   ArchivedScheduleList,
   RevisionNotice,
@@ -22,7 +23,11 @@ export const Route = createFileRoute('/schedule/')({
 })
 
 function SchedulePage() {
-  const { current: schedule, archived } = useSuspenseQuery(schedulesQuery).data
+  const {
+    current: schedule,
+    archived,
+    tripNote,
+  } = useSuspenseQuery(schedulesQuery).data
 
   if (schedule === null) return <NoSchedule />
 
@@ -46,6 +51,12 @@ function SchedulePage() {
         <RevisionNotice schedule={schedule} className="mt-6" />
         <VerifyClaims claims={schedule.verifyClaims} className="mt-6" />
       </header>
+      <section aria-labelledby="trip-note" className="mt-12">
+        <h2 id="trip-note" className="mb-4 text-xl font-semibold">
+          Trip note
+        </h2>
+        <TripNote note={tripNote} labelledBy="trip-note" />
+      </section>
       <ScheduleSections schedule={schedule} linkDays />
       <ArchivedScheduleList schedules={archived} />
     </article>

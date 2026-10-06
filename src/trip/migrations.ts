@@ -106,4 +106,20 @@ export const migrations = Migrator.fromRecord({
     const sql = yield* SqlClient.SqlClient
     yield* sql`ALTER TABLE days ADD COLUMN note TEXT`
   }),
+  // Phillip's Stay note on each Stay; null while he has written none.
+  '0004_stays_note': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+    yield* sql`ALTER TABLE stays ADD COLUMN note TEXT`
+  }),
+  // The Trip note, tied to no Schedule: one row at most, none while Phillip
+  // has written none.
+  '0005_trip_note': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+    yield* sql`
+      CREATE TABLE tripNote (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        note TEXT NOT NULL
+      )
+    `
+  }),
 })

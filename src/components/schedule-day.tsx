@@ -12,7 +12,7 @@ import {
   MoveRoute,
   MoveTravel,
 } from '@/components/day-details'
-import { DayNote } from '@/components/day-note'
+import { DayNote } from '@/components/notes'
 import { DisplayJa } from '@/components/display-ja'
 import { NewPlaceBadge } from '@/components/new-place-badge'
 import { Badge } from '@/components/ui/badge'

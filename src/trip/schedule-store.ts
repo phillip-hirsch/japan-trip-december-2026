@@ -1,8 +1,9 @@
 // effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
 // @effect-diagnostics unstableApiUsage:off
-// How Schedules are stored, row by row, with each write's operation id and
-// result. Only the Trip service uses it, inside the Durable Object or over
-// Node's SQLite in the tests; tables stay behind it.
+// How Schedules and the Trip note are stored, row by row, with the operation
+// ids of writes that carry one and their results. Only the Trip service uses
+// it, inside the Durable Object or over Node's SQLite in the tests; tables
+// stay behind it.
 import { Effect, Option, Schema, Struct } from 'effect'
 import { SqlClient, SqlSchema } from 'effect/sql'
 import type { Statement } from 'effect/sql'
@@ -26,15 +27,19 @@ import type { Day } from '@/trip/domain'
 
 type Copied<A> = A & { readonly id: string }
 
+/** A Stay of a Schedule, with Phillip's Stay note once he writes one. */
+export type ScheduleStay = Copied<Stay> & { readonly note?: string }
+
 /** A Day of a Schedule, with Phillip's Day note once he writes one. */
 export type ScheduleDay = Day & { readonly note?: string }
 
 /**
  * Everything a Schedule copies from the Itinerary chosen, each Stay, Move, Day
- * trip, Verify claim and Anchor with its own id, and Phillip's Day notes.
+ * trip, Verify claim and Anchor with its own id, and Phillip's Stay and Day
+ * notes.
  */
 export interface ScheduleCopy {
-  readonly stays: ReadonlyArray<Copied<Stay>>
+  readonly stays: ReadonlyArray<ScheduleStay>
   readonly days: ReadonlyArray<ScheduleDay>
   readonly moves: ReadonlyArray<Copied<Move>>
   readonly dayTrips: ReadonlyArray<Copied<DayTrip>>
@@ -48,11 +53,15 @@ const ofSchedule = { scheduleId: ScheduleId }
 
 const ordered = { position: Schema.Int }
 
+/** A note as stored: null for an empty one, which removes it. */
+const storedNote = (note: string) => (note === '' ? null : note)
+
 const StayRow = Schema.Struct({
   id: CopyId,
   ...ofSchedule,
   ...Stay.fields,
   highlights: Schema.fromJsonString(Stay.fields.highlights),
+  note: Schema.NullOr(Schema.String),
 })
 
 const DayRow = Schema.Struct({
@@ -179,6 +188,46 @@ export const scheduleStore = Effect.gen(function* () {
       `,
   })
 
+  const findStay = SqlSchema.findOneOption({
+    Request: Schema.Struct({ scheduleId: ScheduleId, stayId: CopyId }),
+    Result: Schema.Struct({ id: CopyId }),
+    execute: ({ scheduleId, stayId }) =>
+      sql`SELECT id FROM stays WHERE scheduleId = ${scheduleId} AND id = ${stayId}`,
+  })
+
+  const updateStayNote = SqlSchema.void({
+    Request: Schema.Struct({
+      scheduleId: ScheduleId,
+      stayId: CopyId,
+      note: Schema.NullOr(Schema.String),
+    }),
+    execute: ({ scheduleId, stayId, note }) =>
+      sql`
+        UPDATE stays SET note = ${note}
+        WHERE scheduleId = ${scheduleId} AND id = ${stayId}
+      `,
+  })
+
+  const findTripNote = SqlSchema.findOneOption({
+    Request: Schema.Void,
+    Result: Schema.Struct({ note: Schema.String }),
+    execute: () => sql`SELECT note FROM tripNote WHERE id = 1`,
+  })
+
+  const upsertTripNote = SqlSchema.void({
+    Request: Schema.String,
+    execute: (note) =>
+      sql`
+        INSERT INTO tripNote (id, note) VALUES (1, ${note})
+        ON CONFLICT (id) DO UPDATE SET note = excluded.note
+      `,
+  })
+
+  const deleteTripNote = SqlSchema.void({
+    Request: Schema.Void,
+    execute: () => sql`DELETE FROM tripNote`,
+  })
+
   const rowsOf = <S extends Schema.Top>(
     Result: S,
     execute: (scheduleId: string) => Statement.Statement<unknown>,
@@ -233,7 +282,10 @@ export const scheduleStore = Effect.gen(function* () {
       ])
 
     const copy: ScheduleCopy = {
-      stays: stays.map(withoutSchedule),
+      stays: stays.map(({ note, ...stay }) => ({
+        ...withoutSchedule(stay),
+        ...(note !== null && { note }),
+      })),
       days: days.map(({ date, description, note }) => ({
         date,
         ...(description !== null && { description }),
@@ -303,7 +355,25 @@ export const scheduleStore = Effect.gen(function* () {
 
     /** Replaces the Day note on a Day of a Schedule; empty removes it. */
     writeDayNote: (scheduleId: ScheduleId, date: IsoDate, note: string) =>
-      updateDayNote({ scheduleId, date, note: note === '' ? null : note }),
+      updateDayNote({ scheduleId, date, note: storedNote(note) }),
+
+    /** Whether a Schedule has a Stay with an id. */
+    hasStay: (scheduleId: ScheduleId, stayId: string) =>
+      Effect.map(findStay({ scheduleId, stayId }), Option.isSome),
+
+    /** Replaces the Stay note on a Stay of a Schedule; empty removes it. */
+    writeStayNote: (scheduleId: ScheduleId, stayId: string, note: string) =>
+      updateStayNote({ scheduleId, stayId, note: storedNote(note) }),
+
+    /** The Trip note, if Phillip has written one. */
+    tripNote: Effect.map(
+      findTripNote(undefined),
+      Option.map(({ note }) => note),
+    ),
+
+    /** Replaces the Trip note; empty removes it. */
+    writeTripNote: (note: string) =>
+      note === '' ? deleteTripNote(undefined) : upsertTripNote(note),
 
     /**
      * Stores a new Schedule with its copy, one row per statement to stay well
@@ -317,7 +387,7 @@ export const scheduleStore = Effect.gen(function* () {
       yield* insertSchedule(schedule)
       yield* Effect.forEach(
         copy.stays,
-        (stay) => insertStay({ ...stay, scheduleId }),
+        (stay) => insertStay({ ...stay, scheduleId, note: stay.note ?? null }),
         { discard: true },
       )
       yield* Effect.forEach(
