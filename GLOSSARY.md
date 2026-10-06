@@ -93,6 +93,22 @@ _Avoid_: caveat, warning
 The things to book or confirm for the Schedule: mostly derived from its Stays, Moves, Anchors and Verify claims, plus Phillip's own.
 _Avoid_: todo list, tasks
 
+**Checklist item**:
+One thing on the Checklist. "Item" alone always means a Checklist item, never an Activity.
+_Avoid_: task, todo
+
+**Own Checklist item**:
+A Checklist item Phillip writes himself, with an optional Reminder date. It belongs to the Trip, not a Schedule, so it carries over when he chooses again.
+_Avoid_: custom item, personal task
+
+**Reminder date**:
+The date a Checklist item becomes worth doing, such as one month before a train Move, when seat reservations roughly open. It is only shown: nothing is ever sent.
+_Avoid_: due date, deadline, notification
+
+**Tick**:
+Phillip's mark that a Checklist item is done. A tick on an item derived from the Schedule belongs to that Schedule: choosing again starts without ticks, and restoring brings them back.
+_Avoid_: checkmark, completion
+
 **Draft**:
 What Phillip has typed but not yet saved, kept on his device until its save succeeds, and restored marked "not saved" if it never did. Only his Save or Retry sends it.
 _Avoid_: autosave, unsaved changes
