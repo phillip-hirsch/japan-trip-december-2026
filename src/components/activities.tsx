@@ -288,14 +288,15 @@ interface ActivityEdit extends ActivityFields {
 function ActivityRow({
   activity,
   scheduleId,
-  nextId,
   beforeWhenUp,
   beforeWhenDown,
+  onMove,
+  reordering,
+  moving,
+  moveAlert,
 }: {
   activity: Activity
   scheduleId: ScheduleId
-  /** The id of the Activity after it; null for the last. */
-  nextId: string | null
   /**
    * The id of the Activity moving it up places it before; undefined for the
    * first, which can't move up.
@@ -306,10 +307,17 @@ function ActivityRow({
    * it last; undefined for the last, which can't move down.
    */
   beforeWhenDown: string | null | undefined
+  /** Moves it before the Activity with an id, or last for null. */
+  onMove: (before: string | null) => void
+  /** Whether a move on its Day awaits the read that confirms it. */
+  reordering: boolean
+  /** Whether that move is this Activity's. */
+  moving: boolean
+  /** Why this Activity's last move wasn't saved, with Retry; if it wasn't. */
+  moveAlert: ReactNode
 }) {
   const titleId = useId()
   const edit = useServerFn(editActivity)
-  const move = useServerFn(moveActivity)
   const remove = useServerFn(removeActivity)
   const fields = fieldsOf(activity)
 
@@ -342,17 +350,6 @@ function ActivityRow({
       ),
   })
 
-  // The Activity it comes before is what moving it changes.
-  const moving = useSave({
-    scheduleId,
-    saved: nextId,
-    write: 'activity',
-    run: async (before) =>
-      moveAnswerOf(activity.id)(
-        await move({ data: { scheduleId, activityId: activity.id, before } }),
-      ),
-  })
-
   // Removed is the value removing saves: once saved, the Activity is gone,
   // and so is any edit to it.
   const removal = useSave({
@@ -372,11 +369,14 @@ function ActivityRow({
 
   const removing = !SaveState.$is('Clean')(removal.state)
 
-  // A move or removal holds the row until the read that confirms it, so no
-  // control acts on its neighbours from before the move.
-  const settling = [removal.state, moving.state].some(
-    (state) => SaveState.$is('Saving')(state) || SaveState.$is('Saved')(state),
-  )
+  // A move or removal holds the row until the read that confirms it.
+  const settling =
+    (moving && reordering) ||
+    SaveState.$is('Saving')(removal.state) ||
+    SaveState.$is('Saved')(removal.state)
+
+  // No move is sent from neighbours a move in flight may have changed.
+  const unmovable = reordering || settling || removing
 
   const showing =
     SaveState.$is('Clean')(editing.state) ||
@@ -425,9 +425,9 @@ function ActivityRow({
               size="icon-sm"
               aria-label="Move up"
               aria-describedby={titleId}
-              disabled={beforeWhenUp === undefined || settling || removing}
+              disabled={beforeWhenUp === undefined || unmovable}
               onClick={() => {
-                if (beforeWhenUp !== undefined) void moving.send(beforeWhenUp)
+                if (beforeWhenUp !== undefined) onMove(beforeWhenUp)
               }}
               className="text-muted-foreground"
             >
@@ -438,11 +438,9 @@ function ActivityRow({
               size="icon-sm"
               aria-label="Move down"
               aria-describedby={titleId}
-              disabled={beforeWhenDown === undefined || settling || removing}
+              disabled={beforeWhenDown === undefined || unmovable}
               onClick={() => {
-                if (beforeWhenDown !== undefined) {
-                  void moving.send(beforeWhenDown)
-                }
+                if (beforeWhenDown !== undefined) onMove(beforeWhenDown)
               }}
               className="text-muted-foreground"
             >
@@ -482,14 +480,7 @@ function ActivityRow({
           </Button>
         </ActivityEditor>
       )}
-      {SaveState.$is('NotSaved')(moving.state) && (
-        <NotSavedAlert problem={moving.state.problem}>
-          <RetryOrDismiss
-            onRetry={() => void moving.save()}
-            onDismiss={moving.discard}
-          />
-        </NotSavedAlert>
-      )}
+      {moveAlert}
       {SaveState.$is('NotSaved')(removal.state) && (
         <NotSavedAlert problem={removal.state.problem}>
           <RetryOrDismiss
@@ -611,6 +602,12 @@ function AddActivity({
   )
 }
 
+/** Moving an Activity before another on its Day, or last for null. */
+interface ActivityMove {
+  readonly activityId: string
+  readonly before: string | null
+}
+
 /**
  * A Day's Activities in the order Phillip keeps them, never re-sorted by
  * time, and a way to add one. Key it by the Day's date.
@@ -627,6 +624,28 @@ export function Activities({
   /** The id of the heading naming the Activities. */
   labelledBy: string
 }) {
+  const move = useServerFn(moveActivity)
+
+  // One move at a time on the Day: until the read that confirms it, every
+  // row's neighbours may be out of date, so no other move is sent.
+  const moving = useSave<ActivityMove | null>({
+    scheduleId,
+    saved: null,
+    write: 'activity',
+    run: async (activityMove) =>
+      activityMove === null
+        ? SaveAnswer.Saved()
+        : moveAnswerOf(activityMove.activityId)(
+            await move({ data: { scheduleId, ...activityMove } }),
+          ),
+  })
+
+  const reordering =
+    SaveState.$is('Saving')(moving.state) ||
+    SaveState.$is('Saved')(moving.state)
+
+  const movingId = moving.value?.activityId
+
   return (
     <div className="flex flex-col gap-4">
       {activities.length === 0 ? (
@@ -644,12 +663,27 @@ export function Activities({
               <ActivityRow
                 activity={activity}
                 scheduleId={scheduleId}
-                nextId={activities[index + 1]?.id ?? null}
                 beforeWhenUp={activities[index - 1]?.id}
                 beforeWhenDown={
                   index === activities.length - 1
                     ? undefined
                     : (activities[index + 2]?.id ?? null)
+                }
+                onMove={(before) =>
+                  void moving.send({ activityId: activity.id, before })
+                }
+                reordering={reordering}
+                moving={movingId === activity.id}
+                moveAlert={
+                  SaveState.$is('NotSaved')(moving.state) &&
+                  movingId === activity.id && (
+                    <NotSavedAlert problem={moving.state.problem}>
+                      <RetryOrDismiss
+                        onRetry={() => void moving.save()}
+                        onDismiss={moving.discard}
+                      />
+                    </NotSavedAlert>
+                  )
                 }
               />
             </li>
