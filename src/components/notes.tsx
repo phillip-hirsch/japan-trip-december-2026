@@ -3,8 +3,8 @@ import { Match } from 'effect'
 import { CheckIcon, PencilIcon } from 'lucide-react'
 import { useId } from 'react'
 
+import { NotSavedAlert } from '@/components/not-saved-alert'
 import { NoteText } from '@/components/note-text'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { formatDay } from '@/trip/calendar'
@@ -17,7 +17,7 @@ import type {
 } from '@/trip/domain'
 import {
   dayNoteTarget,
-  DraftedFieldState,
+  SaveState,
   SaveAnswer,
   stayNoteTarget,
   tripNoteTarget,
@@ -60,11 +60,8 @@ function NoteField({
   const problemId = useId()
   const { state, value } = field
 
-  if (
-    DraftedFieldState.$is('Clean')(state) ||
-    DraftedFieldState.$is('Saved')(state)
-  ) {
-    const justSaved = DraftedFieldState.$is('Saved')(state) || state.justSaved
+  if (SaveState.$is('Clean')(state) || SaveState.$is('Saved')(state)) {
+    const justSaved = SaveState.$is('Saved')(state) || state.justSaved
 
     return (
       <div className="flex flex-col items-start gap-3">
@@ -98,8 +95,8 @@ function NoteField({
     )
   }
 
-  const notSaved = DraftedFieldState.$is('NotSaved')(state)
-  const saving = DraftedFieldState.$is('Saving')(state)
+  const notSaved = SaveState.$is('NotSaved')(state)
+  const saving = SaveState.$is('Saving')(state)
 
   return (
     <form
@@ -110,20 +107,13 @@ function NoteField({
       }}
     >
       {notSaved && (
-        <div role="alert" className="flex flex-col items-start gap-2">
-          <Badge variant="outline" className="border-primary text-primary">
-            Not saved
-          </Badge>
-          <p id={problemId} className="text-sm">
-            {state.problem}
-          </p>
-        </div>
+        <NotSavedAlert problem={state.problem} problemId={problemId} />
       )}
       <Textarea
         aria-labelledby={labelledBy}
         aria-describedby={notSaved ? problemId : undefined}
         // Opening the editor focuses it; a restored draft opens unfocused.
-        autoFocus={DraftedFieldState.$is('Editing')(state)}
+        autoFocus={SaveState.$is('Editing')(state)}
         // A save in flight fixes the value, so two saves never race.
         readOnly={saving}
         value={value}

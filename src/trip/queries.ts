@@ -14,6 +14,7 @@ import { useEffect } from 'react'
 import { millisecondsUntilTokyoMidnight } from '@/trip/calendar'
 import type { IsoDate } from '@/trip/domain'
 import {
+  getChecklist,
   getDay,
   getHome,
   getScheduleById,
@@ -33,6 +34,7 @@ const keys = {
   scheduleSummary: ['schedule-summary'],
   /** The prefix of every query for one Schedule by its id. */
   scheduleById: ['schedule-by-id'],
+  checklist: ['checklist'],
 } as const satisfies Record<string, QueryKey>
 
 // A page shown again must not open on data another device has since changed,
@@ -111,6 +113,13 @@ export const scheduleByIdQuery = (scheduleId: string) =>
     refetchOnMount: false,
   })
 
+/** The Checklist, for /checklist. */
+export const checklistQuery = queryOptions({
+  queryKey: keys.checklist,
+  queryFn: () => getChecklist(),
+  refetchOnMount: false,
+})
+
 /**
  * The storage-dependent parts of every page, prerendered ones included, read
  * this: the navigation's Options or Schedule entry, the Choose button, and
@@ -141,6 +150,7 @@ const replacingTheSchedule = [
   keys.home,
   keys.scheduleSummary,
   keys.scheduleById,
+  keys.checklist,
 ] as const
 
 /**
@@ -158,6 +168,8 @@ const affectedBy = {
   stayNote: [keys.home, keys.schedules, keys.scheduleById],
   // The Trip note shows only with the Schedules on /schedule.
   tripNote: [keys.schedules],
+  // Ticks, own items added and own items removed show only on /checklist.
+  checklist: [keys.checklist],
 } as const satisfies Record<string, ReadonlyArray<QueryKey>>
 
 export type TripWrite = keyof typeof affectedBy

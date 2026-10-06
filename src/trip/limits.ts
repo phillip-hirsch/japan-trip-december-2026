@@ -6,3 +6,6 @@
  * code units.
  */
 export const noteMaxLength = 10_000
+
+/** The longest own Checklist item's text the Trip service accepts. */
+export const checklistTextMaxLength = 500

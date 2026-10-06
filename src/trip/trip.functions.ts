@@ -3,18 +3,27 @@ import { createServerFn } from '@tanstack/react-start'
 import { Effect, Schema } from 'effect'
 
 import {
+  AddOwnChecklistItem,
+  AddOwnChecklistItemOutcome,
+  Checklist,
   ChooseItinerary,
   ChooseOutcome,
   DayOutcome,
   HomeState,
   IsoDate,
   OptionNumber,
+  RemoveOwnChecklistItem,
+  RemoveOwnChecklistItemOutcome,
   RestoreOutcome,
   RestoreSchedule,
   ScheduleDetail,
   ScheduleId,
   Schedules,
   ScheduleSummary,
+  TickChecklistItem,
+  TickChecklistItemOutcome,
+  TickOwnChecklistItem,
+  TickOwnChecklistItemOutcome,
   WriteDayNote,
   WriteDayNoteOutcome,
   WriteStayNote,
@@ -172,3 +181,60 @@ export const getScheduleSummary = createServerFn({ method: 'GET' }).handler(
       store.scheduleSummary(),
     ),
 )
+
+/**
+ * The Checklist, derived from the current Schedule as it is now, with
+ * Phillip's own items; only his own before he chooses one.
+ */
+export const getChecklist = createServerFn({ method: 'GET' }).handler(() =>
+  callTripStore(Checklist, (store) => store.checklist()),
+)
+
+/**
+ * Sets the tick on an item derived from the Schedule named, to true or
+ * false. Setting is idempotent, so it carries no operation id; the Trip
+ * service refuses a Schedule that isn't current.
+ */
+export const tickChecklistItem = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(TickChecklistItem))
+  .handler(({ data }) =>
+    callTripStore(TickChecklistItemOutcome, (store) =>
+      store.tickChecklistItem(data),
+    ),
+  )
+
+/**
+ * Adds one of Phillip's own Checklist items. Repeating the operation id
+ * returns the first result, so a retry never adds it twice.
+ */
+export const addOwnChecklistItem = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(AddOwnChecklistItem))
+  .handler(({ data }) =>
+    callTripStore(AddOwnChecklistItemOutcome, (store) =>
+      store.addOwnChecklistItem(data),
+    ),
+  )
+
+/**
+ * Sets the tick on one of Phillip's own Checklist items, to true or false.
+ * It belongs to no Schedule, so it names none.
+ */
+export const tickOwnChecklistItem = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(TickOwnChecklistItem))
+  .handler(({ data }) =>
+    callTripStore(TickOwnChecklistItemOutcome, (store) =>
+      store.tickOwnChecklistItem(data),
+    ),
+  )
+
+/**
+ * Removes one of Phillip's own Checklist items; removing one already gone
+ * succeeds, so a retry is safe.
+ */
+export const removeOwnChecklistItem = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(RemoveOwnChecklistItem))
+  .handler(({ data }) =>
+    callTripStore(RemoveOwnChecklistItemOutcome, (store) =>
+      store.removeOwnChecklistItem(data),
+    ),
+  )

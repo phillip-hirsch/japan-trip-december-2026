@@ -2,7 +2,8 @@
 // the browser's local storage, keyed by its target (such as the Day note on
 // 2026-12-14), until a save succeeds, so no failed save, login reload or
 // closed app loses it. A draft is never saved behind his back: only his Save
-// or Retry sends it.
+// or Retry sends it. A one-tap value, such as a tick, keeps no draft: tapping
+// again loses nothing.
 import { useQueryClient } from '@tanstack/react-query'
 import { Data, Predicate } from 'effect'
 import { useEffect, useRef, useState } from 'react'
@@ -23,21 +24,26 @@ const storageKey = (target: string) => `draft:${target}`
  * tied to none, such as the Trip note. Each write has its own id, so a save
  * clears only the draft it wrote, never a later one with the same text.
  */
-interface Draft {
-  readonly value: string
+interface Draft<V> {
+  readonly value: V
   readonly scheduleId: string | null
   readonly id: string
 }
 
-const isDraft = (value: unknown): value is Draft =>
-  Predicate.isObject(value) &&
-  Predicate.isString(value.value) &&
-  (Predicate.isString(value.scheduleId) ||
-    Predicate.isNull(value.scheduleId)) &&
-  Predicate.isString(value.id)
+/**
+ * Where a value's draft is kept: its target, and the check that what is
+ * stored there is such a value.
+ */
+export interface DraftKeeping<V> {
+  readonly target: string
+  readonly isValue: (value: unknown) => value is V
+}
 
-// Storage can be unavailable or full; the field still holds the text then.
-const readDraft = (target: string): Draft | undefined => {
+// Storage can be unavailable or full; the field still holds the value then.
+const readDraft = <V>({
+  target,
+  isValue,
+}: DraftKeeping<V>): Draft<V> | undefined => {
   try {
     const stored = localStorage.getItem(storageKey(target))
 
@@ -45,7 +51,11 @@ const readDraft = (target: string): Draft | undefined => {
 
     const draft: unknown = JSON.parse(stored)
 
-    return isDraft(draft)
+    return Predicate.isObject(draft) &&
+      isValue(draft.value) &&
+      (Predicate.isString(draft.scheduleId) ||
+        Predicate.isNull(draft.scheduleId)) &&
+      Predicate.isString(draft.id)
       ? { value: draft.value, scheduleId: draft.scheduleId, id: draft.id }
       : undefined
   } catch {
@@ -54,12 +64,8 @@ const readDraft = (target: string): Draft | undefined => {
 }
 
 /** Keeps a value as the target's draft, returning that write's id. */
-const writeDraft = (
-  target: string,
-  value: string,
-  scheduleId: string | null,
-) => {
-  const draft: Draft = { value, scheduleId, id: crypto.randomUUID() }
+const writeDraft = <V>(target: string, value: V, scheduleId: string | null) => {
+  const draft: Draft<V> = { value, scheduleId, id: crypto.randomUUID() }
 
   try {
     localStorage.setItem(storageKey(target), JSON.stringify(draft))
@@ -93,17 +99,25 @@ export const stayNoteTarget = (stayId: string) => `stay-note:${stayId}`
 /** The draft target of the Trip note. */
 export const tripNoteTarget = 'trip-note'
 
+/** The draft target of a new own Checklist item. */
+export const newChecklistItemTarget = 'checklist-item:new'
+
 /** What a save answered, when it got an answer. */
 export type SaveAnswer = Data.TaggedEnum<{
   Saved: {}
   ScheduleChanged: {}
   Refused: { readonly problem: string }
+  /**
+   * What the value was for no longer exists, such as an item removed on
+   * another device: what the write affects is refetched, so it goes away.
+   */
+  Gone: { readonly problem: string }
 }>
 
 export const SaveAnswer = Data.taggedEnum<SaveAnswer>()
 
 /**
- * A drafted field, by what it shows.
+ * A value saved under the save pattern, by what it shows.
  *
  * - Clean: the saved value, unedited; just saved once a save brought it.
  * - Editing: Phillip's unsaved value, never sent.
@@ -113,83 +127,116 @@ export const SaveAnswer = Data.taggedEnum<SaveAnswer>()
  *   from an earlier visit, with why. It stays marked while edited.
  * - Saved: the value just saved, until what it affects is next read.
  */
-export type DraftedFieldState = Data.TaggedEnum<{
+export type SaveState<V> = Data.TaggedEnum<{
   Clean: { readonly justSaved: boolean }
-  Editing: { readonly value: string }
-  Saving: { readonly value: string }
-  NotSaved: { readonly value: string; readonly problem: string }
-  Saved: { readonly value: string }
+  Editing: { readonly value: V }
+  Saving: { readonly value: V }
+  NotSaved: { readonly value: V; readonly problem: string }
+  Saved: { readonly value: V }
 }>
 
-export const DraftedFieldState = Data.taggedEnum<DraftedFieldState>()
+interface SaveStateDefinition extends Data.TaggedEnum.WithGenerics<1> {
+  readonly taggedEnum: SaveState<this['A']>
+}
 
-const clean: DraftedFieldState = DraftedFieldState.Clean({ justSaved: false })
+export const SaveState = Data.taggedEnum<SaveStateDefinition>()
+
+const clean = SaveState.Clean({ justSaved: false })
 
 const restoredProblem =
   'This is what you typed here last time. Save it, or discard it.'
 
-const scheduleChangedProblem =
-  'Your Schedule changed on another device. This page now shows it as it is; your text is kept here to save again.'
-
-/** Why a save got no answer, from what the request showed. */
-const unansweredProblem = () =>
-  ConnectionStatus.$is('LoginExpired')(currentConnection())
-    ? 'Your login expired. Your text is kept here; log in again, then retry.'
-    : 'The app couldn’t reach the server. Your text is kept here; retry when you’re back online.'
+/** A Schedule change refused the save; a draft says its text is kept. */
+const scheduleChangedProblem = (drafted: boolean) =>
+  drafted
+    ? 'Your Schedule changed on another device. This page now shows it as it is; your text is kept here to save again.'
+    : 'Your Schedule changed on another device. This page now shows it as it is.'
 
 /**
- * A field saved with an explicit Save under the save pattern, as a whole
- * value. Before each save its value is written as a draft; only a successful
- * save clears it, and invalidates the queries the write affects. On mount, a
- * draft left by an earlier visit or a login reload is restored, marked not
- * saved. A "Schedule changed" refusal refetches the data and keeps the value.
- *
- * Key the component using it by its target, so another target starts afresh.
+ * Why a save got no answer, from what the request showed; a draft says its
+ * text is kept.
  */
-export const useDraftedField = ({
-  target,
+const unansweredProblem = (drafted: boolean) => {
+  const loginExpired = ConnectionStatus.$is('LoginExpired')(currentConnection())
+
+  if (drafted) {
+    return loginExpired
+      ? 'Your login expired. Your text is kept here; log in again, then retry.'
+      : 'The app couldn’t reach the server. Your text is kept here; retry when you’re back online.'
+  }
+
+  return loginExpired
+    ? 'Your login expired. Log in again, then retry.'
+    : 'The app couldn’t reach the server. Retry when you’re back online.'
+}
+
+/**
+ * A value saved as a whole under the save pattern. Before each save a value
+ * with a draft target is written as its draft; only a successful save clears
+ * it, and invalidates the queries the write affects. On mount, a draft left
+ * by an earlier visit or a login reload is restored, marked not saved. A
+ * "Schedule changed" refusal refetches the data and keeps the value.
+ *
+ * Key the component using it by what it saves, so another target starts
+ * afresh.
+ */
+export const useSave = <V>({
+  draft: keeping,
+  equals = (a, b) => a === b,
   scheduleId,
   saved,
   write,
   run,
 }: {
-  /** What the value is for, such as the Day note on a date. */
-  target: string
+  /** Where the unsaved value is kept as a draft; none for a one-tap value. */
+  draft?: DraftKeeping<V>
+  /** Whether two values save the same; strictly equal ones by default. */
+  equals?: (a: V, b: V) => boolean
   /**
    * The Schedule the saved value was read from, or null for a value tied to
    * none, such as the Trip note, which a Schedule change never affects.
    */
   scheduleId: ScheduleId | null
   /** The value as last read from the server. */
-  saved: string
+  saved: V
   write: TripWrite
   /** Sends the value; throws when the request gets no answer. */
-  run: (value: string) => Promise<SaveAnswer>
+  run: (value: V) => Promise<SaveAnswer>
 }) => {
   const queryClient = useQueryClient()
-  const [state, setState] = useState<DraftedFieldState>(clean)
+  const [state, setState] = useState<SaveState<V>>(clean)
   const savedRef = useRef(saved)
   savedRef.current = saved
   const scheduleIdRef = useRef(scheduleId)
   scheduleIdRef.current = scheduleId
+  const target = keeping?.target
+  const drafted = keeping !== undefined
   // The stored draft this field wrote or restored: it only ever clears that
   // one, never one another editor of the target, such as another tab, wrote.
   const ownDraftId = useRef<string>(undefined)
 
-  const keepDraft = (next: string) => {
-    ownDraftId.current = writeDraft(target, next, scheduleIdRef.current)
+  const storedDraft = () => (keeping ? readDraft(keeping) : undefined)
+
+  const keepDraft = (next: V) => {
+    ownDraftId.current = target
+      ? writeDraft(target, next, scheduleIdRef.current)
+      : undefined
 
     return ownDraftId.current
   }
 
+  const clearStoredDraft = () => {
+    if (target) clearDraft(target)
+  }
+
   const clearOwnDraft = () => {
-    if (readDraft(target)?.id === ownDraftId.current) clearDraft(target)
+    if (storedDraft()?.id === ownDraftId.current) clearStoredDraft()
   }
 
   /** Whether a stored draft holds what its Schedule, shown now, has saved. */
-  const savedAlready = (draft: Draft) =>
+  const savedAlready = (draft: Draft<V>) =>
     draft.scheduleId === scheduleIdRef.current &&
-    draft.value === savedRef.current
+    equals(draft.value, savedRef.current)
 
   // Stops waiting for the read that confirms the last save.
   const stopAwaitingRead = useRef<() => void>(undefined)
@@ -197,21 +244,21 @@ export const useDraftedField = ({
 
   // Local storage exists only in the browser, after hydration.
   useEffect(() => {
-    const draft = readDraft(target)
+    const draft = storedDraft()
 
     if (draft === undefined) return
 
-    if (savedAlready(draft)) clearDraft(target)
+    if (savedAlready(draft)) clearStoredDraft()
     else {
       ownDraftId.current = draft.id
       setState(
-        DraftedFieldState.NotSaved({
+        SaveState.NotSaved({
           value: draft.value,
           // Typed for a Schedule since replaced, it's never saved there unseen.
           problem:
             draft.scheduleId === scheduleIdRef.current
               ? restoredProblem
-              : scheduleChangedProblem,
+              : scheduleChangedProblem(true),
         }),
       )
     }
@@ -224,12 +271,12 @@ export const useDraftedField = ({
     if (shownScheduleId.current === scheduleId) return
     shownScheduleId.current = scheduleId
     setState((current) =>
-      (DraftedFieldState.$is('Editing')(current) ||
-        DraftedFieldState.$is('NotSaved')(current)) &&
-      current.value !== savedRef.current
-        ? DraftedFieldState.NotSaved({
+      (SaveState.$is('Editing')(current) ||
+        SaveState.$is('NotSaved')(current)) &&
+      !equals(current.value, savedRef.current)
+        ? SaveState.NotSaved({
             value: current.value,
-            problem: scheduleChangedProblem,
+            problem: scheduleChangedProblem(drafted),
           })
         : current,
     )
@@ -242,34 +289,34 @@ export const useDraftedField = ({
   // doesn't save.
   const lastSaved = useRef(saved)
   useEffect(() => {
-    if (lastSaved.current === saved) return
+    if (equals(lastSaved.current, saved)) return
     lastSaved.current = saved
-    const draft = readDraft(target)
+    const draft = storedDraft()
     const own = draft !== undefined && draft.id === ownDraftId.current
 
     if (own && draft.scheduleId !== scheduleIdRef.current) return
 
-    if (own && savedAlready(draft)) clearDraft(target)
+    if (own && savedAlready(draft)) clearStoredDraft()
     setState((current) =>
-      DraftedFieldState.$is('NotSaved')(current) && current.value === saved
+      SaveState.$is('NotSaved')(current) && equals(current.value, saved)
         ? clean
         : current,
     )
   }, [saved, target])
 
-  const value = DraftedFieldState.$is('Clean')(state) ? saved : state.value
+  const value = SaveState.$is('Clean')(state) ? saved : state.value
 
-  const edit = () => setState(DraftedFieldState.Editing({ value }))
+  const edit = () => setState(SaveState.Editing({ value }))
 
-  const change = (next: string) => {
-    if (DraftedFieldState.$is('Saving')(state)) return
+  const change = (next: V) => {
+    if (SaveState.$is('Saving')(state)) return
 
-    if (next === savedRef.current) clearOwnDraft()
+    if (equals(next, savedRef.current)) clearOwnDraft()
     else keepDraft(next)
     setState(
-      DraftedFieldState.$is('NotSaved')(state)
+      SaveState.$is('NotSaved')(state)
         ? { ...state, value: next }
-        : DraftedFieldState.Editing({ value: next }),
+        : SaveState.Editing({ value: next }),
     )
   }
 
@@ -278,22 +325,19 @@ export const useDraftedField = ({
     setState(clean)
   }
 
-  const save = async () => {
-    if (
-      !DraftedFieldState.$is('Editing')(state) &&
-      !DraftedFieldState.$is('NotSaved')(state)
-    )
-      return
-    const sending = state.value
+  const saveValue = async (sending: V) => {
     const sentTo = scheduleIdRef.current
     const draftId = keepDraft(sending)
-    setState(DraftedFieldState.Saving({ value: sending }))
+    setState(SaveState.Saving({ value: sending }))
     let answer: SaveAnswer
+
+    let answered = true
 
     try {
       answer = await run(sending)
     } catch {
-      answer = SaveAnswer.Refused({ problem: unansweredProblem() })
+      answered = false
+      answer = SaveAnswer.Refused({ problem: unansweredProblem(drafted) })
     }
 
     // Data read during the save showing another Schedule means the value was
@@ -305,8 +349,11 @@ export const useDraftedField = ({
 
     if (SaveAnswer.$is('Saved')(answer)) {
       // Another editor of the target, in this tab or another, may have kept
-      // a newer draft since, even with the same text.
-      if (readDraft(target)?.id === draftId) clearDraft(target)
+      // a newer draft since, even with the same value.
+      if (draftId !== undefined && storedDraft()?.id === draftId) {
+        clearStoredDraft()
+      }
+
       // The next successful read of what the write affects (its refetch, or
       // a later one if that fails) shows what the server holds, even a value
       // equal to the one before the save.
@@ -315,32 +362,62 @@ export const useDraftedField = ({
       const stop = subscribeToReadsAfter(queryClient, write, () => {
         stop()
         setState((current) =>
-          DraftedFieldState.$is('Saved')(current)
-            ? DraftedFieldState.Clean({ justSaved: true })
+          SaveState.$is('Saved')(current)
+            ? SaveState.Clean({ justSaved: true })
             : current,
         )
       })
 
       stopAwaitingRead.current = stop
-      setState(DraftedFieldState.Saved({ value: sending }))
+      setState(SaveState.Saved({ value: sending }))
       await invalidateAfter(queryClient, write)
 
       return
     }
 
     setState(
-      DraftedFieldState.NotSaved({
+      SaveState.NotSaved({
         value: sending,
         problem: SaveAnswer.$is('ScheduleChanged')(answer)
-          ? scheduleChangedProblem
+          ? scheduleChangedProblem(drafted)
           : answer.problem,
       }),
     )
 
     if (SaveAnswer.$is('ScheduleChanged')(answer)) {
       await invalidateAfterScheduleChanged(queryClient)
+    } else if (SaveAnswer.$is('Gone')(answer) || !answered) {
+      // A save whose answer was lost may still have landed: once a read
+      // shows it, a value marked not saved that it holds is cleared, and a
+      // created item appears before Phillip types it again.
+      await invalidateAfter(queryClient, write)
     }
   }
 
-  return { state, value, edit, change, discard, save }
+  /** Saves the value being edited, or retries one not saved. */
+  const save = async () => {
+    if (SaveState.$is('Editing')(state) || SaveState.$is('NotSaved')(state)) {
+      await saveValue(state.value)
+    }
+  }
+
+  /** Saves a value at once, for a one-tap control such as a tick. */
+  const send = async (next: V) => {
+    if (!SaveState.$is('Saving')(state)) await saveValue(next)
+  }
+
+  return { state, value, edit, change, discard, save, send }
 }
+
+/**
+ * A text field saved with an explicit Save under the save pattern, kept as a
+ * draft under its target. Key the component using it by its target.
+ */
+export const useDraftedField = ({
+  target,
+  ...options
+}: {
+  /** What the value is for, such as the Day note on a date. */
+  target: string
+} & Omit<Parameters<typeof useSave<string>>[0], 'draft' | 'equals'>) =>
+  useSave({ draft: { target, isValue: Predicate.isString }, ...options })

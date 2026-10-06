@@ -6,6 +6,8 @@ import { Effect, Exit, Layer, ManagedRuntime, Option } from 'effect'
 import type { SqlClient } from 'effect/sql'
 
 import type {
+  AddOwnChecklistItem,
+  Checklist,
   ChooseItinerary,
   HomeState,
   IsoDate,
@@ -14,14 +16,21 @@ import type {
   ScheduleId,
   Schedules,
   ScheduleSummary,
+  RemoveOwnChecklistItem,
+  TickChecklistItem,
+  TickOwnChecklistItem,
   WriteDayNote,
   WriteStayNote,
   WriteTripNote,
 } from '@/trip/domain'
 import {
+  AddOwnChecklistItemOutcome,
   ChooseOutcome,
   DayOutcome,
+  RemoveOwnChecklistItemOutcome,
   RestoreOutcome,
+  TickChecklistItemOutcome,
+  TickOwnChecklistItemOutcome,
   WriteDayNoteOutcome,
   WriteStayNoteOutcome,
   WriteTripNoteOutcome,
@@ -205,6 +214,89 @@ export class TripStore extends DurableObject<Env> {
           Effect.succeed<WriteTripNoteOutcome>(
             WriteTripNoteOutcome.cases.NoteTooLong.make({ maxLength }),
           ),
+        ),
+      ),
+    )
+  }
+
+  /** The Checklist, from the current Schedule as it is now. */
+  checklist(): Promise<Checklist> {
+    return this.#run(Trip.use((trip) => trip.checklist))
+  }
+
+  /** Sets the tick on an item derived from the current Schedule. */
+  tickChecklistItem(
+    input: TickChecklistItem,
+  ): Promise<TickChecklistItemOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.tickChecklistItem(input)).pipe(
+        Effect.as<TickChecklistItemOutcome>(
+          TickChecklistItemOutcome.cases.Ticked.make({}),
+        ),
+        Effect.catchTags({
+          ScheduleChanged: () =>
+            Effect.succeed<TickChecklistItemOutcome>(
+              TickChecklistItemOutcome.cases.ScheduleChanged.make({}),
+            ),
+          ChecklistItemNotFound: ({ itemId }) =>
+            Effect.succeed<TickChecklistItemOutcome>(
+              TickChecklistItemOutcome.cases.ChecklistItemNotFound.make({
+                itemId,
+              }),
+            ),
+        }),
+      ),
+    )
+  }
+
+  /** Adds one of Phillip's own Checklist items. */
+  addOwnChecklistItem(
+    input: AddOwnChecklistItem,
+  ): Promise<AddOwnChecklistItemOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.addOwnChecklistItem(input)).pipe(
+        Effect.map((added): AddOwnChecklistItemOutcome =>
+          AddOwnChecklistItemOutcome.cases.Added.make(added),
+        ),
+        Effect.catchTag('ChecklistTextInvalid', ({ maxLength }) =>
+          Effect.succeed<AddOwnChecklistItemOutcome>(
+            AddOwnChecklistItemOutcome.cases.ChecklistTextInvalid.make({
+              maxLength,
+            }),
+          ),
+        ),
+      ),
+    )
+  }
+
+  /** Sets the tick on one of Phillip's own Checklist items. */
+  tickOwnChecklistItem(
+    input: TickOwnChecklistItem,
+  ): Promise<TickOwnChecklistItemOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.tickOwnChecklistItem(input)).pipe(
+        Effect.as<TickOwnChecklistItemOutcome>(
+          TickOwnChecklistItemOutcome.cases.Ticked.make({}),
+        ),
+        Effect.catchTag('ChecklistItemNotFound', ({ itemId }) =>
+          Effect.succeed<TickOwnChecklistItemOutcome>(
+            TickOwnChecklistItemOutcome.cases.ChecklistItemNotFound.make({
+              itemId,
+            }),
+          ),
+        ),
+      ),
+    )
+  }
+
+  /** Removes one of Phillip's own Checklist items. */
+  removeOwnChecklistItem(
+    input: RemoveOwnChecklistItem,
+  ): Promise<RemoveOwnChecklistItemOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.removeOwnChecklistItem(input)).pipe(
+        Effect.as<RemoveOwnChecklistItemOutcome>(
+          RemoveOwnChecklistItemOutcome.cases.Removed.make({}),
         ),
       ),
     )
