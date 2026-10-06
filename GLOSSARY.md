@@ -33,6 +33,14 @@ _Avoid_: event, item
 Phillip's own plain-text note on a Day of the Schedule, shown on its Day page. It belongs to that Schedule: choosing again starts without Day notes, and restoring brings them back.
 _Avoid_: day memo, comment
 
+**Stay note**:
+Phillip's own plain-text note on a Stay of the Schedule, such as tips about the hotel's area, shown with the Stay on the Schedule page. Like a Day note, it belongs to that Schedule.
+_Avoid_: hotel note, stay memo
+
+**Trip note**:
+Phillip's one plain-text note about the whole Trip, shown on the Schedule page. It belongs to the Trip, not a Schedule, so it stays as it is when he chooses again or restores.
+_Avoid_: general note, global note
+
 **Day page**:
 A Day of the Schedule on its own page at /schedule/$date: the Day's source description and Day trips, its Day note, Tonight's hotel and the Next Move.
 

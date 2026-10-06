@@ -15,12 +15,16 @@ import type {
   Schedules,
   ScheduleSummary,
   WriteDayNote,
+  WriteStayNote,
+  WriteTripNote,
 } from '@/trip/domain'
 import {
   ChooseOutcome,
   DayOutcome,
   RestoreOutcome,
   WriteDayNoteOutcome,
+  WriteStayNoteOutcome,
+  WriteTripNoteOutcome,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
 import { migrations } from '@/trip/migrations'
@@ -156,11 +160,52 @@ export class TripStore extends DurableObject<Env> {
             Effect.succeed<WriteDayNoteOutcome>(
               WriteDayNoteOutcome.cases.DayNotFound.make({ date }),
             ),
-          DayNoteTooLong: ({ maxLength }) =>
+          NoteTooLong: ({ maxLength }) =>
             Effect.succeed<WriteDayNoteOutcome>(
-              WriteDayNoteOutcome.cases.DayNoteTooLong.make({ maxLength }),
+              WriteDayNoteOutcome.cases.NoteTooLong.make({ maxLength }),
             ),
         }),
+      ),
+    )
+  }
+
+  /** Writes the Stay note on a Stay of the current Schedule, as a whole. */
+  writeStayNote(input: WriteStayNote): Promise<WriteStayNoteOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.writeStayNote(input)).pipe(
+        Effect.as<WriteStayNoteOutcome>(
+          WriteStayNoteOutcome.cases.Written.make({}),
+        ),
+        Effect.catchTags({
+          ScheduleChanged: () =>
+            Effect.succeed<WriteStayNoteOutcome>(
+              WriteStayNoteOutcome.cases.ScheduleChanged.make({}),
+            ),
+          StayNotFound: ({ stayId }) =>
+            Effect.succeed<WriteStayNoteOutcome>(
+              WriteStayNoteOutcome.cases.StayNotFound.make({ stayId }),
+            ),
+          NoteTooLong: ({ maxLength }) =>
+            Effect.succeed<WriteStayNoteOutcome>(
+              WriteStayNoteOutcome.cases.NoteTooLong.make({ maxLength }),
+            ),
+        }),
+      ),
+    )
+  }
+
+  /** Writes the Trip note, as a whole. */
+  writeTripNote(input: WriteTripNote): Promise<WriteTripNoteOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.writeTripNote(input)).pipe(
+        Effect.as<WriteTripNoteOutcome>(
+          WriteTripNoteOutcome.cases.Written.make({}),
+        ),
+        Effect.catchTag('NoteTooLong', ({ maxLength }) =>
+          Effect.succeed<WriteTripNoteOutcome>(
+            WriteTripNoteOutcome.cases.NoteTooLong.make({ maxLength }),
+          ),
+        ),
       ),
     )
   }
@@ -175,15 +220,15 @@ export class TripStore extends DurableObject<Env> {
   }
 
   /**
-   * The current Schedule (null before Phillip chooses one) and the archived
-   * ones, from one moment.
+   * The current Schedule (null before Phillip chooses one), the archived
+   * ones and the Trip note, from one moment.
    */
   schedules(): Promise<Schedules> {
     return this.#run(
       Trip.use((trip) => trip.schedules).pipe(
-        Effect.map(({ current, archived }) => ({
+        Effect.map(({ current, ...rest }) => ({
           current: Option.getOrNull(current),
-          archived,
+          ...rest,
         })),
       ),
     )

@@ -153,6 +153,11 @@ const affectedBy = {
   // Every query carrying the current Schedule's Days: the Day pages, Today
   // on Home, and the Schedule itself, by id too.
   dayNote: [keys.days, keys.home, keys.schedules, keys.scheduleById],
+  // Every query carrying the current Schedule's Stays: the Schedule on Home
+  // before and after the Trip, and the Schedule itself, by id too.
+  stayNote: [keys.home, keys.schedules, keys.scheduleById],
+  // The Trip note shows only with the Schedules on /schedule.
+  tripNote: [keys.schedules],
 } as const satisfies Record<string, ReadonlyArray<QueryKey>>
 
 export type TripWrite = keyof typeof affectedBy

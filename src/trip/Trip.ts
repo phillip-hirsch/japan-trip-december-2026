@@ -24,16 +24,17 @@ import {
 import {
   Anchor,
   DayNotFound,
-  DayNoteTooLong,
   HomeState,
   Hotel,
   IsoDate,
   ItineraryNotFound,
+  NoteTooLong,
   ScheduleChanged,
   ScheduleChosen,
   ScheduleId,
   ScheduleNotFound,
   ScheduleRestored,
+  StayNotFound,
   TripRuleBreak,
   VerifyClaimAttachment,
 } from '@/trip/domain'
@@ -71,9 +72,11 @@ import type {
   VerifyClaim,
   VerifyClaimDetail,
   WriteDayNote,
+  WriteStayNote,
+  WriteTripNote,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
-import { dayNoteMaxLength } from '@/trip/limits'
+import { noteMaxLength } from '@/trip/limits'
 import { places, visitedPlaceIds } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
 import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
@@ -712,6 +715,12 @@ const archiveReplaced = Effect.fnUntraced(function* (
   }
 })
 
+/** NoteTooLong past the longest note the Trip service accepts. */
+const requireNoteLength = (note: string) =>
+  note.length > noteMaxLength
+    ? Effect.fail(new NoteTooLong({ maxLength: noteMaxLength }))
+    : Effect.void
+
 /** Every way an Itinerary breaks the Trip's rules; empty when it keeps them. */
 const tripRuleBreaksOf = ({
   stays,
@@ -919,14 +928,16 @@ export class Trip extends Context.Service<
       scheduleId: ScheduleId,
     ): Effect.Effect<ScheduleDetail, ScheduleNotFound, SqlClient.SqlClient>
     /**
-     * The current Schedule, if Phillip has chosen one, and every archived
-     * Schedule, the most recently archived first, read as one transaction so
-     * they never come from two moments.
+     * The current Schedule, if Phillip has chosen one, every archived
+     * Schedule, the most recently archived first, and the Trip note, if he
+     * has written one, read as one transaction so they never come from two
+     * moments.
      */
     readonly schedules: Effect.Effect<
       {
         readonly current: Option.Option<ScheduleDetail>
         readonly archived: ReadonlyArray<ArchivedScheduleSummary>
+        readonly tripNote?: string
       },
       never,
       SqlClient.SqlClient
@@ -941,16 +952,39 @@ export class Trip extends Context.Service<
      * Writes the Day note on a Day of the Schedule named, as a whole value,
      * so the last write wins. An empty note removes it. ScheduleChanged when
      * the Schedule named isn't current, archived ones included; DayNotFound
-     * when it has no Day on the date; DayNoteTooLong past 10,000 characters.
+     * when it has no Day on the date; NoteTooLong past 10,000 characters.
      * A refused write writes nothing.
      */
     writeDayNote(
       input: WriteDayNote,
     ): Effect.Effect<
       void,
-      ScheduleChanged | DayNotFound | DayNoteTooLong,
+      ScheduleChanged | DayNotFound | NoteTooLong,
       SqlClient.SqlClient
     >
+    /**
+     * Writes the Stay note on a Stay of the Schedule named, as a whole value,
+     * so the last write wins. An empty note removes it. ScheduleChanged when
+     * the Schedule named isn't current, archived ones included; StayNotFound
+     * when it has no Stay with the id; NoteTooLong past 10,000 characters. A
+     * refused write writes nothing.
+     */
+    writeStayNote(
+      input: WriteStayNote,
+    ): Effect.Effect<
+      void,
+      ScheduleChanged | StayNotFound | NoteTooLong,
+      SqlClient.SqlClient
+    >
+    /**
+     * Writes the Trip note as a whole value, so the last write wins. An empty
+     * note removes it. It belongs to the Trip, so choosing again or restoring
+     * leaves it as it is. NoteTooLong past 10,000 characters, writing
+     * nothing.
+     */
+    writeTripNote(
+      input: WriteTripNote,
+    ): Effect.Effect<void, NoteTooLong, SqlClient.SqlClient>
   }
 >()('japan-trip/trip/Trip') {
   static readonly layer = Layer.effect(
@@ -1076,11 +1110,22 @@ export class Trip extends Context.Service<
       const schedules = Effect.gen(function* () {
         const store = yield* scheduleStore
 
-        const { current, archived } = yield* store.transaction(
-          Effect.all({ current: store.current, archived: store.archived }),
+        const { current, archived, tripNote } = yield* store.transaction(
+          Effect.all({
+            current: store.current,
+            archived: store.archived,
+            tripNote: store.tripNote,
+          }),
         )
 
-        return { current: Option.map(current, scheduleDetail), archived }
+        return {
+          current: Option.map(current, scheduleDetail),
+          archived,
+          ...Option.match(tripNote, {
+            onNone: () => ({}),
+            onSome: (tripNote) => ({ tripNote }),
+          }),
+        }
       }).pipe(
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
         Effect.withSpan('Trip.schedules'),
@@ -1121,10 +1166,7 @@ export class Trip extends Context.Service<
 
       const writeDayNote = Effect.fn('Trip.writeDayNote')(
         function* ({ scheduleId, date, note }: WriteDayNote) {
-          if (note.length > dayNoteMaxLength) {
-            return yield* new DayNoteTooLong({ maxLength: dayNoteMaxLength })
-          }
-
+          yield* requireNoteLength(note)
           const store = yield* scheduleStore
           yield* store.transaction(
             Effect.gen(function* () {
@@ -1137,6 +1179,34 @@ export class Trip extends Context.Service<
               yield* store.writeDayNote(scheduleId, date, note)
             }),
           )
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
+      const writeStayNote = Effect.fn('Trip.writeStayNote')(
+        function* ({ scheduleId, stayId, note }: WriteStayNote) {
+          yield* requireNoteLength(note)
+          const store = yield* scheduleStore
+          yield* store.transaction(
+            Effect.gen(function* () {
+              yield* requireCurrent(store, scheduleId)
+
+              if (!(yield* store.hasStay(scheduleId, stayId))) {
+                return yield* new StayNotFound({ stayId })
+              }
+
+              yield* store.writeStayNote(scheduleId, stayId, note)
+            }),
+          )
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
+      const writeTripNote = Effect.fn('Trip.writeTripNote')(
+        function* ({ note }: WriteTripNote) {
+          yield* requireNoteLength(note)
+          const store = yield* scheduleStore
+          yield* store.writeTripNote(note)
         },
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
       )
@@ -1156,6 +1226,8 @@ export class Trip extends Context.Service<
         schedules,
         scheduleSummary,
         writeDayNote,
+        writeStayNote,
+        writeTripNote,
       })
     }),
   )

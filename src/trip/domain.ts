@@ -539,6 +539,8 @@ export type ScheduleAnchor = typeof ScheduleAnchor.Type
 export const ScheduleStayDetail = Schema.Struct({
   id: CopyId,
   ...StayDetail.fields,
+  /** Phillip's Stay note, absent until he writes one. */
+  note: Schema.optionalKey(Schema.String),
 })
 
 export type ScheduleStayDetail = typeof ScheduleStayDetail.Type
@@ -673,12 +675,14 @@ export type ArchivedScheduleSummary = typeof ArchivedScheduleSummary.Type
 
 /**
  * Phillip's Schedules as /schedule shows them: the current one, if chosen,
- * and the archived ones, most recently archived first. Read together, so
- * the page never shows two moments at once.
+ * the archived ones, most recently archived first, and the Trip note. Read
+ * together, so the page never shows two moments at once.
  */
 export const Schedules = Schema.Struct({
   current: Schema.NullOr(ScheduleDetail),
   archived: Schema.Array(ArchivedScheduleSummary),
+  /** Phillip's Trip note, absent until he writes one. */
+  tripNote: Schema.optionalKey(Schema.String),
 })
 
 export type Schedules = typeof Schedules.Type
@@ -800,9 +804,9 @@ export const WriteDayNote = Schema.Struct({
 
 export type WriteDayNote = typeof WriteDayNote.Type
 
-/** A Day note longer than the Trip service accepts; nothing is written. */
-export class DayNoteTooLong extends Schema.TaggedError<DayNoteTooLong>()(
-  'DayNoteTooLong',
+/** A note longer than the Trip service accepts; nothing is written. */
+export class NoteTooLong extends Schema.TaggedError<NoteTooLong>()(
+  'NoteTooLong',
   { maxLength: Schema.Int },
 ) {}
 
@@ -811,10 +815,54 @@ export const WriteDayNoteOutcome = Schema.TaggedUnion({
   Written: {},
   ScheduleChanged: ScheduleChanged.fields,
   DayNotFound: DayNotFound.fields,
-  DayNoteTooLong: DayNoteTooLong.fields,
+  NoteTooLong: NoteTooLong.fields,
 })
 
 export type WriteDayNoteOutcome = typeof WriteDayNoteOutcome.Type
+
+/** The Schedule named has no Stay with that id, such as one since replaced. */
+export class StayNotFound extends Schema.TaggedError<StayNotFound>()(
+  'StayNotFound',
+  { stayId: CopyId },
+) {}
+
+/**
+ * Write the Stay note on a Stay of the Schedule named, as a whole value: an
+ * empty note removes it. The last write wins.
+ */
+export const WriteStayNote = Schema.Struct({
+  scheduleId: ScheduleId,
+  stayId: CopyId,
+  note: Schema.String,
+})
+
+export type WriteStayNote = typeof WriteStayNote.Type
+
+/** What writing a Stay note did, as plain data for the browser. */
+export const WriteStayNoteOutcome = Schema.TaggedUnion({
+  Written: {},
+  ScheduleChanged: ScheduleChanged.fields,
+  StayNotFound: StayNotFound.fields,
+  NoteTooLong: NoteTooLong.fields,
+})
+
+export type WriteStayNoteOutcome = typeof WriteStayNoteOutcome.Type
+
+/**
+ * Write the Trip note, as a whole value: an empty note removes it. It belongs
+ * to the Trip, not a Schedule, so it names none. The last write wins.
+ */
+export const WriteTripNote = Schema.Struct({ note: Schema.String })
+
+export type WriteTripNote = typeof WriteTripNote.Type
+
+/** What writing the Trip note did, as plain data for the browser. */
+export const WriteTripNoteOutcome = Schema.TaggedUnion({
+  Written: {},
+  NoteTooLong: NoteTooLong.fields,
+})
+
+export type WriteTripNoteOutcome = typeof WriteTripNoteOutcome.Type
 
 /** What choosing an Itinerary did, as plain data for the browser. */
 export const ChooseOutcome = Schema.TaggedUnion({

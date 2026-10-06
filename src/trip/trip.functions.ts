@@ -17,6 +17,10 @@ import {
   ScheduleSummary,
   WriteDayNote,
   WriteDayNoteOutcome,
+  WriteStayNote,
+  WriteStayNoteOutcome,
+  WriteTripNote,
+  WriteTripNoteOutcome,
 } from '@/trip/domain'
 import { runTrip } from '@/trip/runtime.server'
 import { Trip } from '@/trip/Trip'
@@ -117,6 +121,27 @@ export const writeDayNote = createServerFn({ method: 'POST' })
     callTripStore(WriteDayNoteOutcome, (store) => store.writeDayNote(data)),
   )
 
+/**
+ * Writes the Stay note on a Stay of the Schedule named, as a whole value.
+ * The write is idempotent, so it carries no operation id; the Trip service
+ * enforces the length cap and refuses a Schedule that isn't current.
+ */
+export const writeStayNote = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(WriteStayNote))
+  .handler(({ data }) =>
+    callTripStore(WriteStayNoteOutcome, (store) => store.writeStayNote(data)),
+  )
+
+/**
+ * Writes the Trip note as a whole value. It belongs to no Schedule, so it
+ * names none; the Trip service enforces the length cap.
+ */
+export const writeTripNote = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(WriteTripNote))
+  .handler(({ data }) =>
+    callTripStore(WriteTripNoteOutcome, (store) => store.writeTripNote(data)),
+  )
+
 /** One Schedule, current or archived, or null when none has that id. */
 export const getScheduleById = createServerFn({ method: 'GET' })
   .validator(
@@ -129,8 +154,8 @@ export const getScheduleById = createServerFn({ method: 'GET' })
   )
 
 /**
- * The current Schedule (null before Phillip chooses one) and the archived
- * ones, from one moment.
+ * The current Schedule (null before Phillip chooses one), the archived ones
+ * and the Trip note, from one moment.
  */
 export const getSchedules = createServerFn({ method: 'GET' }).handler(() =>
   callTripStore(Schedules, (store) => store.schedules()),
