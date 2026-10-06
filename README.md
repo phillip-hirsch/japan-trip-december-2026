@@ -8,7 +8,7 @@ Four phases, in order. Spec: [issue #1](https://github.com/phillip-hirsch/japan-
 
 **Phase 1, compare.** Live at https://japan-trip-december-2026.phillip-b52.workers.dev, behind Cloudflare Access. Home counts whole days until midnight on December 6 in Tokyo. Options 1–4 show their stays, all 15 days, and the anchors: arrival, the Shigeharu visit on the morning of December 11, the birthday on December 15, and departure. `/options` compares them on the same rows and on one map. Each itinerary page has its own map. Train moves follow the real rail lines when the route is known. A move with no route is a straight line between the places it joins. `/options` and every itinerary page are prerendered; Home stays dynamic.
 
-**Phase 2, schedule.** Not built. Choosing copies an itinerary into a schedule that later revisions leave alone, with notes, a checklist, and Today on Home, stored in a SQLite Durable Object near Japan ([ADR 0001](docs/adr/0001-durable-object-sqlite-for-schedule-data.md)).
+**Phase 2, schedule.** Live. Choosing copies an itinerary into a schedule that later revisions leave alone. The schedule has a page for each day, stay notes, day notes, a trip note, and a checklist. During the trip, Home shows today's page. It's stored in a SQLite Durable Object near Japan ([ADR 0001](docs/adr/0001-durable-object-sqlite-for-schedule-data.md)). Devices catch up when the app opens, regains focus, or reconnects. Before the Trip, follow the [pre-trip routine](docs/pre-trip-routine.md).
 
 **Phase 3, bookings.** Not built. Activities, hotel details, stay edits, pins from map links, and a full-screen map.
 
@@ -48,17 +48,18 @@ vp test            # tests under src/
 
 `vp run deploy` builds the Worker and runs `wrangler deploy` to https://japan-trip-december-2026.phillip-b52.workers.dev, the app's stable address. The Worker name is `japan-trip-december-2026`. You need `wrangler login`.
 
-Sign-in is Cloudflare Access, an email one-time PIN for one address. `src/server.ts` checks the assertion. Access is Worker-level: the team is `phillip-hirsch.cloudflareaccess.com`, the policy allows only phillip@350home.com, and the application and global sessions last one month. `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_ALLOWED_EMAIL` are Worker variables in `wrangler.jsonc`, not secrets. `ACCESS_AUD` is the Access application's AUD tag. If the application is ever recreated, update it there and in `.dev.vars`, or the gate refuses every request ([#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14), [ADR 0002](docs/adr/0002-cloudflare-access-instead-of-in-app-login.md)).
+Sign-in is Cloudflare Access, an email one-time PIN for one address. `src/server.ts` checks the assertion. Access is Worker-level: the team is `phillip-hirsch.cloudflareaccess.com`, the policy allows only phillip@350home.com, and the application and global sessions last one month. `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_ALLOWED_EMAIL` are Worker variables in `wrangler.jsonc`, not secrets. `ACCESS_AUD` is the Access application's AUD tag. If the application is ever recreated, update it there and in `.dev.vars`, or the gate refuses every request ([#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14), [ADR 0002](docs/adr/0002-cloudflare-access-instead-of-in-app-login.md)). Shortening a session also ends existing logins older than the new duration, and lengthening it again doesn't bring them back, so redo the [pre-trip routine](docs/pre-trip-routine.md) after any session change ([#22](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/22)).
 
-The repo is public. Itineraries and these docs are in git. The schedule, checklist, notes, and bookings will live in storage, not in commits ([ADR 0003](docs/adr/0003-itineraries-are-repo-content.md)).
+The repo is public. Itineraries and these docs are in git. The schedule, checklist, notes, and bookings live in storage, not in commits ([ADR 0003](docs/adr/0003-itineraries-are-repo-content.md)).
 
 ## Where to look
 
-- `src/routes`: `/`, `/options`, `/options/$optionNumber`
+- `src/routes`: `/`, `/options`, `/options/$optionNumber`, `/schedule`, `/schedule/$date`, `/schedule/archived/$scheduleId`, `/checklist`
 - `src/trip`: domain, Options 1–4, rail geometry
 - `src/access`: Access gate
 - `src/components`: UI, maps, tab bar, and sidebar
 - [`GLOSSARY.md`](GLOSSARY.md): glossary
 - [`docs/adr`](docs/adr): storage, Access, itineraries as repo content
 - [`docs/itinerary.md`](docs/itinerary.md): source write-up
+- [`docs/pre-trip-routine.md`](docs/pre-trip-routine.md): get the iPhone and desktop logged in before the Trip
 - [`docs/agents/itineraries.md`](docs/agents/itineraries.md): add or revise an itinerary
