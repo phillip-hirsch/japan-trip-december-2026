@@ -654,6 +654,27 @@ export function Activities({
   const movingId = moving.value?.activityId
   const removingId = removal.value
 
+  // A move or removal not saved whose Activity is no longer shown, such as
+  // one removed on another device or left behind by a Schedule change, has
+  // nothing left to retry and no row to say so: let it go, so the rest can
+  // move again.
+  useEffect(() => {
+    const shown = new Set(activities.map(({ id }) => id))
+
+    for (const [save, activityId] of [
+      [moving, movingId],
+      [removal, removingId],
+    ] as const) {
+      if (
+        SaveState.$is('NotSaved')(save.state) &&
+        activityId != null &&
+        !shown.has(activityId)
+      ) {
+        save.discard()
+      }
+    }
+  }, [activities, moving.state, removal.state])
+
   /** Why a move or removal of an Activity wasn't saved, with Retry. */
   const alertOf = <V,>(
     save: ReturnType<typeof useSave<V>>,
