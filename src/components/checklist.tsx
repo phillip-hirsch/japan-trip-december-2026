@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Item } from '@/components/ui/item'
+import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import {
   formatDay,
@@ -103,7 +104,7 @@ const verifyNoteOf = (item: ChecklistItem) =>
     Match.orElse(() => undefined),
   )
 
-const notFound = SaveAnswer.Refused({
+const notFound = SaveAnswer.Gone({
   problem: 'This item is no longer on your Checklist.',
 })
 
@@ -111,7 +112,18 @@ const tickAnswerOf = (outcome: TickChecklistItemOutcome): SaveAnswer =>
   Match.value(outcome).pipe(
     Match.tagsExhaustive({
       Ticked: () => SaveAnswer.Saved(),
-      ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
+      ScheduleChanged: () => {
+        // Its row goes once the new Schedule's items are read, so say so
+        // where it outlives the row.
+        toast.add({
+          type: 'warning',
+          title: 'Your Schedule changed on another device',
+          description:
+            'The tick wasn’t saved. The Checklist now shows the Schedule as it is.',
+        })
+
+        return SaveAnswer.ScheduleChanged()
+      },
       ChecklistItemNotFound: () => notFound,
     }),
   )

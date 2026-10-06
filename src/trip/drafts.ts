@@ -107,6 +107,11 @@ export type SaveAnswer = Data.TaggedEnum<{
   Saved: {}
   ScheduleChanged: {}
   Refused: { readonly problem: string }
+  /**
+   * What the value was for no longer exists, such as an item removed on
+   * another device: what the write affects is refetched, so it goes away.
+   */
+  Gone: { readonly problem: string }
 }>
 
 export const SaveAnswer = Data.taggedEnum<SaveAnswer>()
@@ -326,9 +331,12 @@ export const useSave = <V>({
     setState(SaveState.Saving({ value: sending }))
     let answer: SaveAnswer
 
+    let answered = true
+
     try {
       answer = await run(sending)
     } catch {
+      answered = false
       answer = SaveAnswer.Refused({ problem: unansweredProblem(drafted) })
     }
 
@@ -378,6 +386,11 @@ export const useSave = <V>({
 
     if (SaveAnswer.$is('ScheduleChanged')(answer)) {
       await invalidateAfterScheduleChanged(queryClient)
+    } else if (SaveAnswer.$is('Gone')(answer) || !answered) {
+      // A save whose answer was lost may still have landed: once a read
+      // shows it, a value marked not saved that it holds is cleared, and a
+      // created item appears before Phillip types it again.
+      await invalidateAfter(queryClient, write)
     }
   }
 
