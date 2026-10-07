@@ -11,14 +11,18 @@ import type {
   Checklist,
   ChooseItinerary,
   EditActivity,
+  HardRuleBroken,
   HomeState,
   IsoDate,
   MoveActivity,
   RestoreSchedule,
+  ScheduleChanged,
   ScheduleDetail,
   ScheduleId,
   Schedules,
   ScheduleSummary,
+  StayNotFound,
+  StaysEdited,
   RemoveActivity,
   RemoveOwnChecklistItem,
   TickChecklistItem,
@@ -38,6 +42,7 @@ import {
   RemoveActivityOutcome,
   RemoveOwnChecklistItemOutcome,
   RestoreOutcome,
+  StayEditOutcome,
   TickChecklistItemOutcome,
   TickOwnChecklistItemOutcome,
   WriteDayNoteOutcome,
@@ -49,6 +54,37 @@ import { Itineraries } from '@/trip/Itineraries'
 import { migrations } from '@/trip/migrations'
 import { runToPromise } from '@/trip/runtime.server'
 import { Trip } from '@/trip/Trip'
+
+/**
+ * Turns a Stay edit's result or refusal into its outcome. Every Stay edit's
+ * RPC method uses it, so all Stay edits answer in the same shape.
+ */
+export const stayEditOutcomeOf = <R>(
+  edit: Effect.Effect<
+    StaysEdited,
+    ScheduleChanged | StayNotFound | HardRuleBroken,
+    R
+  >,
+) =>
+  edit.pipe(
+    Effect.map((edited): StayEditOutcome =>
+      StayEditOutcome.cases.Edited.make(edited),
+    ),
+    Effect.catchTags({
+      ScheduleChanged: () =>
+        Effect.succeed<StayEditOutcome>(
+          StayEditOutcome.cases.ScheduleChanged.make({}),
+        ),
+      StayNotFound: ({ stayId }) =>
+        Effect.succeed<StayEditOutcome>(
+          StayEditOutcome.cases.StayNotFound.make({ stayId }),
+        ),
+      HardRuleBroken: ({ rule }) =>
+        Effect.succeed<StayEditOutcome>(
+          StayEditOutcome.cases.HardRuleBroken.make({ rule }),
+        ),
+    }),
+  )
 
 /**
  * The one SQLite-backed Durable Object holding all of Phillip's editable data

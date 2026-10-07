@@ -171,6 +171,15 @@ const affectedBy = {
   // Hotel details show with the Stays, and as tonight's hotel on the Day
   // pages and Today on Home.
   hotelDetails: [keys.days, keys.home, keys.schedules, keys.scheduleById],
+  // A Stay edit changes the Stays, the Moves and Days they make, Tonight's
+  // hotel and the Next Move, the Anchor warnings and the derived Checklist.
+  stayEdit: [
+    keys.schedules,
+    keys.days,
+    keys.home,
+    keys.scheduleById,
+    keys.checklist,
+  ],
   // The Trip note shows only with the Schedules on /schedule.
   tripNote: [keys.schedules],
   // Ticks, own items added and own items removed show only on /checklist.

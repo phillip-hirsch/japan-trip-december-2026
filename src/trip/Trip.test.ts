@@ -230,7 +230,10 @@ describe('Trip rules', () => {
           ['tokyo', 17, 20],
         ),
       }),
-      [TripRuleBreak.cases.StayWithoutNights.make({ checkIn: december(13) })],
+      [
+        TripRuleBreak.cases.StayWithoutNights.make({ checkIn: december(13) }),
+        TripRuleBreak.cases.MovesOnOneDate.make({ date: december(13) }),
+      ],
     ],
     [
       'not covering December 6 to December 20',
@@ -267,6 +270,16 @@ describe('Trip rules', () => {
           date: december(11),
         }),
       ],
+    ],
+    [
+      'two Moves on one date',
+      option1With({
+        moves: [
+          ...option1.moves,
+          { date: december(13), mode: 'local', sections: [] },
+        ],
+      }),
+      [TripRuleBreak.cases.MovesOnOneDate.make({ date: december(13) })],
     ],
     [
       'Stays that meet without a Move',

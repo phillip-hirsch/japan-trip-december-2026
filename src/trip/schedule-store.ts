@@ -62,6 +62,13 @@ export interface ScheduleCopy {
   readonly anchors: ReadonlyArray<ScheduleAnchor>
 }
 
+/**
+ * What a Stay edit writes: a Schedule's Stays, with their Hotel details and
+ * Stay notes, its Moves, and its Verify claims, which attach to a Stay by its
+ * check-in date. Its Days, Day trips and Anchors stay as they are.
+ */
+export type StayChanges = Pick<ScheduleCopy, 'stays' | 'moves' | 'verifyClaims'>
+
 // Rows: lists and unions are stored as JSON, and lists of entities keep the
 // Itinerary's order by position.
 const ofSchedule = { scheduleId: ScheduleId }
@@ -221,11 +228,8 @@ export const scheduleStore = Effect.gen(function* () {
     })
 
   const insertSchedule = inserter('schedules', ScheduleRecord)
-  const insertStay = inserter('stays', StayRow)
   const insertDay = inserter('days', DayRow)
-  const insertMove = inserter('moves', MoveRow)
   const insertDayTrip = inserter('dayTrips', DayTripRow)
-  const insertVerifyClaim = inserter('verifyClaims', VerifyClaimRow)
   const insertAnchor = inserter('anchors', AnchorRow)
   const insertActivity = inserter('activities', ActivityRow)
 
@@ -564,6 +568,98 @@ export const scheduleStore = Effect.gen(function* () {
     return copy
   })
 
+  /**
+   * Inserts a row, or updates the stored row with the same id. It never
+   * updates a row of another Schedule.
+   */
+  const upsertInto = (table: string) => (row: Schema.JsonObject) =>
+    sql`
+      INSERT INTO ${sql(table)} ${sql.insert(row)}
+      ON CONFLICT (id) DO UPDATE SET ${sql.update(row, ['id', 'scheduleId'])}
+      WHERE ${sql(table)}.scheduleId = excluded.scheduleId
+    `
+
+  /** The writers for each row a Stay edit changes, by insert or by upsert. */
+  const stayChangeWriters = (
+    write: (
+      table: string,
+    ) => (row: Schema.JsonObject) => Statement.Statement<unknown>,
+  ) => ({
+    stay: SqlSchema.void({ Request: StayRow, execute: write('stays') }),
+    move: SqlSchema.void({ Request: MoveRow, execute: write('moves') }),
+    verifyClaim: SqlSchema.void({
+      Request: VerifyClaimRow,
+      execute: write('verifyClaims'),
+    }),
+  })
+
+  const inserting = stayChangeWriters(insertInto)
+
+  // An upsert updates only the columns a Stay edit carries. Any other column
+  // on a kept row keeps its value.
+  const upserting = stayChangeWriters(upsertInto)
+
+  /** Writes a Schedule's Stays, Moves and Verify claims, one row each. */
+  const writeStayChanges = Effect.fnUntraced(function* (
+    scheduleId: ScheduleId,
+    { stays, moves, verifyClaims }: StayChanges,
+    writers: ReturnType<typeof stayChangeWriters>,
+  ) {
+    yield* Effect.forEach(
+      stays,
+      ({ hotel, ...stay }) =>
+        writers.stay({
+          ...stay,
+          scheduleId,
+          note: stay.note ?? null,
+          ...hotelColumnsOf(
+            Hotel.guards.Recorded(hotel) ? Struct.omit(hotel, ['_tag']) : {},
+          ),
+        }),
+      { discard: true },
+    )
+    yield* Effect.forEach(
+      moves,
+      (move) =>
+        writers.move({
+          ...Struct.omit(move, ['duration']),
+          scheduleId,
+          duration: move.duration ?? null,
+        }),
+      { discard: true },
+    )
+    yield* Effect.forEach(
+      verifyClaims,
+      (claim, position) =>
+        writers.verifyClaim({ ...claim, scheduleId, position }),
+      { discard: true },
+    )
+  })
+
+  /**
+   * Deletes a Schedule's rows in a table that aren't among those kept, and
+   * the ticks on the Checklist items those rows derived.
+   */
+  const removeOthers = Effect.fnUntraced(function* (
+    table: string,
+    scheduleId: ScheduleId,
+    kept: ReadonlyArray<{ readonly id: string }>,
+  ) {
+    const removed = sql`
+      SELECT id FROM ${sql(table)}
+      WHERE scheduleId = ${scheduleId} AND NOT ${sql.in(
+        'id',
+        kept.map(({ id }) => id),
+      )}
+    `
+
+    yield* sql`
+      DELETE FROM checklistTicks
+      WHERE scheduleId = ${scheduleId} AND itemId IN (${removed})
+    `
+    yield* sql`DELETE FROM ${sql(table)} WHERE id IN (${removed})`
+  })
+
   /** A Schedule found by its own fields, with its copy. */
   const withCopy = <E, R>(
     found: Effect.Effect<Option.Option<ScheduleRecord>, E, R>,
@@ -730,19 +826,7 @@ export const scheduleStore = Effect.gen(function* () {
     ) {
       const scheduleId = schedule.id
       yield* insertSchedule(schedule)
-      yield* Effect.forEach(
-        copy.stays,
-        ({ hotel, ...stay }) =>
-          insertStay({
-            ...stay,
-            scheduleId,
-            note: stay.note ?? null,
-            ...hotelColumnsOf(
-              Hotel.guards.Recorded(hotel) ? Struct.omit(hotel, ['_tag']) : {},
-            ),
-          }),
-        { discard: true },
-      )
+      yield* writeStayChanges(scheduleId, copy, inserting)
       yield* Effect.forEach(
         copy.days,
         (day) =>
@@ -755,25 +839,9 @@ export const scheduleStore = Effect.gen(function* () {
         { discard: true },
       )
       yield* Effect.forEach(
-        copy.moves,
-        (move) =>
-          insertMove({
-            ...Struct.omit(move, ['duration']),
-            scheduleId,
-            duration: move.duration ?? null,
-          }),
-        { discard: true },
-      )
-      yield* Effect.forEach(
         copy.dayTrips,
         (dayTrip, position) =>
           insertDayTrip({ ...dayTrip, scheduleId, position }),
-        { discard: true },
-      )
-      yield* Effect.forEach(
-        copy.verifyClaims,
-        (claim, position) =>
-          insertVerifyClaim({ ...claim, scheduleId, position }),
         { discard: true },
       )
       yield* Effect.forEach(
@@ -791,6 +859,21 @@ export const scheduleStore = Effect.gen(function* () {
           insertAnchor({ id: anchor.id, scheduleId, position, anchor }),
         { discard: true },
       )
+    }),
+
+    /**
+     * Replaces a Schedule's Stays, Moves and Verify claims with a Stay edit's.
+     * It deletes the rows the edit dropped and stores the rest by id, each
+     * with the Hotel details and Stay note it carries.
+     */
+    replaceStays: Effect.fnUntraced(function* (
+      scheduleId: ScheduleId,
+      changes: StayChanges,
+    ) {
+      yield* removeOthers('stays', scheduleId, changes.stays)
+      yield* removeOthers('moves', scheduleId, changes.moves)
+      yield* removeOthers('verifyClaims', scheduleId, changes.verifyClaims)
+      yield* writeStayChanges(scheduleId, changes, upserting)
     }),
 
     /** The result recorded with an operation id, if it has run. */
