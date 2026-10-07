@@ -1048,9 +1048,9 @@ export type MoveStayBoundary = typeof MoveStayBoundary.Type
 
 /**
  * Change the Base of a Stay of the Schedule named to the place with the id
- * given. Any string, so that a place outside the catalogue reaches the Trip
- * service and gets refused as a Hard rule. Setting a Base is idempotent, so
- * it carries no operation id.
+ * given. The place is any string, so one outside the catalogue reaches the
+ * Trip service, which refuses it with a Hard rule. Setting a Base is
+ * idempotent, so it carries no operation id.
  */
 export const ChangeStayBase = Schema.Struct({
   scheduleId: ScheduleId,

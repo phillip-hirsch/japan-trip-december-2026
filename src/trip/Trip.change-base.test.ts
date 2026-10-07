@@ -58,7 +58,7 @@ const movesOf = (schedule: ScheduleDetail) =>
 
 describe('Trip.changeStayBase', () => {
   it.effect(
-    'changes the Base to a catalogue place, keeping the Stay’s id and dates',
+    "changes the Base to a catalogue place, keeping the Stay's id and dates",
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* choose(1, null)
@@ -85,7 +85,7 @@ describe('Trip.changeStayBase', () => {
       }).pipe(Effect.provide([trip, storage])),
   )
 
-  it.effect('clears the Stay’s copied highlights', () =>
+  it.effect("clears the Stay's copied highlights", () =>
     Effect.gen(function* () {
       const scheduleId = yield* choose(1, null)
       const before = yield* currentSchedule
@@ -163,7 +163,7 @@ describe('Trip.changeStayBase', () => {
     }).pipe(Effect.provide([trip, storage])),
   )
 
-  it.effect('keeps the Stay’s Hotel details, Stay note and ticks', () =>
+  it.effect("keeps the Stay's Hotel details, Stay note and ticks", () =>
     Effect.gen(function* () {
       const scheduleId = yield* choose(1, null)
       const before = yield* currentSchedule
@@ -293,7 +293,7 @@ describe('Trip.changeStayBase', () => {
     }).pipe(Effect.provide([trip, storage])),
   )
 
-  it.effect('refuses a Stay the Schedule doesn’t have, changing nothing', () =>
+  it.effect("refuses a Stay the Schedule doesn't have, changing nothing", () =>
     Effect.gen(function* () {
       const scheduleId = yield* choose(1, null)
       const before = yield* currentSchedule

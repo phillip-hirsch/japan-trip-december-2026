@@ -142,7 +142,7 @@ export function ScheduleSections({
           days={schedule.days}
           stays={schedule.stays}
           linkDays={linkDays}
-          noDuration="travel time unknown"
+          onSchedule
         />
       </section>
     </>

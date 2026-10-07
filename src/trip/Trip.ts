@@ -1506,11 +1506,11 @@ export class Trip extends Context.Service<
      * it its Hotel details, Stay note and ticks, but loses its highlights,
      * which described the old Base. The Moves on either side keep their mode
      * and lose their rail sections and duration, so their travel time is
-     * unknown. A Base already that place changes nothing.
+     * unknown. Changing a Base to the place it already is changes nothing.
      *
      * Fails with StayNotFound when the Schedule has no Stay with the id, and
      * with HardRuleBroken (PlaceNotInCatalogue) for a place outside the
-     * catalogue, besides the refusals of editStays.
+     * catalogue. It also fails as editStays does.
      */
     changeStayBase(
       input: ChangeStayBase,

@@ -9,7 +9,6 @@ import {
   MoveRoute,
   MoveTravel,
 } from '@/components/day-details'
-import type { NoDuration } from '@/components/day-details'
 import { PlaceName } from '@/components/place-name'
 import {
   Item,
@@ -34,11 +33,11 @@ import type { DayDetail, StayDetail } from '@/trip/domain'
 function DayItem({
   day,
   linked,
-  noDuration,
+  onSchedule,
 }: {
   day: DayDetail
   linked: boolean
-  noDuration?: NoDuration
+  onSchedule?: boolean
 }) {
   const birthday = isBirthday(day.anchors)
 
@@ -82,7 +81,7 @@ function DayItem({
         {day.move && (
           <MoveTravel
             move={day.move}
-            noDuration={noDuration}
+            onSchedule={onSchedule}
             className="pl-5.5"
           />
         )}
@@ -117,13 +116,14 @@ export function DayTimeline({
   days,
   stays,
   linkDays = false,
-  noDuration,
+  onSchedule,
 }: {
   days: ReadonlyArray<DayDetail>
   stays: ReadonlyArray<StayDetail>
   /** Whether each Day opens its page at /schedule/$date. */
   linkDays?: boolean
-  noDuration?: NoDuration
+  /** Whether the Days are the Schedule's, not an Itinerary's. */
+  onSchedule?: boolean
 }) {
   // Each Day sits under the latest Stay that has checked in by then, so a
   // Move day opens the Stay it moves to and Departure closes the last one.
@@ -154,7 +154,7 @@ export function DayTimeline({
             {days.map((day, index) => (
               <li key={day.date} id={day.date} className="scroll-mt-4">
                 {index > 0 && <Separator className="my-1" />}
-                <DayItem day={day} linked={linkDays} noDuration={noDuration} />
+                <DayItem day={day} linked={linkDays} onSchedule={onSchedule} />
               </li>
             ))}
           </ol>

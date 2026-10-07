@@ -34,9 +34,9 @@ const answerOf = (outcome: StayEditOutcome): SaveAnswer =>
 
 /**
  * Changing a Stay's Base to another place in the catalogue, with an explicit
- * Save. Picking a place keeps no draft: picking it again loses nothing. Once
- * changed, it shows the Schedule's Anchor warnings here too, as the Stay may
- * be far down the page from them. Key it by the Stay's id.
+ * Save. Picking a place keeps no draft, since picking it again loses nothing.
+ * After a change it repeats the Schedule's Anchor warnings here, because the
+ * Stay may be far down the page from them. Key it by the Stay's id.
  */
 export function StayBaseField({
   scheduleId,
