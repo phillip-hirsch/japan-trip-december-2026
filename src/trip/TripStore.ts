@@ -22,6 +22,7 @@ import type {
   ScheduleChanged,
   ScheduleDetail,
   ScheduleId,
+  ScheduleMap,
   Schedules,
   ScheduleSummary,
   SplitStay,
@@ -566,6 +567,16 @@ export class TripStore extends DurableObject<Env> {
           ...rest,
         })),
       ),
+    )
+  }
+
+  /**
+   * The current Schedule on its map, with its pinned hotels and Activities,
+   * or null before Phillip chooses one.
+   */
+  scheduleMap(): Promise<ScheduleMap | null> {
+    return this.#run(
+      Trip.use((trip) => trip.scheduleMap).pipe(Effect.map(Option.getOrNull)),
     )
   }
 

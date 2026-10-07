@@ -4,6 +4,7 @@ import {
   CalendarDaysIcon,
   HouseIcon,
   ListChecksIcon,
+  MapIcon,
   RouteIcon,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -45,6 +46,8 @@ const schedule: NavEntry = {
   exact: false,
 }
 
+const map: NavEntry = { to: '/map', label: 'Map', icon: MapIcon, exact: false }
+
 const checklist: NavEntry = {
   to: '/checklist',
   label: 'Checklist',
@@ -64,6 +67,7 @@ const useNavEntries = (): ReadonlyArray<NavEntry | undefined> => {
   return [
     home,
     summary === undefined ? undefined : summary === null ? options : schedule,
+    map,
     checklist,
   ]
 }

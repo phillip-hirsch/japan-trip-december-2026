@@ -18,6 +18,7 @@ import {
   getDay,
   getHome,
   getScheduleById,
+  getScheduleMap,
   getSchedules,
   getScheduleSummary,
 } from '@/trip/trip.functions'
@@ -35,6 +36,7 @@ const keys = {
   /** The prefix of every query for one Schedule by its id. */
   scheduleById: ['schedule-by-id'],
   checklist: ['checklist'],
+  scheduleMap: ['schedule-map'],
 } as const satisfies Record<string, QueryKey>
 
 // A page shown again must not open on data another device has since changed,
@@ -120,6 +122,13 @@ export const checklistQuery = queryOptions({
   refetchOnMount: false,
 })
 
+/** The current Schedule on its map, for /map: null before one exists. */
+export const scheduleMapQuery = queryOptions({
+  queryKey: keys.scheduleMap,
+  queryFn: () => getScheduleMap(),
+  refetchOnMount: false,
+})
+
 /**
  * The storage-dependent parts of every page, prerendered ones included, read
  * this: the navigation's Options or Schedule entry, the Choose button, and
@@ -151,6 +160,7 @@ const replacingTheSchedule = [
   keys.scheduleSummary,
   keys.scheduleById,
   keys.checklist,
+  keys.scheduleMap,
 ] as const
 
 /**
@@ -163,27 +173,48 @@ const affectedBy = {
   // Every query carrying the current Schedule's Days: the Day pages, Today
   // on Home, and the Schedule itself, by id too.
   dayNote: [keys.days, keys.home, keys.schedules, keys.scheduleById],
-  // Activities are carried by the Days, as Day notes are.
-  activity: [keys.days, keys.home, keys.schedules, keys.scheduleById],
+  // Activities are carried by the Days, as Day notes are, and a pinned one
+  // shows on the map.
+  activity: [
+    keys.days,
+    keys.home,
+    keys.schedules,
+    keys.scheduleById,
+    keys.scheduleMap,
+  ],
   // Every query carrying the current Schedule's Stays: the Schedule on Home
   // before and after the Trip, and the Schedule itself, by id too.
   stayNote: [keys.home, keys.schedules, keys.scheduleById],
-  // Hotel details show with the Stays, and as tonight's hotel on the Day
-  // pages and Today on Home.
-  hotelDetails: [keys.days, keys.home, keys.schedules, keys.scheduleById],
+  // Hotel details show with the Stays, as tonight's hotel on the Day pages
+  // and Today on Home, and with a pinned hotel on the map.
+  hotelDetails: [
+    keys.days,
+    keys.home,
+    keys.schedules,
+    keys.scheduleById,
+    keys.scheduleMap,
+  ],
   // A Stay edit changes the Stays, the Moves and Days they make, Tonight's
-  // hotel and the Next Move, the Anchor warnings and the derived Checklist.
+  // hotel and the Next Move, the Anchor warnings, the derived Checklist and
+  // the map.
   stayEdit: [
     keys.schedules,
     keys.days,
     keys.home,
     keys.scheduleById,
     keys.checklist,
+    keys.scheduleMap,
   ],
   // An Activity's Pin shows with its Day, and the hotel's with its Stay and
-  // as tonight's hotel. Both appear on the Day pages, Today on Home and the
-  // Schedule.
-  pin: [keys.days, keys.home, keys.schedules, keys.scheduleById],
+  // as tonight's hotel. Both appear on the Day pages, Today on Home, the
+  // Schedule and the map.
+  pin: [
+    keys.days,
+    keys.home,
+    keys.schedules,
+    keys.scheduleById,
+    keys.scheduleMap,
+  ],
   // The Trip note shows only with the Schedules on /schedule.
   tripNote: [keys.schedules],
   // Ticks, own items added and own items removed show only on /checklist.

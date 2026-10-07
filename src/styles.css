@@ -73,6 +73,8 @@
   --ink: oklch(0.17 0.014 255);
   --paper: oklch(0.93 0.02 85);
   --vermilion: oklch(0.64 0.19 33);
+  /* The bottom tab bar on phones: its 3.5rem row and the safe area below. */
+  --tab-bar-height: calc(3.5rem + env(safe-area-inset-bottom));
 
   --background: var(--ink);
   --foreground: var(--paper);

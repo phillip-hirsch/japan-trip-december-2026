@@ -66,7 +66,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
             <TooltipProvider>
               <SidebarProvider>
                 <AppSidebar />
-                <SidebarInset className="min-w-0 pb-[calc(3.5rem+env(safe-area-inset-bottom))] md:pb-0">
+                <SidebarInset className="min-w-0 pb-(--tab-bar-height) md:pb-0">
                   {children}
                 </SidebarInset>
                 <BottomTabBar />

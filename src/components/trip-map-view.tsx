@@ -57,13 +57,14 @@ export function BaseMarker({ place }: { place: Place }) {
 
 /**
  * A dark map framed to fit every point, with its attributions always shown
- * in full and zoom controls. Gestures are cooperative so the page still
- * scrolls past the map.
+ * in full and zoom controls. Gestures are cooperative unless it fills the
+ * screen, so a page still scrolls past the map.
  */
 export function TripMapView({
   points,
   maxZoom,
   railAttribution,
+  fullScreen = false,
   children,
 }: {
   points: ReadonlyArray<Coordinates>
@@ -71,6 +72,8 @@ export function TripMapView({
   maxZoom?: number
   /** The rail geometry's credit, when the map follows a rail line. */
   railAttribution: string | undefined
+  /** Whether the map is the whole page, with nothing to scroll past. */
+  fullScreen?: boolean
   children: ReactNode
 }) {
   return (
@@ -80,7 +83,7 @@ export function TripMapView({
         padding: 48,
         ...(maxZoom !== undefined && { maxZoom }),
       }}
-      cooperativeGestures
+      cooperativeGestures={!fullScreen}
       // Always shown in full, as the map data's licences require.
       attributionControl={{
         compact: false,
