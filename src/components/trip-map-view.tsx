@@ -117,6 +117,9 @@ export function TripMapView({
 }) {
   return (
     <MapView
+      // MapLibre sets its attributions only when it starts, so a change of
+      // credit, such as after a refetch brings rail geometry, starts it anew.
+      key={railAttribution ?? ''}
       bounds={boundsOf(points)}
       fitBoundsOptions={fitOptionsOf(maxZoom)}
       cooperativeGestures={!fullScreen}
