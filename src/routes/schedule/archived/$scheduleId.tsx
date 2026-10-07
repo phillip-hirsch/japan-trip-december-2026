@@ -13,6 +13,7 @@ import {
   replacementAnswerOf,
   ReplaceScheduleDialog,
 } from '@/components/replace-schedule-dialog'
+import { AnchorWarnings } from '@/components/schedule-rules'
 import {
   RevisionNotice,
   ScheduleSections,
@@ -90,6 +91,7 @@ function ArchivedSchedulePage() {
           )}
           . Read-only until you restore it.
         </p>
+        <AnchorWarnings warnings={schedule.anchorWarnings} className="mt-6" />
         <RevisionNotice schedule={schedule} className="mt-6" />
         <div className="mt-8 flex flex-wrap gap-2">
           <RestoreButton schedule={schedule} />
