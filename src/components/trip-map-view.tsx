@@ -1,4 +1,5 @@
 import type { LngLatBoundsLike } from 'maplibre-gl'
+import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 
 import { PlaceName } from '@/components/place-name'
@@ -8,6 +9,7 @@ import {
   MapMarker,
   MarkerContent,
   MarkerLabel,
+  useMap,
 } from '@/components/ui/map'
 import type { Coordinates, Place } from '@/trip/domain'
 
@@ -37,6 +39,38 @@ const boundsOf = (points: ReadonlyArray<Coordinates>): LngLatBoundsLike => {
     [Math.min(...longitudes), Math.min(...latitudes)],
     [Math.max(...longitudes), Math.max(...latitudes)],
   ]
+}
+
+/** How a map frames its points, closest at the zoom given. */
+const fitOptionsOf = (maxZoom: number | undefined) => ({
+  padding: 48,
+  ...(maxZoom !== undefined && { maxZoom }),
+})
+
+/**
+ * Frames the map again whenever its points reach further or less far, such
+ * as after a refetch brings a new pin. The same points arriving again leave
+ * the map where Phillip moved it.
+ */
+export function FitToPoints({
+  points,
+  maxZoom,
+}: {
+  points: ReadonlyArray<Coordinates>
+  maxZoom?: number
+}) {
+  const { map } = useMap()
+  const bounds = boundsOf(points)
+  const key = JSON.stringify(bounds)
+  // The map opens framed to the first points.
+  const framed = useRef(key)
+  useEffect(() => {
+    if (map === null || framed.current === key) return
+    framed.current = key
+    map.fitBounds(bounds, fitOptionsOf(maxZoom))
+  }, [map, key])
+
+  return null
 }
 
 /** A Base: a point with its name always shown. */
@@ -79,10 +113,7 @@ export function TripMapView({
   return (
     <MapView
       bounds={boundsOf(points)}
-      fitBoundsOptions={{
-        padding: 48,
-        ...(maxZoom !== undefined && { maxZoom }),
-      }}
+      fitBoundsOptions={fitOptionsOf(maxZoom)}
       cooperativeGestures={!fullScreen}
       // Always shown in full, as the map data's licences require.
       attributionControl={{

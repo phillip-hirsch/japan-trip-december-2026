@@ -6,7 +6,7 @@ import { HotelDetailsList } from '@/components/hotel-details'
 import { ItineraryMapLayers, pointsOf } from '@/components/itinerary-map-layers'
 import { OpenInGoogleMaps } from '@/components/open-in-google-maps'
 import { stayElementId } from '@/components/stay-list'
-import { TripMapView } from '@/components/trip-map-view'
+import { FitToPoints, TripMapView } from '@/components/trip-map-view'
 import { MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { formatDay, formatShortDate, timeOfDayOf } from '@/trip/calendar'
 import type { MapActivity, MapHotel, Pin, ScheduleMap } from '@/trip/domain'
@@ -108,19 +108,23 @@ function ActivityPin({ activity }: { activity: MapActivity }) {
 
 /**
  * The map itself, loaded lazily: the Schedule's Bases, Moves and Day trips,
- * and its pinned hotels and Activities, framed to fit them all. It fills the
- * page, so gestures move the map directly.
+ * and its pinned hotels and Activities, framed to fit them all, and framed
+ * again when an edit reaches further. It fills the page, so gestures move
+ * the map directly.
  */
 export default function ScheduleMapCanvas({ map }: { map: ScheduleMap }) {
+  const points = [
+    ...pointsOf(map),
+    ...[...map.hotels, ...map.activities].map(({ pin }) => pin.coordinates),
+  ]
+
   return (
     <TripMapView
-      points={[
-        ...pointsOf(map),
-        ...[...map.hotels, ...map.activities].map(({ pin }) => pin.coordinates),
-      ]}
+      points={points}
       railAttribution={map.railAttribution}
       fullScreen
     >
+      <FitToPoints points={points} />
       <ItineraryMapLayers map={map} />
       {map.hotels.map((hotel) => (
         <HotelPin key={hotel.stayId} hotel={hotel} />
