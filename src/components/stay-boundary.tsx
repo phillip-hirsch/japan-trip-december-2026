@@ -1,5 +1,5 @@
 import { useServerFn } from '@tanstack/react-start'
-import { Match } from 'effect'
+import { Match, Predicate } from 'effect'
 import { CalendarIcon } from 'lucide-react'
 import { useId } from 'react'
 
@@ -12,6 +12,7 @@ import {
   formatNights,
   formatShortDate,
   formatWeekday,
+  isTripDate,
   nightsBetween,
   tripDates,
 } from '@/trip/calendar'
@@ -22,8 +23,16 @@ import type {
   ScheduleStayDetail,
   StayEditOutcome,
 } from '@/trip/domain'
-import { SaveAnswer, SaveState, useSave } from '@/trip/drafts'
+import {
+  SaveAnswer,
+  SaveState,
+  stayBoundaryTarget,
+  useSave,
+} from '@/trip/drafts'
 import { moveStayBoundary } from '@/trip/trip.functions'
+
+const isDate = (value: unknown): value is IsoDate =>
+  Predicate.isString(value) && isTripDate(value)
 
 const answerOf = (outcome: StayEditOutcome): SaveAnswer =>
   Match.value(outcome).pipe(
@@ -68,6 +77,7 @@ export function StayBoundaryField({
   const problemId = useId()
 
   const field = useSave<IsoDate>({
+    draft: { target: stayBoundaryTarget(stay.id), isValue: isDate },
     scheduleId,
     saved: stay.checkOut,
     write: 'stayEdit',
@@ -113,6 +123,10 @@ export function StayBoundaryField({
     (date) => date > stay.checkIn && date < next.checkOut,
   )
 
+  // A move next door, or a draft from an earlier visit, can leave the date
+  // chosen outside what the Stays allow now. It's then chosen again.
+  const chosen = dates.find((date) => date === value)
+
   return (
     <form
       aria-labelledby={labelledBy}
@@ -136,7 +150,7 @@ export function StayBoundaryField({
           autoFocus={SaveState.$is('Editing')(state)}
           // A save in flight fixes the value, so two saves never race.
           disabled={saving}
-          value={value}
+          value={chosen ?? ''}
           onChange={(event) => {
             const date = dates.find((each) => each === event.target.value)
 
@@ -144,6 +158,11 @@ export function StayBoundaryField({
           }}
           className="w-full sm:w-fit"
         >
+          {chosen === undefined && (
+            <NativeSelectOption value="" disabled>
+              Choose a date
+            </NativeSelectOption>
+          )}
           {dates.map((date) => (
             <NativeSelectOption key={date} value={date}>
               {formatWeekday(date)}, {formatShortDate(date)}
@@ -151,15 +170,13 @@ export function StayBoundaryField({
           ))}
         </NativeSelect>
         <p id={hintId} className="text-sm text-muted-foreground">
-          {formatNights(nightsBetween(stay.checkIn, value))} in{' '}
-          {stay.base.romaji}, then{' '}
-          {formatNights(nightsBetween(value, next.checkOut))} in{' '}
-          {next.base.romaji}. Your Move to {next.base.romaji} changes to that
-          day too.
+          {chosen === undefined
+            ? `The Stays next to this one have changed. Choose the date ${stay.base.romaji} checks out again.`
+            : `${formatNights(nightsBetween(stay.checkIn, chosen))} in ${stay.base.romaji}, then ${formatNights(nightsBetween(chosen, next.checkOut))} in ${next.base.romaji}. Your Move to ${next.base.romaji} changes to that day too.`}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" disabled={saving}>
+        <Button type="submit" disabled={saving || chosen === undefined}>
           {saving ? 'Saving…' : notSaved ? 'Retry' : 'Save'}
         </Button>
         <Button
