@@ -582,6 +582,33 @@ describe('Trip.setPin', () => {
       }).pipe(Effect.provide([trip, storage])),
   )
 
+  it.effect("keeps the hotel's Pin through a change of its Stay's Base", () =>
+    Effect.gen(function* () {
+      const scheduleId = yield* choose(1, 1, null)
+      const stayId = yield* kyotoStayId(scheduleId)
+      yield* setPin(scheduleId, hotelTarget(stayId), fushimiInari)
+      yield* Trip.use((trip) =>
+        trip.writeHotelDetails({ scheduleId, stayId, details: ryokan }),
+      )
+
+      const { schedule } = yield* Trip.use((trip) =>
+        trip.changeStayBase({ scheduleId, stayId, place: 'osaka' }),
+      )
+
+      assert.deepStrictEqual(
+        schedule.stays
+          .filter(({ id }) => id === stayId)
+          .map(({ base, hotel }) => ({ base: base.id, hotel })),
+        [
+          {
+            base: 'osaka',
+            hotel: Hotel.cases.Recorded.make({ ...ryokan, pin: fushimiInari }),
+          },
+        ],
+      )
+    }).pipe(Effect.provide([trip, storage])),
+  )
+
   it.effect(
     'refuses a link that is not Google Maps, or a Pin outside Japan, writing nothing',
     () =>
