@@ -20,6 +20,9 @@ const accommodationLabels: Record<AccommodationKind, string> = {
   ryokan: 'Ryokan',
 }
 
+/** The id of a Schedule's Stay on its page, for links to it. */
+export const stayElementId = (stayId: string) => `stay-${stayId}`
+
 /**
  * An Itinerary's or Schedule's Stays: each Base with its dates, nights,
  * accommodation kind, highlights and Verify claims, and whatever else the
@@ -41,7 +44,12 @@ export function StayList<S extends StayDetail & { readonly id?: string }>({
         const extra = footer?.(stay)
 
         return (
-          <li key={stay.id ?? stay.checkIn}>
+          <li
+            key={stay.id ?? stay.checkIn}
+            // The map links to a Schedule's Stay by this id.
+            id={stay.id === undefined ? undefined : stayElementId(stay.id)}
+            className="scroll-mt-6"
+          >
             <Item variant="outline">
               <ItemMedia className="w-14 justify-start">
                 <DisplayJa text={stay.base.kanji} className="text-2xl" />

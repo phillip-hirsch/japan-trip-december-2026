@@ -31,6 +31,7 @@ import {
   RestoreSchedule,
   ScheduleDetail,
   ScheduleId,
+  ScheduleMap,
   Schedules,
   ScheduleSummary,
   SplitStay,
@@ -292,6 +293,14 @@ export const getScheduleById = createServerFn({ method: 'GET' })
  */
 export const getSchedules = createServerFn({ method: 'GET' }).handler(() =>
   callTripStore(Schedules, (store) => store.schedules()),
+)
+
+/**
+ * The current Schedule on its map, with its pinned hotels and Activities,
+ * or null before Phillip chooses one.
+ */
+export const getScheduleMap = createServerFn({ method: 'GET' }).handler(() =>
+  callTripStore(Schema.NullOr(ScheduleMap), (store) => store.scheduleMap()),
 )
 
 /**

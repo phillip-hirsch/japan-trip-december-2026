@@ -94,6 +94,7 @@ import type {
   RestoreSchedule,
   MergeStays,
   ScheduleDetail,
+  ScheduleMap,
   ScheduleRecord,
   ScheduleSummary,
   SetPin,
@@ -339,8 +340,8 @@ const summaryOf = (itinerary: Itinerary): ItinerarySummary => ({
 })
 
 /** Each Move with its date and the Bases it connects, in travel order. */
-const datedMovesOf = (itinerary: Itinerary) =>
-  Array.from(moveDetailsOf(itinerary), ([date, move]) => ({ date, ...move }))
+const datedMovesOf = (plan: Pick<Itinerary, 'stays' | 'moves'>) =>
+  Array.from(moveDetailsOf(plan), ([date, move]) => ({ date, ...move }))
 
 type DatedMove = ReturnType<typeof datedMovesOf>[number]
 
@@ -436,7 +437,10 @@ const withoutRepeats = (path: ReadonlyArray<Coordinates>) =>
   })
 
 /** Each pair of Base and Day trip destination once. */
-const mapDayTripsOf = ({ stays, dayTrips }: Itinerary): Array<MapDayTrip> => {
+const mapDayTripsOf = ({
+  stays,
+  dayTrips,
+}: Pick<Itinerary, 'stays' | 'dayTrips'>): Array<MapDayTrip> => {
   const baseOf = (dayTrip: DayTrip) => stayForNight(stays, dayTrip.date)?.base
 
   return groupedDayTrips(dayTrips, (dayTrip) => {
@@ -467,15 +471,24 @@ const railPathOf = (section: RailSectionDetail) => {
       }
 }
 
-const mapOf = (itinerary: Itinerary): ItineraryMap => {
-  const moves = datedMovesOf(itinerary)
+/**
+ * An Itinerary's or Schedule's Stays, Moves and Day trips on its map. Every
+ * Move between two Bases that isn't a flight draws along the ground: a train
+ * Move along its rail sections, and one without any, such as after a Stay
+ * edit, straight between its Bases. A local Move within one Base draws
+ * nothing.
+ */
+const mapOf = (
+  plan: Pick<Itinerary, 'stays' | 'moves' | 'dayTrips'>,
+): ItineraryMap => {
+  const moves = datedMovesOf(plan)
 
   const trainMoves = moves
-    .filter((move) => move.mode === 'train')
+    .filter((move) => move.mode !== 'flight' && move.from.id !== move.to.id)
     .map((move) => ({ move, railPaths: move.sections.map(railPathOf) }))
 
   return {
-    bases: Array.from(new Set(itinerary.stays.map((stay) => stay.base))).map(
+    bases: Array.from(new Set(plan.stays.map((stay) => stay.base))).map(
       placeOf,
     ),
     trainMoves: trainMoves.map(({ move, railPaths }) => ({
@@ -487,12 +500,37 @@ const mapOf = (itinerary: Itinerary): ItineraryMap => {
       ]),
     })),
     flights: flightsOf(moves),
-    dayTrips: mapDayTripsOf(itinerary),
+    dayTrips: mapDayTripsOf(plan),
     ...(trainMoves.some(({ railPaths }) =>
       railPaths.some((railPath) => railPath.followsRailLine),
     ) && { railAttribution: railGeometryAttribution }),
   }
 }
+
+/**
+ * The current Schedule on its map, from its copy: drawn as an Itinerary's
+ * map is, with each pinned hotel in Trip order and each pinned Activity by
+ * Day.
+ */
+const scheduleMapOf = (copy: ScheduleCopy): ScheduleMap => ({
+  ...mapOf(copy),
+  hotels: copy.stays.flatMap((stay) =>
+    Hotel.match(stay.hotel, {
+      NotRecorded: () => [],
+      Recorded: ({ _tag, pin, ...details }) =>
+        pin
+          ? [{ stayId: stay.id, ...staySummaryOf(stay), ...details, pin }]
+          : [],
+    }),
+  ),
+  activities: copy.days.flatMap(({ date, activities }) =>
+    activities.flatMap(({ id, title, time, pin }) =>
+      pin
+        ? [{ id, title, ...(time !== undefined && { time }), date, pin }]
+        : [],
+    ),
+  ),
+})
 
 const comparisonMapOf = (
   details: ReadonlyArray<ItineraryDetail>,
@@ -1463,6 +1501,15 @@ export class Trip extends Context.Service<
       never,
       SqlClient.SqlClient
     >
+    /**
+     * The current Schedule on its map, with every pinned hotel and Activity,
+     * if Phillip has chosen one.
+     */
+    readonly scheduleMap: Effect.Effect<
+      Option.Option<ScheduleMap>,
+      never,
+      SqlClient.SqlClient
+    >
     /** The current Schedule's summary, if Phillip has chosen one. */
     readonly scheduleSummary: Effect.Effect<
       Option.Option<ScheduleSummary>,
@@ -1913,6 +1960,16 @@ export class Trip extends Context.Service<
       }).pipe(
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
         Effect.withSpan('Trip.schedules'),
+      )
+
+      const scheduleMap = Effect.gen(function* () {
+        const store = yield* scheduleStore
+        const current = yield* store.transaction(store.current)
+
+        return Option.map(current, ({ copy }) => scheduleMapOf(copy))
+      }).pipe(
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+        Effect.withSpan('Trip.scheduleMap'),
       )
 
       const scheduleSummary = Effect.gen(function* () {
@@ -2399,6 +2456,7 @@ export class Trip extends Context.Service<
         restore,
         schedule,
         schedules,
+        scheduleMap,
         scheduleSummary,
         writeDayNote,
         writeStayNote,

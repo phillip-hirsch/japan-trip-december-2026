@@ -404,9 +404,10 @@ export const MapRailSection = Schema.Struct({
 export type MapRailSection = typeof MapRailSection.Type
 
 /**
- * A train Move as the map draws it: from the Base it leaves, along each of
- * its rail sections in turn, to the Base it reaches. Its stations join their
- * Bases with straight lines.
+ * A Move between two Bases as the map draws it, other than a flight: from
+ * the Base it leaves, along each of its rail sections in turn, to the Base it
+ * reaches. Its stations join their Bases with straight lines, and a Move
+ * without rail sections, such as after a Stay edit, is one straight line.
  */
 export const MapTrainMove = Schema.Struct({
   date: IsoDate,
@@ -765,6 +766,42 @@ export const ScheduleDetail = Schema.Struct({
 })
 
 export type ScheduleDetail = typeof ScheduleDetail.Type
+
+/** A pinned hotel on the Schedule's map, with its Stay and Hotel details. */
+export const MapHotel = Schema.Struct({
+  stayId: CopyId,
+  ...StaySummary.fields,
+  ...HotelDetails.fields,
+  pin: Pin,
+})
+
+export type MapHotel = typeof MapHotel.Type
+
+/**
+ * A pinned Activity on the Schedule's map, with the date of its Day. Only
+ * what its pin shows: never its note, which can be long.
+ */
+export const MapActivity = Schema.Struct({
+  ...Struct.pick(Activity.fields, ['id', 'title', 'time']),
+  date: IsoDate,
+  pin: Pin,
+})
+
+export type MapActivity = typeof MapActivity.Type
+
+/**
+ * The current Schedule on its map: drawn as an Itinerary's map is, from the
+ * Schedule's own Stays and Moves, with every pinned hotel and Activity.
+ */
+export const ScheduleMap = Schema.Struct({
+  ...ItineraryMap.fields,
+  /** Each pinned hotel, in Trip order. */
+  hotels: Schema.Array(MapHotel),
+  /** Each pinned Activity, by Day, in Phillip's order. */
+  activities: Schema.Array(MapActivity),
+})
+
+export type ScheduleMap = typeof ScheduleMap.Type
 
 /** An archived Schedule as /schedule lists it. */
 export const ArchivedScheduleSummary = Schema.Struct({

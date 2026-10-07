@@ -1,4 +1,5 @@
 import type { LngLatBoundsLike } from 'maplibre-gl'
+import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 
 import { PlaceName } from '@/components/place-name'
@@ -8,6 +9,7 @@ import {
   MapMarker,
   MarkerContent,
   MarkerLabel,
+  useMap,
 } from '@/components/ui/map'
 import type { Coordinates, Place } from '@/trip/domain'
 
@@ -39,6 +41,43 @@ const boundsOf = (points: ReadonlyArray<Coordinates>): LngLatBoundsLike => {
   ]
 }
 
+/** How a map frames its points, closest at the zoom given. */
+const fitOptionsOf = (maxZoom: number | undefined) => ({
+  padding: 48,
+  ...(maxZoom !== undefined && { maxZoom }),
+})
+
+/**
+ * Frames the map again whenever any of its points changes, such as when a
+ * refetch brings a pin added or moved on another device, wherever it is. The
+ * same points arriving again, in any order, such as after Activities are
+ * reordered, leave the map where Phillip moved it.
+ */
+export function FitToPoints({
+  points,
+  maxZoom,
+}: {
+  points: ReadonlyArray<Coordinates>
+  maxZoom?: number
+}) {
+  const { map } = useMap()
+
+  const key = points
+    .map(({ latitude, longitude }) => `${latitude},${longitude}`)
+    .sort()
+    .join(' ')
+
+  // The map opens framed to the first points.
+  const framed = useRef(key)
+  useEffect(() => {
+    if (map === null || framed.current === key) return
+    framed.current = key
+    map.fitBounds(boundsOf(points), fitOptionsOf(maxZoom))
+  }, [map, key])
+
+  return null
+}
+
 /** A Base: a point with its name always shown. */
 export function BaseMarker({ place }: { place: Place }) {
   const { latitude, longitude } = place.coordinates
@@ -57,13 +96,14 @@ export function BaseMarker({ place }: { place: Place }) {
 
 /**
  * A dark map framed to fit every point, with its attributions always shown
- * in full and zoom controls. Gestures are cooperative so the page still
- * scrolls past the map.
+ * in full and zoom controls. Gestures are cooperative unless it fills the
+ * screen, so a page still scrolls past the map.
  */
 export function TripMapView({
   points,
   maxZoom,
   railAttribution,
+  fullScreen = false,
   children,
 }: {
   points: ReadonlyArray<Coordinates>
@@ -71,16 +111,18 @@ export function TripMapView({
   maxZoom?: number
   /** The rail geometry's credit, when the map follows a rail line. */
   railAttribution: string | undefined
+  /** Whether the map is the whole page, with nothing to scroll past. */
+  fullScreen?: boolean
   children: ReactNode
 }) {
   return (
     <MapView
+      // MapLibre sets its attributions only when it starts, so a change of
+      // credit, such as after a refetch brings rail geometry, starts it anew.
+      key={railAttribution ?? ''}
       bounds={boundsOf(points)}
-      fitBoundsOptions={{
-        padding: 48,
-        ...(maxZoom !== undefined && { maxZoom }),
-      }}
-      cooperativeGestures
+      fitBoundsOptions={fitOptionsOf(maxZoom)}
+      cooperativeGestures={!fullScreen}
       // Always shown in full, as the map data's licences require.
       attributionControl={{
         compact: false,
