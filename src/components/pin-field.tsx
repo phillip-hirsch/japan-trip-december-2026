@@ -1,7 +1,7 @@
 import { useServerFn } from '@tanstack/react-start'
 import { Match, Predicate } from 'effect'
 import { MapPinIcon, MapPinPlusIcon } from 'lucide-react'
-import { useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
 import { OpenInGoogleMaps } from '@/components/open-in-google-maps'
@@ -144,9 +144,18 @@ export function PinField({
   const noteId = useId()
   const problemId = useId()
   const [finding, setFinding] = useState<Finding>(idle)
-  // Where the map is framed. It starts on the Pin, then moves wherever a
-  // link resolves or Phillip drops a Pin by hand.
-  const [frame, setFrame] = useState<Coordinates | undefined>(pin?.coordinates)
+  // Where the map is framed while placing. It starts on the Pin placing
+  // starts from, then moves wherever a link resolves or Phillip drops a Pin
+  // by hand.
+  const [frame, setFrame] = useState<Coordinates | undefined>(undefined)
+  // Counts lookups, so one cancelled or overtaken never places its Pin.
+  const lookup = useRef(0)
+  useEffect(
+    () => () => {
+      lookup.current += 1
+    },
+    [],
+  )
 
   const field = useSave<PinFields>({
     draft: { target: pinTarget(target), isValue: isPinFields },
@@ -167,7 +176,24 @@ export function PinField({
 
   const { state, value } = field
 
-  if (SaveState.$is('Clean')(state) || SaveState.$is('Saved')(state)) {
+  const placing =
+    !SaveState.$is('Clean')(state) && !SaveState.$is('Saved')(state)
+
+  // Placing frames the Pin it starts from, a restored draft's included.
+  useEffect(() => {
+    if (!placing) setFrame(undefined)
+    else if (frame === undefined && value.coordinates !== null) {
+      setFrame(value.coordinates)
+    }
+  }, [placing, frame, value.coordinates])
+
+  /** Stops waiting for any lookup in flight. */
+  const stopFinding = () => {
+    lookup.current += 1
+    setFinding(idle)
+  }
+
+  if (!placing) {
     const justSaved = SaveState.$is('Saved')(state) || state.justSaved
     // This shows the Pin just saved until a read confirms it, then what the
     // server holds.
@@ -188,8 +214,7 @@ export function PinField({
           // A new placing starts from the Pin the confirming read brings.
           disabled={SaveState.$is('Saved')(state)}
           onClick={() => {
-            setFinding(idle)
-            setFrame(shown?.coordinates)
+            stopFinding()
             field.edit()
           }}
           className="-mx-2.5 text-muted-foreground"
@@ -206,8 +231,6 @@ export function PinField({
   const saving = SaveState.$is('Saving')(state)
   const busy = saving || finding.state === 'finding'
   const placed = value.coordinates
-  // A restored draft frames its own Pin.
-  const framed = frame ?? placed
 
   const place = (coordinates: Coordinates) =>
     field.change({ ...value, coordinates })
@@ -231,12 +254,15 @@ export function PinField({
       return
     }
 
+    lookup.current += 1
+    const current = lookup.current
     setFinding({ state: 'finding' })
     let outcome: ResolveLocationLinkOutcome
 
     try {
       outcome = await resolve({ data: { link } })
     } catch {
+      if (lookup.current !== current) return
       setFinding({
         state: 'problem',
         note: 'The app couldn’t reach the server. Try again when you’re back online.',
@@ -245,6 +271,7 @@ export function PinField({
       return
     }
 
+    if (lookup.current !== current) return
     Match.value(outcome).pipe(
       Match.tagsExhaustive({
         Resolved: ({ coordinates }) => {
@@ -308,7 +335,7 @@ export function PinField({
             spellCheck={false}
             // A changed link no longer says where the Pin is.
             onChange={(event) => {
-              setFinding(idle)
+              stopFinding()
               field.change({ link: event.target.value, coordinates: null })
             }}
             // Pasting finds the place at once.
@@ -366,7 +393,7 @@ export function PinField({
           </Button>
         </div>
       ) : (
-        <PinMap pin={placed} frame={framed ?? placed} onMove={place} />
+        <PinMap pin={placed} frame={frame ?? placed} onMove={place} />
       )}
       <div className="flex flex-wrap items-center gap-2">
         <Button
@@ -380,7 +407,10 @@ export function PinField({
           type="button"
           variant="ghost"
           disabled={saving}
-          onClick={field.discard}
+          onClick={() => {
+            stopFinding()
+            field.discard()
+          }}
         >
           {notSaved ? 'Discard' : 'Cancel'}
         </Button>
