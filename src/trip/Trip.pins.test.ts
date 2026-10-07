@@ -531,6 +531,58 @@ describe('Trip.setPin', () => {
   )
 
   it.effect(
+    "keeps the hotel's Pin on the earlier Stay after a split, and through a merge back",
+    () =>
+      Effect.gen(function* () {
+        const scheduleId = yield* choose(1, 1, null)
+        const stayId = yield* kyotoStayId(scheduleId)
+        yield* setPin(scheduleId, hotelTarget(stayId), fushimiInari)
+
+        const split = yield* Trip.use((trip) =>
+          trip.splitStay({
+            scheduleId,
+            operationId: operation(2),
+            stayId,
+            date: december(11),
+          }),
+        )
+
+        const [earlier, later] = split.schedule.stays.filter(
+          ({ base }) => base.id === 'kyoto',
+        )
+
+        const laterId = later?.id ?? ''
+        yield* setPin(scheduleId, hotelTarget(laterId), droppedByHand)
+
+        const merged = yield* Trip.use((trip) =>
+          trip.mergeStays({
+            scheduleId,
+            operationId: operation(3),
+            stayIds: [stayId, laterId],
+          }),
+        )
+
+        const pinned = Hotel.cases.Recorded.make({ pin: fushimiInari })
+
+        assert.deepStrictEqual(
+          {
+            split: [earlier, later].map((stay) => [stay?.id, stay?.hotel]),
+            merged: merged.schedule.stays
+              .filter(({ base }) => base.id === 'kyoto')
+              .map(({ id, checkOut, hotel }) => [id, checkOut, hotel]),
+          },
+          {
+            split: [
+              [stayId, pinned],
+              [laterId, Hotel.cases.NotRecorded.make({})],
+            ],
+            merged: [[stayId, december(13), pinned]],
+          },
+        )
+      }).pipe(Effect.provide([trip, storage])),
+  )
+
+  it.effect(
     'refuses a link that is not Google Maps, or a Pin outside Japan, writing nothing',
     () =>
       Effect.gen(function* () {
