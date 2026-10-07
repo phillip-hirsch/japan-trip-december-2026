@@ -1,22 +1,15 @@
 import { useServerFn } from '@tanstack/react-start'
-import { Match, Predicate } from 'effect'
+import { Predicate } from 'effect'
 import { MergeIcon, SplitIcon } from 'lucide-react'
 import { useId, useState } from 'react'
 
+import { DateChoice } from '@/components/date-choice'
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
-import { anchorWarningText, hardRuleProblem } from '@/components/schedule-rules'
+import { stayEditAnswerOf } from '@/components/schedule-rules'
 import { StaySection } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
-import { toast } from '@/components/ui/toast'
-import { cn } from '@/lib/utils'
-import { formatShortDate, formatWeekday, tripDates } from '@/trip/calendar'
-import type {
-  AnchorWarning,
-  IsoDate,
-  ScheduleDetail,
-  ScheduleStayDetail,
-  StayEditOutcome,
-} from '@/trip/domain'
+import { formatShortDate, tripDates } from '@/trip/calendar'
+import type { IsoDate, ScheduleDetail, ScheduleStayDetail } from '@/trip/domain'
 import { SaveAnswer, SaveState, useSave } from '@/trip/drafts'
 import { mergeStays, splitStay } from '@/trip/trip.functions'
 
@@ -53,50 +46,6 @@ const labels = {
     anchorBroken: 'The merge breaks an Anchor',
   },
 } as const
-
-const weekdayDate = (date: IsoDate) =>
-  `${formatWeekday(date)} ${formatShortDate(date)}`
-
-/**
- * What a split or merge answered. When one goes through and breaks an Anchor
- * the Schedule didn't break before, a toast names it. The Schedule page
- * shows the warning until the Schedule stops breaking that Anchor.
- */
-const answerOf =
-  (kind: Choice['kind'], warningsBefore: ReadonlyArray<AnchorWarning>) =>
-  (outcome: StayEditOutcome): SaveAnswer =>
-    Match.value(outcome).pipe(
-      Match.tagsExhaustive({
-        Edited: ({ schedule }) => {
-          const added = schedule.anchorWarnings.filter(
-            (warning) =>
-              !warningsBefore.some(({ _tag }) => _tag === warning._tag),
-          )
-
-          if (added.length > 0) {
-            toast.add({
-              type: 'warning',
-              title: labels[kind].anchorBroken,
-              description: added.map(anchorWarningText).join(' '),
-            })
-          }
-
-          return SaveAnswer.Saved()
-        },
-        ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-        StayNotFound: () =>
-          SaveAnswer.Gone({
-            problem:
-              'This Stay is no longer part of your Schedule. It may have changed on another device.',
-          }),
-        // The controls offer only edits that keep the Hard rules, so a refusal
-        // means another device changed these Stays: refetch them.
-        HardRuleBroken: ({ rule }) =>
-          SaveAnswer.Gone({
-            problem: `${hardRuleProblem(rule)} Nothing changed. Your Stays may have changed on another device.`,
-          }),
-      }),
-    )
 
 /**
  * Splitting a Stay at a date inside it, or merging it with the next Stay
@@ -137,7 +86,11 @@ export function SplitMergeStay({
       if (choice === null) return SaveAnswer.Saved()
 
       setLastKind(choice.kind)
-      const answer = answerOf(choice.kind, schedule.anchorWarnings)
+
+      const answer = stayEditAnswerOf(
+        labels[choice.kind].anchorBroken,
+        schedule.anchorWarnings,
+      )
 
       if (choice.kind === 'merge') {
         return answer(
@@ -281,36 +234,18 @@ function ChoiceForm({
           aria-describedby={notSaved ? problemId : undefined}
         >
           <legend className="mb-2 text-sm">Split on</legend>
-          <div className="flex flex-wrap gap-2">
-            {splitDates.map((date) => (
-              <label
-                key={date}
-                className={cn(
-                  'flex h-8 cursor-pointer items-center rounded-md border border-border px-2.5 text-sm font-medium tabular-nums transition-colors select-none hover:bg-muted dark:border-input dark:bg-input/30',
-                  'has-checked:border-primary has-checked:bg-primary/15 has-checked:text-foreground',
-                  'has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
-                  saving && 'pointer-events-none opacity-50',
-                )}
-              >
-                <input
-                  type="radio"
-                  name="split-date"
-                  value={date}
-                  checked={choice.date === date}
-                  disabled={saving}
-                  onChange={() =>
-                    onChange({
-                      kind: 'split',
-                      date,
-                      operationId: crypto.randomUUID(),
-                    })
-                  }
-                  className="sr-only"
-                />
-                <time dateTime={date}>{weekdayDate(date)}</time>
-              </label>
-            ))}
-          </div>
+          <DateChoice
+            dates={splitDates}
+            value={choice.date}
+            disabled={saving}
+            onChange={(date) =>
+              onChange({
+                kind: 'split',
+                date,
+                operationId: crypto.randomUUID(),
+              })
+            }
+          />
           <p id={hintId} className="text-sm text-muted-foreground">
             This Stay keeps the nights before, with its hotel and note. A new{' '}
             {base} Stay starts that day, after a local Move.

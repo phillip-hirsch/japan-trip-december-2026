@@ -45,20 +45,6 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
 
   return (
     <>
-      {editable && next && (
-        <StaySection heading="Check-out" stay={stay}>
-          {(headingId) => (
-            <StayBoundaryField
-              key={stay.id}
-              scheduleId={schedule.id}
-              stay={stay}
-              next={next}
-              anchorWarnings={schedule.anchorWarnings}
-              labelledBy={headingId}
-            />
-          )}
-        </StaySection>
-      )}
       {(editable || hotel) && (
         <StaySection heading="Hotel" stay={stay}>
           {(headingId) =>
@@ -91,6 +77,20 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
               note !== undefined && <NoteText text={note} className="text-sm" />
             )
           }
+        </StaySection>
+      )}
+      {editable && next && (
+        <StaySection heading="Check-out" stay={stay}>
+          {(headingId) => (
+            <StayBoundaryField
+              key={stay.id}
+              scheduleId={schedule.id}
+              stay={stay}
+              next={next}
+              anchorWarnings={schedule.anchorWarnings}
+              labelledBy={headingId}
+            />
+          )}
         </StaySection>
       )}
       {editable && (
