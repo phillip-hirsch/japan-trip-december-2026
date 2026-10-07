@@ -9,6 +9,7 @@ import {
   Match,
   Option,
   Predicate,
+  Schema,
   Struct,
 } from 'effect'
 import type { SqlClient } from 'effect/sql'
@@ -27,10 +28,12 @@ import {
   ActivityNotFound,
   ActivityTitleInvalid,
   Anchor,
+  AnchorWarning,
   ChecklistItem,
   ChecklistItemNotFound,
   ChecklistTextInvalid,
   DayNotFound,
+  HardRuleBroken,
   HomeState,
   Hotel,
   HotelDetailTooLong,
@@ -44,6 +47,7 @@ import {
   ScheduleId,
   ScheduleNotFound,
   ScheduleRestored,
+  StayDateRuleBreak,
   StayNotFound,
   TripRuleBreak,
   VerifyClaimAttachment,
@@ -76,6 +80,7 @@ import type {
   MoveDetail,
   MovesComparison,
   MoveSummary,
+  OperationId,
   Place,
   RailSectionDetail,
   RemoveActivity,
@@ -88,6 +93,7 @@ import type {
   Stay,
   StaySummary,
   Station,
+  StaysEdited,
   TickChecklistItem,
   TickOwnChecklistItem,
   TimeOfDay,
@@ -117,6 +123,7 @@ import type {
   OwnChecklistItem,
   ScheduleCopy,
   ScheduleStore,
+  StayChanges,
 } from '@/trip/schedule-store'
 
 /** The calendar date in Tokyo at a moment. */
@@ -653,6 +660,7 @@ const scheduleDetailOf =
     ...schedule,
     sourceItinerary: sourceItineraryOf(schedule, itineraries),
     ...staysAndDaysOf(copy),
+    anchorWarnings: anchorWarningsOf(copy),
   })
 
 /**
@@ -730,6 +738,15 @@ const homeStateOf = (
     ),
   })
 }
+
+/**
+ * What a Stay edit records with its operation id: the Schedule it edited,
+ * which a repeat returns as it is by then.
+ */
+const StayEditRecord = Schema.Struct({ scheduleId: ScheduleId })
+
+/** Stays in Trip order, the order a Schedule's Stays are read in. */
+const byCheckIn = (a: Stay, b: Stay) => a.checkIn.localeCompare(b.checkIn)
 
 /**
  * The current Schedule, if it is the one a write names (none when it names
@@ -1022,25 +1039,25 @@ const requireHotelDetails = (details: HotelDetails) => {
     : Effect.succeed(trimmed)
 }
 
-/** Every way an Itinerary breaks the Trip's rules; empty when it keeps them. */
-const tripRuleBreaksOf = ({
-  stays,
-  days,
-  moves,
-  verifyClaims,
-  shigeharuVisit,
-}: Itinerary): Array<TripRuleBreak> => {
+/**
+ * Every way Stays break the Hard rules on Stay dates, in Trip order: the Trip
+ * dates, a Stay without nights, and a Gap or Overlap between consecutive
+ * Stays. Empty when they keep them.
+ */
+const stayDateRuleBreaksOf = (
+  stays: ReadonlyArray<Pick<Stay, 'checkIn' | 'checkOut'>>,
+): Array<StayDateRuleBreak> => {
   const first = stays[0]
   const last = stays.at(-1)
 
   if (first === undefined || last === undefined)
-    return [TripRuleBreak.cases.NoStays.make({})]
+    return [StayDateRuleBreak.cases.NoStays.make({})]
 
-  const breaks: Array<TripRuleBreak> = []
+  const breaks: Array<StayDateRuleBreak> = []
 
   if (first.checkIn !== tripStartDate || last.checkOut !== tripEndDate) {
     breaks.push(
-      TripRuleBreak.cases.NotTheTripDates.make({
+      StayDateRuleBreak.cases.NotTheTripDates.make({
         checkIn: first.checkIn,
         checkOut: last.checkOut,
       }),
@@ -1050,7 +1067,9 @@ const tripRuleBreaksOf = ({
   for (const stay of stays) {
     if (stay.checkOut <= stay.checkIn) {
       breaks.push(
-        TripRuleBreak.cases.StayWithoutNights.make({ checkIn: stay.checkIn }),
+        StayDateRuleBreak.cases.StayWithoutNights.make({
+          checkIn: stay.checkIn,
+        }),
       )
     }
   }
@@ -1062,20 +1081,39 @@ const tripRuleBreaksOf = ({
 
     if (previous.checkOut < next.checkIn) {
       breaks.push(
-        TripRuleBreak.cases.Gap.make({
+        StayDateRuleBreak.cases.Gap.make({
           from: previous.checkOut,
           to: next.checkIn,
         }),
       )
     } else if (next.checkIn < previous.checkOut) {
       breaks.push(
-        TripRuleBreak.cases.Overlap.make({
+        StayDateRuleBreak.cases.Overlap.make({
           from: next.checkIn,
           to: previous.checkOut,
         }),
       )
     }
   })
+
+  return breaks
+}
+
+/**
+ * Every way the parts of an Itinerary or a Schedule fail to fit together: a
+ * Move where no Stays meet, Stays that meet without a Move, and a Verify
+ * claim attached to no Day or Stay. Empty when they fit.
+ */
+const mismatchesOf = ({
+  stays,
+  days,
+  moves,
+  verifyClaims,
+}: Pick<
+  Plan<Stay, Day, Move, DayTrip, Anchor>,
+  'stays' | 'days' | 'moves' | 'verifyClaims'
+>): Array<TripRuleBreak> => {
+  const breaks: Array<TripRuleBreak> = []
   const boundaryDates = new Set(stayBoundariesOf(stays).map(({ date }) => date))
   const moveDates = new Set(moves.map((move) => move.date))
 
@@ -1091,20 +1129,83 @@ const tripRuleBreaksOf = ({
     }
   }
 
+  const attachments = new Set(
+    [
+      VerifyClaimAttachment.cases.Itinerary.make({}),
+      ...days.map(({ date }) => VerifyClaimAttachment.cases.Day.make({ date })),
+      ...stays.map(({ checkIn }) =>
+        VerifyClaimAttachment.cases.Stay.make({ checkIn }),
+      ),
+    ].map(attachmentKey),
+  )
+
+  for (const { id, attachedTo } of verifyClaims) {
+    if (!attachments.has(attachmentKey(attachedTo))) {
+      breaks.push(TripRuleBreak.cases.UnattachedVerifyClaim.make({ id }))
+    }
+  }
+
+  return breaks
+}
+
+/**
+ * The Anchor warnings of an Itinerary or a Schedule, in Trip order: not
+ * waking up in Kyoto on December 11, a Move on December 15, and the last
+ * Stay outside Tokyo. Empty when it keeps every Anchor.
+ */
+const anchorWarningsOf = ({
+  stays,
+  moves,
+}: {
+  readonly stays: ReadonlyArray<Stay>
+  readonly moves: ReadonlyArray<Move>
+}): Array<AnchorWarning> => {
+  const warnings: Array<AnchorWarning> = []
+  const shigeharuEve = stayForNight(stays, thursdayBeforeShigeharu)
+
+  if (shigeharuEve?.base !== 'kyoto') {
+    warnings.push(
+      AnchorWarning.cases.NotWakingUpInKyoto.make({
+        ...(shigeharuEve && { base: shigeharuEve.base }),
+      }),
+    )
+  }
+
+  if (moves.some((move) => move.date === birthdayDate)) {
+    warnings.push(AnchorWarning.cases.MoveOnBirthday.make({}))
+  }
+
+  const last = stays.at(-1)
+
+  if (last !== undefined && last.base !== 'tokyo') {
+    warnings.push(
+      AnchorWarning.cases.EndsOutsideTokyo.make({ base: last.base }),
+    )
+  }
+
+  return warnings
+}
+
+/**
+ * Every way an Itinerary breaks the Trip's rules; empty when it keeps them.
+ * An Itinerary keeps the Hard rules, fits together and never breaks an
+ * Anchor, so its Anchor warnings are breaks too.
+ */
+const tripRuleBreaksOf = (itinerary: Itinerary): Array<TripRuleBreak> => {
+  const { stays, days, shigeharuVisit } = itinerary
+  const stayDateBreaks = stayDateRuleBreaksOf(stays)
+
+  if (stays.length === 0) return stayDateBreaks
+
+  const breaks: Array<TripRuleBreak> = [
+    ...stayDateBreaks,
+    ...mismatchesOf(itinerary),
+  ]
+
   const dates = days.map((day) => day.date)
 
   if (dates.join() !== tripDates.join()) {
     breaks.push(TripRuleBreak.cases.NotTheTripDays.make({ dates }))
-  }
-
-  const shigeharuEve = stayForNight(stays, thursdayBeforeShigeharu)
-
-  if (shigeharuEve?.base !== 'kyoto') {
-    breaks.push(
-      TripRuleBreak.cases.NotWakingUpInKyoto.make({
-        ...(shigeharuEve && { base: shigeharuEve.base }),
-      }),
-    )
   }
 
   if (shigeharuVisit === undefined) {
@@ -1127,31 +1228,7 @@ const tripRuleBreaksOf = ({
     }
   }
 
-  if (moveDates.has(birthdayDate)) {
-    breaks.push(TripRuleBreak.cases.MoveOnBirthday.make({}))
-  }
-
-  const attachments = new Set(
-    [
-      VerifyClaimAttachment.cases.Itinerary.make({}),
-      ...days.map(({ date }) => VerifyClaimAttachment.cases.Day.make({ date })),
-      ...stays.map(({ checkIn }) =>
-        VerifyClaimAttachment.cases.Stay.make({ checkIn }),
-      ),
-    ].map(attachmentKey),
-  )
-
-  for (const { id, attachedTo } of verifyClaims) {
-    if (!attachments.has(attachmentKey(attachedTo))) {
-      breaks.push(TripRuleBreak.cases.UnattachedVerifyClaim.make({ id }))
-    }
-  }
-
-  if (last.base !== 'tokyo') {
-    breaks.push(TripRuleBreak.cases.EndsOutsideTokyo.make({ base: last.base }))
-  }
-
-  return breaks
+  return [...breaks, ...anchorWarningsOf(itinerary)]
 }
 
 /**
@@ -1291,6 +1368,35 @@ export class Trip extends Context.Service<
     ): Effect.Effect<
       void,
       ScheduleChanged | StayNotFound | HotelDetailTooLong,
+      SqlClient.SqlClient
+    >
+    /**
+     * Runs a Stay edit on the Schedule named, as one transaction, and returns
+     * the Schedule as edited with its Anchor warnings, which never block it.
+     * The edit receives the Schedule's copy and returns its Stays, Moves and
+     * Verify claims as edited: those it keeps keep their ids, Hotel details
+     * and Stay notes, and with them their Checklist ticks. Each Stay edit
+     * supplies only its own edit.
+     *
+     * ScheduleChanged when the Schedule named isn't current, archived ones
+     * included; HardRuleBroken naming the first Hard rule on Stay dates the
+     * edited Stays break; and whatever the edit itself fails with, such as
+     * StayNotFound, or HardRuleBroken when it can't apply. A refused edit
+     * writes nothing. An edit whose Moves or Verify claims no longer fit its
+     * Stays is a defect.
+     *
+     * With an operation id, the edit is recorded with it, and repeating the
+     * id returns the Schedule as it is then without editing again.
+     */
+    editStays<E>(
+      target: {
+        readonly scheduleId: ScheduleId
+        readonly operationId?: OperationId
+      },
+      edit: (copy: ScheduleCopy) => Effect.Effect<StayChanges, E>,
+    ): Effect.Effect<
+      StaysEdited,
+      E | ScheduleChanged | HardRuleBroken,
       SqlClient.SqlClient
     >
     /**
@@ -1632,6 +1738,85 @@ export class Trip extends Context.Service<
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
       )
 
+      /** A Schedule as a Stay edit returns it; ScheduleChanged when it's gone. */
+      const editedSchedule = Effect.fnUntraced(function* (
+        store: ScheduleStore,
+        scheduleId: ScheduleId,
+      ) {
+        const found = yield* store.scheduleById(scheduleId)
+
+        if (Option.isNone(found)) return yield* new ScheduleChanged()
+
+        return { schedule: scheduleDetail(found.value) }
+      })
+
+      const editStays = Effect.fn('Trip.editStays')(
+        function* <E>(
+          {
+            scheduleId,
+            operationId,
+          }: {
+            readonly scheduleId: ScheduleId
+            readonly operationId?: OperationId
+          },
+          edit: (copy: ScheduleCopy) => Effect.Effect<StayChanges, E>,
+        ) {
+          const store = yield* scheduleStore
+
+          return yield* store.transaction(
+            Effect.gen(function* () {
+              if (operationId !== undefined) {
+                const recorded =
+                  yield* store.recordedResult(StayEditRecord)(operationId)
+
+                if (Option.isSome(recorded)) {
+                  return yield* editedSchedule(
+                    store,
+                    recorded.value.result.scheduleId,
+                  )
+                }
+              }
+
+              yield* requireCurrent(store, scheduleId)
+              const found = yield* store.scheduleById(scheduleId)
+
+              if (Option.isNone(found)) return yield* new ScheduleChanged()
+              const { copy } = found.value
+              const changes = yield* edit(copy)
+              const stays = [...changes.stays].sort(byCheckIn)
+              const broken = stayDateRuleBreaksOf(stays).at(0)
+
+              if (broken !== undefined) {
+                return yield* new HardRuleBroken({ rule: broken })
+              }
+
+              const edited = { ...changes, stays }
+              const mismatches = mismatchesOf({ ...edited, days: copy.days })
+
+              if (mismatches.length > 0) {
+                return yield* Effect.die(
+                  new Error(
+                    `A Stay edit left the Schedule not fitting together: ${JSON.stringify(mismatches)}`,
+                  ),
+                )
+              }
+
+              yield* store.replaceStays(scheduleId, edited)
+
+              if (operationId !== undefined) {
+                yield* store.recordResult(StayEditRecord)({
+                  id: operationId,
+                  result: { scheduleId },
+                })
+              }
+
+              return yield* editedSchedule(store, scheduleId)
+            }),
+          )
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
       const writeTripNote = Effect.fn('Trip.writeTripNote')(
         function* ({ note }: WriteTripNote) {
           yield* requireNoteLength(note)
@@ -1906,6 +2091,7 @@ export class Trip extends Context.Service<
         writeDayNote,
         writeStayNote,
         writeHotelDetails,
+        editStays,
         writeTripNote,
         checklist,
         tickChecklistItem,

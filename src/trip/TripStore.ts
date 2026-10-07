@@ -7,6 +7,10 @@ import type { SqlClient } from 'effect/sql'
 
 import type {
   AddActivity,
+  HardRuleBroken,
+  ScheduleChanged,
+  StayNotFound,
+  StaysEdited,
   AddOwnChecklistItem,
   Checklist,
   ChooseItinerary,
@@ -38,6 +42,7 @@ import {
   RemoveActivityOutcome,
   RemoveOwnChecklistItemOutcome,
   RestoreOutcome,
+  StayEditOutcome,
   TickChecklistItemOutcome,
   TickOwnChecklistItemOutcome,
   WriteDayNoteOutcome,
@@ -49,6 +54,37 @@ import { Itineraries } from '@/trip/Itineraries'
 import { migrations } from '@/trip/migrations'
 import { runToPromise } from '@/trip/runtime.server'
 import { Trip } from '@/trip/Trip'
+
+/**
+ * A Stay edit's result or refusal as its outcome: each Stay edit's RPC method
+ * runs its Trip operation through this, so they all answer alike.
+ */
+export const stayEditOutcomeOf = <R>(
+  edit: Effect.Effect<
+    StaysEdited,
+    ScheduleChanged | StayNotFound | HardRuleBroken,
+    R
+  >,
+) =>
+  edit.pipe(
+    Effect.map((edited): StayEditOutcome =>
+      StayEditOutcome.cases.Edited.make(edited),
+    ),
+    Effect.catchTags({
+      ScheduleChanged: () =>
+        Effect.succeed<StayEditOutcome>(
+          StayEditOutcome.cases.ScheduleChanged.make({}),
+        ),
+      StayNotFound: ({ stayId }) =>
+        Effect.succeed<StayEditOutcome>(
+          StayEditOutcome.cases.StayNotFound.make({ stayId }),
+        ),
+      HardRuleBroken: ({ rule }) =>
+        Effect.succeed<StayEditOutcome>(
+          StayEditOutcome.cases.HardRuleBroken.make({ rule }),
+        ),
+    }),
+  )
 
 /**
  * The one SQLite-backed Durable Object holding all of Phillip's editable data

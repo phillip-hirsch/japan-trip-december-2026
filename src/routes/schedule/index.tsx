@@ -3,6 +3,7 @@ import { createFileRoute, Link } from '@tanstack/react-router'
 
 import { NoSchedule } from '@/components/no-schedule'
 import { TripNote } from '@/components/notes'
+import { AnchorWarnings } from '@/components/schedule-rules'
 import {
   ArchivedScheduleList,
   RevisionNotice,
@@ -48,6 +49,7 @@ function SchedulePage() {
             See the Itineraries
           </Link>
         </p>
+        <AnchorWarnings warnings={schedule.anchorWarnings} className="mt-6" />
         <RevisionNotice schedule={schedule} className="mt-6" />
         <VerifyClaims claims={schedule.verifyClaims} className="mt-6" />
       </header>

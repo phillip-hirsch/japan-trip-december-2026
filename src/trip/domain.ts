@@ -482,23 +482,59 @@ export const ItineraryDetail = Schema.Struct({
 
 export type ItineraryDetail = typeof ItineraryDetail.Type
 
-/** Why an Itinerary breaks the Trip's rules. */
-export const TripRuleBreak = Schema.TaggedUnion({
+/**
+ * The Hard rules on Stay dates, which every Itinerary keeps too: Stays from
+ * December 6 to December 20, back to back with no Gap or Overlap, each at
+ * least one night.
+ */
+const stayDateRules = {
   NoStays: {},
   NotTheTripDates: { checkIn: IsoDate, checkOut: IsoDate },
   StayWithoutNights: { checkIn: IsoDate },
   Gap: { from: IsoDate, to: IsoDate },
   Overlap: { from: IsoDate, to: IsoDate },
-  NotTheTripDays: { dates: Schema.Array(IsoDate) },
+}
+
+/** How Stays break the Hard rules on Stay dates. */
+export const StayDateRuleBreak = Schema.TaggedUnion(stayDateRules)
+
+export type StayDateRuleBreak = typeof StayDateRuleBreak.Type
+
+const anchorWarnings = {
+  /**
+   * The Stay covering the night of December 10 isn't in Kyoto, at the Base
+   * given, so Phillip doesn't wake up there for the Shigeharu visit. No Base
+   * when no Stay covers that night.
+   */
   NotWakingUpInKyoto: { base: Schema.optionalKey(PlaceId) },
+  /** A Move on December 15, the Birthday. */
+  MoveOnBirthday: {},
+  /** The last Stay, before flying home, is at the Base given, not Tokyo. */
+  EndsOutsideTokyo: { base: PlaceId },
+}
+
+/**
+ * An Anchor the Schedule breaks, or its last Stay outside Tokyo: shown on the
+ * Schedule page, never blocking a Stay edit.
+ */
+export const AnchorWarning = Schema.TaggedUnion(anchorWarnings)
+
+export type AnchorWarning = typeof AnchorWarning.Type
+
+/**
+ * Why an Itinerary breaks the Trip's rules: the Hard rules on Stay dates, the
+ * Anchor warnings, which an Itinerary never may, and its content's own.
+ */
+export const TripRuleBreak = Schema.TaggedUnion({
+  ...stayDateRules,
+  ...anchorWarnings,
+  NotTheTripDays: { dates: Schema.Array(IsoDate) },
   ShigeharuMissing: {},
   ShigeharuWrongDate: { date: IsoDate },
   ShigeharuNotInMorning: { slot: DaySlot },
   MoveWithoutStayBoundary: { date: IsoDate },
   StayBoundaryWithoutMove: { date: IsoDate },
-  MoveOnBirthday: {},
   UnattachedVerifyClaim: { id: Schema.String },
-  EndsOutsideTokyo: { base: PlaceId },
 })
 
 export type TripRuleBreak = typeof TripRuleBreak.Type
@@ -702,6 +738,11 @@ export const ScheduleDetail = Schema.Struct({
   verifyClaims: Schema.Array(VerifyClaimDetail),
   stays: Schema.Array(ScheduleStayDetail),
   days: Schema.Array(ScheduleDayDetail),
+  /**
+   * Derived from its Stays and Moves each time it's read, in Trip order, so
+   * none goes away until the Schedule stops breaking it.
+   */
+  anchorWarnings: Schema.Array(AnchorWarning),
 })
 
 export type ScheduleDetail = typeof ScheduleDetail.Type
@@ -911,6 +952,42 @@ export class HotelDetailTooLong extends Schema.TaggedError<HotelDetailTooLong>()
   'HotelDetailTooLong',
   { maxLength: Schema.Int },
 ) {}
+
+/**
+ * The Hard rule a Stay edit would break, so it's refused and nothing changes:
+ * one on Stay dates, or one the edit itself can't apply. Merging needs two
+ * adjacent Stays in one Base, and a Base can change only to a place in the
+ * catalogue.
+ */
+export const HardRule = Schema.TaggedUnion({
+  ...stayDateRules,
+  StaysNotAdjacent: {},
+  StaysInDifferentBases: {},
+  PlaceNotInCatalogue: { place: Schema.String },
+})
+
+export type HardRule = typeof HardRule.Type
+
+/** A Stay edit refused by the Hard rule named; nothing is written. */
+export class HardRuleBroken extends Schema.TaggedError<HardRuleBroken>()(
+  'HardRuleBroken',
+  { rule: HardRule },
+) {}
+
+/** What a Stay edit did: the Schedule as edited, with its Anchor warnings. */
+export const StaysEdited = Schema.Struct({ schedule: ScheduleDetail })
+
+export type StaysEdited = typeof StaysEdited.Type
+
+/** What a Stay edit did, as plain data for the browser. */
+export const StayEditOutcome = Schema.TaggedUnion({
+  Edited: StaysEdited.fields,
+  ScheduleChanged: ScheduleChanged.fields,
+  StayNotFound: StayNotFound.fields,
+  HardRuleBroken: HardRuleBroken.fields,
+})
+
+export type StayEditOutcome = typeof StayEditOutcome.Type
 
 /** What writing Hotel details did, as plain data for the browser. */
 export const WriteHotelDetailsOutcome = Schema.TaggedUnion({

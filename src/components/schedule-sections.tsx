@@ -7,6 +7,7 @@ import type { ReactNode } from 'react'
 import { DayTimeline } from '@/components/day-timeline'
 import { HotelDetailsField, HotelDetailsList } from '@/components/hotel-details'
 import { NoteText } from '@/components/note-text'
+import { Notice } from '@/components/notice'
 import { StayNote } from '@/components/notes'
 import { StayList } from '@/components/stay-list'
 import {
@@ -16,7 +17,6 @@ import {
   ItemDescription,
   ItemTitle,
 } from '@/components/ui/item'
-import { cn } from '@/lib/utils'
 import { formatMoment } from '@/trip/calendar'
 import type {
   ArchivedScheduleSummary,
@@ -152,17 +152,7 @@ export function RevisionNotice({
   if (sourceItinerary === 'unchanged') return null
 
   return (
-    <div
-      role="status"
-      className={cn(
-        'flex items-start gap-3 rounded-md border border-border bg-secondary px-4 py-3 text-sm text-secondary-foreground',
-        className,
-      )}
-    >
-      <HistoryIcon
-        aria-hidden
-        className="mt-0.5 size-4 shrink-0 text-muted-foreground"
-      />
+    <Notice icon={HistoryIcon} className={className}>
       {sourceItinerary === 'revised' ? (
         <p>
           Option {sourceOptionNumber} has had a Revision since this Schedule was
@@ -178,7 +168,7 @@ export function RevisionNotice({
       ) : (
         <p>Option {sourceOptionNumber} is no longer available.</p>
       )}
-    </div>
+    </Notice>
   )
 }
 
