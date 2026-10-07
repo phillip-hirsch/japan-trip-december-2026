@@ -159,8 +159,8 @@ function SpotMarker({ places }: { places: ReadonlyArray<PinnedPlace> }) {
 /**
  * The map itself, loaded lazily: the Schedule's Bases, Moves and Day trips,
  * and its pinned hotels and Activities, framed to fit them all, and framed
- * again when an edit reaches further. It fills the page, so gestures move
- * the map directly.
+ * again when an edit changes them. It fills the page, so gestures move the
+ * map directly.
  */
 export default function ScheduleMapCanvas({ map }: { map: ScheduleMap }) {
   const points = [

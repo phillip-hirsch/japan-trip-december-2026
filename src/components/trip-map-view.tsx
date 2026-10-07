@@ -48,9 +48,9 @@ const fitOptionsOf = (maxZoom: number | undefined) => ({
 })
 
 /**
- * Frames the map again whenever its points reach further or less far, such
- * as after a refetch brings a new pin. The same points arriving again leave
- * the map where Phillip moved it.
+ * Frames the map again whenever any of its points changes, such as when a
+ * refetch brings a pin added or moved on another device, wherever it is. The
+ * same points arriving again leave the map where Phillip moved it.
  */
 export function FitToPoints({
   points,
@@ -60,14 +60,13 @@ export function FitToPoints({
   maxZoom?: number
 }) {
   const { map } = useMap()
-  const bounds = boundsOf(points)
-  const key = JSON.stringify(bounds)
+  const key = JSON.stringify(points)
   // The map opens framed to the first points.
   const framed = useRef(key)
   useEffect(() => {
     if (map === null || framed.current === key) return
     framed.current = key
-    map.fitBounds(bounds, fitOptionsOf(maxZoom))
+    map.fitBounds(boundsOf(points), fitOptionsOf(maxZoom))
   }, [map, key])
 
   return null
