@@ -1135,8 +1135,8 @@ const stayDateRuleBreaksOf = (
 
 /**
  * Every way the parts of an Itinerary or a Schedule fail to fit together: a
- * Move where no Stays meet, Stays that meet without a Move, and a Verify
- * claim attached to no Day or Stay. Empty when they fit.
+ * Move where no Stays meet, two Moves on one date, Stays that meet without a
+ * Move, and a Verify claim attached to no Day or Stay. Empty when they fit.
  */
 const fitBreaksOf = ({
   stays,
@@ -1154,6 +1154,10 @@ const fitBreaksOf = ({
   for (const date of moveDates) {
     if (!boundaryDates.has(date)) {
       breaks.push(TripRuleBreak.cases.MoveWithoutStayBoundary.make({ date }))
+    }
+
+    if (moves.filter((move) => move.date === date).length > 1) {
+      breaks.push(TripRuleBreak.cases.MovesOnOneDate.make({ date }))
     }
   }
 

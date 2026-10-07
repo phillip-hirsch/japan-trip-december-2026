@@ -534,6 +534,7 @@ export const TripRuleBreak = Schema.TaggedUnion({
   ShigeharuWrongDate: { date: IsoDate },
   ShigeharuNotInMorning: { slot: DaySlot },
   MoveWithoutStayBoundary: { date: IsoDate },
+  MovesOnOneDate: { date: IsoDate },
   StayBoundaryWithoutMove: { date: IsoDate },
   UnattachedVerifyClaim: { id: Schema.String },
 })
