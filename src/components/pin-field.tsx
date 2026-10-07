@@ -237,11 +237,10 @@ export function PinField({
 
   const dropByHand = () => {
     setFrame(near)
-    // A link the Pin can't keep would only refuse its save, so it goes.
-    field.change({
-      link: linkRefusalOf(value.link.trim()) === undefined ? value.link : '',
-      coordinates: near,
-    })
+    // A Pin dropped by hand keeps no link. A link shown here was refused or
+    // never found, so it may point somewhere else. A link without
+    // coordinates keeps its link, but finding it already placed the Pin.
+    field.change({ link: '', coordinates: near })
     setFinding({
       state: 'byHand',
       note: 'Drag the pin into place, or tap the map where it goes.',
