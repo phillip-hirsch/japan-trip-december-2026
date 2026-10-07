@@ -50,7 +50,8 @@ const fitOptionsOf = (maxZoom: number | undefined) => ({
 /**
  * Frames the map again whenever any of its points changes, such as when a
  * refetch brings a pin added or moved on another device, wherever it is. The
- * same points arriving again leave the map where Phillip moved it.
+ * same points arriving again, in any order, such as after Activities are
+ * reordered, leave the map where Phillip moved it.
  */
 export function FitToPoints({
   points,
@@ -60,7 +61,12 @@ export function FitToPoints({
   maxZoom?: number
 }) {
   const { map } = useMap()
-  const key = JSON.stringify(points)
+
+  const key = points
+    .map(({ latitude, longitude }) => `${latitude},${longitude}`)
+    .sort()
+    .join(' ')
+
   // The map opens framed to the first points.
   const framed = useRef(key)
   useEffect(() => {
