@@ -3,14 +3,14 @@ import { Predicate } from 'effect'
 import { PencilIcon } from 'lucide-react'
 import { useId } from 'react'
 
+import { ChipChoice } from '@/components/chip-choice'
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
 import { hardRuleProblem, stayEditAnswerOf } from '@/components/schedule-rules'
 import { StaySection } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
-import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import type { ScheduleDetail, ScheduleStayDetail } from '@/trip/domain'
 import { SaveAnswer, SaveState, useSave } from '@/trip/drafts'
-import { isPlaceId, placeIds, places } from '@/trip/places'
+import { placeIds, places } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
 import { changeStayBase } from '@/trip/trip.functions'
 
@@ -27,7 +27,6 @@ export function StayBaseField({
   stay: ScheduleStayDetail
 }) {
   const change = useServerFn(changeStayBase)
-  const selectId = useId()
   const hintId = useId()
   const problemId = useId()
   const scheduleId = schedule.id
@@ -94,40 +93,26 @@ export function StayBaseField({
             {notSaved && (
               <NotSavedAlert problem={state.problem} problemId={problemId} />
             )}
-            <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor={selectId}
-                className="text-sm text-muted-foreground"
-              >
-                New Base
-              </label>
-              <NativeSelect
-                id={selectId}
-                aria-describedby={notSaved ? `${problemId} ${hintId}` : hintId}
-                // Opening the editor focuses it.
-                autoFocus={SaveState.$is('Editing')(state)}
-                // A change in flight fixes the place, so two changes never race.
-                disabled={saving}
+            <fieldset
+              className="flex flex-col gap-2"
+              aria-describedby={notSaved ? `${hintId} ${problemId}` : hintId}
+            >
+              <legend className="mb-2 text-sm">Change the Base to</legend>
+              <ChipChoice
+                options={placeIds.map((place) => ({
+                  value: place,
+                  label: places[place].romaji,
+                }))}
                 value={value}
-                onChange={(event) => {
-                  const place = event.target.value
-
-                  if (isPlaceId(place)) field.change(place)
-                }}
-                className="w-full sm:w-64"
-              >
-                {placeIds.map((place) => (
-                  <NativeSelectOption key={place} value={place}>
-                    {places[place].romaji}
-                    {place === stay.base.id && ' (now)'}
-                  </NativeSelectOption>
-                ))}
-              </NativeSelect>
+                // A save in flight fixes the value, so two saves never race.
+                disabled={saving}
+                onChange={field.change}
+              />
               <p id={hintId} className="text-sm text-muted-foreground">
                 The Stay loses its highlights, and the Moves on either side lose
                 their travel time. Its hotel details, note and ticks stay.
               </p>
-            </div>
+            </fieldset>
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 type="submit"

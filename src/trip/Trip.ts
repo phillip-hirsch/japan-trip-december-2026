@@ -122,8 +122,12 @@ import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
 import type { StationId } from '@/trip/rail'
 import { railGeometryAttribution, railGeometryOf } from '@/trip/rail-geometry'
 import { scheduleStore } from '@/trip/schedule-store'
-import { changeBaseEdit, mergeEdit, splitEdit } from '@/trip/stay-edits'
-import { stayBoundaryMove } from '@/trip/stay-boundary'
+import {
+  changeBaseEdit,
+  mergeEdit,
+  splitEdit,
+  stayBoundaryMove,
+} from '@/trip/stay-edits'
 import type {
   OwnChecklistItem,
   ScheduleCopy,
