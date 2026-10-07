@@ -57,18 +57,11 @@
     "wrangler": "^4.147.0"
   },
   "devEngines": {
-    "packageManager": [
-      {
-        "name": "npm",
-        "version": "^12.1.0",
-        "onFail": "download"
-      },
-      {
-        "name": "pnpm",
-        "version": "^12.8.1",
-        "onFail": "download"
-      }
-    ]
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^12.8.1",
+      "onFail": "download"
+    }
   },
   "intent": {
     "skills": [
