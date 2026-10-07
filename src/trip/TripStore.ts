@@ -24,6 +24,7 @@ import type {
   TickChecklistItem,
   TickOwnChecklistItem,
   WriteDayNote,
+  WriteHotelDetails,
   WriteStayNote,
   WriteTripNote,
 } from '@/trip/domain'
@@ -40,6 +41,7 @@ import {
   TickChecklistItemOutcome,
   TickOwnChecklistItemOutcome,
   WriteDayNoteOutcome,
+  WriteHotelDetailsOutcome,
   WriteStayNoteOutcome,
   WriteTripNoteOutcome,
 } from '@/trip/domain'
@@ -205,6 +207,35 @@ export class TripStore extends DurableObject<Env> {
           NoteTooLong: ({ maxLength }) =>
             Effect.succeed<WriteStayNoteOutcome>(
               WriteStayNoteOutcome.cases.NoteTooLong.make({ maxLength }),
+            ),
+        }),
+      ),
+    )
+  }
+
+  /** Writes the Hotel details on a Stay of the current Schedule, as a whole. */
+  writeHotelDetails(
+    input: WriteHotelDetails,
+  ): Promise<WriteHotelDetailsOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.writeHotelDetails(input)).pipe(
+        Effect.as<WriteHotelDetailsOutcome>(
+          WriteHotelDetailsOutcome.cases.Written.make({}),
+        ),
+        Effect.catchTags({
+          ScheduleChanged: () =>
+            Effect.succeed<WriteHotelDetailsOutcome>(
+              WriteHotelDetailsOutcome.cases.ScheduleChanged.make({}),
+            ),
+          StayNotFound: ({ stayId }) =>
+            Effect.succeed<WriteHotelDetailsOutcome>(
+              WriteHotelDetailsOutcome.cases.StayNotFound.make({ stayId }),
+            ),
+          HotelDetailTooLong: ({ maxLength }) =>
+            Effect.succeed<WriteHotelDetailsOutcome>(
+              WriteHotelDetailsOutcome.cases.HotelDetailTooLong.make({
+                maxLength,
+              }),
             ),
         }),
       ),

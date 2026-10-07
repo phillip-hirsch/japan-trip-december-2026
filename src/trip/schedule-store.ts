@@ -15,6 +15,7 @@ import {
   CopyId,
   DayTrip,
   DurationRange,
+  Hotel,
   IsoDate,
   Move,
   OperationId,
@@ -25,12 +26,18 @@ import {
   VerifyClaim,
   VerifyClaimAttachment,
 } from '@/trip/domain'
-import type { Activity, Day } from '@/trip/domain'
+import type { Activity, Day, HotelDetails } from '@/trip/domain'
 
 type Copied<A> = A & { readonly id: string }
 
-/** A Stay of a Schedule, with Phillip's Stay note once he writes one. */
-export type ScheduleStay = Copied<Stay> & { readonly note?: string }
+/**
+ * A Stay of a Schedule, with Phillip's Stay note once he writes one and its
+ * hotel.
+ */
+export type ScheduleStay = Copied<Stay> & {
+  readonly note?: string
+  readonly hotel: Hotel
+}
 
 /**
  * A Day of a Schedule, with Phillip's Day note once he writes one and his
@@ -44,7 +51,7 @@ export type ScheduleDay = Day & {
 /**
  * Everything a Schedule copies from the Itinerary chosen, each Stay, Move, Day
  * trip, Verify claim and Anchor with its own id, and Phillip's Stay and Day
- * notes and Activities.
+ * notes, Hotel details and Activities.
  */
 export interface ScheduleCopy {
   readonly stays: ReadonlyArray<ScheduleStay>
@@ -70,7 +77,35 @@ const StayRow = Schema.Struct({
   ...Stay.fields,
   highlights: Schema.fromJsonString(Stay.fields.highlights),
   note: Schema.NullOr(Schema.String),
+  hotelName: Schema.NullOr(Schema.String),
+  hotelAddress: Schema.NullOr(Schema.String),
+  hotelConfirmationNumber: Schema.NullOr(Schema.String),
 })
+
+/** Hotel details as stored: null for each field not recorded. */
+const hotelColumnsOf = (details: HotelDetails) => ({
+  hotelName: details.name ?? null,
+  hotelAddress: details.address ?? null,
+  hotelConfirmationNumber: details.confirmationNumber ?? null,
+})
+
+/** A Stay's hotel from its row: not recorded while every field is null. */
+const hotelOf = ({
+  hotelName,
+  hotelAddress,
+  hotelConfirmationNumber,
+}: ReturnType<typeof hotelColumnsOf>): Hotel =>
+  hotelName === null &&
+  hotelAddress === null &&
+  hotelConfirmationNumber === null
+    ? Hotel.cases.NotRecorded.make({})
+    : Hotel.cases.Recorded.make({
+        ...(hotelName !== null && { name: hotelName }),
+        ...(hotelAddress !== null && { address: hotelAddress }),
+        ...(hotelConfirmationNumber !== null && {
+          confirmationNumber: hotelConfirmationNumber,
+        }),
+      })
 
 const DayRow = Schema.Struct({
   ...ofSchedule,
@@ -270,6 +305,21 @@ export const scheduleStore = Effect.gen(function* () {
     execute: ({ scheduleId, stayId, note }) =>
       sql`
         UPDATE stays SET note = ${note}
+        WHERE scheduleId = ${scheduleId} AND id = ${stayId}
+      `,
+  })
+
+  const updateHotelDetails = SqlSchema.void({
+    Request: Schema.Struct({
+      scheduleId: ScheduleId,
+      stayId: CopyId,
+      hotelName: Schema.NullOr(Schema.String),
+      hotelAddress: Schema.NullOr(Schema.String),
+      hotelConfirmationNumber: Schema.NullOr(Schema.String),
+    }),
+    execute: ({ scheduleId, stayId, ...columns }) =>
+      sql`
+        UPDATE stays SET ${sql.update(columns)}
         WHERE scheduleId = ${scheduleId} AND id = ${stayId}
       `,
   })
@@ -477,10 +527,19 @@ export const scheduleStore = Effect.gen(function* () {
       ])
 
     const copy: ScheduleCopy = {
-      stays: stays.map(({ note, ...stay }) => ({
-        ...withoutSchedule(stay),
-        ...(note !== null && { note }),
-      })),
+      stays: stays.map(
+        ({
+          note,
+          hotelName,
+          hotelAddress,
+          hotelConfirmationNumber,
+          ...stay
+        }) => ({
+          ...withoutSchedule(stay),
+          ...(note !== null && { note }),
+          hotel: hotelOf({ hotelName, hotelAddress, hotelConfirmationNumber }),
+        }),
+      ),
       days: days.map(({ date, description, note }) => ({
         date,
         ...(description !== null && { description }),
@@ -615,6 +674,16 @@ export const scheduleStore = Effect.gen(function* () {
     writeStayNote: (scheduleId: ScheduleId, stayId: string, note: string) =>
       updateStayNote({ scheduleId, stayId, note: storedNote(note) }),
 
+    /**
+     * Replaces the Hotel details on a Stay of a Schedule; a field absent
+     * removes it.
+     */
+    writeHotelDetails: (
+      scheduleId: ScheduleId,
+      stayId: string,
+      details: HotelDetails,
+    ) => updateHotelDetails({ scheduleId, stayId, ...hotelColumnsOf(details) }),
+
     /** The Trip note, if Phillip has written one. */
     tripNote: Effect.map(
       findTripNote(undefined),
@@ -663,7 +732,15 @@ export const scheduleStore = Effect.gen(function* () {
       yield* insertSchedule(schedule)
       yield* Effect.forEach(
         copy.stays,
-        (stay) => insertStay({ ...stay, scheduleId, note: stay.note ?? null }),
+        ({ hotel, ...stay }) =>
+          insertStay({
+            ...stay,
+            scheduleId,
+            note: stay.note ?? null,
+            ...hotelColumnsOf(
+              Hotel.guards.Recorded(hotel) ? Struct.omit(hotel, ['_tag']) : {},
+            ),
+          }),
         { discard: true },
       )
       yield* Effect.forEach(

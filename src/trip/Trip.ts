@@ -33,6 +33,7 @@ import {
   DayNotFound,
   HomeState,
   Hotel,
+  HotelDetailTooLong,
   IsoDate,
   ItineraryNotFound,
   NoteTooLong,
@@ -62,6 +63,7 @@ import type {
   DayTrip,
   DayTripDetail,
   EditActivity,
+  HotelDetails,
   Itinerary,
   ItineraryComparison,
   ItineraryDetail,
@@ -92,14 +94,17 @@ import type {
   VerifyClaim,
   VerifyClaimDetail,
   WriteDayNote,
+  WriteHotelDetails,
   WriteStayNote,
   WriteTripNote,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
 import { reminderDateOf } from '@/trip/checklist-items'
+import { trimmedHotelDetails } from '@/trip/hotel-details'
 import {
   activityTitleMaxLength,
   checklistTextMaxLength,
+  hotelDetailMaxLength,
   noteMaxLength,
 } from '@/trip/limits'
 import { places, visitedPlaceIds } from '@/trip/places'
@@ -603,7 +608,10 @@ const copyOf = (itinerary: Itinerary): ScheduleCopy => {
   })
 
   return {
-    stays: itinerary.stays.map(withFreshId),
+    stays: itinerary.stays.map((stay) => ({
+      ...withFreshId(stay),
+      hotel: Hotel.cases.NotRecorded.make({}),
+    })),
     days: itinerary.days.map((day) => ({ ...day, activities: [] })),
     moves: itinerary.moves.map(withFreshId),
     dayTrips: itinerary.dayTrips.map(withFreshId),
@@ -672,8 +680,13 @@ const dayPageOf = (schedule: ScheduleDetail, date: IsoDate) =>
         ...(tonight && {
           tonight: {
             id: tonight.id,
-            ...Struct.pick(tonight, ['base', 'checkIn', 'checkOut', 'nights']),
-            hotel: Hotel.cases.NotRecorded.make({}),
+            ...Struct.pick(tonight, [
+              'base',
+              'checkIn',
+              'checkOut',
+              'nights',
+              'hotel',
+            ]),
           },
         }),
         ...(nextMove && { nextMove }),
@@ -734,6 +747,22 @@ const requireCurrent = Effect.fnUntraced(function* (
   if (currentId !== named) return yield* new ScheduleChanged()
 
   return current
+})
+
+/**
+ * Checks a write to a Stay of the Schedule it names: ScheduleChanged unless
+ * that Schedule is current, StayNotFound unless it has a Stay with the id.
+ */
+const requireStay = Effect.fnUntraced(function* (
+  store: ScheduleStore,
+  scheduleId: ScheduleId,
+  stayId: string,
+) {
+  yield* requireCurrent(store, scheduleId)
+
+  if (!(yield* store.hasStay(scheduleId, stayId))) {
+    return yield* new StayNotFound({ stayId })
+  }
 })
 
 /**
@@ -977,6 +1006,20 @@ const insertionIndexOf = (
         )
 
   return later === -1 ? activities.length : later
+}
+
+/**
+ * Hotel details with each field trimmed and a blank one removed;
+ * HotelDetailTooLong when one is too long.
+ */
+const requireHotelDetails = (details: HotelDetails) => {
+  const trimmed = trimmedHotelDetails(details)
+
+  return Object.values(trimmed).some(
+    (field) => field.length > hotelDetailMaxLength,
+  )
+    ? Effect.fail(new HotelDetailTooLong({ maxLength: hotelDetailMaxLength }))
+    : Effect.succeed(trimmed)
 }
 
 /** Every way an Itinerary breaks the Trip's rules; empty when it keeps them. */
@@ -1232,6 +1275,22 @@ export class Trip extends Context.Service<
     ): Effect.Effect<
       void,
       ScheduleChanged | StayNotFound | NoteTooLong,
+      SqlClient.SqlClient
+    >
+    /**
+     * Writes the Hotel details on a Stay of the Schedule named, as a whole
+     * value, so the last write wins for each field. Each field is trimmed and
+     * a blank one removed; all blank leaves the hotel not recorded. The Stay
+     * keeps its id. ScheduleChanged when the Schedule named isn't current,
+     * archived ones included; StayNotFound when it has no Stay with the id;
+     * HotelDetailTooLong for a field past 500 characters. A refused write
+     * writes nothing.
+     */
+    writeHotelDetails(
+      input: WriteHotelDetails,
+    ): Effect.Effect<
+      void,
+      ScheduleChanged | StayNotFound | HotelDetailTooLong,
       SqlClient.SqlClient
     >
     /**
@@ -1551,13 +1610,22 @@ export class Trip extends Context.Service<
           const store = yield* scheduleStore
           yield* store.transaction(
             Effect.gen(function* () {
-              yield* requireCurrent(store, scheduleId)
-
-              if (!(yield* store.hasStay(scheduleId, stayId))) {
-                return yield* new StayNotFound({ stayId })
-              }
-
+              yield* requireStay(store, scheduleId, stayId)
               yield* store.writeStayNote(scheduleId, stayId, note)
+            }),
+          )
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
+      const writeHotelDetails = Effect.fn('Trip.writeHotelDetails')(
+        function* ({ scheduleId, stayId, details }: WriteHotelDetails) {
+          const trimmed = yield* requireHotelDetails(details)
+          const store = yield* scheduleStore
+          yield* store.transaction(
+            Effect.gen(function* () {
+              yield* requireStay(store, scheduleId, stayId)
+              yield* store.writeHotelDetails(scheduleId, stayId, trimmed)
             }),
           )
         },
@@ -1837,6 +1905,7 @@ export class Trip extends Context.Service<
         scheduleSummary,
         writeDayNote,
         writeStayNote,
+        writeHotelDetails,
         writeTripNote,
         checklist,
         tickChecklistItem,

@@ -3,12 +3,18 @@ import { Effect, Exit, Option, Predicate, Schema, Struct } from 'effect'
 
 import {
   december,
+  Hotel,
   OperationId,
   ScheduleId,
   ScheduleNotFound,
   VerifyClaimAttachment,
 } from '@/trip/domain'
-import type { DayDetail, ItineraryContent, ScheduleDetail } from '@/trip/domain'
+import type {
+  DayDetail,
+  ItineraryContent,
+  ScheduleDetail,
+  StayDetail,
+} from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
 import { operation, setTime, storage, tripWith } from '@/trip/testing'
@@ -71,6 +77,10 @@ const withoutIds = (value: Schema.Json): Schema.Json =>
 /** An Itinerary's Days as a fresh Schedule copies them, without Activities. */
 const withoutActivities = (days: ReadonlyArray<DayDetail>) =>
   days.map((day) => ({ ...day, activities: [] }))
+
+/** An Itinerary's Stays as a fresh Schedule copies them, hotel not recorded. */
+const withoutHotels = (stays: ReadonlyArray<StayDetail>) =>
+  stays.map((stay) => ({ ...stay, hotel: Hotel.cases.NotRecorded.make({}) }))
 
 /** Option 1 after a Revision that changes everything a Schedule copies. */
 const revisedOption1: ItineraryContent = {
@@ -157,7 +167,7 @@ describe('Trip.choose', () => {
           verifyClaims: schedule.verifyClaims,
         }),
         withoutIds({
-          stays: itinerary.stays,
+          stays: withoutHotels(itinerary.stays),
           days: withoutActivities(itinerary.days),
           verifyClaims: itinerary.verifyClaims,
         }),
@@ -345,7 +355,7 @@ describe('Trip.choose again', () => {
           sourceOptionNumber: 2,
           birthdayOutline: option2.birthdayOutline,
           copy: withoutIds({
-            stays: itinerary.stays,
+            stays: withoutHotels(itinerary.stays),
             days: withoutActivities(itinerary.days),
           }),
           archived: [first.scheduleId],
