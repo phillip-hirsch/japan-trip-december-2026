@@ -40,6 +40,7 @@ import {
   tripDates,
 } from '@/trip/calendar'
 import type { DayPage, IsoDate, NextMove, TonightsHotel } from '@/trip/domain'
+import { places } from '@/trip/places'
 
 /** A link to the Day before or after, or a disabled control at the Trip's ends. */
 function DayStep({
@@ -272,6 +273,8 @@ export function ScheduleDayView({
           scheduleId={scheduleId}
           date={day.date}
           activities={day.activities}
+          // December 20 has no tonight's hotel, and the Trip ends in Tokyo.
+          near={tonight?.base.coordinates ?? places.tokyo.coordinates}
           labelledBy={activitiesHeadingId}
         />
       </DaySection>

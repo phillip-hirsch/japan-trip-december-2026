@@ -9,7 +9,7 @@ import { Data, Predicate } from 'effect'
 import { useEffect, useRef, useState } from 'react'
 
 import { ConnectionStatus, currentConnection } from '@/access/connection-status'
-import type { IsoDate, ScheduleId } from '@/trip/domain'
+import type { IsoDate, PinTarget, ScheduleId } from '@/trip/domain'
 import {
   invalidateAfter,
   invalidateAfterScheduleChanged,
@@ -119,6 +119,15 @@ export const newActivityTarget = (date: IsoDate) => `activity:new:${date}`
  * each Schedule, as a Stay's is.
  */
 export const activityTarget = (activityId: string) => `activity:${activityId}`
+
+/**
+ * The draft target of the Pin on an Activity or a Stay's hotel, by its id,
+ * which is fresh in each Schedule.
+ */
+export const pinTarget = (target: PinTarget) =>
+  'activityId' in target
+    ? `pin:activity:${target.activityId}`
+    : `pin:hotel:${target.stayId}`
 
 /** The draft target of a new own Checklist item. */
 export const newChecklistItemTarget = 'checklist-item:new'

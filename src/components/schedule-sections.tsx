@@ -6,6 +6,7 @@ import { DayTimeline } from '@/components/day-timeline'
 import { HotelDetailsField, HotelDetailsList } from '@/components/hotel-details'
 import { NoteText } from '@/components/note-text'
 import { Notice } from '@/components/notice'
+import { PinField } from '@/components/pin-field'
 import { StayNote } from '@/components/notes'
 import { StayBoundaryField } from '@/components/stay-boundary'
 import { StayBaseField } from '@/components/stay-base'
@@ -50,13 +51,25 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
         <StaySection heading="Hotel" stay={stay}>
           {(headingId) =>
             editable ? (
-              <HotelDetailsField
-                key={stay.id}
-                scheduleId={schedule.id}
-                stayId={stay.id}
-                hotel={stay.hotel}
-                labelledBy={headingId}
-              />
+              <>
+                <HotelDetailsField
+                  key={stay.id}
+                  scheduleId={schedule.id}
+                  stayId={stay.id}
+                  hotel={stay.hotel}
+                  labelledBy={headingId}
+                />
+                <PinField
+                  key={`pin:${stay.id}`}
+                  scheduleId={schedule.id}
+                  target={{ stayId: stay.id }}
+                  pin={hotel?.pin}
+                  near={stay.base.coordinates}
+                  noun="pin"
+                  labelledBy={headingId}
+                  gone="This Stay is no longer part of your Schedule."
+                />
+              </>
             ) : (
               hotel && <HotelDetailsList details={hotel} />
             )

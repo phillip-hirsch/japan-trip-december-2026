@@ -18,3 +18,6 @@ export const activityTitleMaxLength = 200
  * accepts.
  */
 export const hotelDetailMaxLength = 500
+
+/** The longest Google Maps link the Trip service accepts for a Pin. */
+export const locationLinkMaxLength = 2000

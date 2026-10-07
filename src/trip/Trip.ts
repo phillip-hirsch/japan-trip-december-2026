@@ -31,6 +31,7 @@ import {
   ChecklistItem,
   ChecklistItemNotFound,
   ChecklistTextInvalid,
+  CoordinatesOutsideJapan,
   DayNotFound,
   HardRuleBroken,
   HomeState,
@@ -38,6 +39,8 @@ import {
   HotelDetailTooLong,
   IsoDate,
   ItineraryNotFound,
+  LocationLinkRefused,
+  NoCoordinatesInLink,
   NoteTooLong,
   OwnChecklistItemAdded,
   ScheduleAnchor,
@@ -82,15 +85,18 @@ import type {
   MovesComparison,
   MoveStayBoundary,
   MoveSummary,
+  Pin,
   Place,
   RailSectionDetail,
   RemoveActivity,
   RemoveOwnChecklistItem,
+  ResolveLocationLink,
   RestoreSchedule,
   MergeStays,
   ScheduleDetail,
   ScheduleRecord,
   ScheduleSummary,
+  SetPin,
   SourceItineraryStatus,
   SplitStay,
   Stay,
@@ -108,6 +114,7 @@ import type {
   WriteTripNote,
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
+import { LocationLinkResolver } from '@/trip/LocationLinkResolver'
 import { reminderDateOf } from '@/trip/checklist-items'
 import { trimmedHotelDetails } from '@/trip/hotel-details'
 import {
@@ -116,6 +123,13 @@ import {
   hotelDetailMaxLength,
   noteMaxLength,
 } from '@/trip/limits'
+import {
+  coordinatesInUrl,
+  googleMapsUrlOf,
+  isInJapan,
+  isShortLink,
+  linkRefusalOf,
+} from '@/trip/pins'
 import { places, visitedPlaceIds } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
 import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
@@ -1084,6 +1098,87 @@ const requireHotelDetails = (details: HotelDetails) => {
 }
 
 /**
+ * A location link as a URL; LocationLinkRefused unless it is an https Google
+ * Maps link no longer than 2,000 characters.
+ */
+const requireGoogleMapsUrl = (link: string) => {
+  const refusal = linkRefusalOf(link)
+  const url = googleMapsUrlOf(link)
+
+  return refusal === undefined && url !== undefined
+    ? Effect.succeed(url)
+    : Effect.fail(
+        new LocationLinkRefused({ reason: refusal ?? 'NotGoogleMaps' }),
+      )
+}
+
+/** Coordinates as they are; CoordinatesOutsideJapan when outside Japan. */
+const requireInJapan = (coordinates: Coordinates) =>
+  isInJapan(coordinates)
+    ? Effect.succeed(coordinates)
+    : Effect.fail(new CoordinatesOutsideJapan({ coordinates }))
+
+/** The most redirects a short link may take to reach its place. */
+const maxRedirects = 5
+
+/** How long following a location link may take. */
+const linkTimeout = Duration.seconds(10)
+
+/**
+ * The coordinates a Google Maps link carries. It follows a short link one
+ * redirect at a time and checks that each stays on an https Google Maps host.
+ */
+const coordinatesOfLink = Effect.fnUntraced(function* (
+  resolver: LocationLinkResolver['Service'],
+  link: string,
+) {
+  let url = yield* requireGoogleMapsUrl(link)
+
+  for (let redirects = 0; isShortLink(url); redirects++) {
+    if (redirects === maxRedirects) {
+      return yield* new LocationLinkRefused({ reason: 'TooManyRedirects' })
+    }
+
+    const { status, location } = yield* resolver
+      .request(url)
+      .pipe(
+        Effect.catchTag('LinkRequestFailed', () =>
+          Effect.fail(new LocationLinkRefused({ reason: 'Unreachable' })),
+        ),
+      )
+
+    if (status < 300 || status > 399 || location === undefined) {
+      return yield* new LocationLinkRefused({ reason: 'Unreachable' })
+    }
+
+    const next = googleMapsUrlOf(location, url)
+
+    if (next === undefined) {
+      return yield* new LocationLinkRefused({ reason: 'LeftGoogleMaps' })
+    }
+
+    url = next
+  }
+
+  const coordinates = coordinatesInUrl(url)
+
+  if (coordinates === undefined) return yield* new NoCoordinatesInLink()
+
+  return yield* requireInJapan(coordinates)
+})
+
+/**
+ * A Pin as Phillip confirmed it; LocationLinkRefused when its link isn't a
+ * Google Maps link, and CoordinatesOutsideJapan when it's outside Japan.
+ */
+const requirePin = Effect.fnUntraced(function* (pin: Pin) {
+  if (pin.link !== undefined) yield* requireGoogleMapsUrl(pin.link)
+  yield* requireInJapan(pin.coordinates)
+
+  return pin
+})
+
+/**
  * Every way Stays break the Hard rules on Stay dates, in Trip order: the Trip
  * dates, a Stay without nights, and a Gap or Overlap between consecutive
  * Stays. Empty when they keep them.
@@ -1635,12 +1730,51 @@ export class Trip extends Context.Service<
       ScheduleChanged | ActivityNotFound,
       SqlClient.SqlClient
     >
+    /**
+     * The coordinates a Google Maps link Phillip pasted carries, for him to
+     * confirm as a Pin. It saves nothing. It reads only https links on
+     * google.com/maps, maps.google.com, maps.app.goo.gl and goo.gl/maps, and
+     * follows a short link for at most five redirects, each on those hosts,
+     * within ten seconds. The coordinates come from, in order of preference,
+     * the place's pin, the centre of the map shown, or a q=lat,lng query.
+     * LocationLinkRefused when the link or a redirect breaks those rules, or
+     * it can't follow the link; NoCoordinatesInLink when the link carries
+     * none; CoordinatesOutsideJapan for a place elsewhere.
+     */
+    resolveLocationLink(
+      input: ResolveLocationLink,
+    ): Effect.Effect<
+      Coordinates,
+      LocationLinkRefused | NoCoordinatesInLink | CoordinatesOutsideJapan
+    >
+    /**
+     * Sets the Pin on an Activity or a Stay's hotel of the Schedule named, as
+     * a whole value, so the last write wins; no Pin removes it. The hotel's
+     * Pin is part of the Stay's hotel, as its Hotel details are, and neither
+     * write touches the other. ScheduleChanged when the Schedule named isn't
+     * current, archived ones included; ActivityNotFound or StayNotFound when
+     * it has no such Activity or Stay; LocationLinkRefused for a link that
+     * isn't a Google Maps link; CoordinatesOutsideJapan for a Pin elsewhere.
+     * A refused write writes nothing.
+     */
+    setPin(
+      input: SetPin,
+    ): Effect.Effect<
+      void,
+      | ScheduleChanged
+      | ActivityNotFound
+      | StayNotFound
+      | LocationLinkRefused
+      | CoordinatesOutsideJapan,
+      SqlClient.SqlClient
+    >
   }
 >()('japan-trip/trip/Trip') {
   static readonly layer = Layer.effect(
     Trip,
     Effect.gen(function* () {
       const { all } = yield* Itineraries
+      const resolver = yield* LocationLinkResolver
       const summaries = all.map(summaryOf)
       const comparisons = all.map(comparisonOf)
       const railSections = railSectionsOf(all)
@@ -2220,6 +2354,38 @@ export class Trip extends Context.Service<
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
       )
 
+      const resolveLocationLink = Effect.fn('Trip.resolveLocationLink')(
+        function* ({ link }: ResolveLocationLink) {
+          return yield* coordinatesOfLink(resolver, link.trim()).pipe(
+            Effect.timeoutOrElse({
+              duration: linkTimeout,
+              orElse: () =>
+                Effect.fail(new LocationLinkRefused({ reason: 'TimedOut' })),
+            }),
+          )
+        },
+      )
+
+      const setPin = Effect.fn('Trip.setPin')(
+        function* ({ scheduleId, target, pin }: SetPin) {
+          const confirmed = pin && (yield* requirePin(pin))
+          const store = yield* scheduleStore
+          yield* store.transaction(
+            Effect.gen(function* () {
+              if ('activityId' in target) {
+                const { activityId } = target
+                yield* requireActivityDay(store, scheduleId, activityId)
+                yield* store.writeActivityPin(scheduleId, activityId, confirmed)
+              } else {
+                yield* requireStay(store, scheduleId, target.stayId)
+                yield* store.writeHotelPin(scheduleId, target.stayId, confirmed)
+              }
+            }),
+          )
+        },
+        Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+      )
+
       return Trip.of({
         home,
         day,
@@ -2252,7 +2418,14 @@ export class Trip extends Context.Service<
         editActivity,
         removeActivity,
         moveActivity,
+        resolveLocationLink,
+        setPin,
       })
     }),
+  )
+
+  /** The Trip over the real Itinerary catalogue, following links online. */
+  static readonly live = Trip.layer.pipe(
+    Layer.provide([Itineraries.layer, LocationLinkResolver.layer]),
   )
 }

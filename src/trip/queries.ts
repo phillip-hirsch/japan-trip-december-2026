@@ -180,6 +180,10 @@ const affectedBy = {
     keys.scheduleById,
     keys.checklist,
   ],
+  // An Activity's Pin shows with its Day, and the hotel's with its Stay and
+  // as tonight's hotel. Both appear on the Day pages, Today on Home and the
+  // Schedule.
+  pin: [keys.days, keys.home, keys.schedules, keys.scheduleById],
   // The Trip note shows only with the Schedules on /schedule.
   tripNote: [keys.schedules],
   // Ticks, own items added and own items removed show only on /checklist.
