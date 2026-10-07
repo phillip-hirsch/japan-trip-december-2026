@@ -60,6 +60,10 @@ export const isTripDate = (date: string): date is IsoDate =>
 export const previousTripDate = (date: IsoDate) =>
   tripDates[tripDates.indexOf(date) - 1]
 
+/** The nights between two Trip dates, such as a Stay's check-in and check-out. */
+export const nightsBetween = (checkIn: IsoDate, checkOut: IsoDate) =>
+  tripDates.indexOf(checkOut) - tripDates.indexOf(checkIn)
+
 /** The Day after, or undefined on December 20. */
 export const nextTripDate = (date: IsoDate) =>
   tripDates[tripDates.indexOf(date) + 1]

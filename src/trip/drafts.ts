@@ -102,6 +102,12 @@ export const stayNoteTarget = (stayId: string) => `stay-note:${stayId}`
  */
 export const hotelDetailsTarget = (stayId: string) => `hotel-details:${stayId}`
 
+/**
+ * The draft target of the date a Stay checks out, by the Stay's id, as the
+ * Stay note's is.
+ */
+export const stayBoundaryTarget = (stayId: string) => `stay-boundary:${stayId}`
+
 /** The draft target of the Trip note. */
 export const tripNoteTarget = 'trip-note'
 

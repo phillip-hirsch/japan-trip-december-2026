@@ -1033,6 +1033,19 @@ export const MergeStays = Schema.Struct({
 
 export type MergeStays = typeof MergeStays.Type
 
+/**
+ * Move the date a Stay of the Schedule named checks out. The next Stay's
+ * check-in and the Move between them move to the same date. Setting a date
+ * twice changes nothing more, so it carries no operation id.
+ */
+export const MoveStayBoundary = Schema.Struct({
+  scheduleId: ScheduleId,
+  stayId: CopyId,
+  checkOut: IsoDate,
+})
+
+export type MoveStayBoundary = typeof MoveStayBoundary.Type
+
 /** What writing Hotel details did, as plain data for the browser. */
 export const WriteHotelDetailsOutcome = Schema.TaggedUnion({
   Written: {},

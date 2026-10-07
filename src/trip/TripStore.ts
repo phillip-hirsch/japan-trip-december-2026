@@ -16,6 +16,7 @@ import type {
   IsoDate,
   MergeStays,
   MoveActivity,
+  MoveStayBoundary,
   RestoreSchedule,
   ScheduleChanged,
   ScheduleDetail,
@@ -291,6 +292,16 @@ export class TripStore extends DurableObject<Env> {
   mergeStays(input: MergeStays): Promise<StayEditOutcome> {
     return this.#run(
       stayEditOutcomeOf(Trip.use((trip) => trip.mergeStays(input))),
+    )
+  }
+
+  /**
+   * Moves the date a Stay of the current Schedule checks out, with the next
+   * Stay's check-in and the Move between them.
+   */
+  moveStayBoundary(input: MoveStayBoundary): Promise<StayEditOutcome> {
+    return this.#run(
+      stayEditOutcomeOf(Trip.use((trip) => trip.moveStayBoundary(input))),
     )
   }
 

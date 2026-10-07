@@ -2,6 +2,7 @@ import { Match } from 'effect'
 import { TriangleAlertIcon } from 'lucide-react'
 
 import { Notice } from '@/components/notice'
+import { toast } from '@/components/ui/toast'
 import {
   birthdayDate,
   formatDay,
@@ -10,7 +11,8 @@ import {
   tripEndDate,
   tripStartDate,
 } from '@/trip/calendar'
-import type { AnchorWarning, HardRule } from '@/trip/domain'
+import type { AnchorWarning, HardRule, StayEditOutcome } from '@/trip/domain'
+import { SaveAnswer } from '@/trip/drafts'
 import { places } from '@/trip/places'
 
 /** What an Anchor warning says, naming the Anchor it breaks. */
@@ -80,3 +82,45 @@ export const hardRuleProblem = (rule: HardRule) =>
         'The app doesn’t know that place. Add new places with the Itinerary guide.',
     }),
   )
+
+/**
+ * What a Stay edit answered. When one goes through and breaks an Anchor the
+ * Schedule didn't break before, a toast titled as given names it. The
+ * Schedule page shows the warning until the Schedule stops breaking that
+ * Anchor.
+ */
+export const stayEditAnswerOf =
+  (anchorBroken: string, warningsBefore: ReadonlyArray<AnchorWarning>) =>
+  (outcome: StayEditOutcome): SaveAnswer =>
+    Match.value(outcome).pipe(
+      Match.tagsExhaustive({
+        Edited: ({ schedule }) => {
+          const added = schedule.anchorWarnings.filter(
+            (warning) =>
+              !warningsBefore.some(({ _tag }) => _tag === warning._tag),
+          )
+
+          if (added.length > 0) {
+            toast.add({
+              type: 'warning',
+              title: anchorBroken,
+              description: added.map(anchorWarningText).join(' '),
+            })
+          }
+
+          return SaveAnswer.Saved()
+        },
+        ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
+        StayNotFound: () =>
+          SaveAnswer.Gone({
+            problem:
+              'This Stay is no longer part of your Schedule. It may have changed on another device.',
+          }),
+        // The controls offer only edits that keep the Hard rules, so a refusal
+        // means another device changed these Stays: refetch them.
+        HardRuleBroken: ({ rule }) =>
+          SaveAnswer.Gone({
+            problem: `${hardRuleProblem(rule)} Nothing changed. Your Stays may have changed on another device.`,
+          }),
+      }),
+    )

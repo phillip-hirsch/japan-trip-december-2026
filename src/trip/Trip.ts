@@ -79,6 +79,7 @@ import type {
   MoveActivity,
   MoveDetail,
   MovesComparison,
+  MoveStayBoundary,
   MoveSummary,
   Place,
   RailSectionDetail,
@@ -121,6 +122,7 @@ import type { StationId } from '@/trip/rail'
 import { railGeometryAttribution, railGeometryOf } from '@/trip/rail-geometry'
 import { scheduleStore } from '@/trip/schedule-store'
 import { mergeEdit, splitEdit } from '@/trip/split-merge'
+import { stayBoundaryMove } from '@/trip/stay-boundary'
 import type {
   OwnChecklistItem,
   ScheduleCopy,
@@ -1477,6 +1479,26 @@ export class Trip extends Context.Service<
       SqlClient.SqlClient
     >
     /**
+     * Moves the date a Stay of the Schedule named checks out, as a Stay edit.
+     * The next Stay's check-in and the Move between them move to the same
+     * date. Both Stays keep their ids, and with them everything editStays
+     * keeps.
+     *
+     * Fails with ScheduleChanged when the Schedule named isn't current,
+     * archived ones included, and with StayNotFound when it has no Stay with
+     * the id. Fails with HardRuleBroken for StayWithoutNights when either
+     * Stay would have no nights, and for NotTheTripDates when the last
+     * Stay's check-out would move off December 20. A refused move writes
+     * nothing.
+     */
+    moveStayBoundary(
+      input: MoveStayBoundary,
+    ): Effect.Effect<
+      StaysEdited,
+      ScheduleChanged | StayNotFound | HardRuleBroken,
+      SqlClient.SqlClient
+    >
+    /**
      * Writes the Trip note as a whole value, so the last write wins. An empty
      * note removes it. It belongs to the Trip, so choosing again or restoring
      * leaves it as it is. NoteTooLong past 10,000 characters, writing
@@ -1901,6 +1923,17 @@ export class Trip extends Context.Service<
           Effect.withSpan('Trip.mergeStays'),
         )
 
+      const moveStayBoundary = Effect.fn('Trip.moveStayBoundary')(function* ({
+        scheduleId,
+        stayId,
+        checkOut,
+      }: MoveStayBoundary) {
+        return yield* editStays(
+          { scheduleId },
+          stayBoundaryMove(stayId, checkOut),
+        )
+      })
+
       const writeTripNote = Effect.fn('Trip.writeTripNote')(
         function* ({ note }: WriteTripNote) {
           yield* requireNoteLength(note)
@@ -2178,6 +2211,7 @@ export class Trip extends Context.Service<
         editStays,
         splitStay,
         mergeStays,
+        moveStayBoundary,
         writeTripNote,
         checklist,
         tickChecklistItem,
