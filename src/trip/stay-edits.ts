@@ -1,10 +1,11 @@
-// The split and merge Stay edits, which the Trip service runs through
-// editStays. Each takes the Schedule's copy and returns its Stays and Moves as
-// edited, or the refusal that leaves the Schedule as it is.
-import { Effect } from 'effect'
+// The Stay edits, which the Trip service runs through editStays. Each takes
+// the Schedule's copy and returns its Stays and Moves as edited, or the
+// refusal that leaves the Schedule as it is.
+import { Effect, Struct } from 'effect'
 
 import { HardRule, HardRuleBroken, Hotel, StayNotFound } from '@/trip/domain'
-import type { MergeStays, SplitStay } from '@/trip/domain'
+import type { ChangeStayBase, MergeStays, SplitStay } from '@/trip/domain'
+import { isPlaceId } from '@/trip/places'
 import type { ScheduleCopy, ScheduleStay } from '@/trip/schedule-store'
 import type { StayEdit } from '@/trip/Trip'
 
@@ -96,5 +97,38 @@ export const mergeEdit =
           stay.id === later.id ? [] : [stay.id === earlier.id ? merged : stay],
         ),
         moves: copy.moves.filter((move) => move.date !== later.checkIn),
+      } satisfies StayEdit
+    })
+
+/**
+ * Changes a Stay's Base to a place in the catalogue. The Stay keeps its id,
+ * Hotel details and Stay note, and loses its highlights, which described the
+ * old Base. The Moves on its check-in and check-out dates keep their mode and
+ * lose their rail sections and duration. Changing a Base to the place it
+ * already is changes nothing.
+ */
+export const changeBaseEdit =
+  ({ stayId, place }: Pick<ChangeStayBase, 'stayId' | 'place'>) =>
+  (copy: ScheduleCopy) =>
+    Effect.gen(function* () {
+      const stay = yield* findStay(copy, stayId)
+
+      if (!isPlaceId(place)) {
+        return yield* refuse(HardRule.cases.PlaceNotInCatalogue.make({ place }))
+      }
+
+      if (stay.base === place) return copy
+
+      const adjoining = new Set([stay.checkIn, stay.checkOut])
+
+      return {
+        stays: copy.stays.map((each) =>
+          each.id === stayId ? { ...each, base: place, highlights: [] } : each,
+        ),
+        moves: copy.moves.map((move) =>
+          adjoining.has(move.date)
+            ? { ...Struct.omit(move, ['duration']), sections: [] }
+            : move,
+        ),
       } satisfies StayEdit
     })

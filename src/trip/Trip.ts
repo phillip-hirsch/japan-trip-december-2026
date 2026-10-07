@@ -32,7 +32,6 @@ import {
   ChecklistItemNotFound,
   ChecklistTextInvalid,
   DayNotFound,
-  HardRule,
   HardRuleBroken,
   HomeState,
   Hotel,
@@ -117,13 +116,13 @@ import {
   hotelDetailMaxLength,
   noteMaxLength,
 } from '@/trip/limits'
-import { isPlaceId, places, visitedPlaceIds } from '@/trip/places'
+import { places, visitedPlaceIds } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
 import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
 import type { StationId } from '@/trip/rail'
 import { railGeometryAttribution, railGeometryOf } from '@/trip/rail-geometry'
 import { scheduleStore } from '@/trip/schedule-store'
-import { mergeEdit, splitEdit } from '@/trip/split-merge'
+import { changeBaseEdit, mergeEdit, splitEdit } from '@/trip/stay-edits'
 import { stayBoundaryMove } from '@/trip/stay-boundary'
 import type {
   OwnChecklistItem,
@@ -1955,42 +1954,10 @@ export class Trip extends Context.Service<
         )
       })
 
-      const changeStayBase = Effect.fn('Trip.changeStayBase')(function* ({
-        scheduleId,
-        stayId,
-        place,
-      }: ChangeStayBase) {
-        return yield* editStays({ scheduleId }, (copy) =>
-          Effect.gen(function* () {
-            const stay = copy.stays.find(({ id }) => id === stayId)
-
-            if (stay === undefined) return yield* new StayNotFound({ stayId })
-
-            if (!isPlaceId(place)) {
-              return yield* new HardRuleBroken({
-                rule: HardRule.cases.PlaceNotInCatalogue.make({ place }),
-              })
-            }
-
-            if (stay.base === place) return copy
-
-            const adjoining = new Set([stay.checkIn, stay.checkOut])
-
-            return {
-              stays: copy.stays.map((other) =>
-                other.id === stayId
-                  ? { ...other, base: place, highlights: [] }
-                  : other,
-              ),
-              moves: copy.moves.map((move) =>
-                adjoining.has(move.date)
-                  ? { ...Struct.omit(move, ['duration']), sections: [] }
-                  : move,
-              ),
-            }
-          }),
+      const changeStayBase = ({ scheduleId, ...change }: ChangeStayBase) =>
+        editStays({ scheduleId }, changeBaseEdit(change)).pipe(
+          Effect.withSpan('Trip.changeStayBase'),
         )
-      })
 
       const writeTripNote = Effect.fn('Trip.writeTripNote')(
         function* ({ note }: WriteTripNote) {

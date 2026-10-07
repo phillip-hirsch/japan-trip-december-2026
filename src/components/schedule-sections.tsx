@@ -46,19 +46,6 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
 
   return (
     <>
-      {editable && (
-        <StaySection heading="Base" stay={stay}>
-          {(headingId) => (
-            <StayBaseField
-              key={stay.id}
-              scheduleId={schedule.id}
-              stay={stay}
-              anchorWarnings={schedule.anchorWarnings}
-              labelledBy={headingId}
-            />
-          )}
-        </StaySection>
-      )}
       {(editable || hotel) && (
         <StaySection heading="Hotel" stay={stay}>
           {(headingId) =>
@@ -106,6 +93,13 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
             />
           )}
         </StaySection>
+      )}
+      {editable && (
+        <StayBaseField
+          key={`base-${stay.id}`}
+          schedule={schedule}
+          stay={stay}
+        />
       )}
       {editable && (
         <SplitMergeStay key={stay.id} schedule={schedule} stay={stay} />
