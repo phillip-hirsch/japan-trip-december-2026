@@ -18,10 +18,10 @@ const anchorWarningText = (warning: AnchorWarning) =>
   Match.value(warning).pipe(
     Match.tagsExhaustive({
       NotWakingUpInKyoto: ({ base }) =>
-        `You won’t wake up in Kyoto for the Shigeharu visit on ${formatDay(shigeharuDate)}: ${
+        `You won’t wake up in Kyoto for the Shigeharu visit on ${formatDay(shigeharuDate)}. ${
           base === undefined
-            ? 'no Stay covers the night before.'
-            : `you spend the night before in ${places[base].romaji}.`
+            ? 'No Stay covers the night before.'
+            : `You spend the night before in ${places[base].romaji}.`
         }`,
       MoveOnBirthday: () =>
         `A Move falls on your Birthday, ${formatDay(birthdayDate)}.`,
@@ -59,24 +59,24 @@ export function AnchorWarnings({
 }
 
 /**
- * Why a Stay edit was refused, naming the Hard rule it would break, as the
- * problem its save shows.
+ * The problem a refused Stay edit shows. It names the Hard rule the edit
+ * would break.
  */
 export const hardRuleProblem = (rule: HardRule) =>
   Match.value(rule).pipe(
     Match.tagsExhaustive({
       NoStays: () => 'Your Schedule needs at least one Stay.',
       NotTheTripDates: () =>
-        `Your Stays must check in on ${formatShortDate(tripStartDate)} and check out on ${formatShortDate(tripEndDate)}.`,
+        `Your first Stay must check in on ${formatShortDate(tripStartDate)}, and your last must check out on ${formatShortDate(tripEndDate)}.`,
       StayWithoutNights: ({ checkIn }) =>
-        `Every Stay needs at least one night, and the Stay from ${formatShortDate(checkIn)} would have none.`,
+        `Every Stay needs at least one night. The Stay from ${formatShortDate(checkIn)} would have none.`,
       Gap: ({ from, to }) =>
-        `Your Stays must be back to back, and no Stay would cover ${formatShortDate(from)} to ${formatShortDate(to)}.`,
+        `Your Stays must be back to back. No Stay would cover ${formatShortDate(from)} to ${formatShortDate(to)}.`,
       Overlap: ({ from, to }) =>
-        `Your Stays must be back to back, and two would overlap from ${formatShortDate(from)} to ${formatShortDate(to)}.`,
+        `Your Stays must be back to back. Two would overlap from ${formatShortDate(from)} to ${formatShortDate(to)}.`,
       StaysNotAdjacent: () => 'Only Stays next to each other can be merged.',
       StaysInDifferentBases: () => 'Only Stays in the same Base can be merged.',
       PlaceNotInCatalogue: () =>
-        'That place isn’t one the app knows. New places are added with the Itinerary guide.',
+        'The app doesn’t know that place. Add new places with the Itinerary guide.',
     }),
   )

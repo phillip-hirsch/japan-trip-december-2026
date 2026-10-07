@@ -569,8 +569,8 @@ export const scheduleStore = Effect.gen(function* () {
   })
 
   /**
-   * Stores a row, or updates the row stored with its id in place, only ever
-   * within its own Schedule.
+   * Inserts a row, or updates the stored row with the same id. It never
+   * updates a row of another Schedule.
    */
   const upsertInto = (table: string) => (row: Schema.JsonObject) =>
     sql`
@@ -579,7 +579,7 @@ export const scheduleStore = Effect.gen(function* () {
       WHERE ${sql(table)}.scheduleId = excluded.scheduleId
     `
 
-  /** How each row a Stay edit changes is written: inserted, or upserted. */
+  /** The writers for each row a Stay edit changes, by insert or by upsert. */
   const stayChangeWriters = (
     write: (
       table: string,
@@ -595,8 +595,8 @@ export const scheduleStore = Effect.gen(function* () {
 
   const inserting = stayChangeWriters(insertInto)
 
-  // Upserting updates only the columns a Stay edit carries, so any other
-  // column on a row it keeps keeps its value.
+  // An upsert updates only the columns a Stay edit carries. Any other column
+  // on a kept row keeps its value.
   const upserting = stayChangeWriters(upsertInto)
 
   /** Writes a Schedule's Stays, Moves and Verify claims, one row each. */
@@ -637,8 +637,8 @@ export const scheduleStore = Effect.gen(function* () {
   })
 
   /**
-   * Removes a Schedule's rows in a table whose ids are not among those kept,
-   * with the ticks on the Checklist items they derived.
+   * Deletes a Schedule's rows in a table that aren't among those kept, and
+   * the ticks on the Checklist items those rows derived.
    */
   const removeOthers = Effect.fnUntraced(function* (
     table: string,
@@ -862,9 +862,9 @@ export const scheduleStore = Effect.gen(function* () {
     }),
 
     /**
-     * Replaces a Schedule's Stays, Moves and Verify claims with a Stay edit's:
-     * those it no longer has are removed, and the rest stored by their ids,
-     * each with the Hotel details and Stay note it carries.
+     * Replaces a Schedule's Stays, Moves and Verify claims with a Stay edit's.
+     * It deletes the rows the edit dropped and stores the rest by id, each
+     * with the Hotel details and Stay note it carries.
      */
     replaceStays: Effect.fnUntraced(function* (
       scheduleId: ScheduleId,

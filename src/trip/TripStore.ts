@@ -56,8 +56,8 @@ import { runToPromise } from '@/trip/runtime.server'
 import { Trip } from '@/trip/Trip'
 
 /**
- * A Stay edit's result or refusal as its outcome: each Stay edit's RPC method
- * runs its Trip operation through this, so they all answer alike.
+ * Turns a Stay edit's result or refusal into its outcome. Every Stay edit's
+ * RPC method uses it, so all Stay edits answer in the same shape.
  */
 export const stayEditOutcomeOf = <R>(
   edit: Effect.Effect<

@@ -86,11 +86,11 @@ A change to the Schedule's Stays themselves: splitting or merging Stays, moving 
 _Avoid_: reschedule, re-plan
 
 **Hard rule**:
-A rule every Schedule keeps: the Trip dates, back-to-back Stays covering every night, and at least one night per Stay. A Stay edit that would break one, or that can't apply, such as merging Stays in different Bases, is refused with the rule named, and nothing changes.
+A rule every Schedule keeps: the Trip dates, back-to-back Stays covering every night, and at least one night per Stay. The app refuses a Stay edit that would break one, or that can't apply, such as a merge of Stays in different Bases. It names the rule and changes nothing.
 _Avoid_: constraint, validation error
 
 **Anchor warning**:
-What the Schedule page shows while the Schedule breaks an Anchor, such as not waking up in Kyoto on December 11 or a Move on December 15, or while its last Stay is outside Tokyo. It never blocks a Stay edit.
+What the Schedule page shows while the Schedule breaks an Anchor or its last Stay is outside Tokyo. Not waking up in Kyoto on December 11 is one, and a Move on December 15 is another. It never blocks a Stay edit.
 _Avoid_: violation, alert, error
 
 **Free day**:

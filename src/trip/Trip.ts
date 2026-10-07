@@ -128,8 +128,9 @@ import type {
 export type { ScheduleCopy, ScheduleStay } from '@/trip/schedule-store'
 
 /**
- * What a Stay edit returns: the Schedule's Stays and Moves as edited, each it
- * keeps with its id. Its Verify claims follow their Stays.
+ * What a Stay edit returns: the Schedule's Stays and Moves as edited. Each
+ * one it keeps has its old id. Verify claims aren't part of it, because
+ * editStays moves them with their Stays.
  */
 export type StayEdit = Pick<ScheduleCopy, 'stays' | 'moves'>
 
@@ -750,9 +751,9 @@ const homeStateOf = (
 const byCheckIn = (a: Stay, b: Stay) => a.checkIn.localeCompare(b.checkIn)
 
 /**
- * A Schedule's Verify claims after a Stay edit: one on a Stay follows that
- * Stay to its check-in date, and one whose Stay is gone moves to the Stay now
- * covering that Stay's first night.
+ * A Schedule's Verify claims after a Stay edit. A claim on a Stay follows
+ * that Stay to its new check-in date. A claim whose Stay is gone moves to the
+ * Stay that now covers that Stay's first night.
  */
 const claimsFollowingStays = (
   copy: ScheduleCopy,
@@ -1221,8 +1222,8 @@ const anchorWarningsOf = ({
 
 /**
  * Every way an Itinerary breaks the Trip's rules; empty when it keeps them.
- * An Itinerary keeps the Hard rules, fits together and never breaks an
- * Anchor, so its Anchor warnings are breaks too.
+ * An Itinerary must never break an Anchor, so each Anchor warning counts as a
+ * break here.
  */
 const tripRuleBreaksOf = (itinerary: Itinerary): Array<TripRuleBreak> => {
   const { stays, days, shigeharuVisit } = itinerary
@@ -1404,24 +1405,23 @@ export class Trip extends Context.Service<
       SqlClient.SqlClient
     >
     /**
-     * Runs a Stay edit on the Schedule named, as one transaction, and returns
-     * the Schedule as edited with its Anchor warnings, which never block it.
-     * The edit receives the Schedule's copy and returns its Stays and Moves
-     * as edited: those it keeps keep their ids, Hotel details and Stay notes,
-     * and with them their Checklist ticks; those it drops take theirs with
-     * them. Verify claims follow their Stays. Each Stay edit supplies only
-     * its own edit.
+     * Runs a Stay edit on the Schedule named, as one transaction. Each Stay
+     * edit supplies only its own edit, which gets the Schedule's copy and
+     * returns its Stays and Moves as edited. A Stay or Move the edit keeps
+     * keeps its id, and with it its Hotel details, Stay note and Checklist
+     * ticks. One it drops loses its ticks. Verify claims follow their Stays.
+     * Returns the Schedule as edited, with its Anchor warnings, which never
+     * block the edit.
      *
-     * ScheduleChanged when the Schedule named isn't current, archived ones
-     * included; HardRuleBroken naming the first Hard rule on Stay dates the
-     * edited Stays break; and whatever the edit itself fails with, such as
-     * StayNotFound, or HardRuleBroken when it can't apply. A refused edit
-     * writes nothing. An edit whose Moves no longer meet its Stays' boundaries
-     * is a defect.
+     * Fails with ScheduleChanged when the Schedule named isn't current,
+     * archived ones included. Fails with HardRuleBroken for the first Hard
+     * rule on Stay dates that the edited Stays break. Also fails with
+     * whatever the edit fails with, such as StayNotFound, or HardRuleBroken
+     * when the edit can't apply. A refused edit writes nothing. Moves that
+     * don't meet the edited Stays' boundaries are a defect.
      *
-     * With an operation id, the result is recorded with it, as one
-     * transaction, and repeating the id returns that result and writes
-     * nothing.
+     * With an operation id, the same transaction records the result. A
+     * repeat of the id returns that result and writes nothing.
      */
     editStays<E>(
       target: StayEditTarget,

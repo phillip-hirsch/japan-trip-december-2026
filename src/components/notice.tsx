@@ -4,8 +4,9 @@ import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
 /**
- * Something about the whole Schedule that stays on its page until the
- * Schedule changes, announced when it appears. It can't be dismissed.
+ * A notice about the whole Schedule. It stays on the page until the Schedule
+ * changes, and screen readers announce it when it appears. Phillip can't
+ * dismiss it.
  */
 export function Notice({
   icon: Icon,

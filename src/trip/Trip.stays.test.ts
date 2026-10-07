@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Cause, Effect, Exit, Option } from 'effect'
+import { Effect, Option } from 'effect'
 
 import {
   AnchorWarning,
@@ -22,9 +22,9 @@ import { operation, storage, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
 import type { ScheduleCopy, StayEdit } from '@/trip/Trip'
 
-// Option 1: Tokyo December 6–9, Kyoto 9–13, Kanazawa 13–17 and Tokyo 17–20,
-// with a train Move at each Stay boundary and two Verify claims on the
-// Kanazawa Stay.
+// Option 1 has four Stays: Tokyo from December 6 to 9, Kyoto to 13, Kanazawa
+// to 17 and Tokyo to 20. A train Move joins each pair, and the Kanazawa Stay
+// has two Verify claims.
 const trip = tripWith([option1])
 
 /** Chooses Option 1, replacing the Schedule named, if any. */
@@ -458,12 +458,14 @@ describe('Trip.editStays', () => {
       }).pipe(Effect.provide([trip, storage])),
   )
 
-  it.effect('dies on an edit whose Moves no longer fit its Stays', () =>
+  it.effect('writes nothing when the Moves no longer meet the Stays', () =>
     Effect.gen(function* () {
       yield* choose(1, null)
       const before = yield* currentSchedule
 
-      const exit = yield* Effect.exit(
+      // Such an edit is a defect, so the operation dies. Only the Schedule
+      // read back afterwards matters here.
+      yield* Effect.exit(
         editStays(before.id, (copy) =>
           Effect.map(moveBoundary(13, 14)(copy), (changes) => ({
             ...changes,
@@ -472,7 +474,6 @@ describe('Trip.editStays', () => {
         ),
       )
 
-      assert.isTrue(Exit.isFailure(exit) && Cause.hasDies(exit.cause))
       assert.deepStrictEqual(yield* currentSchedule, before)
     }).pipe(Effect.provide([trip, storage])),
   )

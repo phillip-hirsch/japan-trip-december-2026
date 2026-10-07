@@ -514,16 +514,17 @@ const anchorWarnings = {
 }
 
 /**
- * An Anchor the Schedule breaks, or its last Stay outside Tokyo: shown on the
- * Schedule page, never blocking a Stay edit.
+ * An Anchor the Schedule breaks, or its last Stay outside Tokyo. The Schedule
+ * page shows it, and it never blocks a Stay edit.
  */
 export const AnchorWarning = Schema.TaggedUnion(anchorWarnings)
 
 export type AnchorWarning = typeof AnchorWarning.Type
 
 /**
- * Why an Itinerary breaks the Trip's rules: the Hard rules on Stay dates, the
- * Anchor warnings, which an Itinerary never may, and its content's own.
+ * Why an Itinerary breaks the Trip's rules. The cases are the Hard rules on
+ * Stay dates, the Anchor warnings, which an Itinerary must not have, and
+ * checks on its own content.
  */
 export const TripRuleBreak = Schema.TaggedUnion({
   ...stayDateRules,
@@ -739,8 +740,8 @@ export const ScheduleDetail = Schema.Struct({
   stays: Schema.Array(ScheduleStayDetail),
   days: Schema.Array(ScheduleDayDetail),
   /**
-   * Derived from its Stays and Moves each time it's read, in Trip order, so
-   * none goes away until the Schedule stops breaking it.
+   * In Trip order. The Trip service derives them from the Stays and Moves on
+   * every read, so a warning stays until the Schedule stops breaking its rule.
    */
   anchorWarnings: Schema.Array(AnchorWarning),
 })
@@ -954,8 +955,8 @@ export class HotelDetailTooLong extends Schema.TaggedError<HotelDetailTooLong>()
 ) {}
 
 /**
- * The Hard rule a Stay edit would break, so it's refused and nothing changes:
- * one on Stay dates, or one the edit itself can't apply. Merging needs two
+ * The Hard rule that refuses a Stay edit, which then changes nothing. It is a
+ * rule on Stay dates, or a reason the edit can't apply. A merge needs two
  * adjacent Stays in one Base, and a Base can change only to a place in the
  * catalogue.
  */
@@ -968,16 +969,16 @@ export const HardRule = Schema.TaggedUnion({
 
 export type HardRule = typeof HardRule.Type
 
-/** A Stay edit refused by the Hard rule named; nothing is written. */
+/** The Hard rule named refused a Stay edit, and the Trip service wrote nothing. */
 export class HardRuleBroken extends Schema.TaggedError<HardRuleBroken>()(
   'HardRuleBroken',
   { rule: HardRule },
 ) {}
 
 /**
- * The Schedule a Stay edit names, which it refuses unless current, and the
- * client-generated id a Stay edit that creates something carries, so a retry
- * returns its result instead of editing again.
+ * What every Stay edit names. The Schedule must be current. A Stay edit that
+ * creates something carries a client-generated operation id, so a retry
+ * returns the first result instead of editing again.
  */
 export const StayEditTarget = Schema.Struct({
   scheduleId: ScheduleId,
