@@ -1003,6 +1003,36 @@ export const StayEditOutcome = Schema.TaggedUnion({
 
 export type StayEditOutcome = typeof StayEditOutcome.Type
 
+/**
+ * Split a Stay of the Schedule named at a date after its check-in and before
+ * its check-out. The Stay keeps the nights before the date. A new Stay in the
+ * same Base takes the rest, joined to it by a new local Move on the date. It
+ * creates both, so a retry with the same operation id returns the first
+ * result.
+ */
+export const SplitStay = Schema.Struct({
+  scheduleId: ScheduleId,
+  operationId: OperationId,
+  stayId: CopyId,
+  date: IsoDate,
+})
+
+export type SplitStay = typeof SplitStay.Type
+
+/**
+ * Merge two adjacent Stays in one Base of the Schedule named, given in either
+ * order. The earlier Stay takes the later one's nights, and the Move between
+ * them is removed. A retry with the same operation id returns the first
+ * result, instead of finding the later Stay gone.
+ */
+export const MergeStays = Schema.Struct({
+  scheduleId: ScheduleId,
+  operationId: OperationId,
+  stayIds: Schema.Tuple([CopyId, CopyId]),
+})
+
+export type MergeStays = typeof MergeStays.Type
+
 /** What writing Hotel details did, as plain data for the browser. */
 export const WriteHotelDetailsOutcome = Schema.TaggedUnion({
   Written: {},

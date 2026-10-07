@@ -14,6 +14,7 @@ import type {
   HardRuleBroken,
   HomeState,
   IsoDate,
+  MergeStays,
   MoveActivity,
   RestoreSchedule,
   ScheduleChanged,
@@ -21,6 +22,7 @@ import type {
   ScheduleId,
   Schedules,
   ScheduleSummary,
+  SplitStay,
   StayNotFound,
   StaysEdited,
   RemoveActivity,
@@ -275,6 +277,20 @@ export class TripStore extends DurableObject<Env> {
             ),
         }),
       ),
+    )
+  }
+
+  /** Splits a Stay of the current Schedule at a date inside it. */
+  splitStay(input: SplitStay): Promise<StayEditOutcome> {
+    return this.#run(
+      stayEditOutcomeOf(Trip.use((trip) => trip.splitStay(input))),
+    )
+  }
+
+  /** Merges two adjacent Stays in one Base of the current Schedule. */
+  mergeStays(input: MergeStays): Promise<StayEditOutcome> {
+    return this.#run(
+      stayEditOutcomeOf(Trip.use((trip) => trip.mergeStays(input))),
     )
   }
 

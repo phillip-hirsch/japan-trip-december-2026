@@ -1,8 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Predicate } from 'effect'
 import { ChevronRightIcon, HistoryIcon } from 'lucide-react'
-import { useId } from 'react'
-import type { ReactNode } from 'react'
 
 import { DayTimeline } from '@/components/day-timeline'
 import { HotelDetailsField, HotelDetailsList } from '@/components/hotel-details'
@@ -10,6 +8,8 @@ import { NoteText } from '@/components/note-text'
 import { Notice } from '@/components/notice'
 import { StayNote } from '@/components/notes'
 import { StayList } from '@/components/stay-list'
+import { StaySection } from '@/components/stay-section'
+import { SplitMergeStay } from '@/components/split-merge-stay'
 import {
   Item,
   ItemActions,
@@ -24,33 +24,10 @@ import type {
   ScheduleStayDetail,
 } from '@/trip/domain'
 
-/** A part of a Stay on the Schedule, under its own heading. */
-function StaySection({
-  heading,
-  stay,
-  children,
-}: {
-  heading: string
-  stay: ScheduleStayDetail
-  /** What the section holds, given the id of its heading. */
-  children: (headingId: string) => ReactNode
-}) {
-  const headingId = useId()
-
-  return (
-    <div className="flex flex-col gap-2">
-      <h3 id={headingId} className="text-sm text-muted-foreground">
-        {heading}
-        <span className="sr-only"> for the {stay.base.romaji} Stay</span>
-      </h3>
-      {children(headingId)}
-    </div>
-  )
-}
-
 /**
- * A Stay's Hotel details and Stay note: editable on the current Schedule;
- * on an archived one, only those it has, read-only, and nothing without any.
+ * A Stay's Hotel details and Stay note: editable on the current Schedule,
+ * where the Stay can also be split or merged; on an archived one, only those
+ * it has, read-only, and nothing without any.
  */
 const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
   const editable = schedule.status === 'current'
@@ -98,6 +75,9 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
             )
           }
         </StaySection>
+      )}
+      {editable && (
+        <SplitMergeStay key={stay.id} schedule={schedule} stay={stay} />
       )}
     </>
   )

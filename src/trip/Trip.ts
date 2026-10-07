@@ -85,10 +85,12 @@ import type {
   RemoveActivity,
   RemoveOwnChecklistItem,
   RestoreSchedule,
+  MergeStays,
   ScheduleDetail,
   ScheduleRecord,
   ScheduleSummary,
   SourceItineraryStatus,
+  SplitStay,
   Stay,
   StaySummary,
   Station,
@@ -118,6 +120,7 @@ import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
 import type { StationId } from '@/trip/rail'
 import { railGeometryAttribution, railGeometryOf } from '@/trip/rail-geometry'
 import { scheduleStore } from '@/trip/schedule-store'
+import { mergeEdit, splitEdit } from '@/trip/split-merge'
 import type {
   OwnChecklistItem,
   ScheduleCopy,
@@ -1436,6 +1439,44 @@ export class Trip extends Context.Service<
       SqlClient.SqlClient
     >
     /**
+     * Splits a Stay of the Schedule named at a date after its check-in and
+     * before its check-out, as a Stay edit. The Stay keeps its id, Hotel
+     * details, Stay note, highlights and ticks for the nights before the
+     * date. A new Stay in the same Base takes the rest with nothing recorded,
+     * joined to it by a new local Move, which derives no Checklist item.
+     *
+     * Fails with StayNotFound when the Schedule has no Stay with the id, and
+     * with HardRuleBroken naming a Stay without nights for a date outside it.
+     * Otherwise fails as editStays does. The operation id makes a retry
+     * return the first result.
+     */
+    splitStay(
+      input: SplitStay,
+    ): Effect.Effect<
+      StaysEdited,
+      ScheduleChanged | StayNotFound | HardRuleBroken,
+      SqlClient.SqlClient
+    >
+    /**
+     * Merges two adjacent Stays in one Base of the Schedule named, as a Stay
+     * edit. The earlier Stay keeps its id, Hotel details, Stay note and ticks,
+     * takes the later one's nights and highlights, and the Verify claims
+     * follow it. The later Stay, its Checklist item and tick, and the Move
+     * between them are removed.
+     *
+     * Fails with StayNotFound when the Schedule has no Stay with either id,
+     * and with HardRuleBroken when the Stays aren't adjacent or are in
+     * different Bases. Otherwise fails as editStays does. The operation id
+     * makes a retry return the first result.
+     */
+    mergeStays(
+      input: MergeStays,
+    ): Effect.Effect<
+      StaysEdited,
+      ScheduleChanged | StayNotFound | HardRuleBroken,
+      SqlClient.SqlClient
+    >
+    /**
      * Writes the Trip note as a whole value, so the last write wins. An empty
      * note removes it. It belongs to the Trip, so choosing again or restoring
      * leaves it as it is. NoteTooLong past 10,000 characters, writing
@@ -1850,6 +1891,16 @@ export class Trip extends Context.Service<
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
       )
 
+      const splitStay = ({ scheduleId, operationId, ...split }: SplitStay) =>
+        editStays({ scheduleId, operationId }, splitEdit(split)).pipe(
+          Effect.withSpan('Trip.splitStay'),
+        )
+
+      const mergeStays = ({ scheduleId, operationId, stayIds }: MergeStays) =>
+        editStays({ scheduleId, operationId }, mergeEdit({ stayIds })).pipe(
+          Effect.withSpan('Trip.mergeStays'),
+        )
+
       const writeTripNote = Effect.fn('Trip.writeTripNote')(
         function* ({ note }: WriteTripNote) {
           yield* requireNoteLength(note)
@@ -2125,6 +2176,8 @@ export class Trip extends Context.Service<
         writeStayNote,
         writeHotelDetails,
         editStays,
+        splitStay,
+        mergeStays,
         writeTripNote,
         checklist,
         tickChecklistItem,
