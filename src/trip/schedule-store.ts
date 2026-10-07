@@ -19,6 +19,7 @@ import {
   IsoDate,
   Move,
   OperationId,
+  Pin,
   ScheduleAnchor,
   ScheduleId,
   ScheduleRecord,
@@ -78,6 +79,37 @@ const ordered = { position: Schema.Int }
 /** A note as stored: null for an empty one, which removes it. */
 const storedNote = (note: string) => (note === '' ? null : note)
 
+// A Pin, on an Activity's row or, for its hotel, on a Stay's. The
+// coordinates are null while unpinned, and the link is null while the Pin
+// has none.
+const PinColumns = Schema.Struct({
+  pinLatitude: Schema.NullOr(Schema.Finite),
+  pinLongitude: Schema.NullOr(Schema.Finite),
+  pinLink: Schema.NullOr(Schema.String),
+})
+
+type PinColumns = typeof PinColumns.Type
+
+/** A Pin as stored: every column null for none. */
+const pinColumnsOf = (pin: Pin | undefined): PinColumns => ({
+  pinLatitude: pin?.coordinates.latitude ?? null,
+  pinLongitude: pin?.coordinates.longitude ?? null,
+  pinLink: pin?.link ?? null,
+})
+
+/** The Pin a row holds, if any. */
+const pinOf = ({
+  pinLatitude,
+  pinLongitude,
+  pinLink,
+}: PinColumns): Pin | undefined =>
+  pinLatitude === null || pinLongitude === null
+    ? undefined
+    : {
+        coordinates: { latitude: pinLatitude, longitude: pinLongitude },
+        ...(pinLink !== null && { link: pinLink }),
+      }
+
 const StayRow = Schema.Struct({
   id: CopyId,
   ...ofSchedule,
@@ -87,7 +119,18 @@ const StayRow = Schema.Struct({
   hotelName: Schema.NullOr(Schema.String),
   hotelAddress: Schema.NullOr(Schema.String),
   hotelConfirmationNumber: Schema.NullOr(Schema.String),
+  ...PinColumns.fields,
 })
+
+/** The columns on a Stay's row holding its hotel. */
+const hotelColumns = [
+  'hotelName',
+  'hotelAddress',
+  'hotelConfirmationNumber',
+  'pinLatitude',
+  'pinLongitude',
+  'pinLink',
+] as const
 
 /** Hotel details as stored: null for each field not recorded. */
 const hotelColumnsOf = (details: HotelDetails) => ({
@@ -96,15 +139,22 @@ const hotelColumnsOf = (details: HotelDetails) => ({
   hotelConfirmationNumber: details.confirmationNumber ?? null,
 })
 
-/** A Stay's hotel from its row: not recorded while every field is null. */
+/**
+ * A Stay's hotel from its row: not recorded while every field and its Pin
+ * are null.
+ */
 const hotelOf = ({
   hotelName,
   hotelAddress,
   hotelConfirmationNumber,
-}: ReturnType<typeof hotelColumnsOf>): Hotel =>
-  hotelName === null &&
-  hotelAddress === null &&
-  hotelConfirmationNumber === null
+  ...pinColumns
+}: ReturnType<typeof hotelColumnsOf> & PinColumns): Hotel => {
+  const pin = pinOf(pinColumns)
+
+  return hotelName === null &&
+    hotelAddress === null &&
+    hotelConfirmationNumber === null &&
+    pin === undefined
     ? Hotel.cases.NotRecorded.make({})
     : Hotel.cases.Recorded.make({
         ...(hotelName !== null && { name: hotelName }),
@@ -112,7 +162,9 @@ const hotelOf = ({
         ...(hotelConfirmationNumber !== null && {
           confirmationNumber: hotelConfirmationNumber,
         }),
+        ...(pin && { pin }),
       })
+}
 
 const DayRow = Schema.Struct({
   ...ofSchedule,
@@ -160,6 +212,7 @@ const ActivityRow = Schema.Struct({
   title: Schema.String,
   time: Schema.NullOr(Schema.String),
   note: Schema.NullOr(Schema.String),
+  ...PinColumns.fields,
 })
 
 const activityOf = ({
@@ -167,12 +220,18 @@ const activityOf = ({
   title,
   time,
   note,
-}: typeof ActivityRow.Type): Activity => ({
-  id,
-  title,
-  ...(time !== null && { time }),
-  ...(note !== null && { note }),
-})
+  ...pinColumns
+}: typeof ActivityRow.Type): Activity => {
+  const pin = pinOf(pinColumns)
+
+  return {
+    id,
+    title,
+    ...(time !== null && { time }),
+    ...(note !== null && { note }),
+    ...(pin && { pin }),
+  }
+}
 
 /** An Activity's row on a Day of a Schedule, at a position. */
 const activityRowOf = (
@@ -181,12 +240,14 @@ const activityRowOf = (
   activity: Activity,
   position: number,
 ): typeof ActivityRow.Type => ({
-  ...activity,
+  id: activity.id,
+  title: activity.title,
   scheduleId,
   date,
   position,
   time: activity.time ?? null,
   note: activity.note ?? null,
+  ...pinColumnsOf(activity.pin),
 })
 
 /**
@@ -327,6 +388,25 @@ export const scheduleStore = Effect.gen(function* () {
         WHERE scheduleId = ${scheduleId} AND id = ${stayId}
       `,
   })
+
+  /** Replaces the Pin on a row of a table, by its Schedule and id. */
+  const updatePin = (table: 'activities' | 'stays') =>
+    SqlSchema.void({
+      Request: Schema.Struct({
+        scheduleId: ScheduleId,
+        id: CopyId,
+        ...PinColumns.fields,
+      }),
+      execute: ({ scheduleId, id, ...columns }) =>
+        sql`
+          UPDATE ${sql(table)} SET ${sql.update(columns)}
+          WHERE scheduleId = ${scheduleId} AND id = ${id}
+        `,
+    })
+
+  const updateActivityPin = updatePin('activities')
+
+  const updateHotelPin = updatePin('stays')
 
   const findTripNote = SqlSchema.findOneOption({
     Request: Schema.Void,
@@ -531,19 +611,11 @@ export const scheduleStore = Effect.gen(function* () {
       ])
 
     const copy: ScheduleCopy = {
-      stays: stays.map(
-        ({
-          note,
-          hotelName,
-          hotelAddress,
-          hotelConfirmationNumber,
-          ...stay
-        }) => ({
-          ...withoutSchedule(stay),
-          ...(note !== null && { note }),
-          hotel: hotelOf({ hotelName, hotelAddress, hotelConfirmationNumber }),
-        }),
-      ),
+      stays: stays.map(({ note, ...row }) => ({
+        ...withoutSchedule(Struct.omit(row, hotelColumns)),
+        ...(note !== null && { note }),
+        hotel: hotelOf(row),
+      })),
       days: days.map(({ date, description, note }) => ({
         date,
         ...(description !== null && { description }),
@@ -612,9 +684,10 @@ export const scheduleStore = Effect.gen(function* () {
           ...stay,
           scheduleId,
           note: stay.note ?? null,
-          ...hotelColumnsOf(
-            Hotel.guards.Recorded(hotel) ? Struct.omit(hotel, ['_tag']) : {},
-          ),
+          ...hotelColumnsOf(Hotel.guards.Recorded(hotel) ? hotel : {}),
+          // The hotel's Pin is part of its Hotel details, so a Stay edit
+          // carries it with the Stay.
+          ...pinColumnsOf(Hotel.guards.Recorded(hotel) ? hotel.pin : undefined),
         }),
       { discard: true },
     )
@@ -779,6 +852,14 @@ export const scheduleStore = Effect.gen(function* () {
       stayId: string,
       details: HotelDetails,
     ) => updateHotelDetails({ scheduleId, stayId, ...hotelColumnsOf(details) }),
+
+    /** Replaces the Pin on a Schedule's Activity; none removes it. */
+    writeActivityPin: (scheduleId: ScheduleId, id: string, pin?: Pin) =>
+      updateActivityPin({ scheduleId, id, ...pinColumnsOf(pin) }),
+
+    /** Replaces the Pin on a Stay's hotel; none removes it. */
+    writeHotelPin: (scheduleId: ScheduleId, stayId: string, pin?: Pin) =>
+      updateHotelPin({ scheduleId, id: stayId, ...pinColumnsOf(pin) }),
 
     /** The Trip note, if Phillip has written one. */
     tripNote: Effect.map(

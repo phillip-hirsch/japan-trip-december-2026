@@ -16,6 +16,7 @@ import {
   SavedStatus,
 } from '@/components/not-saved-alert'
 import { NoteText } from '@/components/note-text'
+import { PinField } from '@/components/pin-field'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -25,6 +26,7 @@ import { formatDay, timeOfDayOf, timeOfDayPattern } from '@/trip/calendar'
 import type {
   Activity,
   AddActivityOutcome,
+  Coordinates,
   EditActivityOutcome,
   IsoDate,
   MoveActivityOutcome,
@@ -288,6 +290,7 @@ interface ActivityEdit extends ActivityFields {
 function ActivityRow({
   activity,
   scheduleId,
+  near,
   beforeWhenUp,
   beforeWhenDown,
   onMove,
@@ -299,6 +302,8 @@ function ActivityRow({
 }: {
   activity: Activity
   scheduleId: ScheduleId
+  /** Where a Pin dropped by hand starts. */
+  near: Coordinates
   /**
    * The id of the Activity moving it up places it before; undefined for the
    * first, which can't move up.
@@ -481,6 +486,18 @@ function ActivityRow({
           </Button>
         </ActivityEditor>
       )}
+      {showing && !removing && (
+        <PinField
+          scheduleId={scheduleId}
+          target={{ activityId: activity.id }}
+          pin={activity.pin}
+          near={near}
+          noun="location"
+          labelledBy={titleId}
+          gone="This Activity is no longer on this Day, perhaps removed on another device."
+          summaryClassName="pl-16"
+        />
+      )}
       {alerts}
     </div>
   )
@@ -609,11 +626,14 @@ export function Activities({
   scheduleId,
   date,
   activities,
+  near,
   labelledBy,
 }: {
   scheduleId: ScheduleId
   date: IsoDate
   activities: ReadonlyArray<Activity>
+  /** Where a Pin dropped by hand starts, such as tonight's Base. */
+  near: Coordinates
   /** The id of the heading naming the Activities. */
   labelledBy: string
 }) {
@@ -707,6 +727,7 @@ export function Activities({
               <ActivityRow
                 activity={activity}
                 scheduleId={scheduleId}
+                near={near}
                 beforeWhenUp={activities[index - 1]?.id}
                 beforeWhenDown={
                   index === activities.length - 1

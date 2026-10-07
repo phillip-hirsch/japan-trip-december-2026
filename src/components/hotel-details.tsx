@@ -4,12 +4,14 @@ import { PencilIcon } from 'lucide-react'
 import { useId } from 'react'
 
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
+import { OpenInGoogleMaps } from '@/components/open-in-google-maps'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type {
   Hotel,
   HotelDetails,
+  Pin,
   ScheduleId,
   WriteHotelDetailsOutcome,
 } from '@/trip/domain'
@@ -73,13 +75,14 @@ const answerOf = (outcome: WriteHotelDetailsOutcome): SaveAnswer =>
 
 /**
  * A Stay's recorded Hotel details: the hotel's name, its address and the
- * confirmation number, each only once recorded.
+ * confirmation number, each only once recorded, and "Open in Google Maps"
+ * once it's pinned.
  */
 export function HotelDetailsList({
-  details: { name, address, confirmationNumber },
+  details: { name, address, confirmationNumber, pin },
   className,
 }: {
-  details: HotelDetails
+  details: HotelDetails & { readonly pin?: Pin }
   className?: string
 }) {
   return (
@@ -97,6 +100,7 @@ export function HotelDetailsList({
           <span className="font-mono select-all">{confirmationNumber}</span>
         </p>
       )}
+      {pin && <OpenInGoogleMaps pin={pin} className="mt-1" />}
     </div>
   )
 }

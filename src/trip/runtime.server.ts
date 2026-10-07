@@ -1,6 +1,5 @@
-import { Effect, Exit, Layer, ManagedRuntime } from 'effect'
+import { Effect, Exit, ManagedRuntime } from 'effect'
 
-import { Itineraries } from '@/trip/Itineraries'
 import { Trip } from '@/trip/Trip'
 
 /**
@@ -8,9 +7,7 @@ import { Trip } from '@/trip/Trip'
  * binding and cannot fail, because a failed build would be cached for the
  * isolate's lifetime.
  */
-export const tripRuntime = ManagedRuntime.make(
-  Trip.layer.pipe(Layer.provide(Itineraries.layer)),
-)
+export const tripRuntime = ManagedRuntime.make(Trip.live)
 
 /**
  * Runs an operation to a promise at a boundary Effect doesn't cross.

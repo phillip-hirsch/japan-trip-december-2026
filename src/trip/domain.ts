@@ -576,6 +576,17 @@ export const ScheduleAnchor = Schema.TaggedUnion({
 export type ScheduleAnchor = typeof ScheduleAnchor.Type
 
 /**
+ * Where a place is on the map: its coordinates, and the Google Maps link
+ * Phillip set it from, absent for one dropped by hand without a link.
+ */
+export const Pin = Schema.Struct({
+  coordinates: Coordinates,
+  link: Schema.optionalKey(Schema.String),
+})
+
+export type Pin = typeof Pin.Type
+
+/**
  * Phillip's Hotel details on a Stay: its hotel's name, address and
  * confirmation number, each absent until he records it.
  */
@@ -593,7 +604,11 @@ export type HotelDetails = typeof HotelDetails.Type
  */
 export const Hotel = Schema.TaggedUnion({
   NotRecorded: {},
-  Recorded: HotelDetails.fields,
+  Recorded: {
+    ...HotelDetails.fields,
+    /** The hotel's Pin, absent until Phillip sets it. */
+    pin: Schema.optionalKey(Pin),
+  },
 })
 
 export type Hotel = typeof Hotel.Type
@@ -638,6 +653,8 @@ export const Activity = Schema.Struct({
   time: Schema.optionalKey(Schema.String),
   /** Absent until Phillip writes one. */
   note: Schema.optionalKey(Schema.String),
+  /** Its location, absent until Phillip sets its Pin. */
+  pin: Schema.optionalKey(Pin),
 })
 
 export type Activity = typeof Activity.Type
@@ -1194,6 +1211,92 @@ export const MoveActivityOutcome = Schema.TaggedUnion({
 })
 
 export type MoveActivityOutcome = typeof MoveActivityOutcome.Type
+
+/** Resolve a Google Maps link Phillip pasted to the coordinates it carries. */
+export const ResolveLocationLink = Schema.Struct({ link: Schema.String })
+
+export type ResolveLocationLink = typeof ResolveLocationLink.Type
+
+/**
+ * Why a location link was refused: it isn't an https Google Maps link, or is
+ * too long; following it redirected off the https Google Maps hosts, or more
+ * than five times; it took too long; or it couldn't be followed, such as a
+ * short link that no longer exists.
+ */
+export const LocationLinkRefusal = Schema.Literals([
+  'NotGoogleMaps',
+  'TooLong',
+  'LeftGoogleMaps',
+  'TooManyRedirects',
+  'TimedOut',
+  'Unreachable',
+])
+
+export type LocationLinkRefusal = typeof LocationLinkRefusal.Type
+
+/** A location link the Trip service won't read coordinates from. */
+export class LocationLinkRefused extends Schema.TaggedError<LocationLinkRefused>()(
+  'LocationLinkRefused',
+  { reason: LocationLinkRefusal },
+) {}
+
+/**
+ * A Google Maps link that carries no coordinates, such as one naming a place
+ * only. Phillip can drop the Pin by hand and keep the link.
+ */
+export class NoCoordinatesInLink extends Schema.TaggedError<NoCoordinatesInLink>()(
+  'NoCoordinatesInLink',
+  {},
+) {}
+
+/** Coordinates outside Japan, which no Pin of the Trip can have. */
+export class CoordinatesOutsideJapan extends Schema.TaggedError<CoordinatesOutsideJapan>()(
+  'CoordinatesOutsideJapan',
+  { coordinates: Coordinates },
+) {}
+
+/** What resolving a location link found, as plain data for the browser. */
+export const ResolveLocationLinkOutcome = Schema.TaggedUnion({
+  Resolved: { coordinates: Coordinates },
+  LocationLinkRefused: LocationLinkRefused.fields,
+  NoCoordinatesInLink: NoCoordinatesInLink.fields,
+  CoordinatesOutsideJapan: CoordinatesOutsideJapan.fields,
+})
+
+export type ResolveLocationLinkOutcome = typeof ResolveLocationLinkOutcome.Type
+
+/** What a Pin is set on: an Activity, or a Stay's hotel, by its id. */
+export const PinTarget = Schema.Union([
+  Schema.Struct({ activityId: ActivityId }),
+  Schema.Struct({ stayId: CopyId }),
+])
+
+export type PinTarget = typeof PinTarget.Type
+
+/**
+ * Set the Pin on an Activity or a Stay's hotel of the Schedule named, as a
+ * whole value, once Phillip confirms it; no Pin removes it. The last write
+ * wins.
+ */
+export const SetPin = Schema.Struct({
+  scheduleId: ScheduleId,
+  target: PinTarget,
+  pin: Schema.optionalKey(Pin),
+})
+
+export type SetPin = typeof SetPin.Type
+
+/** What setting a Pin did, as plain data for the browser. */
+export const SetPinOutcome = Schema.TaggedUnion({
+  Set: {},
+  ScheduleChanged: ScheduleChanged.fields,
+  ActivityNotFound: ActivityNotFound.fields,
+  StayNotFound: StayNotFound.fields,
+  LocationLinkRefused: LocationLinkRefused.fields,
+  CoordinatesOutsideJapan: CoordinatesOutsideJapan.fields,
+})
+
+export type SetPinOutcome = typeof SetPinOutcome.Type
 
 /** What choosing an Itinerary did, as plain data for the browser. */
 export const ChooseOutcome = Schema.TaggedUnion({

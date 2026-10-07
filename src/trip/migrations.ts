@@ -174,4 +174,16 @@ export const migrations = Migrator.fromRecord({
     yield* sql`ALTER TABLE stays ADD COLUMN hotelAddress TEXT`
     yield* sql`ALTER TABLE stays ADD COLUMN hotelConfirmationNumber TEXT`
   }),
+  // Pins: an Activity's location, and on each Stay its hotel's, beside the
+  // Hotel details. The coordinates are null while unpinned, and the Google
+  // Maps link while the Pin has none.
+  '0009_pins': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+
+    for (const table of ['activities', 'stays']) {
+      yield* sql`ALTER TABLE ${sql(table)} ADD COLUMN pinLatitude REAL`
+      yield* sql`ALTER TABLE ${sql(table)} ADD COLUMN pinLongitude REAL`
+      yield* sql`ALTER TABLE ${sql(table)} ADD COLUMN pinLink TEXT`
+    }
+  }),
 })

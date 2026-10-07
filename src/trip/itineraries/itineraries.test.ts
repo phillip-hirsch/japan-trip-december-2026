@@ -1,7 +1,7 @@
 // Every real Itinerary, read back through the Trip service and checked against
 // what docs/itinerary.md says about it.
 import { assert, layer } from '@effect/vitest'
-import { Effect, Layer } from 'effect'
+import { Effect } from 'effect'
 
 import { Anchor, december } from '@/trip/domain'
 import type {
@@ -11,10 +11,8 @@ import type {
   MoveMode,
   RailSectionMode,
 } from '@/trip/domain'
-import { Itineraries } from '@/trip/Itineraries'
+import { liveTrip } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
-
-const liveTrip = Trip.layer.pipe(Layer.provide(Itineraries.layer))
 
 interface ExpectedItinerary {
   readonly optionNumber: number

@@ -25,6 +25,8 @@ import {
   RemoveActivityOutcome,
   RemoveOwnChecklistItem,
   RemoveOwnChecklistItemOutcome,
+  ResolveLocationLink,
+  ResolveLocationLinkOutcome,
   RestoreOutcome,
   RestoreSchedule,
   ScheduleDetail,
@@ -33,6 +35,8 @@ import {
   ScheduleSummary,
   SplitStay,
   StayEditOutcome,
+  SetPin,
+  SetPinOutcome,
   TickChecklistItem,
   TickChecklistItemOutcome,
   TickOwnChecklistItem,
@@ -212,6 +216,53 @@ export const changeStayBase = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(ChangeStayBase))
   .handler(({ data }) =>
     callTripStore(StayEditOutcome, (store) => store.changeStayBase(data)),
+  )
+
+/**
+ * The coordinates a Google Maps link Phillip pasted carries, for him to
+ * confirm as a Pin. It reads no storage, so it runs in the Worker. The Trip
+ * service checks the link and every redirect it follows.
+ */
+export const resolveLocationLink = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(ResolveLocationLink))
+  .handler(({ data }) =>
+    runTrip(
+      Trip.use((trip) => trip.resolveLocationLink(data)).pipe(
+        Effect.map((coordinates): ResolveLocationLinkOutcome =>
+          ResolveLocationLinkOutcome.cases.Resolved.make({ coordinates }),
+        ),
+        Effect.catchTags({
+          LocationLinkRefused: ({ reason }) =>
+            Effect.succeed<ResolveLocationLinkOutcome>(
+              ResolveLocationLinkOutcome.cases.LocationLinkRefused.make({
+                reason,
+              }),
+            ),
+          NoCoordinatesInLink: () =>
+            Effect.succeed<ResolveLocationLinkOutcome>(
+              ResolveLocationLinkOutcome.cases.NoCoordinatesInLink.make({}),
+            ),
+          CoordinatesOutsideJapan: ({ coordinates }) =>
+            Effect.succeed<ResolveLocationLinkOutcome>(
+              ResolveLocationLinkOutcome.cases.CoordinatesOutsideJapan.make({
+                coordinates,
+              }),
+            ),
+        }),
+      ),
+    ),
+  )
+
+/**
+ * Sets or removes the Pin on an Activity or a Stay's hotel of the Schedule
+ * named, once Phillip confirms it, as a whole value. The write is
+ * idempotent, so it carries no operation id; the Trip service checks the
+ * link and the coordinates and refuses a Schedule that isn't current.
+ */
+export const setPin = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(SetPin))
+  .handler(({ data }) =>
+    callTripStore(SetPinOutcome, (store) => store.setPin(data)),
   )
 
 /**

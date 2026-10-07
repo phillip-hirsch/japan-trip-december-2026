@@ -19,6 +19,15 @@ export const lngLatOf = ({
   latitude,
 }: Coordinates): [number, number] => [longitude, latitude]
 
+/** Coordinates from MapLibre's longitude and latitude, as dragged or tapped. */
+export const coordinatesOfLngLat = ({
+  lng,
+  lat,
+}: {
+  readonly lng: number
+  readonly lat: number
+}): Coordinates => ({ latitude: lat, longitude: lng })
+
 /** The smallest box around every point, as [south-west, north-east]. */
 const boundsOf = (points: ReadonlyArray<Coordinates>): LngLatBoundsLike => {
   const longitudes = points.map((point) => point.longitude)
@@ -53,10 +62,13 @@ export function BaseMarker({ place }: { place: Place }) {
  */
 export function TripMapView({
   points,
+  maxZoom,
   railAttribution,
   children,
 }: {
   points: ReadonlyArray<Coordinates>
+  /** The closest the framing zooms in, such as for a single point. */
+  maxZoom?: number
   /** The rail geometry's credit, when the map follows a rail line. */
   railAttribution: string | undefined
   children: ReactNode
@@ -64,7 +76,10 @@ export function TripMapView({
   return (
     <MapView
       bounds={boundsOf(points)}
-      fitBoundsOptions={{ padding: 48 }}
+      fitBoundsOptions={{
+        padding: 48,
+        ...(maxZoom !== undefined && { maxZoom }),
+      }}
       cooperativeGestures
       // Always shown in full, as the map data's licences require.
       attributionControl={{

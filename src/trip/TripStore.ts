@@ -27,6 +27,7 @@ import type {
   SplitStay,
   StayNotFound,
   StaysEdited,
+  SetPin,
   RemoveActivity,
   RemoveOwnChecklistItem,
   TickChecklistItem,
@@ -47,6 +48,7 @@ import {
   RemoveOwnChecklistItemOutcome,
   RestoreOutcome,
   StayEditOutcome,
+  SetPinOutcome,
   TickChecklistItemOutcome,
   TickOwnChecklistItemOutcome,
   WriteDayNoteOutcome,
@@ -54,7 +56,6 @@ import {
   WriteStayNoteOutcome,
   WriteTripNoteOutcome,
 } from '@/trip/domain'
-import { Itineraries } from '@/trip/Itineraries'
 import { migrations } from '@/trip/migrations'
 import { runToPromise } from '@/trip/runtime.server'
 import { Trip } from '@/trip/Trip'
@@ -106,10 +107,7 @@ export class TripStore extends DurableObject<Env> {
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env)
     this.#runtime = ManagedRuntime.make(
-      Layer.merge(
-        Trip.layer.pipe(Layer.provide(Itineraries.layer)),
-        SqliteClient.layer({ storage: ctx.storage }),
-      ),
+      Layer.merge(Trip.live, SqliteClient.layer({ storage: ctx.storage })),
     )
     // Requests wait until the migrations finish. A failed migration rolls
     // back and its failure is kept, so every request fails explicitly rather
@@ -310,6 +308,39 @@ export class TripStore extends DurableObject<Env> {
   changeStayBase(input: ChangeStayBase): Promise<StayEditOutcome> {
     return this.#run(
       stayEditOutcomeOf(Trip.use((trip) => trip.changeStayBase(input))),
+    )
+  }
+
+  /** Sets or removes the Pin on an Activity or a Stay's hotel. */
+  setPin(input: SetPin): Promise<SetPinOutcome> {
+    return this.#run(
+      Trip.use((trip) => trip.setPin(input)).pipe(
+        Effect.as<SetPinOutcome>(SetPinOutcome.cases.Set.make({})),
+        Effect.catchTags({
+          ScheduleChanged: () =>
+            Effect.succeed<SetPinOutcome>(
+              SetPinOutcome.cases.ScheduleChanged.make({}),
+            ),
+          ActivityNotFound: ({ activityId }) =>
+            Effect.succeed<SetPinOutcome>(
+              SetPinOutcome.cases.ActivityNotFound.make({ activityId }),
+            ),
+          StayNotFound: ({ stayId }) =>
+            Effect.succeed<SetPinOutcome>(
+              SetPinOutcome.cases.StayNotFound.make({ stayId }),
+            ),
+          LocationLinkRefused: ({ reason }) =>
+            Effect.succeed<SetPinOutcome>(
+              SetPinOutcome.cases.LocationLinkRefused.make({ reason }),
+            ),
+          CoordinatesOutsideJapan: ({ coordinates }) =>
+            Effect.succeed<SetPinOutcome>(
+              SetPinOutcome.cases.CoordinatesOutsideJapan.make({
+                coordinates,
+              }),
+            ),
+        }),
+      ),
     )
   }
 

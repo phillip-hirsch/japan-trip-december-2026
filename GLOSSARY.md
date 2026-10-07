@@ -26,7 +26,7 @@ _Avoid_: chosen itinerary, plan
 One calendar date of the Trip in Tokyo time, December 6 through December 20.
 
 **Activity**:
-One thing planned on a Day of the Schedule, with a title and optionally a Tokyo time and a note, such as a flight at its Tokyo-side time or the birthday dinner reservation. A Day keeps its Activities in Phillip's own order, never re-sorted by time; a new timed one goes before the first with a later time. Like a Day note, it belongs to that Schedule, and it never moves to another Day.
+One thing planned on a Day of the Schedule, with a title and optionally a Tokyo time, a note and a Pin, such as a flight at its Tokyo-side time or the birthday dinner reservation. A Day keeps its Activities in Phillip's own order, never re-sorted by time; a new timed one goes before the first with a later time. Like a Day note, it belongs to that Schedule, and it never moves to another Day.
 _Avoid_: event, item
 
 **Day note**:
@@ -38,8 +38,12 @@ Phillip's own plain-text note on a Stay of the Schedule, such as tips about the 
 _Avoid_: hotel note, stay memo
 
 **Hotel details**:
-Phillip's record of a Stay's hotel: its name, address and confirmation number, each optional, saved together as one value. Like a Stay note, they belong to that Schedule, and the Stay keeps them, and its id, when they are edited.
+Phillip's record of a Stay's hotel: its name, address and confirmation number, each optional, saved together as one value, and its Pin, saved on its own. Like a Stay note, they belong to that Schedule, and the Stay keeps them, and its id, when they are edited.
 _Avoid_: booking, reservation, hotel info
+
+**Pin**:
+Where an Activity or a Stay's hotel is on the map: its coordinates, and the Google Maps link Phillip set it from, when there is one. He sets it by pasting a link, or drops it by hand, then drags it into place. The app saves it only once he confirms it. The hotel's Pin is part of its Hotel details, though each is saved on its own.
+_Avoid_: marker, location, geotag
 
 **Trip note**:
 Phillip's one plain-text note about the whole Trip, shown on the Schedule page. It belongs to the Trip, not a Schedule, so it stays as it is when he chooses again or restores.
