@@ -20,7 +20,7 @@ import type {
 } from '@/trip/domain'
 import { pinTarget, SaveAnswer, SaveState, useSave } from '@/trip/drafts'
 import { locationLinkMaxLength } from '@/trip/limits'
-import { googleMapsUrlOf } from '@/trip/pins'
+import { linkRefusalOf } from '@/trip/pins'
 import { resolveLocationLink, setPin } from '@/trip/trip.functions'
 
 /**
@@ -237,7 +237,11 @@ export function PinField({
 
   const dropByHand = () => {
     setFrame(near)
-    place(near)
+    // A link the Pin can't keep would only refuse its save, so it goes.
+    field.change({
+      link: linkRefusalOf(value.link.trim()) === undefined ? value.link : '',
+      coordinates: near,
+    })
     setFinding({
       state: 'byHand',
       note: 'Drag the pin into place, or tap the map where it goes.',
@@ -248,8 +252,10 @@ export function PinField({
   const find = async (link: string) => {
     if (link.trim() === '') return
 
-    if (googleMapsUrlOf(link.trim()) === undefined) {
-      setFinding({ state: 'problem', note: refusalProblems.NotGoogleMaps })
+    const refusal = linkRefusalOf(link.trim())
+
+    if (refusal !== undefined) {
+      setFinding({ state: 'problem', note: refusalProblems[refusal] })
 
       return
     }

@@ -1,6 +1,7 @@
 // Facts about Pins and Google Maps links that the Trip service and the
 // browser share. See AGENTS.md: Effect in the browser.
-import type { Coordinates, Pin } from '@/trip/domain'
+import type { Coordinates, LocationLinkRefusal, Pin } from '@/trip/domain'
+import { locationLinkMaxLength } from '@/trip/limits'
 
 /** Whether a path is /maps or under it. */
 const underMaps = (pathname: string) =>
@@ -41,6 +42,18 @@ export const googleMapsUrlOf = (link: string, base?: URL): URL | undefined => {
     (hostname === 'goo.gl' && underMaps(pathname))
 
   return allowed ? url : undefined
+}
+
+/**
+ * Why a Pin can't keep a link: it's longer than 2,000 characters, or isn't
+ * an https Google Maps link. Undefined when it can.
+ */
+export const linkRefusalOf = (
+  link: string,
+): Extract<LocationLinkRefusal, 'TooLong' | 'NotGoogleMaps'> | undefined => {
+  if (link.length > locationLinkMaxLength) return 'TooLong'
+
+  return googleMapsUrlOf(link) === undefined ? 'NotGoogleMaps' : undefined
 }
 
 /** Whether a Google Maps URL is a short link, which redirects to the place. */

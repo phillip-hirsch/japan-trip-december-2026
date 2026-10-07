@@ -121,7 +121,6 @@ import {
   activityTitleMaxLength,
   checklistTextMaxLength,
   hotelDetailMaxLength,
-  locationLinkMaxLength,
   noteMaxLength,
 } from '@/trip/limits'
 import {
@@ -129,6 +128,7 @@ import {
   googleMapsUrlOf,
   isInJapan,
   isShortLink,
+  linkRefusalOf,
 } from '@/trip/pins'
 import { places, visitedPlaceIds } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
@@ -1102,15 +1102,14 @@ const requireHotelDetails = (details: HotelDetails) => {
  * Maps link no longer than 2,000 characters.
  */
 const requireGoogleMapsUrl = (link: string) => {
-  if (link.length > locationLinkMaxLength) {
-    return Effect.fail(new LocationLinkRefused({ reason: 'TooLong' }))
-  }
-
+  const refusal = linkRefusalOf(link)
   const url = googleMapsUrlOf(link)
 
-  return url === undefined
-    ? Effect.fail(new LocationLinkRefused({ reason: 'NotGoogleMaps' }))
-    : Effect.succeed(url)
+  return refusal === undefined && url !== undefined
+    ? Effect.succeed(url)
+    : Effect.fail(
+        new LocationLinkRefused({ reason: refusal ?? 'NotGoogleMaps' }),
+      )
 }
 
 /** Coordinates as they are; CoordinatesOutsideJapan when outside Japan. */
