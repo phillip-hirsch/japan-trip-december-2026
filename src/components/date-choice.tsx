@@ -1,6 +1,4 @@
-import { useId } from 'react'
-
-import { cn } from '@/lib/utils'
+import { ChipChoice } from '@/components/chip-choice'
 import { formatShortDate, formatWeekday } from '@/trip/calendar'
 import type { IsoDate } from '@/trip/domain'
 
@@ -20,34 +18,19 @@ export function DateChoice({
   disabled: boolean
   onChange: (date: IsoDate) => void
 }) {
-  const name = useId()
-
   return (
-    <div className="flex flex-wrap gap-2">
-      {dates.map((date) => (
-        <label
-          key={date}
-          className={cn(
-            'flex h-8 cursor-pointer items-center rounded-md border border-border px-2.5 text-sm font-medium tabular-nums transition-colors select-none hover:bg-muted dark:border-input dark:bg-input/30',
-            'has-checked:border-primary has-checked:bg-primary/15 has-checked:text-foreground',
-            'has-focus-visible:ring-3 has-focus-visible:ring-ring/50',
-            disabled && 'pointer-events-none opacity-50',
-          )}
-        >
-          <input
-            type="radio"
-            name={name}
-            value={date}
-            checked={value === date}
-            disabled={disabled}
-            onChange={() => onChange(date)}
-            className="sr-only"
-          />
+    <ChipChoice
+      options={dates.map((date) => ({
+        value: date,
+        label: (
           <time dateTime={date}>
             {formatWeekday(date)} {formatShortDate(date)}
           </time>
-        </label>
-      ))}
-    </div>
+        ),
+      }))}
+      value={value}
+      disabled={disabled}
+      onChange={onChange}
+    />
   )
 }

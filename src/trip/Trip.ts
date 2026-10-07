@@ -58,6 +58,7 @@ import type {
   AddOwnChecklistItem,
   ArchivedScheduleSummary,
   BaseNights,
+  ChangeStayBase,
   Checklist,
   ChooseItinerary,
   ComparisonMap,
@@ -121,8 +122,12 @@ import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
 import type { StationId } from '@/trip/rail'
 import { railGeometryAttribution, railGeometryOf } from '@/trip/rail-geometry'
 import { scheduleStore } from '@/trip/schedule-store'
-import { mergeEdit, splitEdit } from '@/trip/split-merge'
-import { stayBoundaryMove } from '@/trip/stay-boundary'
+import {
+  changeBaseEdit,
+  mergeEdit,
+  splitEdit,
+  stayBoundaryMove,
+} from '@/trip/stay-edits'
 import type {
   OwnChecklistItem,
   ScheduleCopy,
@@ -1499,6 +1504,25 @@ export class Trip extends Context.Service<
       SqlClient.SqlClient
     >
     /**
+     * Changes the Base of a Stay of the Schedule named to a place in the
+     * catalogue, as a Stay edit (editStays). The Stay keeps its id, and with
+     * it its Hotel details, Stay note and ticks, but loses its highlights,
+     * which described the old Base. The Moves on either side keep their mode
+     * and lose their rail sections and duration, so their travel time is
+     * unknown. Changing a Base to the place it already is changes nothing.
+     *
+     * Fails with StayNotFound when the Schedule has no Stay with the id, and
+     * with HardRuleBroken (PlaceNotInCatalogue) for a place outside the
+     * catalogue. It also fails as editStays does.
+     */
+    changeStayBase(
+      input: ChangeStayBase,
+    ): Effect.Effect<
+      StaysEdited,
+      ScheduleChanged | StayNotFound | HardRuleBroken,
+      SqlClient.SqlClient
+    >
+    /**
      * Writes the Trip note as a whole value, so the last write wins. An empty
      * note removes it. It belongs to the Trip, so choosing again or restoring
      * leaves it as it is. NoteTooLong past 10,000 characters, writing
@@ -1934,6 +1958,11 @@ export class Trip extends Context.Service<
         )
       })
 
+      const changeStayBase = ({ scheduleId, ...change }: ChangeStayBase) =>
+        editStays({ scheduleId }, changeBaseEdit(change)).pipe(
+          Effect.withSpan('Trip.changeStayBase'),
+        )
+
       const writeTripNote = Effect.fn('Trip.writeTripNote')(
         function* ({ note }: WriteTripNote) {
           yield* requireNoteLength(note)
@@ -2212,6 +2241,7 @@ export class Trip extends Context.Service<
         splitStay,
         mergeStays,
         moveStayBoundary,
+        changeStayBase,
         writeTripNote,
         checklist,
         tickChecklistItem,

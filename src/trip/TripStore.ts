@@ -8,6 +8,7 @@ import type { SqlClient } from 'effect/sql'
 import type {
   AddActivity,
   AddOwnChecklistItem,
+  ChangeStayBase,
   Checklist,
   ChooseItinerary,
   EditActivity,
@@ -302,6 +303,13 @@ export class TripStore extends DurableObject<Env> {
   moveStayBoundary(input: MoveStayBoundary): Promise<StayEditOutcome> {
     return this.#run(
       stayEditOutcomeOf(Trip.use((trip) => trip.moveStayBoundary(input))),
+    )
+  }
+
+  /** Changes the Base of a Stay of the current Schedule. */
+  changeStayBase(input: ChangeStayBase): Promise<StayEditOutcome> {
+    return this.#run(
+      stayEditOutcomeOf(Trip.use((trip) => trip.changeStayBase(input))),
     )
   }
 

@@ -7,6 +7,7 @@ import {
   AddActivityOutcome,
   AddOwnChecklistItem,
   AddOwnChecklistItemOutcome,
+  ChangeStayBase,
   Checklist,
   ChooseItinerary,
   ChooseOutcome,
@@ -200,6 +201,17 @@ export const moveStayBoundary = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(MoveStayBoundary))
   .handler(({ data }) =>
     callTripStore(StayEditOutcome, (store) => store.moveStayBoundary(data)),
+  )
+
+/**
+ * Changes the Base of a Stay of the Schedule named. Setting a Base is
+ * idempotent, so it carries no operation id. The Trip service refuses a place
+ * outside the catalogue and a Schedule that isn't current.
+ */
+export const changeStayBase = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(ChangeStayBase))
+  .handler(({ data }) =>
+    callTripStore(StayEditOutcome, (store) => store.changeStayBase(data)),
   )
 
 /**

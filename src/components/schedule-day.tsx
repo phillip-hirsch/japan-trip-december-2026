@@ -177,7 +177,7 @@ function NextMoveCard({ move, today }: { move: NextMove; today: IsoDate }) {
         )}
       </p>
       <MoveRoute move={move} className="text-base" />
-      <MoveTravel move={move} className="pl-5.5" />
+      <MoveTravel move={move} onSchedule className="pl-5.5" />
     </Item>
   )
 }
