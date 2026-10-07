@@ -229,6 +229,14 @@ describe('Trip.scheduleMap', () => {
         yield* addActivity(4, scheduleId, december(10), 'Unpinned lunch')
         yield* setPin({ activityId: birthday }, ginza)
         yield* setPin({ activityId: shrine }, fushimiInari)
+        // The map shows no notes, so it leaves them out.
+        yield* Trip.use((trip) =>
+          trip.editActivity({
+            scheduleId,
+            activityId: shrine,
+            note: 'Go early, before the tour groups',
+          }),
+        )
 
         const { hotels, activities } = yield* currentMap
         assert.deepStrictEqual(

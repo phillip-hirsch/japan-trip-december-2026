@@ -524,8 +524,10 @@ const scheduleMapOf = (copy: ScheduleCopy): ScheduleMap => ({
     }),
   ),
   activities: copy.days.flatMap(({ date, activities }) =>
-    activities.flatMap(({ pin, ...activity }) =>
-      pin ? [{ ...activity, date, pin }] : [],
+    activities.flatMap(({ id, title, time, pin }) =>
+      pin
+        ? [{ id, title, ...(time !== undefined && { time }), date, pin }]
+        : [],
     ),
   ),
 })

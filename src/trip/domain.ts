@@ -777,9 +777,12 @@ export const MapHotel = Schema.Struct({
 
 export type MapHotel = typeof MapHotel.Type
 
-/** A pinned Activity on the Schedule's map, with the date of its Day. */
+/**
+ * A pinned Activity on the Schedule's map, with the date of its Day. Only
+ * what its pin shows: never its note, which can be long.
+ */
 export const MapActivity = Schema.Struct({
-  ...Activity.fields,
+  ...Struct.pick(Activity.fields, ['id', 'title', 'time']),
   date: IsoDate,
   pin: Pin,
 })
