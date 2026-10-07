@@ -15,6 +15,7 @@ import {
   EditActivityOutcome,
   HomeState,
   IsoDate,
+  MergeStays,
   MoveActivity,
   MoveActivityOutcome,
   OptionNumber,
@@ -28,6 +29,8 @@ import {
   ScheduleId,
   Schedules,
   ScheduleSummary,
+  SplitStay,
+  StayEditOutcome,
   TickChecklistItem,
   TickChecklistItemOutcome,
   TickOwnChecklistItem,
@@ -163,6 +166,27 @@ export const writeHotelDetails = createServerFn({ method: 'POST' })
     callTripStore(WriteHotelDetailsOutcome, (store) =>
       store.writeHotelDetails(data),
     ),
+  )
+
+/**
+ * Splits a Stay of the Schedule named at a date inside it. Repeating the
+ * operation id returns the first result, so a retry never splits twice.
+ */
+export const splitStay = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(SplitStay))
+  .handler(({ data }) =>
+    callTripStore(StayEditOutcome, (store) => store.splitStay(data)),
+  )
+
+/**
+ * Merges two adjacent Stays in one Base of the Schedule named. Repeating the
+ * operation id returns the first result, so a retry after the later Stay is
+ * gone still answers with the merge.
+ */
+export const mergeStays = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(MergeStays))
+  .handler(({ data }) =>
+    callTripStore(StayEditOutcome, (store) => store.mergeStays(data)),
   )
 
 /**

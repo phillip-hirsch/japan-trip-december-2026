@@ -14,7 +14,7 @@ import type { AnchorWarning, HardRule } from '@/trip/domain'
 import { places } from '@/trip/places'
 
 /** What an Anchor warning says, naming the Anchor it breaks. */
-const anchorWarningText = (warning: AnchorWarning) =>
+export const anchorWarningText = (warning: AnchorWarning) =>
   Match.value(warning).pipe(
     Match.tagsExhaustive({
       NotWakingUpInKyoto: ({ base }) =>
