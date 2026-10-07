@@ -9,7 +9,6 @@ import {
   Match,
   Option,
   Predicate,
-  Schema,
   Struct,
 } from 'effect'
 import type { SqlClient } from 'effect/sql'
@@ -47,6 +46,7 @@ import {
   ScheduleId,
   ScheduleNotFound,
   ScheduleRestored,
+  StaysEdited,
   StayDateRuleBreak,
   StayNotFound,
   TripRuleBreak,
@@ -80,7 +80,6 @@ import type {
   MoveDetail,
   MovesComparison,
   MoveSummary,
-  OperationId,
   Place,
   RailSectionDetail,
   RemoveActivity,
@@ -93,7 +92,7 @@ import type {
   Stay,
   StaySummary,
   Station,
-  StaysEdited,
+  StayEditTarget,
   TickChecklistItem,
   TickOwnChecklistItem,
   TimeOfDay,
@@ -122,9 +121,17 @@ import { scheduleStore } from '@/trip/schedule-store'
 import type {
   OwnChecklistItem,
   ScheduleCopy,
+  ScheduleStay,
   ScheduleStore,
-  StayChanges,
 } from '@/trip/schedule-store'
+
+export type { ScheduleCopy, ScheduleStay } from '@/trip/schedule-store'
+
+/**
+ * What a Stay edit returns: the Schedule's Stays and Moves as edited, each it
+ * keeps with its id. Its Verify claims follow their Stays.
+ */
+export type StayEdit = Pick<ScheduleCopy, 'stays' | 'moves'>
 
 /** The calendar date in Tokyo at a moment. */
 const tokyoDateOf = (now: DateTime.DateTime) =>
@@ -739,14 +746,40 @@ const homeStateOf = (
   })
 }
 
-/**
- * What a Stay edit records with its operation id: the Schedule it edited,
- * which a repeat returns as it is by then.
- */
-const StayEditRecord = Schema.Struct({ scheduleId: ScheduleId })
-
 /** Stays in Trip order, the order a Schedule's Stays are read in. */
 const byCheckIn = (a: Stay, b: Stay) => a.checkIn.localeCompare(b.checkIn)
+
+/**
+ * A Schedule's Verify claims after a Stay edit: one on a Stay follows that
+ * Stay to its check-in date, and one whose Stay is gone moves to the Stay now
+ * covering that Stay's first night.
+ */
+const claimsFollowingStays = (
+  copy: ScheduleCopy,
+  stays: ReadonlyArray<ScheduleStay>,
+) => {
+  const stayIdOn = new Map(copy.stays.map((stay) => [stay.checkIn, stay.id]))
+  const edited = new Map(stays.map((stay) => [stay.id, stay]))
+
+  return copy.verifyClaims.map((claim) => {
+    if (!VerifyClaimAttachment.guards.Stay(claim.attachedTo)) return claim
+    const { checkIn } = claim.attachedTo
+    const id = stayIdOn.get(checkIn)
+
+    const stay =
+      (id === undefined ? undefined : edited.get(id)) ??
+      stayForNight(stays, checkIn)
+
+    return stay === undefined
+      ? claim
+      : {
+          ...claim,
+          attachedTo: VerifyClaimAttachment.cases.Stay.make({
+            checkIn: stay.checkIn,
+          }),
+        }
+  })
+}
 
 /**
  * The current Schedule, if it is the one a write names (none when it names
@@ -1104,7 +1137,7 @@ const stayDateRuleBreaksOf = (
  * Move where no Stays meet, Stays that meet without a Move, and a Verify
  * claim attached to no Day or Stay. Empty when they fit.
  */
-const mismatchesOf = ({
+const fitBreaksOf = ({
   stays,
   days,
   moves,
@@ -1199,7 +1232,7 @@ const tripRuleBreaksOf = (itinerary: Itinerary): Array<TripRuleBreak> => {
 
   const breaks: Array<TripRuleBreak> = [
     ...stayDateBreaks,
-    ...mismatchesOf(itinerary),
+    ...fitBreaksOf(itinerary),
   ]
 
   const dates = days.map((day) => day.date)
@@ -1373,27 +1406,26 @@ export class Trip extends Context.Service<
     /**
      * Runs a Stay edit on the Schedule named, as one transaction, and returns
      * the Schedule as edited with its Anchor warnings, which never block it.
-     * The edit receives the Schedule's copy and returns its Stays, Moves and
-     * Verify claims as edited: those it keeps keep their ids, Hotel details
-     * and Stay notes, and with them their Checklist ticks. Each Stay edit
-     * supplies only its own edit.
+     * The edit receives the Schedule's copy and returns its Stays and Moves
+     * as edited: those it keeps keep their ids, Hotel details and Stay notes,
+     * and with them their Checklist ticks; those it drops take theirs with
+     * them. Verify claims follow their Stays. Each Stay edit supplies only
+     * its own edit.
      *
      * ScheduleChanged when the Schedule named isn't current, archived ones
      * included; HardRuleBroken naming the first Hard rule on Stay dates the
      * edited Stays break; and whatever the edit itself fails with, such as
      * StayNotFound, or HardRuleBroken when it can't apply. A refused edit
-     * writes nothing. An edit whose Moves or Verify claims no longer fit its
-     * Stays is a defect.
+     * writes nothing. An edit whose Moves no longer meet its Stays' boundaries
+     * is a defect.
      *
-     * With an operation id, the edit is recorded with it, and repeating the
-     * id returns the Schedule as it is then without editing again.
+     * With an operation id, the result is recorded with it, as one
+     * transaction, and repeating the id returns that result and writes
+     * nothing.
      */
     editStays<E>(
-      target: {
-        readonly scheduleId: ScheduleId
-        readonly operationId?: OperationId
-      },
-      edit: (copy: ScheduleCopy) => Effect.Effect<StayChanges, E>,
+      target: StayEditTarget,
+      edit: (copy: ScheduleCopy) => Effect.Effect<StayEdit, E>,
     ): Effect.Effect<
       StaysEdited,
       E | ScheduleChanged | HardRuleBroken,
@@ -1738,8 +1770,8 @@ export class Trip extends Context.Service<
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
       )
 
-      /** A Schedule as a Stay edit returns it; ScheduleChanged when it's gone. */
-      const editedSchedule = Effect.fnUntraced(function* (
+      /** A Schedule with its copy; ScheduleChanged when none has the id. */
+      const requireSchedule = Effect.fnUntraced(function* (
         store: ScheduleStore,
         scheduleId: ScheduleId,
       ) {
@@ -1747,19 +1779,13 @@ export class Trip extends Context.Service<
 
         if (Option.isNone(found)) return yield* new ScheduleChanged()
 
-        return { schedule: scheduleDetail(found.value) }
+        return found.value
       })
 
       const editStays = Effect.fn('Trip.editStays')(
         function* <E>(
-          {
-            scheduleId,
-            operationId,
-          }: {
-            readonly scheduleId: ScheduleId
-            readonly operationId?: OperationId
-          },
-          edit: (copy: ScheduleCopy) => Effect.Effect<StayChanges, E>,
+          { scheduleId, operationId }: StayEditTarget,
+          edit: (copy: ScheduleCopy) => Effect.Effect<StayEdit, E>,
         ) {
           const store = yield* scheduleStore
 
@@ -1767,21 +1793,13 @@ export class Trip extends Context.Service<
             Effect.gen(function* () {
               if (operationId !== undefined) {
                 const recorded =
-                  yield* store.recordedResult(StayEditRecord)(operationId)
+                  yield* store.recordedResult(StaysEdited)(operationId)
 
-                if (Option.isSome(recorded)) {
-                  return yield* editedSchedule(
-                    store,
-                    recorded.value.result.scheduleId,
-                  )
-                }
+                if (Option.isSome(recorded)) return recorded.value.result
               }
 
               yield* requireCurrent(store, scheduleId)
-              const found = yield* store.scheduleById(scheduleId)
-
-              if (Option.isNone(found)) return yield* new ScheduleChanged()
-              const { copy } = found.value
+              const { copy } = yield* requireSchedule(store, scheduleId)
               const changes = yield* edit(copy)
               const stays = [...changes.stays].sort(byCheckIn)
               const broken = stayDateRuleBreaksOf(stays).at(0)
@@ -1790,27 +1808,38 @@ export class Trip extends Context.Service<
                 return yield* new HardRuleBroken({ rule: broken })
               }
 
-              const edited = { ...changes, stays }
-              const mismatches = mismatchesOf({ ...edited, days: copy.days })
+              const edited = {
+                stays,
+                moves: changes.moves,
+                verifyClaims: claimsFollowingStays(copy, stays),
+              }
 
-              if (mismatches.length > 0) {
+              const fitBreaks = fitBreaksOf({ ...edited, days: copy.days })
+
+              if (fitBreaks.length > 0) {
                 return yield* Effect.die(
                   new Error(
-                    `A Stay edit left the Schedule not fitting together: ${JSON.stringify(mismatches)}`,
+                    `A Stay edit left the Schedule not fitting together: ${JSON.stringify(fitBreaks)}`,
                   ),
                 )
               }
 
               yield* store.replaceStays(scheduleId, edited)
 
+              const result = {
+                schedule: scheduleDetail(
+                  yield* requireSchedule(store, scheduleId),
+                ),
+              }
+
               if (operationId !== undefined) {
-                yield* store.recordResult(StayEditRecord)({
+                yield* store.recordResult(StaysEdited)({
                   id: operationId,
-                  result: { scheduleId },
+                  result,
                 })
               }
 
-              return yield* editedSchedule(store, scheduleId)
+              return result
             }),
           )
         },

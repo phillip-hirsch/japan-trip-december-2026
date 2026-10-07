@@ -9,7 +9,6 @@ import {
   HardRuleBroken,
   Hotel,
   StayNotFound,
-  VerifyClaimAttachment,
 } from '@/trip/domain'
 import type {
   ItineraryContent,
@@ -19,9 +18,9 @@ import type {
   Stay,
 } from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
-import type { ScheduleCopy, StayChanges } from '@/trip/schedule-store'
 import { operation, storage, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
+import type { ScheduleCopy, StayEdit } from '@/trip/Trip'
 
 // Option 1: Tokyo December 6–9, Kyoto 9–13, Kanazawa 13–17 and Tokyo 17–20,
 // with a train Move at each Stay boundary and two Verify claims on the
@@ -50,7 +49,7 @@ const checklistItems = Effect.map(
   ({ items }) => items,
 )
 
-type Edit = (copy: ScheduleCopy) => Effect.Effect<StayChanges, StayNotFound>
+type Edit = (copy: ScheduleCopy) => Effect.Effect<StayEdit, StayNotFound>
 
 const editStays = (
   scheduleId: ScheduleId,
@@ -72,10 +71,7 @@ const changeStay =
       ),
     })
 
-/**
- * An edit moving the date where two Stays meet, with the Move between them
- * and the Verify claims on the later Stay.
- */
+/** An edit moving the date where two Stays meet, with the Move between them. */
 const moveBoundary =
   (from: number, to: number): Edit =>
   (copy) => {
@@ -89,16 +85,6 @@ const moveBoundary =
         checkOut: at(stay.checkOut),
       })),
       moves: copy.moves.map((move) => ({ ...move, date: at(move.date) })),
-      verifyClaims: copy.verifyClaims.map((claim) =>
-        VerifyClaimAttachment.guards.Stay(claim.attachedTo)
-          ? {
-              ...claim,
-              attachedTo: VerifyClaimAttachment.cases.Stay.make({
-                checkIn: at(claim.attachedTo.checkIn),
-              }),
-            }
-          : claim,
-      ),
     })
   }
 
@@ -306,42 +292,46 @@ describe('Trip.editStays', () => {
       }).pipe(Effect.provide([trip, storage])),
   )
 
-  it.effect('drops the Checklist item and tick of a Stay it removes', () =>
-    Effect.gen(function* () {
-      const scheduleId = yield* choose(1, null)
-      const kanazawaId = (yield* currentSchedule).stays[2]?.id ?? ''
-      yield* Trip.use((trip) =>
-        trip.tickChecklistItem({
-          scheduleId,
-          itemId: kanazawaId,
-          ticked: true,
-        }),
-      )
+  it.effect(
+    'drops the Checklist item and tick of a Stay it removes, its Verify claims moving to the Stay now covering its first night',
+    () =>
+      Effect.gen(function* () {
+        const scheduleId = yield* choose(1, null)
+        const before = yield* currentSchedule
+        const kanazawaId = before.stays[2]?.id ?? ''
+        yield* Trip.use((trip) =>
+          trip.tickChecklistItem({
+            scheduleId,
+            itemId: kanazawaId,
+            ticked: true,
+          }),
+        )
 
-      const { schedule } = yield* editStays(scheduleId, (copy) =>
-        Effect.succeed({
-          stays: copy.stays
-            .filter((stay) => stay.base !== 'kanazawa')
-            .map((stay) =>
-              stay.base === 'kyoto'
-                ? { ...stay, checkOut: december(17) }
-                : stay,
-            ),
-          moves: copy.moves.filter((move) => move.date !== december(13)),
-          verifyClaims: copy.verifyClaims.filter(
-            (claim) => !VerifyClaimAttachment.guards.Stay(claim.attachedTo),
-          ),
-        }),
-      )
+        const { schedule } = yield* editStays(scheduleId, (copy) =>
+          Effect.succeed({
+            stays: copy.stays
+              .filter((stay) => stay.base !== 'kanazawa')
+              .map((stay) =>
+                stay.base === 'kyoto'
+                  ? { ...stay, checkOut: december(17) }
+                  : stay,
+              ),
+            moves: copy.moves.filter((move) => move.date !== december(13)),
+          }),
+        )
 
-      assert.deepStrictEqual(
-        schedule.stays.map(({ base }) => base.id),
-        ['tokyo', 'kyoto', 'tokyo'],
-      )
-      assert.isFalse(
-        (yield* checklistItems).some((item) => item.id === kanazawaId),
-      )
-    }).pipe(Effect.provide([trip, storage])),
+        assert.deepStrictEqual(
+          schedule.stays.map(({ base }) => base.id),
+          ['tokyo', 'kyoto', 'tokyo'],
+        )
+        assert.deepStrictEqual(schedule.stays[1]?.verifyClaims, [
+          ...(before.stays[1]?.verifyClaims ?? []),
+          ...(before.stays[2]?.verifyClaims ?? []),
+        ])
+        assert.isFalse(
+          (yield* checklistItems).some((item) => item.id === kanazawaId),
+        )
+      }).pipe(Effect.provide([trip, storage])),
   )
 
   const refusals: ReadonlyArray<

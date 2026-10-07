@@ -568,11 +568,15 @@ export const scheduleStore = Effect.gen(function* () {
     return copy
   })
 
-  /** Stores a row, or updates the row stored with its id in place. */
+  /**
+   * Stores a row, or updates the row stored with its id in place, only ever
+   * within its own Schedule.
+   */
   const upsertInto = (table: string) => (row: Schema.JsonObject) =>
     sql`
       INSERT INTO ${sql(table)} ${sql.insert(row)}
-      ON CONFLICT (id) DO UPDATE SET ${sql.update(row, ['id'])}
+      ON CONFLICT (id) DO UPDATE SET ${sql.update(row, ['id', 'scheduleId'])}
+      WHERE ${sql(table)}.scheduleId = excluded.scheduleId
     `
 
   /** How each row a Stay edit changes is written: inserted, or upserted. */
@@ -632,19 +636,29 @@ export const scheduleStore = Effect.gen(function* () {
     )
   })
 
-  /** Removes a Schedule's rows in a table whose ids are not among those kept. */
-  const removeOthers = (
+  /**
+   * Removes a Schedule's rows in a table whose ids are not among those kept,
+   * with the ticks on the Checklist items they derived.
+   */
+  const removeOthers = Effect.fnUntraced(function* (
     table: string,
     scheduleId: ScheduleId,
     kept: ReadonlyArray<{ readonly id: string }>,
-  ) =>
-    sql`
-      DELETE FROM ${sql(table)}
+  ) {
+    const removed = sql`
+      SELECT id FROM ${sql(table)}
       WHERE scheduleId = ${scheduleId} AND NOT ${sql.in(
         'id',
         kept.map(({ id }) => id),
       )}
     `
+
+    yield* sql`
+      DELETE FROM checklistTicks
+      WHERE scheduleId = ${scheduleId} AND itemId IN (${removed})
+    `
+    yield* sql`DELETE FROM ${sql(table)} WHERE id IN (${removed})`
+  })
 
   /** A Schedule found by its own fields, with its copy. */
   const withCopy = <E, R>(
