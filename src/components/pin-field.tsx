@@ -250,6 +250,10 @@ export function PinField({
 
   /** Finds a pasted link's coordinates and places the Pin there. */
   const find = async (link: string) => {
+    // Any newer finding supersedes a lookup in flight, even one refused here.
+    lookup.current += 1
+    const current = lookup.current
+
     if (link.trim() === '') return
 
     const refusal = linkRefusalOf(link.trim())
@@ -260,8 +264,6 @@ export function PinField({
       return
     }
 
-    lookup.current += 1
-    const current = lookup.current
     setFinding({ state: 'finding' })
     let outcome: ResolveLocationLinkOutcome
 
@@ -344,11 +346,12 @@ export function PinField({
               stopFinding()
               field.change({ link: event.target.value, coordinates: null })
             }}
-            // Pasting finds the place at once.
+            // Pasting finds the place at once. A paste still fires on the
+            // read-only field, so it waits like typing does.
             onPaste={(event) => {
               const pasted = event.clipboardData.getData('text')
 
-              if (pasted.trim() === '') return
+              if (busy || pasted.trim() === '') return
               event.preventDefault()
               field.change({ link: pasted, coordinates: null })
               void find(pasted)
