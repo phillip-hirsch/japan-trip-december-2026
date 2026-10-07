@@ -8,6 +8,7 @@ import { NoteText } from '@/components/note-text'
 import { Notice } from '@/components/notice'
 import { StayNote } from '@/components/notes'
 import { StayBoundaryField } from '@/components/stay-boundary'
+import { StayBaseField } from '@/components/stay-base'
 import { StayList } from '@/components/stay-list'
 import { StaySection } from '@/components/stay-section'
 import { SplitMergeStay } from '@/components/split-merge-stay'
@@ -26,10 +27,10 @@ import type {
 } from '@/trip/domain'
 
 /**
- * A Stay's check-out, Hotel details and Stay note. On the current Schedule
- * they're editable, the check-out only when a next Stay checks in that day,
- * and the Stay can be split or merged. An archived Schedule shows only the
- * Hotel details and Stay note it has, read-only.
+ * A Stay's Base, check-out, Hotel details and Stay note. On the current
+ * Schedule they're editable, the check-out only when a next Stay checks in
+ * that day, and the Stay can be split or merged. An archived Schedule shows
+ * only the Hotel details and Stay note it has, read-only.
  */
 const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
   const editable = schedule.status === 'current'
@@ -45,6 +46,19 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
 
   return (
     <>
+      {editable && (
+        <StaySection heading="Base" stay={stay}>
+          {(headingId) => (
+            <StayBaseField
+              key={stay.id}
+              scheduleId={schedule.id}
+              stay={stay}
+              anchorWarnings={schedule.anchorWarnings}
+              labelledBy={headingId}
+            />
+          )}
+        </StaySection>
+      )}
       {(editable || hotel) && (
         <StaySection heading="Hotel" stay={stay}>
           {(headingId) =>
@@ -128,6 +142,7 @@ export function ScheduleSections({
           days={schedule.days}
           stays={schedule.stays}
           linkDays={linkDays}
+          noDuration="travel time unknown"
         />
       </section>
     </>

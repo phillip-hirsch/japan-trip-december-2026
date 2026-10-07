@@ -9,6 +9,7 @@ import {
   MoveRoute,
   MoveTravel,
 } from '@/components/day-details'
+import type { NoDuration } from '@/components/day-details'
 import { PlaceName } from '@/components/place-name'
 import {
   Item,
@@ -30,7 +31,15 @@ import {
 import type { DayDetail, StayDetail } from '@/trip/domain'
 
 /** A Day, opening its own page when the timeline links its Days. */
-function DayItem({ day, linked }: { day: DayDetail; linked: boolean }) {
+function DayItem({
+  day,
+  linked,
+  noDuration,
+}: {
+  day: DayDetail
+  linked: boolean
+  noDuration?: NoDuration
+}) {
   const birthday = isBirthday(day.anchors)
 
   return (
@@ -70,7 +79,13 @@ function DayItem({ day, linked }: { day: DayDetail; linked: boolean }) {
         <AnchorBadges anchors={day.anchors} freeDay={day.freeDay} />
         <AnchorNotes anchors={day.anchors} />
         {day.move && <MoveRoute move={day.move} />}
-        {day.move && <MoveTravel move={day.move} className="pl-5.5" />}
+        {day.move && (
+          <MoveTravel
+            move={day.move}
+            noDuration={noDuration}
+            className="pl-5.5"
+          />
+        )}
         {day.dayTrips.map((dayTrip) => (
           <DayTripLine key={dayTrip.place.id} dayTrip={dayTrip} />
         ))}
@@ -102,11 +117,13 @@ export function DayTimeline({
   days,
   stays,
   linkDays = false,
+  noDuration,
 }: {
   days: ReadonlyArray<DayDetail>
   stays: ReadonlyArray<StayDetail>
   /** Whether each Day opens its page at /schedule/$date. */
   linkDays?: boolean
+  noDuration?: NoDuration
 }) {
   // Each Day sits under the latest Stay that has checked in by then, so a
   // Move day opens the Stay it moves to and Departure closes the last one.
@@ -137,7 +154,7 @@ export function DayTimeline({
             {days.map((day, index) => (
               <li key={day.date} id={day.date} className="scroll-mt-4">
                 {index > 0 && <Separator className="my-1" />}
-                <DayItem day={day} linked={linkDays} />
+                <DayItem day={day} linked={linkDays} noDuration={noDuration} />
               </li>
             ))}
           </ol>

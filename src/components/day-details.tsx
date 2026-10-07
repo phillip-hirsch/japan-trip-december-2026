@@ -111,12 +111,21 @@ export function MoveRoute({
   )
 }
 
+/**
+ * What a train or flight Move without a duration says. An Itinerary's source
+ * didn't give one. On the Schedule, the travel time is unknown, as it is
+ * after a Base change.
+ */
+export type NoDuration = 'duration not given' | 'travel time unknown'
+
 /** How a Move travels: its mode, rough duration and any change of train. */
 export function MoveTravel({
   move,
+  noDuration = 'duration not given',
   className,
 }: {
   move: MoveDetail
+  noDuration?: NoDuration
   className?: string
 }) {
   const { label, icon: Icon } = moveModes[move.mode]
@@ -132,10 +141,7 @@ export function MoveTravel({
       <span className="text-foreground">{label}</span>
       {move.mode !== 'local' && (
         <span>
-          ·{' '}
-          {move.duration
-            ? formatDurationRange(move.duration)
-            : 'duration not given'}
+          · {move.duration ? formatDurationRange(move.duration) : noDuration}
         </span>
       )}
       {move.changes.map((station) => (

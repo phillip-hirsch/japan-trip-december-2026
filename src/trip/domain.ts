@@ -1046,6 +1046,20 @@ export const MoveStayBoundary = Schema.Struct({
 
 export type MoveStayBoundary = typeof MoveStayBoundary.Type
 
+/**
+ * Change the Base of a Stay of the Schedule named to the place with the id
+ * given. Any string, so that a place outside the catalogue reaches the Trip
+ * service and gets refused as a Hard rule. Setting a Base is idempotent, so
+ * it carries no operation id.
+ */
+export const ChangeStayBase = Schema.Struct({
+  scheduleId: ScheduleId,
+  stayId: CopyId,
+  place: Schema.String,
+})
+
+export type ChangeStayBase = typeof ChangeStayBase.Type
+
 /** What writing Hotel details did, as plain data for the browser. */
 export const WriteHotelDetailsOutcome = Schema.TaggedUnion({
   Written: {},

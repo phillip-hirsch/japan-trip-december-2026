@@ -32,6 +32,7 @@ import {
   ChecklistItemNotFound,
   ChecklistTextInvalid,
   DayNotFound,
+  HardRule,
   HardRuleBroken,
   HomeState,
   Hotel,
@@ -58,6 +59,7 @@ import type {
   AddOwnChecklistItem,
   ArchivedScheduleSummary,
   BaseNights,
+  ChangeStayBase,
   Checklist,
   ChooseItinerary,
   ComparisonMap,
@@ -115,7 +117,7 @@ import {
   hotelDetailMaxLength,
   noteMaxLength,
 } from '@/trip/limits'
-import { places, visitedPlaceIds } from '@/trip/places'
+import { isPlaceId, places, visitedPlaceIds } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
 import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
 import type { StationId } from '@/trip/rail'
@@ -1499,6 +1501,25 @@ export class Trip extends Context.Service<
       SqlClient.SqlClient
     >
     /**
+     * Changes the Base of a Stay of the Schedule named to a place in the
+     * catalogue, as a Stay edit (editStays). The Stay keeps its id, and with
+     * it its Hotel details, Stay note and ticks, but loses its highlights,
+     * which described the old Base. The Moves on either side keep their mode
+     * and lose their rail sections and duration, so their travel time is
+     * unknown. A Base already that place changes nothing.
+     *
+     * Fails with StayNotFound when the Schedule has no Stay with the id, and
+     * with HardRuleBroken (PlaceNotInCatalogue) for a place outside the
+     * catalogue, besides the refusals of editStays.
+     */
+    changeStayBase(
+      input: ChangeStayBase,
+    ): Effect.Effect<
+      StaysEdited,
+      ScheduleChanged | StayNotFound | HardRuleBroken,
+      SqlClient.SqlClient
+    >
+    /**
      * Writes the Trip note as a whole value, so the last write wins. An empty
      * note removes it. It belongs to the Trip, so choosing again or restoring
      * leaves it as it is. NoteTooLong past 10,000 characters, writing
@@ -1934,6 +1955,43 @@ export class Trip extends Context.Service<
         )
       })
 
+      const changeStayBase = Effect.fn('Trip.changeStayBase')(function* ({
+        scheduleId,
+        stayId,
+        place,
+      }: ChangeStayBase) {
+        return yield* editStays({ scheduleId }, (copy) =>
+          Effect.gen(function* () {
+            const stay = copy.stays.find(({ id }) => id === stayId)
+
+            if (stay === undefined) return yield* new StayNotFound({ stayId })
+
+            if (!isPlaceId(place)) {
+              return yield* new HardRuleBroken({
+                rule: HardRule.cases.PlaceNotInCatalogue.make({ place }),
+              })
+            }
+
+            if (stay.base === place) return copy
+
+            const adjoining = new Set([stay.checkIn, stay.checkOut])
+
+            return {
+              stays: copy.stays.map((other) =>
+                other.id === stayId
+                  ? { ...other, base: place, highlights: [] }
+                  : other,
+              ),
+              moves: copy.moves.map((move) =>
+                adjoining.has(move.date)
+                  ? { ...Struct.omit(move, ['duration']), sections: [] }
+                  : move,
+              ),
+            }
+          }),
+        )
+      })
+
       const writeTripNote = Effect.fn('Trip.writeTripNote')(
         function* ({ note }: WriteTripNote) {
           yield* requireNoteLength(note)
@@ -2212,6 +2270,7 @@ export class Trip extends Context.Service<
         splitStay,
         mergeStays,
         moveStayBoundary,
+        changeStayBase,
         writeTripNote,
         checklist,
         tickChecklistItem,
