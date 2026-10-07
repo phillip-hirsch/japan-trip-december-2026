@@ -7,6 +7,7 @@ import { HotelDetailsField, HotelDetailsList } from '@/components/hotel-details'
 import { NoteText } from '@/components/note-text'
 import { Notice } from '@/components/notice'
 import { StayNote } from '@/components/notes'
+import { StayBoundaryField } from '@/components/stay-boundary'
 import { StayList } from '@/components/stay-list'
 import { StaySection } from '@/components/stay-section'
 import { SplitMergeStay } from '@/components/split-merge-stay'
@@ -25,9 +26,10 @@ import type {
 } from '@/trip/domain'
 
 /**
- * A Stay's Hotel details and Stay note: editable on the current Schedule,
- * where the Stay can also be split or merged; on an archived one, only those
- * it has, read-only, and nothing without any.
+ * A Stay's check-out, Hotel details and Stay note. On the current Schedule
+ * they're editable, the check-out only when a next Stay checks in that day,
+ * and the Stay can be split or merged. An archived Schedule shows only the
+ * Hotel details and Stay note it has, read-only.
  */
 const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
   const editable = schedule.status === 'current'
@@ -37,11 +39,26 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
     : undefined
 
   const { note } = stay
+  const next = schedule.stays.find(({ checkIn }) => checkIn === stay.checkOut)
 
   if (!editable && hotel === undefined && note === undefined) return null
 
   return (
     <>
+      {editable && next && (
+        <StaySection heading="Check-out" stay={stay}>
+          {(headingId) => (
+            <StayBoundaryField
+              key={stay.id}
+              scheduleId={schedule.id}
+              stay={stay}
+              next={next}
+              anchorWarnings={schedule.anchorWarnings}
+              labelledBy={headingId}
+            />
+          )}
+        </StaySection>
+      )}
       {(editable || hotel) && (
         <StaySection heading="Hotel" stay={stay}>
           {(headingId) =>

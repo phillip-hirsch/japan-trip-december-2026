@@ -18,6 +18,7 @@ import {
   MergeStays,
   MoveActivity,
   MoveActivityOutcome,
+  MoveStayBoundary,
   OptionNumber,
   RemoveActivity,
   RemoveActivityOutcome,
@@ -187,6 +188,18 @@ export const mergeStays = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(MergeStays))
   .handler(({ data }) =>
     callTripStore(StayEditOutcome, (store) => store.mergeStays(data)),
+  )
+
+/**
+ * Moves the date a Stay of the Schedule named checks out, with the next Stay's
+ * check-in and the Move between them. Setting a date twice changes nothing
+ * more, so it carries no operation id. The Trip service enforces the Hard
+ * rules and refuses a Schedule that isn't current.
+ */
+export const moveStayBoundary = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(MoveStayBoundary))
+  .handler(({ data }) =>
+    callTripStore(StayEditOutcome, (store) => store.moveStayBoundary(data)),
   )
 
 /**

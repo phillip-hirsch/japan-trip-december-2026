@@ -69,6 +69,10 @@ _Avoid_: overnight base, city
 Switching hotels between two Stays, travelling with luggage.
 _Avoid_: hotel move, hotel change, transfer
 
+**Stay boundary**:
+The date one Stay checks out and the next checks in, which is the date of the Move between them. Moving it gives nights from one Stay to the other.
+_Avoid_: changeover, transition day
+
 **Day trip**:
 Going to another town and returning to the same Base on the same day. Sights within a Base's own area, like the Hakone Open-Air Museum during a Hakone Stay, are not Day trips.
 _Avoid_: excursion, side trip
