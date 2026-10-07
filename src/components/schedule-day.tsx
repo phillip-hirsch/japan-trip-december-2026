@@ -13,6 +13,7 @@ import {
   MoveRoute,
   MoveTravel,
 } from '@/components/day-details'
+import { HotelDetailsList } from '@/components/hotel-details'
 import { DayNote } from '@/components/notes'
 import { DisplayJa } from '@/components/display-ja'
 import { NewPlaceBadge } from '@/components/new-place-badge'
@@ -23,6 +24,7 @@ import {
   ItemActions,
   ItemContent,
   ItemDescription,
+  ItemFooter,
   ItemMedia,
   ItemTitle,
 } from '@/components/ui/item'
@@ -154,6 +156,11 @@ function TonightsHotelCard({ tonight }: { tonight: TonightsHotel }) {
       <ItemActions className="text-sm text-muted-foreground tabular-nums">
         {formatNights(tonight.nights)}
       </ItemActions>
+      {Predicate.isTagged('Recorded')(tonight.hotel) && (
+        <ItemFooter className="sm:pl-[4.375rem]">
+          <HotelDetailsList details={tonight.hotel} />
+        </ItemFooter>
+      )}
     </Item>
   )
 }

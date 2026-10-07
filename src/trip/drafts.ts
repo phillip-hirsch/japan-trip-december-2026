@@ -96,6 +96,12 @@ export const dayNoteTarget = (date: IsoDate) => `day-note:${date}`
  */
 export const stayNoteTarget = (stayId: string) => `stay-note:${stayId}`
 
+/**
+ * The draft target of the Hotel details on a Stay, by its id, as the Stay
+ * note's is.
+ */
+export const hotelDetailsTarget = (stayId: string) => `hotel-details:${stayId}`
+
 /** The draft target of the Trip note. */
 export const tripNoteTarget = 'trip-note'
 

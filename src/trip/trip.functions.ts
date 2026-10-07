@@ -34,6 +34,8 @@ import {
   TickOwnChecklistItemOutcome,
   WriteDayNote,
   WriteDayNoteOutcome,
+  WriteHotelDetails,
+  WriteHotelDetailsOutcome,
   WriteStayNote,
   WriteStayNoteOutcome,
   WriteTripNote,
@@ -147,6 +149,20 @@ export const writeStayNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteStayNote))
   .handler(({ data }) =>
     callTripStore(WriteStayNoteOutcome, (store) => store.writeStayNote(data)),
+  )
+
+/**
+ * Writes the Hotel details on a Stay of the Schedule named, as a whole value.
+ * The write is idempotent, so it carries no operation id; the Trip service
+ * trims the fields, enforces the length cap and refuses a Schedule that isn't
+ * current.
+ */
+export const writeHotelDetails = createServerFn({ method: 'POST' })
+  .validator(Schema.toStandardSchemaV1(WriteHotelDetails))
+  .handler(({ data }) =>
+    callTripStore(WriteHotelDetailsOutcome, (store) =>
+      store.writeHotelDetails(data),
+    ),
   )
 
 /**

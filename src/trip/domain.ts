@@ -537,11 +537,35 @@ export const ScheduleAnchor = Schema.TaggedUnion({
 
 export type ScheduleAnchor = typeof ScheduleAnchor.Type
 
+/**
+ * Phillip's Hotel details on a Stay: its hotel's name, address and
+ * confirmation number, each absent until he records it.
+ */
+export const HotelDetails = Schema.Struct({
+  name: Schema.optionalKey(Schema.String),
+  address: Schema.optionalKey(Schema.String),
+  confirmationNumber: Schema.optionalKey(Schema.String),
+})
+
+export type HotelDetails = typeof HotelDetails.Type
+
+/**
+ * A Stay's hotel: its Hotel details once Phillip records any, and until then
+ * not recorded, so a Day page shows the Base marked "hotel not recorded".
+ */
+export const Hotel = Schema.TaggedUnion({
+  NotRecorded: {},
+  Recorded: HotelDetails.fields,
+})
+
+export type Hotel = typeof Hotel.Type
+
 export const ScheduleStayDetail = Schema.Struct({
   id: CopyId,
   ...StayDetail.fields,
   /** Phillip's Stay note, absent until he writes one. */
   note: Schema.optionalKey(Schema.String),
+  hotel: Hotel,
 })
 
 export type ScheduleStayDetail = typeof ScheduleStayDetail.Type
@@ -594,14 +618,6 @@ export const ScheduleDayDetail = Schema.Struct({
 })
 
 export type ScheduleDayDetail = typeof ScheduleDayDetail.Type
-
-/**
- * A Stay's hotel. Not recorded until Phase 3 lets Phillip record its
- * details, so a Day page shows the Base marked "hotel not recorded".
- */
-export const Hotel = Schema.TaggedUnion({ NotRecorded: {} })
-
-export type Hotel = typeof Hotel.Type
 
 /** Tonight's hotel: the Stay covering the night a Day ends with. */
 export const TonightsHotel = Schema.Struct({
@@ -876,6 +892,35 @@ export const WriteStayNoteOutcome = Schema.TaggedUnion({
 })
 
 export type WriteStayNoteOutcome = typeof WriteStayNoteOutcome.Type
+
+/**
+ * Write the Hotel details on a Stay of the Schedule named, as a whole value:
+ * each field is trimmed, a blank one is removed, and all blank removes them,
+ * so the Stay's hotel is not recorded again. The last write wins.
+ */
+export const WriteHotelDetails = Schema.Struct({
+  scheduleId: ScheduleId,
+  stayId: CopyId,
+  details: HotelDetails,
+})
+
+export type WriteHotelDetails = typeof WriteHotelDetails.Type
+
+/** A Hotel details field longer than the Trip service accepts. */
+export class HotelDetailTooLong extends Schema.TaggedError<HotelDetailTooLong>()(
+  'HotelDetailTooLong',
+  { maxLength: Schema.Int },
+) {}
+
+/** What writing Hotel details did, as plain data for the browser. */
+export const WriteHotelDetailsOutcome = Schema.TaggedUnion({
+  Written: {},
+  ScheduleChanged: ScheduleChanged.fields,
+  StayNotFound: StayNotFound.fields,
+  HotelDetailTooLong: HotelDetailTooLong.fields,
+})
+
+export type WriteHotelDetailsOutcome = typeof WriteHotelDetailsOutcome.Type
 
 /**
  * Write the Trip note, as a whole value: an empty note removes it. It belongs

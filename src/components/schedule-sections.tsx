@@ -1,8 +1,11 @@
 import { Link } from '@tanstack/react-router'
+import { Predicate } from 'effect'
 import { ChevronRightIcon, HistoryIcon } from 'lucide-react'
 import { useId } from 'react'
+import type { ReactNode } from 'react'
 
 import { DayTimeline } from '@/components/day-timeline'
+import { HotelDetailsField, HotelDetailsList } from '@/components/hotel-details'
 import { NoteText } from '@/components/note-text'
 import { StayNote } from '@/components/notes'
 import { StayList } from '@/components/stay-list'
@@ -21,42 +24,89 @@ import type {
   ScheduleStayDetail,
 } from '@/trip/domain'
 
-/** A Stay's Stay note: editable on the current Schedule, else read-only. */
-function ScheduleStayNote({
-  schedule,
+/** A part of a Stay on the Schedule, under its own heading. */
+function StaySection({
+  heading,
   stay,
+  children,
 }: {
-  schedule: ScheduleDetail
+  heading: string
   stay: ScheduleStayDetail
+  /** What the section holds, given the id of its heading. */
+  children: (headingId: string) => ReactNode
 }) {
   const headingId = useId()
 
   return (
     <div className="flex flex-col gap-2">
       <h3 id={headingId} className="text-sm text-muted-foreground">
-        Note<span className="sr-only"> on the {stay.base.romaji} Stay</span>
+        {heading}
+        <span className="sr-only"> for the {stay.base.romaji} Stay</span>
       </h3>
-      {schedule.status === 'current' ? (
-        <StayNote
-          key={stay.id}
-          scheduleId={schedule.id}
-          stayId={stay.id}
-          note={stay.note}
-          labelledBy={headingId}
-        />
-      ) : (
-        stay.note !== undefined && (
-          <NoteText text={stay.note} className="text-sm" />
-        )
-      )}
+      {children(headingId)}
     </div>
   )
 }
 
 /**
- * A Schedule's Stays, with their Stay notes, and Days, current or archived.
- * Only the current Schedule's Days have pages of their own to link to, and
- * only its Stay notes can be edited.
+ * A Stay's Hotel details and Stay note: editable on the current Schedule;
+ * on an archived one, only those it has, read-only, and nothing without any.
+ */
+const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
+  const editable = schedule.status === 'current'
+
+  const hotel = Predicate.isTagged('Recorded')(stay.hotel)
+    ? stay.hotel
+    : undefined
+
+  const { note } = stay
+
+  if (!editable && hotel === undefined && note === undefined) return null
+
+  return (
+    <>
+      {(editable || hotel) && (
+        <StaySection heading="Hotel" stay={stay}>
+          {(headingId) =>
+            editable ? (
+              <HotelDetailsField
+                key={stay.id}
+                scheduleId={schedule.id}
+                stayId={stay.id}
+                hotel={stay.hotel}
+                labelledBy={headingId}
+              />
+            ) : (
+              hotel && <HotelDetailsList details={hotel} />
+            )
+          }
+        </StaySection>
+      )}
+      {(editable || note !== undefined) && (
+        <StaySection heading="Note" stay={stay}>
+          {(headingId) =>
+            editable ? (
+              <StayNote
+                key={stay.id}
+                scheduleId={schedule.id}
+                stayId={stay.id}
+                note={note}
+                labelledBy={headingId}
+              />
+            ) : (
+              note !== undefined && <NoteText text={note} className="text-sm" />
+            )
+          }
+        </StaySection>
+      )}
+    </>
+  )
+}
+
+/**
+ * A Schedule's Stays, with their Hotel details and Stay notes, and Days,
+ * current or archived. Only the current Schedule's Days have pages of their
+ * own to link to, and only its Hotel details and Stay notes can be edited.
  */
 export function ScheduleSections({
   schedule,
@@ -71,15 +121,7 @@ export function ScheduleSections({
         <h2 id="stays" className="mb-4 text-xl font-semibold">
           Stays
         </h2>
-        <StayList
-          stays={schedule.stays}
-          // An archived Stay without a Stay note shows none.
-          footer={(stay) =>
-            (schedule.status === 'current' || stay.note !== undefined) && (
-              <ScheduleStayNote schedule={schedule} stay={stay} />
-            )
-          }
-        />
+        <StayList stays={schedule.stays} footer={stayFooter(schedule)} />
       </section>
       <section aria-labelledby="days" className="mt-12">
         <h2 id="days" className="mb-4 text-xl font-semibold">

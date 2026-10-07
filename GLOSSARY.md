@@ -37,6 +37,10 @@ _Avoid_: day memo, comment
 Phillip's own plain-text note on a Stay of the Schedule, such as tips about the hotel's area, shown with the Stay on the Schedule page. Like a Day note, it belongs to that Schedule.
 _Avoid_: hotel note, stay memo
 
+**Hotel details**:
+Phillip's record of a Stay's hotel: its name, address and confirmation number, each optional, saved together as one value. Like a Stay note, they belong to that Schedule, and the Stay keeps them, and its id, when they are edited.
+_Avoid_: booking, reservation, hotel info
+
 **Trip note**:
 Phillip's one plain-text note about the whole Trip, shown on the Schedule page. It belongs to the Trip, not a Schedule, so it stays as it is when he chooses again or restores.
 _Avoid_: general note, global note
@@ -48,7 +52,7 @@ A Day of the Schedule on its own page at /schedule/$date: the Day's source descr
 During the Trip, Home showing the Day page of the current Day in Tokyo, in place.
 
 **Tonight's hotel**:
-The Stay covering the night a Day ends with; absent on December 20. Shown as its Base marked "hotel not recorded" until hotel details are recorded.
+The Stay covering the night a Day ends with, with its Hotel details; absent on December 20. Shown as its Base marked "hotel not recorded" until its Hotel details are recorded.
 
 **Next Move**:
 From a Day, the first Move dated that Day or later; absent once no Moves are left.

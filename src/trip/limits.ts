@@ -12,3 +12,9 @@ export const checklistTextMaxLength = 500
 
 /** The longest Activity title the Trip service accepts. */
 export const activityTitleMaxLength = 200
+
+/**
+ * The longest hotel name, address or confirmation number the Trip service
+ * accepts.
+ */
+export const hotelDetailMaxLength = 500

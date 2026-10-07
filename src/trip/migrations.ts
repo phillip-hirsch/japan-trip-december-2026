@@ -165,4 +165,13 @@ export const migrations = Migrator.fromRecord({
       CREATE INDEX activitiesByDay ON activities (scheduleId, date, position)
     `
   }),
+  // Phillip's Hotel details on each Stay, a column per field so the hotel's
+  // pin (ticket 27, set by its own write) can join them without a details
+  // write touching it; each null while he has recorded none.
+  '0008_stays_hotel': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+    yield* sql`ALTER TABLE stays ADD COLUMN hotelName TEXT`
+    yield* sql`ALTER TABLE stays ADD COLUMN hotelAddress TEXT`
+    yield* sql`ALTER TABLE stays ADD COLUMN hotelConfirmationNumber TEXT`
+  }),
 })
