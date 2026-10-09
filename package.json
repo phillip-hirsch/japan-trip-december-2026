@@ -9,7 +9,7 @@
     "preview": "vp preview",
     "deploy": "pnpm run build && wrangler deploy",
     "cf-typegen": "wrangler types",
-    "prepare": "vp config && effect-tsgo patch --typescript --oxlint && (test -f .dev.vars || cp .dev.vars.example .dev.vars)",
+    "prepare": "vp config && effect-tsgo patch --typescript --oxlint && node -e \"fs.existsSync('.dev.vars') || fs.copyFileSync('.dev.vars.example', '.dev.vars')\"",
     "lint": "vp lint",
     "format": "vp fmt .",
     "typecheck": "tsc --noEmit -p tsconfig.json",
