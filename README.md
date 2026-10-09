@@ -34,7 +34,7 @@ vp run dev
 
 `vp run dev` runs `vp dev` on port 3000. Open http://localhost:3000.
 
-For `vp dev` and `vp preview`, `.dev.vars` sets `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_DEV_SIMULATION`. Its `ACCESS_AUD` is the real one, matching `access.dev.aud` in `wrangler.jsonc`. `ACCESS_ALLOWED_EMAIL` is under `vars` in `wrangler.jsonc`.
+For `vp dev` and `vp preview`, `.dev.vars` sets `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_DEV_SIMULATION`. It is git-ignored; `vp install` creates it from the committed `.dev.vars.example` when it's missing. Its `ACCESS_AUD` is the real one, matching `access.dev.aud` in `wrangler.jsonc`. `ACCESS_ALLOWED_EMAIL` is under `vars` in `wrangler.jsonc`.
 
 ```bash
 vp check           # format, lint, and typecheck
@@ -48,7 +48,7 @@ vp test            # tests under src/
 
 `vp run deploy` builds the Worker and runs `wrangler deploy` to https://japan-trip-december-2026.phillip-b52.workers.dev, the app's stable address. The Worker name is `japan-trip-december-2026`. You need `wrangler login`.
 
-Sign-in is Cloudflare Access, an email one-time PIN for one address. `src/server.ts` checks the assertion. Access is Worker-level: the team is `phillip-hirsch.cloudflareaccess.com`, the policy allows only phillip@350home.com, and the application and global sessions last one month. `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_ALLOWED_EMAIL` are Worker variables in `wrangler.jsonc`, not secrets. `ACCESS_AUD` is the Access application's AUD tag. If the application is ever recreated, update it there and in `.dev.vars`, or the gate refuses every request ([#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14), [ADR 0002](docs/adr/0002-cloudflare-access-instead-of-in-app-login.md)). Shortening a session also ends existing logins older than the new duration, and lengthening it again doesn't bring them back, so redo the [pre-trip routine](docs/pre-trip-routine.md) after any session change ([#22](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/22)).
+Sign-in is Cloudflare Access, an email one-time PIN for one address. `src/server.ts` checks the assertion. Access is Worker-level: the team is `phillip-hirsch.cloudflareaccess.com`, the policy allows only phillip@350home.com, and the application and global sessions last one month. `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_ALLOWED_EMAIL` are Worker variables in `wrangler.jsonc`, not secrets. `ACCESS_AUD` is the Access application's AUD tag. If the application is ever recreated, update it there, in `.dev.vars.example`, and in your local `.dev.vars`, or the gate refuses every request ([#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14), [ADR 0002](docs/adr/0002-cloudflare-access-instead-of-in-app-login.md)). Shortening a session also ends existing logins older than the new duration, and lengthening it again doesn't bring them back, so redo the [pre-trip routine](docs/pre-trip-routine.md) after any session change ([#22](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/22)).
 
 The repo is public. Itineraries and these docs are in git. The schedule, checklist, notes, and bookings live in storage, not in commits ([ADR 0003](docs/adr/0003-itineraries-are-repo-content.md)).
 

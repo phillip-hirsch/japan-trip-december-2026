@@ -1,6 +1,7 @@
 # Local-only Access gate values for `vp dev` and `vp preview`; never deployed.
+# `vp install` copies this to the git-ignored .dev.vars when that is missing.
 # ACCESS_AUD is the real Access AUD, matching access.dev.aud in wrangler.jsonc.
-# No secrets belong here.
+# Keep this file free of secrets; put them in .dev.vars only.
 ACCESS_TEAM_DOMAIN=https://local-dev.cloudflareaccess.com
 ACCESS_AUD=4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16
 # Lets the gate accept Wrangler's Access dev simulation, which sends no token.
