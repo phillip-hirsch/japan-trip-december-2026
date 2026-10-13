@@ -18,3 +18,8 @@ todos.json
 # dotenv environment variable files
 .env.*
 !.env.example
+
+# Wrangler local variables; .dev.vars.example is the committed template
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
