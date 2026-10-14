@@ -1,5 +1,5 @@
 import { useServerFn } from '@tanstack/react-start'
-import { Match, Predicate } from 'effect'
+import { Predicate } from 'effect'
 import { PencilIcon } from 'lucide-react'
 import { useId } from 'react'
 
@@ -8,14 +8,9 @@ import { OpenInGoogleMaps } from '@/components/open-in-google-maps'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type {
-  Hotel,
-  HotelDetails,
-  Pin,
-  ScheduleId,
-  WriteHotelDetailsOutcome,
-} from '@/trip/domain'
+import type { Hotel, HotelDetails, Pin, ScheduleId } from '@/trip/domain'
 import {
+  answerOwn,
   hotelDetailsTarget,
   keyedBy,
   SaveAnswer,
@@ -53,22 +48,10 @@ const isHotelFields = (value: unknown): value is HotelFields =>
   Predicate.isObject(value) &&
   hotelFields.every(({ key }) => Predicate.isString(value[key]))
 
-const answerOf = (outcome: WriteHotelDetailsOutcome): SaveAnswer =>
-  Match.value(outcome).pipe(
-    Match.tagsExhaustive({
-      Written: () => SaveAnswer.Saved(),
-      ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-      StayNotFound: () =>
-        SaveAnswer.Refused({
-          problem:
-            'This Stay is no longer part of your Schedule. Your hotel details are kept here.',
-        }),
-      HotelDetailTooLong: ({ maxLength }) =>
-        SaveAnswer.Refused({
-          problem: `Each hotel detail can be at most ${maxLength} characters.`,
-        }),
-    }),
-  )
+const tooLong = ({ maxLength }: { readonly maxLength: number }) =>
+  SaveAnswer.Refused({
+    problem: `Each hotel detail can be at most ${maxLength} characters.`,
+  })
 
 export function HotelDetailsList({
   details: { name, address, confirmationNumber, pin },
@@ -119,7 +102,10 @@ function HotelDetailsForm({
     saved: fieldsOf(hotel),
     write: 'hotelDetails',
     run: async (details) =>
-      answerOf(await write({ data: { scheduleId, stayId, details } })),
+      answerOwn(
+        await write({ data: { scheduleId, stayId, details } }),
+        tooLong,
+      ),
   })
 
   const { state, value } = field

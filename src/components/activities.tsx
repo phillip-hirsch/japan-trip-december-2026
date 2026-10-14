@@ -14,7 +14,6 @@ import {
   NotSavedAlert,
   RetryOrDismiss,
   SavedStatus,
-  warnAfterRowGoes,
 } from '@/components/not-saved-alert'
 import { NoteText } from '@/components/note-text'
 import { PinField } from '@/components/pin-field'
@@ -22,10 +21,9 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { formatDay, timeOfDayOf, timeOfDayPattern } from '@/trip/calendar'
+import { timeOfDayOf, timeOfDayPattern } from '@/trip/calendar'
 import type {
   Activity,
-  AddActivityOutcome,
   Coordinates,
   EditActivityOutcome,
   IsoDate,
@@ -35,14 +33,16 @@ import type {
 } from '@/trip/domain'
 import {
   activityTarget,
+  answerOwn,
   keyedBy,
   newActivityTarget,
   SaveAnswer,
   SaveState,
   useOperationSave,
   useSave,
+  warned,
 } from '@/trip/drafts'
-import type { DraftKeeping } from '@/trip/drafts'
+import type { DraftKeeping, OwnOutcome, SaveWarning } from '@/trip/drafts'
 import { activityTitleMaxLength, noteMaxLength } from '@/trip/limits'
 import {
   addActivity,
@@ -91,70 +91,28 @@ const noteTooLong = (maxLength: number) =>
     problem: `An Activity’s note can be at most ${maxLength.toLocaleString('en')} characters.`,
   })
 
-const addAnswerOf = (outcome: AddActivityOutcome): SaveAnswer =>
+const activityRefusal = (outcome: OwnOutcome<EditActivityOutcome>) =>
   Match.value(outcome).pipe(
     Match.tagsExhaustive({
-      Added: () => SaveAnswer.Saved(),
-      ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-      DayNotFound: ({ date }) =>
-        SaveAnswer.Refused({
-          problem: `${formatDay(date)} is no longer a Day of your Schedule. Your Activity is kept here.`,
-        }),
       ActivityTitleInvalid: ({ maxLength }) => titleInvalid(maxLength),
       NoteTooLong: ({ maxLength }) => noteTooLong(maxLength),
     }),
   )
 
-const editAnswerOf = (outcome: EditActivityOutcome): SaveAnswer =>
-  Match.value(outcome).pipe(
-    Match.tagsExhaustive({
-      Edited: () => SaveAnswer.Saved(),
-      ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-      ActivityNotFound: () =>
-        SaveAnswer.Gone({
-          problem:
-            'This Activity is no longer on this Day, perhaps removed on another device.',
-        }),
-      ActivityTitleInvalid: ({ maxLength }) => titleInvalid(maxLength),
-      NoteTooLong: ({ maxLength }) => noteTooLong(maxLength),
-    }),
-  )
+/** Removing an Activity already gone counts as saved. */
+const removalAnswerOf = (outcome: RemoveActivityOutcome) =>
+  Predicate.isTagged('ActivityNotFound')(outcome) ? SaveAnswer.Saved() : outcome
 
-const alreadyRemoved = () => SaveAnswer.Saved()
+const notMoved: SaveWarning = {
+  title: 'The Activity wasn’t moved',
+  description:
+    'The one it was moving past was removed, perhaps on another device. Move it again if you still want to.',
+}
 
-const removeAnswerOf = (outcome: RemoveActivityOutcome): SaveAnswer =>
-  Match.value(outcome).pipe(
-    Match.tagsExhaustive({
-      Removed: () => SaveAnswer.Saved(),
-      ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-      ActivityNotFound: alreadyRemoved,
-    }),
-  )
-
-const moveAnswerOf =
-  (moving: string) =>
-  (outcome: MoveActivityOutcome): SaveAnswer =>
-    Match.value(outcome).pipe(
-      Match.tagsExhaustive({
-        Moved: () => SaveAnswer.Saved(),
-        ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-        ActivityNotFound: ({ activityId }) => {
-          if (activityId === moving) {
-            return SaveAnswer.Gone({
-              problem: 'This Activity is no longer on this Day.',
-            })
-          }
-
-          warnAfterRowGoes({
-            title: 'The Activity wasn’t moved',
-            description:
-              'The one it was moving past was removed, perhaps on another device. Move it again if you still want to.',
-          })
-
-          return SaveAnswer.Saved()
-        },
-      }),
-    )
+/** The Activity a move was to pass is gone, so nothing moved. */
+const passedActivityGone = (moving: string, outcome: MoveActivityOutcome) =>
+  Predicate.isTagged('ActivityNotFound')(outcome) &&
+  outcome.activityId !== moving
 
 function ActivityEditor({
   state,
@@ -303,7 +261,7 @@ function ActivityRow({
     write: 'activity',
     run: async ({ from, ...value }) =>
       timeRefusal(value.time) ??
-      editAnswerOf(
+      answerOwn(
         await edit({
           data: {
             scheduleId,
@@ -315,6 +273,7 @@ function ActivityRow({
             ...(value.note !== from.note && { note: value.note }),
           },
         }),
+        activityRefusal,
       ),
   })
 
@@ -443,7 +402,6 @@ function ActivityRow({
           near={near}
           noun="location"
           labelledBy={titleId}
-          gone="This Activity is no longer on this Day, perhaps removed on another device."
           summaryClassName="pl-16"
         />
       )}
@@ -491,7 +449,7 @@ function AddActivityForm({
     write: 'activity',
     run: async ({ operationId, title, time, note }) =>
       timeRefusal(time) ??
-      addAnswerOf(
+      answerOwn(
         await add({
           data: {
             operationId,
@@ -502,6 +460,7 @@ function AddActivityForm({
             ...(note !== '' && { note }),
           },
         }),
+        activityRefusal,
       ),
   })
 
@@ -559,12 +518,15 @@ function DayActivities({
     scheduleId,
     saved: null,
     write: 'activity',
-    run: async (activityMove) =>
-      activityMove === null
-        ? SaveAnswer.Saved()
-        : moveAnswerOf(activityMove.activityId)(
-            await move({ data: { scheduleId, ...activityMove } }),
-          ),
+    run: async (activityMove) => {
+      if (activityMove === null) return SaveAnswer.Saved()
+
+      const outcome = await move({ data: { scheduleId, ...activityMove } })
+
+      return passedActivityGone(activityMove.activityId, outcome)
+        ? warned(SaveAnswer.Saved(), notMoved)
+        : outcome
+    },
   })
 
   const removal = useSave<string | null>({
@@ -574,7 +536,7 @@ function DayActivities({
     run: async (activityId) =>
       activityId === null
         ? SaveAnswer.Saved()
-        : removeAnswerOf(await remove({ data: { scheduleId, activityId } })),
+        : removalAnswerOf(await remove({ data: { scheduleId, activityId } })),
   })
 
   const dayOrderUnsettled =

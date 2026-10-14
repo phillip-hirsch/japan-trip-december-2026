@@ -1,11 +1,10 @@
 import { useServerFn } from '@tanstack/react-start'
-import { Predicate } from 'effect'
 import { PencilIcon } from 'lucide-react'
 import { useId } from 'react'
 
 import { ChipChoice } from '@/components/chip-choice'
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
-import { hardRuleProblem, stayEditAnswerOf } from '@/components/schedule-rules'
+import { answerStayEdit, hardRuleProblem } from '@/components/schedule-rules'
 import { StaySection } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
 import type {
@@ -44,12 +43,11 @@ function StayBaseForm({
         data: { scheduleId, stayId: stay.id, place },
       })
 
-      return Predicate.isTagged('HardRuleBroken')(outcome)
-        ? unknownPlace(outcome.rule)
-        : stayEditAnswerOf(
-            'The Base change breaks an Anchor',
-            schedule.anchorWarnings,
-          )(outcome)
+      return answerStayEdit(
+        'The Base change breaks an Anchor',
+        schedule.anchorWarnings,
+        unknownPlace,
+      )(outcome)
     },
   })
 

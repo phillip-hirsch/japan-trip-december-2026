@@ -59,7 +59,6 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
                   near={stay.base.coordinates}
                   noun="pin"
                   labelledBy={headingId}
-                  gone="This Stay is no longer part of your Schedule."
                 />
               </>
             ) : (

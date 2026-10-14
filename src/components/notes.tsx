@@ -1,5 +1,4 @@
 import { useServerFn } from '@tanstack/react-start'
-import { Match } from 'effect'
 import { PencilIcon } from 'lucide-react'
 import { useId } from 'react'
 
@@ -7,15 +6,9 @@ import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
 import { NoteText } from '@/components/note-text'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { formatDay } from '@/trip/calendar'
-import type {
-  IsoDate,
-  ScheduleId,
-  WriteDayNoteOutcome,
-  WriteStayNoteOutcome,
-  WriteTripNoteOutcome,
-} from '@/trip/domain'
+import type { IsoDate, ScheduleId } from '@/trip/domain'
 import {
+  answerOwn,
   dayNoteTarget,
   keyedBy,
   SaveState,
@@ -33,10 +26,12 @@ import {
 
 const nearsTheCap = (note: string) => note.length >= noteMaxLength - 1_000
 
-const tooLong = (noun: string, maxLength: number) =>
-  SaveAnswer.Refused({
-    problem: `A ${noun} can be at most ${maxLength.toLocaleString('en')} characters.`,
-  })
+const tooLong =
+  (noun: string) =>
+  ({ maxLength }: { readonly maxLength: number }) =>
+    SaveAnswer.Refused({
+      problem: `A ${noun} can be at most ${maxLength.toLocaleString('en')} characters.`,
+    })
 
 function NoteEditor({
   labelledBy,
@@ -131,19 +126,6 @@ function NoteEditor({
 
 const NoteField = keyedBy(NoteEditor, ({ target }) => target)
 
-const dayNoteAnswerOf = (outcome: WriteDayNoteOutcome): SaveAnswer =>
-  Match.value(outcome).pipe(
-    Match.tagsExhaustive({
-      Written: () => SaveAnswer.Saved(),
-      ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-      DayNotFound: (outcome) =>
-        SaveAnswer.Refused({
-          problem: `${formatDay(outcome.date)} is no longer a Day of your Schedule. Your text is kept here.`,
-        }),
-      NoteTooLong: (outcome) => tooLong('Day note', outcome.maxLength),
-    }),
-  )
-
 export function DayNote({
   scheduleId,
   date,
@@ -164,8 +146,9 @@ export function DayNote({
       saved={note ?? ''}
       write="dayNote"
       run={async (value) =>
-        dayNoteAnswerOf(
+        answerOwn(
           await write({ data: { scheduleId, date, note: value } }),
+          tooLong('Day note'),
         )
       }
       labelledBy={labelledBy}
@@ -173,20 +156,6 @@ export function DayNote({
     />
   )
 }
-
-const stayNoteAnswerOf = (outcome: WriteStayNoteOutcome): SaveAnswer =>
-  Match.value(outcome).pipe(
-    Match.tagsExhaustive({
-      Written: () => SaveAnswer.Saved(),
-      ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-      StayNotFound: () =>
-        SaveAnswer.Refused({
-          problem:
-            'This Stay is no longer part of your Schedule. Your text is kept here.',
-        }),
-      NoteTooLong: (outcome) => tooLong('Stay note', outcome.maxLength),
-    }),
-  )
 
 export function StayNote({
   scheduleId,
@@ -208,8 +177,9 @@ export function StayNote({
       saved={note ?? ''}
       write="stayNote"
       run={async (value) =>
-        stayNoteAnswerOf(
+        answerOwn(
           await write({ data: { scheduleId, stayId, note: value } }),
+          tooLong('Stay note'),
         )
       }
       labelledBy={labelledBy}
@@ -217,14 +187,6 @@ export function StayNote({
     />
   )
 }
-
-const tripNoteAnswerOf = (outcome: WriteTripNoteOutcome): SaveAnswer =>
-  Match.value(outcome).pipe(
-    Match.tagsExhaustive({
-      Written: () => SaveAnswer.Saved(),
-      NoteTooLong: (outcome) => tooLong('Trip note', outcome.maxLength),
-    }),
-  )
 
 /**
  * Phillip's Trip note. It belongs to the Trip, not a Schedule, so a Schedule
@@ -246,7 +208,7 @@ export function TripNote({
       saved={note ?? ''}
       write="tripNote"
       run={async (value) =>
-        tripNoteAnswerOf(await write({ data: { note: value } }))
+        answerOwn(await write({ data: { note: value } }), tooLong('Trip note'))
       }
       labelledBy={labelledBy}
       emptyText="No Trip note yet. It stays as it is when you choose again."

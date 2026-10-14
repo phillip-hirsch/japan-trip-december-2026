@@ -19,12 +19,14 @@ import type {
   SetPinOutcome,
 } from '@/trip/domain'
 import {
+  answerOwn,
   keyedBy,
   pinTarget,
   SaveAnswer,
   SaveState,
   useSave,
 } from '@/trip/drafts'
+import type { OwnOutcome } from '@/trip/drafts'
 import { locationLinkMaxLength } from '@/trip/limits'
 import { linkRefusalOf } from '@/trip/pins'
 import { resolveLocationLink, setPin } from '@/trip/trip.functions'
@@ -86,23 +88,17 @@ const outsideJapan =
 const noCoordinates =
   'This link names the place but doesn’t say where it is. Drag the pin into place, or tap the map where it goes. The app keeps the link for Open in Google Maps.'
 
-const setAnswerOf =
-  (gone: string) =>
-  (outcome: SetPinOutcome): SaveAnswer =>
-    Match.value(outcome).pipe(
-      Match.tagsExhaustive({
-        Set: () => SaveAnswer.Saved(),
-        ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-        ActivityNotFound: () => SaveAnswer.Gone({ problem: gone }),
-        StayNotFound: () => SaveAnswer.Gone({ problem: gone }),
-        LocationLinkRefused: ({ reason }) =>
-          SaveAnswer.Refused({ problem: refusalProblems[reason] }),
-        CoordinatesOutsideJapan: () =>
-          SaveAnswer.Refused({
-            problem: 'The pin is outside Japan. Drag it back into Japan.',
-          }),
-      }),
-    )
+const pinRefusal = (outcome: OwnOutcome<SetPinOutcome>): SaveAnswer =>
+  Match.value(outcome).pipe(
+    Match.tagsExhaustive({
+      LocationLinkRefused: ({ reason }) =>
+        SaveAnswer.Refused({ problem: refusalProblems[reason] }),
+      CoordinatesOutsideJapan: () =>
+        SaveAnswer.Refused({
+          problem: 'The pin is outside Japan. Drag it back into Japan.',
+        }),
+    }),
+  )
 
 type Finding =
   | { readonly state: 'idle' }
@@ -118,7 +114,6 @@ function PinEditor({
   near,
   noun,
   labelledBy,
-  gone,
   summaryClassName,
 }: {
   scheduleId: ScheduleId
@@ -127,7 +122,6 @@ function PinEditor({
   near: Coordinates
   noun: string
   labelledBy: string
-  gone: string
   summaryClassName?: string
 }) {
   const resolve = useServerFn(resolveLocationLink)
@@ -161,10 +155,11 @@ function PinEditor({
     run: async (placed) => {
       const confirmed = pinOfFields(placed)
 
-      return setAnswerOf(gone)(
+      return answerOwn(
         await write({
           data: { scheduleId, target, ...(confirmed && { pin: confirmed }) },
         }),
+        pinRefusal,
       )
     },
   })

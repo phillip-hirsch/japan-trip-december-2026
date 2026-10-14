@@ -1,8 +1,7 @@
-import { Match } from 'effect'
+import { Match, Predicate } from 'effect'
 import { TriangleAlertIcon } from 'lucide-react'
 
 import { Notice } from '@/components/notice'
-import { toast } from '@/components/ui/toast'
 import {
   birthdayDate,
   formatDay,
@@ -12,7 +11,8 @@ import {
   tripStartDate,
 } from '@/trip/calendar'
 import type { AnchorWarning, HardRule, StayEditOutcome } from '@/trip/domain'
-import { SaveAnswer } from '@/trip/drafts'
+import { answerOwn, SaveAnswer, warned } from '@/trip/drafts'
+import type { SaveWarning } from '@/trip/drafts'
 import { places } from '@/trip/places'
 
 export const anchorWarningText = (warning: AnchorWarning) =>
@@ -79,33 +79,35 @@ const staleStays = (rule: HardRule) =>
     problem: `${hardRuleProblem(rule)} Nothing changed. Your Stays may have changed on another device.`,
   })
 
-export const stayEditAnswerOf =
-  (anchorBroken: string, warningsBefore: ReadonlyArray<AnchorWarning>) =>
-  (outcome: StayEditOutcome): SaveAnswer =>
-    Match.value(outcome).pipe(
-      Match.tagsExhaustive({
-        Edited: ({ schedule }) => {
-          const added = schedule.anchorWarnings.filter(
-            (warning) =>
-              !warningsBefore.some(({ _tag }) => _tag === warning._tag),
-          )
+const anchorWarningOf = (
+  title: string,
+  warningsBefore: ReadonlyArray<AnchorWarning>,
+  outcome: StayEditOutcome,
+): SaveWarning | undefined => {
+  if (!Predicate.isTagged('Edited')(outcome)) return undefined
 
-          if (added.length > 0) {
-            toast.add({
-              type: 'warning',
-              title: anchorBroken,
-              description: added.map(anchorWarningText).join(' '),
-            })
-          }
+  const added = outcome.schedule.anchorWarnings.filter(
+    (warning) => !warningsBefore.some(({ _tag }) => _tag === warning._tag),
+  )
 
-          return SaveAnswer.Saved()
-        },
-        ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-        StayNotFound: () =>
-          SaveAnswer.Gone({
-            problem:
-              'This Stay is no longer part of your Schedule. It may have changed on another device.',
-          }),
-        HardRuleBroken: ({ rule }) => staleStays(rule),
-      }),
+  return added.length === 0
+    ? undefined
+    : { title, description: added.map(anchorWarningText).join(' ') }
+}
+
+/**
+ * Answers a Stay edit, warning of the Anchors it broke that weren't broken
+ * before. A broken Hard rule means the Stays shown are stale, unless
+ * `brokenRule` answers it otherwise.
+ */
+export const answerStayEdit =
+  (
+    anchorBroken: string,
+    warningsBefore: ReadonlyArray<AnchorWarning>,
+    brokenRule: (rule: HardRule) => SaveAnswer = staleStays,
+  ) =>
+  (outcome: StayEditOutcome) =>
+    warned(
+      answerOwn(outcome, ({ rule }) => brokenRule(rule)),
+      anchorWarningOf(anchorBroken, warningsBefore, outcome),
     )

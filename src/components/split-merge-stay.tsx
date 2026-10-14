@@ -5,7 +5,7 @@ import { useId, useState } from 'react'
 
 import { DateChoice } from '@/components/date-choice'
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
-import { stayEditAnswerOf } from '@/components/schedule-rules'
+import { answerStayEdit } from '@/components/schedule-rules'
 import { StaySection, WithdrawnStayEdit } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
 import { formatShortDate, tripDates } from '@/trip/calendar'
@@ -82,7 +82,7 @@ function SplitMergeStayForm({
 
       setLastKind(choice.kind)
 
-      const answer = stayEditAnswerOf(
+      const answer = answerStayEdit(
         labels[choice.kind].anchorBroken,
         schedule.anchorWarnings,
       )
