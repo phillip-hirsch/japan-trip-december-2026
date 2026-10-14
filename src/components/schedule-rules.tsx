@@ -1,4 +1,4 @@
-import { Match } from 'effect'
+import { Match, Predicate } from 'effect'
 import { TriangleAlertIcon } from 'lucide-react'
 
 import { Notice } from '@/components/notice'
@@ -12,7 +12,7 @@ import {
   tripStartDate,
 } from '@/trip/calendar'
 import type { AnchorWarning, HardRule, StayEditOutcome } from '@/trip/domain'
-import { SaveAnswer } from '@/trip/drafts'
+import { answerOwn, SaveAnswer } from '@/trip/drafts'
 import { places } from '@/trip/places'
 
 export const anchorWarningText = (warning: AnchorWarning) =>
@@ -79,33 +79,39 @@ const staleStays = (rule: HardRule) =>
     problem: `${hardRuleProblem(rule)} Nothing changed. Your Stays may have changed on another device.`,
   })
 
-export const stayEditAnswerOf =
+/** A Stay edit's own outcome: a broken Hard rule means the Stays shown are stale. */
+const stayEditAnswerOf = (outcome: StayEditOutcome) =>
+  answerOwn(outcome, ({ rule }) => staleStays(rule))
+
+/**
+ * Once a Stay edit is answered, warns of the Anchors it broke that weren't
+ * broken before.
+ */
+export const warnOfBrokenAnchors = (
+  title: string,
+  warningsBefore: ReadonlyArray<AnchorWarning>,
+  outcome: StayEditOutcome,
+) => {
+  if (!Predicate.isTagged('Edited')(outcome)) return
+
+  const added = outcome.schedule.anchorWarnings.filter(
+    (warning) => !warningsBefore.some(({ _tag }) => _tag === warning._tag),
+  )
+
+  if (added.length > 0) {
+    toast.add({
+      type: 'warning',
+      title,
+      description: added.map(anchorWarningText).join(' '),
+    })
+  }
+}
+
+/** Answers a Stay edit once warned of the Anchors it broke. */
+export const answerStayEdit =
   (anchorBroken: string, warningsBefore: ReadonlyArray<AnchorWarning>) =>
-  (outcome: StayEditOutcome): SaveAnswer =>
-    Match.value(outcome).pipe(
-      Match.tagsExhaustive({
-        Edited: ({ schedule }) => {
-          const added = schedule.anchorWarnings.filter(
-            (warning) =>
-              !warningsBefore.some(({ _tag }) => _tag === warning._tag),
-          )
+  (outcome: StayEditOutcome) => {
+    warnOfBrokenAnchors(anchorBroken, warningsBefore, outcome)
 
-          if (added.length > 0) {
-            toast.add({
-              type: 'warning',
-              title: anchorBroken,
-              description: added.map(anchorWarningText).join(' '),
-            })
-          }
-
-          return SaveAnswer.Saved()
-        },
-        ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-        StayNotFound: () =>
-          SaveAnswer.Gone({
-            problem:
-              'This Stay is no longer part of your Schedule. It may have changed on another device.',
-          }),
-        HardRuleBroken: ({ rule }) => staleStays(rule),
-      }),
-    )
+    return stayEditAnswerOf(outcome)
+  }

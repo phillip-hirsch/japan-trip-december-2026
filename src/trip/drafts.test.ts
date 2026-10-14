@@ -10,11 +10,21 @@ import { Predicate } from 'effect'
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import { IsoDate, ScheduleId } from '@/trip/domain'
+import {
+  EditActivityOutcome,
+  IsoDate,
+  ScheduleId,
+  WriteDayNoteOutcome,
+  WriteStayNoteOutcome,
+} from '@/trip/domain'
 import {
   SaveAnswer,
   SaveState,
+  activityTarget,
+  dayNoteTarget,
   newActivityTarget,
+  stayNoteTarget,
+  useDraftedField,
   useOfferedSave,
   useOperationSave,
   useSave,
@@ -321,6 +331,77 @@ describe('a Stay edit the refreshed Schedule withdraws', () => {
     assert.strictEqual(notSavedProblem(editor.field().state), refusal)
     await editor.close()
   })
+})
+
+describe('saving to a Day, Stay or Activity that no longer exists', () => {
+  const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
+  const date = IsoDate.make('2026-12-07')
+
+  const gone = [
+    {
+      item: 'a Day',
+      target: dayNoteTarget(date),
+      write: 'dayNote',
+      outcome: WriteDayNoteOutcome.cases.DayNotFound.make({ date }),
+      problem:
+        'Monday, December 7 is no longer a Day of your Schedule, perhaps changed on another device.',
+    },
+    {
+      item: 'a Stay',
+      target: stayNoteTarget('stay-kyoto'),
+      write: 'stayNote',
+      outcome: WriteStayNoteOutcome.cases.StayNotFound.make({
+        stayId: 'stay-kyoto',
+      }),
+      problem:
+        'This Stay is no longer part of your Schedule, perhaps changed on another device.',
+    },
+    {
+      item: 'an Activity',
+      target: activityTarget('activity-tsukiji'),
+      write: 'activity',
+      outcome: EditActivityOutcome.cases.ActivityNotFound.make({
+        activityId: 'activity-tsukiji',
+      }),
+      problem:
+        'This Activity is no longer on this Day, perhaps removed on another device.',
+    },
+  ] as const
+
+  for (const { item, target, write, outcome, problem } of gone) {
+    it(`keeps the Draft for ${item} marked "not saved", says it is gone, and refetches`, async () => {
+      localStorage.clear()
+      let reads = 0
+
+      const open = () =>
+        openEditor(
+          () =>
+            useDraftedField({
+              target,
+              scheduleId,
+              saved: '',
+              write,
+              run: async () => outcome,
+            }),
+          {},
+          async () => `schedules, read ${++reads}`,
+        )
+
+      const editor = await open()
+      await act(async () => editor.field().change('Tsukiji at dawn'))
+      await act(() => editor.field().save())
+
+      assert.strictEqual(notSavedProblem(editor.field().state), problem)
+      assert.strictEqual(editor.field().value, 'Tsukiji at dawn')
+      assert.strictEqual(reads, 2)
+      await editor.close()
+
+      const reopened = await open()
+      assert.isTrue(SaveState.$is('NotSaved')(reopened.field().state))
+      assert.strictEqual(reopened.field().value, 'Tsukiji at dawn')
+      await reopened.close()
+    })
+  }
 })
 
 describe('saving the Trip note', () => {

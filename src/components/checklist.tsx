@@ -22,15 +22,9 @@ import {
   formatShortDate,
   formatWeekday,
 } from '@/trip/calendar'
-import type {
-  AddOwnChecklistItemOutcome,
-  ChecklistItem,
-  ChecklistMove,
-  ScheduleId,
-  TickChecklistItemOutcome,
-  TickOwnChecklistItemOutcome,
-} from '@/trip/domain'
+import type { ChecklistItem, ChecklistMove, ScheduleId } from '@/trip/domain'
 import {
+  answerOwn,
   newChecklistItemTarget,
   SaveAnswer,
   SaveState,
@@ -106,35 +100,6 @@ const verifyNoteOf = (item: ChecklistItem) =>
     Match.orElse(() => undefined),
   )
 
-const notFound = SaveAnswer.Gone({
-  problem: 'This item is no longer on your Checklist.',
-})
-
-const tickAnswerOf = (outcome: TickChecklistItemOutcome): SaveAnswer =>
-  Match.value(outcome).pipe(
-    Match.tagsExhaustive({
-      Ticked: () => SaveAnswer.Saved(),
-      ScheduleChanged: () => {
-        warnAfterRowGoes({
-          title: 'Your Schedule changed on another device',
-          description:
-            'The tick wasn’t saved. The Checklist now shows the Schedule as it is.',
-        })
-
-        return SaveAnswer.ScheduleChanged()
-      },
-      ChecklistItemNotFound: () => notFound,
-    }),
-  )
-
-const ownTickAnswerOf = (outcome: TickOwnChecklistItemOutcome): SaveAnswer =>
-  Match.value(outcome).pipe(
-    Match.tagsExhaustive({
-      Ticked: () => SaveAnswer.Saved(),
-      ChecklistItemNotFound: () => notFound,
-    }),
-  )
-
 function ChecklistRow({
   item,
   scheduleId,
@@ -154,17 +119,23 @@ function ChecklistRow({
     saved: item.ticked,
     write: 'checklist',
     run: async (ticked) => {
-      if (own) {
-        return ownTickAnswerOf(
-          await tickOwn({ data: { itemId: item.id, ticked } }),
-        )
-      }
+      if (own) return tickOwn({ data: { itemId: item.id, ticked } })
 
       if (scheduleId === null) return SaveAnswer.ScheduleChanged()
 
-      return tickAnswerOf(
-        await tickDerived({ data: { scheduleId, itemId: item.id, ticked } }),
-      )
+      const outcome = await tickDerived({
+        data: { scheduleId, itemId: item.id, ticked },
+      })
+
+      if (Predicate.isTagged('ScheduleChanged')(outcome)) {
+        warnAfterRowGoes({
+          title: 'Your Schedule changed on another device',
+          description:
+            'The tick wasn’t saved. The Checklist now shows the Schedule as it is.',
+        })
+      }
+
+      return outcome
     },
   })
 
@@ -172,11 +143,7 @@ function ChecklistRow({
     scheduleId: null,
     saved: false,
     write: 'checklist',
-    run: async () => {
-      await remove({ data: { itemId: item.id } })
-
-      return SaveAnswer.Saved()
-    },
+    run: () => remove({ data: { itemId: item.id } }),
   })
 
   const ticked = tick.value
@@ -320,16 +287,10 @@ const newItemDraft: DraftKeeping<NewChecklistItem> = {
     Predicate.isString(value.operationId),
 }
 
-const addAnswerOf = (outcome: AddOwnChecklistItemOutcome): SaveAnswer =>
-  Match.value(outcome).pipe(
-    Match.tagsExhaustive({
-      Added: () => SaveAnswer.Saved(),
-      ChecklistTextInvalid: ({ maxLength }) =>
-        SaveAnswer.Refused({
-          problem: `An item needs some text, at most ${maxLength} characters.`,
-        }),
-    }),
-  )
+const textInvalid = ({ maxLength }: { readonly maxLength: number }) =>
+  SaveAnswer.Refused({
+    problem: `An item needs some text, at most ${maxLength} characters.`,
+  })
 
 export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
   const add = useServerFn(addOwnChecklistItem)
@@ -347,7 +308,7 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
         ? SaveAnswer.Refused({
             problem: 'Choose a reminder date with a four-digit year.',
           })
-        : addAnswerOf(
+        : answerOwn(
             await add({
               data: {
                 operationId,
@@ -355,6 +316,7 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
                 ...(reminderDate !== '' && { reminderDate }),
               },
             }),
+            textInvalid,
           ),
   })
 

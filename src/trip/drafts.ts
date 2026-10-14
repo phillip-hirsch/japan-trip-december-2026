@@ -1,9 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Data, Predicate } from 'effect'
+import { Data, Match, Predicate } from 'effect'
 import { createElement, useEffect, useRef, useState } from 'react'
 import type { FunctionComponent } from 'react'
 
 import { ConnectionStatus, currentConnection } from '@/access/connection-status'
+import { formatDay } from '@/trip/calendar'
 import type { IsoDate, PinTarget, ScheduleId } from '@/trip/domain'
 import {
   invalidateAfter,
@@ -113,6 +114,97 @@ export type SaveAnswer = Data.TaggedEnum<{
 
 export const SaveAnswer = Data.taggedEnum<SaveAnswer>()
 
+type WrittenTag =
+  | 'Written'
+  | 'Added'
+  | 'Edited'
+  | 'Set'
+  | 'Ticked'
+  | 'Removed'
+  | 'Moved'
+
+/**
+ * What every write can answer: it was written, the Schedule changed, or the
+ * Day, Stay, Activity or Checklist item it was for no longer exists. The save
+ * flow answers these alike for every editor.
+ */
+export type SharedOutcome =
+  | { readonly [T in WrittenTag]: { readonly _tag: T } }[WrittenTag]
+  | { readonly _tag: 'ScheduleChanged' }
+  | { readonly _tag: 'DayNotFound'; readonly date: IsoDate }
+  | { readonly _tag: 'StayNotFound' }
+  | { readonly _tag: 'ActivityNotFound' }
+  | { readonly _tag: 'ChecklistItemNotFound' }
+
+/** The outcomes of a write only its editor answers. */
+export type OwnOutcome<O> = Exclude<O, SharedOutcome>
+
+const saved = () => SaveAnswer.Saved()
+
+const sharedAnswers = {
+  Written: saved,
+  Added: saved,
+  Edited: saved,
+  Set: saved,
+  Ticked: saved,
+  Removed: saved,
+  Moved: saved,
+  ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
+  DayNotFound: ({ date }: { readonly date: IsoDate }) =>
+    SaveAnswer.Gone({
+      problem: `${formatDay(date)} is no longer a Day of your Schedule, perhaps changed on another device.`,
+    }),
+  StayNotFound: () =>
+    SaveAnswer.Gone({
+      problem:
+        'This Stay is no longer part of your Schedule, perhaps changed on another device.',
+    }),
+  ActivityNotFound: () =>
+    SaveAnswer.Gone({
+      problem:
+        'This Activity is no longer on this Day, perhaps removed on another device.',
+    }),
+  ChecklistItemNotFound: () =>
+    SaveAnswer.Gone({
+      problem:
+        'This item is no longer on your Checklist, perhaps removed on another device.',
+    }),
+} satisfies {
+  readonly [T in SharedOutcome['_tag']]: (
+    outcome: Extract<SharedOutcome, { readonly _tag: T }>,
+  ) => SaveAnswer
+}
+
+const isShared = <O extends { readonly _tag: string }>(
+  outcome: O,
+): outcome is Extract<O, SharedOutcome> =>
+  Object.hasOwn(sharedAnswers, outcome._tag)
+
+/**
+ * Answers an outcome only this editor has, such as a note that is too long,
+ * with `own`. The outcomes every write shares pass through to the save flow.
+ */
+export const answerOwn = <O extends { readonly _tag: string }>(
+  outcome: O,
+  own: (outcome: OwnOutcome<O>) => SaveAnswer,
+): SaveAnswer | Extract<O, SharedOutcome> => {
+  if (isShared(outcome)) return outcome
+
+  // SAFETY: isShared refused it, so it is one of O's own outcomes; TypeScript
+  // doesn't narrow a type parameter where a guard fails.
+  return own(outcome as OwnOutcome<O>)
+}
+
+const answerOf = (reply: SaveAnswer | SharedOutcome): SaveAnswer =>
+  Match.value(reply).pipe(
+    Match.tagsExhaustive({
+      ...sharedAnswers,
+      Saved: (answer) => answer,
+      Refused: (answer) => answer,
+      Gone: (answer) => answer,
+    }),
+  )
+
 /**
  * A value saved under the save pattern, by what it shows.
  *
@@ -180,7 +272,9 @@ const useOnChange = <A>(
  * with a draft target is written as its draft; only a successful save clears
  * it, and invalidates the queries the write affects. On mount, a draft left
  * by an earlier visit or a login reload is restored, marked not saved. A
- * "Schedule changed" refusal refetches the data and keeps the value.
+ * "Schedule changed" refusal refetches the data and keeps the value, and so
+ * does an answer that what it was for is gone. Every other refusal keeps the
+ * value without refetching.
  *
  * Key the component using it by what it saves, as keyedBy does, so another
  * target starts afresh.
@@ -202,8 +296,11 @@ export const useSave = <V>({
   scheduleId: ScheduleId | null
   saved: V
   write: TripWrite
-  /** Sends the value; throws when the request gets no answer. */
-  run: (value: V) => Promise<SaveAnswer>
+  /**
+   * Sends the value, answering the outcomes only this editor has, as
+   * `answerOwn` does; throws when the request gets no answer.
+   */
+  run: (value: V) => Promise<SaveAnswer | SharedOutcome>
 }) => {
   const queryClient = useQueryClient()
   const [state, setState] = useState<SaveState<V>>(clean)
@@ -377,7 +474,7 @@ export const useSave = <V>({
     let mayHaveLanded = false
 
     try {
-      answer = await run(sending)
+      answer = answerOf(await run(sending))
     } catch {
       mayHaveLanded = true
       answer = SaveAnswer.Refused({ problem: unansweredProblem(drafted) })

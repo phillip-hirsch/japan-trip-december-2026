@@ -5,7 +5,7 @@ import { useId } from 'react'
 
 import { DateChoice } from '@/components/date-choice'
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
-import { stayEditAnswerOf } from '@/components/schedule-rules'
+import { answerStayEdit } from '@/components/schedule-rules'
 import { StaySection, WithdrawnStayEdit } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
 import {
@@ -53,7 +53,7 @@ function StayBoundaryForm({
     saved: stay.checkOut,
     write: 'stayEdit',
     run: async (checkOut) =>
-      stayEditAnswerOf(
+      answerStayEdit(
         'The move breaks an Anchor',
         anchorWarnings,
       )(await move({ data: { scheduleId, stayId: stay.id, checkOut } })),
