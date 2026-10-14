@@ -132,12 +132,14 @@ interface NewActivity {
 
 interface AddSent {
   readonly operationId: string
+  readonly operationScheduleId: string
   readonly scheduleId: ScheduleId
 }
 
 /**
  * The New Activity editor on a Day, open on a page showing `scheduleId`.
- * Each add it sends is recorded in `sent`, to the Schedule shown then.
+ * Each add it sends is recorded in `sent`: its operation, the Schedule that
+ * operation was made for, and the Schedule shown then, which it is sent to.
  */
 const openNewActivityEditor = async (
   scheduleId: ScheduleId,
@@ -158,8 +160,8 @@ const openNewActivityEditor = async (
         scheduleId,
         saved: { title: '', operationId: '', operationScheduleId: '' },
         write: 'activity',
-        run: async ({ operationId }) => {
-          sent.push({ operationId, scheduleId })
+        run: async ({ operationId, operationScheduleId }) => {
+          sent.push({ operationId, operationScheduleId, scheduleId })
 
           return SaveAnswer.Saved()
         },
@@ -206,6 +208,7 @@ describe('adding an Activity', () => {
     await act(() => after.field().save())
     assert.strictEqual(sent.length, 1)
     assert.strictEqual(sent[0]?.scheduleId, scheduleB)
+    assert.strictEqual(sent[0]?.operationScheduleId, scheduleB)
     assert.notStrictEqual(sent[0]?.operationId, firstOperation)
     await after.close()
   })
