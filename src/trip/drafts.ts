@@ -161,6 +161,19 @@ const unansweredProblem = (drafted: boolean) => {
     : 'The app couldn’t reach the server. Retry when you’re back online.'
 }
 
+const useOnChange = <A>(
+  value: A,
+  onChange: (value: A) => void,
+  same: (a: A, b: A) => boolean = Object.is,
+) => {
+  const last = useRef(value)
+  useEffect(() => {
+    if (same(last.current, value)) return
+    last.current = value
+    onChange(value)
+  }, [value])
+}
+
 /**
  * A value saved as a whole under the save pattern. Before each save a value
  * with a draft target is written as its draft; only a successful save clears
@@ -199,34 +212,67 @@ export const useSave = <V>({
   scheduleIdRef.current = scheduleId
   const target = keeping?.target
   const drafted = keeping !== undefined
-  // The stored draft this field wrote or restored: it only ever clears that
-  // one, never one another editor of the target, such as another tab, wrote.
-  const ownDraftId = useRef<string>(undefined)
+  const ownDraftWriteId = useRef<string>(undefined)
 
   const storedDraft = () => (keeping ? readDraft(keeping) : undefined)
 
   const keepDraft = (next: V) => {
-    ownDraftId.current = target
+    ownDraftWriteId.current = target
       ? writeDraft(target, next, scheduleIdRef.current)
       : undefined
 
-    return ownDraftId.current
+    return ownDraftWriteId.current
   }
 
   const clearStoredDraft = () => {
     if (target) clearDraft(target)
   }
 
-  const clearOwnDraft = () => {
-    if (storedDraft()?.writeId === ownDraftId.current) clearStoredDraft()
+  const clearDraftIfStill = (writeId: string | undefined) => {
+    if (writeId !== undefined && storedDraft()?.writeId === writeId) {
+      clearStoredDraft()
+    }
   }
 
+  const clearOwnDraft = () => clearDraftIfStill(ownDraftWriteId.current)
+
+  const typedForAnotherSchedule = (draft: Draft<V>) =>
+    draft.scheduleId !== scheduleIdRef.current
+
   const savedAlready = (draft: Draft<V>) =>
-    draft.scheduleId === scheduleIdRef.current &&
-    equals(draft.value, savedRef.current)
+    !typedForAnotherSchedule(draft) && equals(draft.value, savedRef.current)
+
+  const markedForChangedSchedule = (current: SaveState<V>) =>
+    (SaveState.$is('Editing')(current) || SaveState.$is('NotSaved')(current)) &&
+    !equals(current.value, savedRef.current)
+      ? SaveState.NotSaved({
+          value: current.value,
+          problem: scheduleChangedProblem(drafted),
+        })
+      : current
+
+  const savedAfterAll = (latest: V) => (current: SaveState<V>) =>
+    SaveState.$is('NotSaved')(current) && equals(current.value, latest)
+      ? clean
+      : current
 
   const stopAwaitingRead = useRef<() => void>(undefined)
   useEffect(() => () => stopAwaitingRead.current?.(), [])
+
+  const cleanOnNextRead = () => {
+    stopAwaitingRead.current?.()
+
+    const stop = subscribeToReadsAfter(queryClient, write, () => {
+      stop()
+      setState((current) =>
+        SaveState.$is('Saved')(current)
+          ? SaveState.Clean({ justSaved: true })
+          : current,
+      )
+    })
+
+    stopAwaitingRead.current = stop
+  }
 
   useEffect(() => {
     const draft = storedDraft()
@@ -235,59 +281,35 @@ export const useSave = <V>({
 
     if (savedAlready(draft)) clearStoredDraft()
     else {
-      ownDraftId.current = draft.writeId
+      ownDraftWriteId.current = draft.writeId
       setState(
         SaveState.NotSaved({
           value: draft.value,
-          // Typed for a Schedule since replaced, it's never saved there unseen.
-          problem:
-            draft.scheduleId === scheduleIdRef.current
-              ? restoredProblem
-              : scheduleChangedProblem(true),
+          problem: typedForAnotherSchedule(draft)
+            ? scheduleChangedProblem(true)
+            : restoredProblem,
         }),
       )
     }
   }, [target])
 
-  // An edit made for a Schedule that has since been replaced is kept, but
-  // marked as for a changed Schedule, so it's never saved there unseen.
-  const shownScheduleId = useRef(scheduleId)
-  useEffect(() => {
-    if (shownScheduleId.current === scheduleId) return
-    shownScheduleId.current = scheduleId
-    setState((current) =>
-      (SaveState.$is('Editing')(current) ||
-        SaveState.$is('NotSaved')(current)) &&
-      !equals(current.value, savedRef.current)
-        ? SaveState.NotSaved({
-            value: current.value,
-            problem: scheduleChangedProblem(drafted),
-          })
-        : current,
-    )
-  }, [scheduleId])
+  useOnChange(scheduleId, () => setState(markedForChangedSchedule))
 
-  // Data read later holding a value marked not saved means it was saved after
-  // all, such as a restored draft whose save, from before the field was
-  // reopened, has since landed. Only new data does this, never typing; and
-  // never for a draft typed for another Schedule, which equal text there
-  // doesn't save.
-  const lastSaved = useRef(saved)
-  useEffect(() => {
-    if (equals(lastSaved.current, saved)) return
-    lastSaved.current = saved
-    const draft = storedDraft()
-    const own = draft !== undefined && draft.writeId === ownDraftId.current
+  useOnChange(
+    saved,
+    (latest) => {
+      const draft = storedDraft()
 
-    if (own && draft.scheduleId !== scheduleIdRef.current) return
+      const own =
+        draft !== undefined && draft.writeId === ownDraftWriteId.current
 
-    if (own && savedAlready(draft)) clearStoredDraft()
-    setState((current) =>
-      SaveState.$is('NotSaved')(current) && equals(current.value, saved)
-        ? clean
-        : current,
-    )
-  }, [saved, target])
+      if (own && typedForAnotherSchedule(draft)) return
+
+      if (own && savedAlready(draft)) clearStoredDraft()
+      setState(savedAfterAll(latest))
+    },
+    equals,
+  )
 
   const value = SaveState.$is('Clean')(state) ? saved : state.value
 
@@ -312,48 +334,26 @@ export const useSave = <V>({
 
   const saveValue = async (sending: V) => {
     const sentTo = scheduleIdRef.current
-    const draftId = keepDraft(sending)
+    const sentDraftWriteId = keepDraft(sending)
     setState(SaveState.Saving({ value: sending }))
     let answer: SaveAnswer
 
-    let answered = true
+    let mayHaveLanded = false
 
     try {
       answer = await run(sending)
     } catch {
-      answered = false
+      mayHaveLanded = true
       answer = SaveAnswer.Refused({ problem: unansweredProblem(drafted) })
     }
 
-    // Data read during the save showing another Schedule means the value was
-    // meant for one no longer shown, whatever the answer: keep it, refused,
-    // so it is never saved to the new one unseen.
-    if (scheduleIdRef.current !== sentTo) {
-      answer = SaveAnswer.ScheduleChanged()
-    }
+    const shownScheduleChanged = scheduleIdRef.current !== sentTo
+
+    if (shownScheduleChanged) answer = SaveAnswer.ScheduleChanged()
 
     if (SaveAnswer.$is('Saved')(answer)) {
-      // Another editor of the target, in this tab or another, may have kept
-      // a newer draft since, even with the same value.
-      if (draftId !== undefined && storedDraft()?.writeId === draftId) {
-        clearStoredDraft()
-      }
-
-      // The next successful read of what the write affects (its refetch, or
-      // a later one if that fails) shows what the server holds, even a value
-      // equal to the one before the save.
-      stopAwaitingRead.current?.()
-
-      const stop = subscribeToReadsAfter(queryClient, write, () => {
-        stop()
-        setState((current) =>
-          SaveState.$is('Saved')(current)
-            ? SaveState.Clean({ justSaved: true })
-            : current,
-        )
-      })
-
-      stopAwaitingRead.current = stop
+      clearDraftIfStill(sentDraftWriteId)
+      cleanOnNextRead()
       setState(SaveState.Saved({ value: sending }))
       await invalidateAfter(queryClient, write)
 
@@ -371,10 +371,7 @@ export const useSave = <V>({
 
     if (SaveAnswer.$is('ScheduleChanged')(answer)) {
       await invalidateAfterScheduleChanged(queryClient)
-    } else if (SaveAnswer.$is('Gone')(answer) || !answered) {
-      // A save whose answer was lost may still have landed: once a read
-      // shows it, a value marked not saved that it holds is cleared, and a
-      // created item appears before Phillip types it again.
+    } else if (SaveAnswer.$is('Gone')(answer) || mayHaveLanded) {
       await invalidateAfter(queryClient, write)
     }
   }
