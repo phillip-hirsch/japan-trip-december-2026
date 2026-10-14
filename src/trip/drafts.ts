@@ -217,9 +217,12 @@ export const useSave = <V>({
 
   const storedDraft = () => (keeping ? readDraft(keeping) : undefined)
 
-  const keepDraft = (next: V) => {
+  const keepDraft = (
+    next: V,
+    typedFor: string | null = scheduleIdRef.current,
+  ) => {
     ownDraftWriteId.current = target
-      ? writeDraft(target, next, scheduleIdRef.current)
+      ? writeDraft(target, next, typedFor)
       : undefined
 
     return ownDraftWriteId.current
@@ -339,6 +342,27 @@ export const useSave = <V>({
     )
   }
 
+  /**
+   * Replaces a NotSaved value without Phillip editing it, such as to give it
+   * a fresh operation id. Its draft stays marked for the Schedule it was typed
+   * for, so it is restored saying that Schedule changed.
+   */
+  const renew = (next: V) => {
+    if (!SaveState.$is('NotSaved')(state)) return
+
+    const draft = storedDraft()
+
+    if (draft !== undefined && draft.writeId === ownDraftWriteId.current) {
+      keepDraft(next, draft.scheduleId)
+    }
+
+    setState((current) =>
+      SaveState.$is('NotSaved')(current)
+        ? { ...current, value: next }
+        : current,
+    )
+  }
+
   const discard = () => {
     clearOwnDraft()
     setState(clean)
@@ -398,7 +422,7 @@ export const useSave = <V>({
     if (!SaveState.$is('Saving')(state)) await saveValue(next)
   }
 
-  return { state, value, edit, change, discard, save, send }
+  return { state, value, edit, change, renew, discard, save, send }
 }
 
 /**
@@ -424,12 +448,13 @@ export const useOperationSave = <
   const field = useSave(options)
   const { scheduleId } = options
 
-  const change = (next: V) =>
-    field.change({
-      ...next,
-      operationId: crypto.randomUUID(),
-      ...(scheduleId !== null && { operationScheduleId: scheduleId }),
-    })
+  const freshOperation = (next: V): V => ({
+    ...next,
+    operationId: crypto.randomUUID(),
+    ...(scheduleId !== null && { operationScheduleId: scheduleId }),
+  })
+
+  const change = (next: V) => field.change(freshOperation(next))
 
   const operationForAnotherSchedule =
     SaveState.$is('NotSaved')(field.state) &&
@@ -437,7 +462,7 @@ export const useOperationSave = <
     field.value.operationScheduleId !== scheduleId
 
   useEffect(() => {
-    if (operationForAnotherSchedule) change(field.value)
+    if (operationForAnotherSchedule) field.renew(freshOperation(field.value))
   }, [field.state, scheduleId])
 
   return { ...field, change }
