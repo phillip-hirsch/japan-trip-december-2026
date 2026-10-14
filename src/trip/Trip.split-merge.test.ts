@@ -16,7 +16,7 @@ import type {
   ScheduleId,
 } from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
-import { operation, storage, tripWith } from '@/trip/testing'
+import { assertFailedWith, operation, storage, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
 
 const trip = tripWith([option1])
@@ -302,7 +302,7 @@ describe('Trip.splitStay', () => {
             splitStay(scheduleId, stayIdAt(before, 2), date),
           )
 
-          assert.deepStrictEqual(error, new HardRuleBroken({ rule }))
+          assertFailedWith(error, new HardRuleBroken({ rule }))
           assert.deepStrictEqual(yield* currentSchedule, before)
           assert.deepStrictEqual(yield* checklistItems, itemsBefore)
         }).pipe(Effect.provide([trip, storage])),
@@ -320,7 +320,7 @@ describe('Trip.splitStay', () => {
           splitStay(scheduleId, stayIdAt(before, 0), december(5)),
         )
 
-        assert.deepStrictEqual(
+        assertFailedWith(
           error,
           new HardRuleBroken({
             rule: HardRule.cases.StayWithoutNights.make({
