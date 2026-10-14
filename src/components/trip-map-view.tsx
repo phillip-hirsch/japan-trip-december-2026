@@ -78,11 +78,17 @@ export function FitToPoints({
 export function BaseMarker({ place }: { place: Place }) {
   const { latitude, longitude } = place.coordinates
 
+  // Drawn above Pins so a Pin near the Base never covers its label, and
+  // clicked through so the Pin underneath still opens its popup.
   return (
-    <MapMarker latitude={latitude} longitude={longitude}>
-      <MarkerContent className="cursor-default">
+    <MapMarker
+      latitude={latitude}
+      longitude={longitude}
+      className="pointer-events-none z-1"
+    >
+      <MarkerContent>
         <span className="block size-3 rounded-full bg-foreground ring-2 ring-background" />
-        <MarkerLabel className="text-xs [text-shadow:0_0_3px_var(--background),0_0_6px_var(--background)]">
+        <MarkerLabel className="text-xs [text-shadow:0_0_1px_var(--background),0_0_2px_var(--background),0_0_3px_var(--background),0_0_6px_var(--background)]">
           <PlaceName place={place} />
         </MarkerLabel>
       </MarkerContent>
