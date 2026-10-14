@@ -6,11 +6,11 @@ import { useId, useState } from 'react'
 import { DateChoice } from '@/components/date-choice'
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
 import { stayEditAnswerOf } from '@/components/schedule-rules'
-import { StaySection } from '@/components/stay-section'
+import { StaySection, WithdrawnStayEdit } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
 import { formatShortDate, tripDates } from '@/trip/calendar'
 import type { IsoDate, ScheduleDetail, ScheduleStayDetail } from '@/trip/domain'
-import { keyedBy, SaveAnswer, SaveState, useSave } from '@/trip/drafts'
+import { keyedBy, SaveAnswer, SaveState, useOfferedSave } from '@/trip/drafts'
 import { mergeStays, splitStay } from '@/trip/trip.functions'
 
 type Choice =
@@ -31,12 +31,14 @@ const labels = {
     submitting: 'Splitting…',
     done: 'Split',
     anchorBroken: 'The split breaks an Anchor',
+    withdrawn: 'This Stay has only one night now, so it can’t be split.',
   },
   merge: {
     submit: 'Merge',
     submitting: 'Merging…',
     done: 'Merged',
     anchorBroken: 'The merge breaks an Anchor',
+    withdrawn: 'This Stay can no longer merge with the next one.',
   },
 } as const
 
@@ -65,7 +67,13 @@ function SplitMergeStayForm({
       ? next
       : undefined
 
-  const field = useSave<Choice | null>({
+  const field = useOfferedSave<Choice | null>({
+    offered: (choice) =>
+      choice === null
+        ? splitDates.length > 0 || mergeable !== undefined
+        : choice.kind === 'split'
+          ? splitDates.length > 0
+          : choice.next.id === mergeable?.id,
     scheduleId,
     saved: null,
     write: 'stayEdit',
@@ -108,7 +116,7 @@ function SplitMergeStayForm({
     },
   })
 
-  if (splitDates.length === 0 && mergeable === undefined) return null
+  if (!field.shown) return null
 
   const { state, value } = field
 
@@ -157,6 +165,13 @@ function SplitMergeStayForm({
               {labels[lastKind].done}
             </SavedStatus>
           </div>
+        ) : field.withdrawn ? (
+          <WithdrawnStayEdit
+            labelledBy={headingId}
+            state={state}
+            reason={labels[value.kind].withdrawn}
+            onDiscard={field.discard}
+          />
         ) : (
           <ChoiceForm
             labelledBy={headingId}

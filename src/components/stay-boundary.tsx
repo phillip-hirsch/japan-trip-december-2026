@@ -6,6 +6,7 @@ import { useId } from 'react'
 import { DateChoice } from '@/components/date-choice'
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
 import { stayEditAnswerOf } from '@/components/schedule-rules'
+import { StaySection, WithdrawnStayEdit } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
 import {
   formatDay,
@@ -20,30 +21,33 @@ import type {
   ScheduleId,
   ScheduleStayDetail,
 } from '@/trip/domain'
-import { keyedBy, SaveState, stayBoundaryTarget, useSave } from '@/trip/drafts'
+import {
+  keyedBy,
+  SaveState,
+  stayBoundaryTarget,
+  useOfferedSave,
+} from '@/trip/drafts'
 import { moveStayBoundary } from '@/trip/trip.functions'
 
 const isDate = (value: unknown): value is IsoDate =>
   Predicate.isString(value) && isTripDate(value)
 
+/** The Stay's check-out, which moves while another Stay follows it. */
 function StayBoundaryForm({
   scheduleId,
   stay,
   next,
   anchorWarnings,
-  labelledBy,
 }: {
   scheduleId: ScheduleId
   stay: ScheduleStayDetail
-  next: ScheduleStayDetail
+  next: ScheduleStayDetail | undefined
   anchorWarnings: ReadonlyArray<AnchorWarning>
-  labelledBy: string
 }) {
   const move = useServerFn(moveStayBoundary)
-  const hintId = useId()
-  const problemId = useId()
 
-  const field = useSave<IsoDate>({
+  const field = useOfferedSave<IsoDate>({
+    offered: () => next !== undefined,
     draft: { target: stayBoundaryTarget(stay.id), isValue: isDate },
     scheduleId,
     saved: stay.checkOut,
@@ -55,6 +59,44 @@ function StayBoundaryForm({
       )(await move({ data: { scheduleId, stayId: stay.id, checkOut } })),
   })
 
+  if (!field.shown) return null
+
+  return (
+    <StaySection heading="Check-out" stay={stay}>
+      {(headingId) =>
+        next === undefined ? (
+          <WithdrawnStayEdit
+            labelledBy={headingId}
+            state={field.state}
+            reason="This is now your last Stay, so its check-out can’t move."
+            onDiscard={field.discard}
+          />
+        ) : (
+          <StayBoundaryChoice
+            field={field}
+            stay={stay}
+            next={next}
+            labelledBy={headingId}
+          />
+        )
+      }
+    </StaySection>
+  )
+}
+
+function StayBoundaryChoice({
+  field,
+  stay,
+  next,
+  labelledBy,
+}: {
+  field: ReturnType<typeof useOfferedSave<IsoDate>>
+  stay: ScheduleStayDetail
+  next: ScheduleStayDetail
+  labelledBy: string
+}) {
+  const hintId = useId()
+  const problemId = useId()
   const { state, value } = field
 
   if (SaveState.$is('Clean')(state) || SaveState.$is('Saved')(state)) {

@@ -85,18 +85,13 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
         </StaySection>
       )}
       {editable && <StayBaseField schedule={schedule} stay={stay} />}
-      {editable && next && (
-        <StaySection heading="Check-out" stay={stay}>
-          {(headingId) => (
-            <StayBoundaryField
-              scheduleId={schedule.id}
-              stay={stay}
-              next={next}
-              anchorWarnings={schedule.anchorWarnings}
-              labelledBy={headingId}
-            />
-          )}
-        </StaySection>
+      {editable && (
+        <StayBoundaryField
+          scheduleId={schedule.id}
+          stay={stay}
+          next={next}
+          anchorWarnings={schedule.anchorWarnings}
+        />
       )}
       {editable && <SplitMergeStay schedule={schedule} stay={stay} />}
     </>

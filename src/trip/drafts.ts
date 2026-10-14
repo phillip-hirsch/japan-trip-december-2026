@@ -437,6 +437,37 @@ export const useDraftedField = ({
 } & Omit<Parameters<typeof useSave<string>>[0], 'draft' | 'equals'>) =>
   useSave({ draft: { target, isValue: Predicate.isString }, ...options })
 
+/**
+ * A save of an edit the Schedule shown may stop offering, such as a merge
+ * with the next Stay once another device moves it to another Base.
+ * `offered` says whether the Schedule offers a value; the saved value stands
+ * for the edit before Phillip chooses one.
+ *
+ * An edit Phillip has open stays shown once withdrawn, with any refusal,
+ * until he discards it; saving it sends nothing.
+ */
+export const useOfferedSave = <V>({
+  offered,
+  ...options
+}: Parameters<typeof useSave<V>>[0] & {
+  offered: (value: V) => boolean
+}) => {
+  const field = useSave(options)
+
+  const open =
+    SaveState.$is('Editing')(field.state) ||
+    SaveState.$is('NotSaved')(field.state)
+
+  const stillOffered = offered(field.value)
+  const withdrawn = open && !stillOffered
+
+  const save = async () => {
+    if (!withdrawn) await field.save()
+  }
+
+  return { ...field, shown: stillOffered || open, withdrawn, save }
+}
+
 export const useOperationSave = <
   V extends {
     readonly operationId: string
