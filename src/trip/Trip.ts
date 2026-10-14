@@ -17,6 +17,7 @@ import {
   birthdayDate,
   isTripDate,
   shigeharuDate,
+  timeOfDayOf,
   tripDates,
   tripEndDate,
   tripStartDate,
@@ -52,6 +53,7 @@ import {
   StaysEdited,
   StayDateRuleBreak,
   StayNotFound,
+  TokyoDateTime,
   TripRuleBreak,
   VerifyClaimAttachment,
 } from '@/trip/domain'
@@ -1011,27 +1013,25 @@ const requireActivityTitle = (title: string) =>
  * date-time. Tokyo keeps UTC+9 all year, so every time of day exists once.
  */
 const activityTimeOf = (date: IsoDate, time: TimeOfDay) =>
-  DateTime.formatIsoZoned(
-    DateTime.makeZonedUnsafe(`${date}T${time}:00`, {
-      timeZone: tripTimeZone,
-      adjustForTimeZone: true,
-    }),
+  TokyoDateTime.make(
+    DateTime.formatIsoZoned(
+      DateTime.makeZonedUnsafe(`${date}T${time}:00`, {
+        timeZone: tripTimeZone,
+        adjustForTimeZone: true,
+      }),
+    ),
   )
 
-/**
- * Where a new Activity goes among a Day's: a timed one before the first with
- * a later time, any other last. The times on one Day share its date and
- * Tokyo's offset, so their strings sort in time order.
- */
 const insertionIndexOf = (
   activities: ReadonlyArray<Activity>,
-  time: string | undefined,
+  time: TimeOfDay | undefined,
 ) => {
   const later =
     time === undefined
       ? -1
       : activities.findIndex(
-          (activity) => activity.time !== undefined && activity.time > time,
+          (activity) =>
+            activity.time !== undefined && timeOfDayOf(activity.time) > time,
         )
 
   return later === -1 ? activities.length : later
@@ -2160,11 +2160,7 @@ export class Trip extends Context.Service<
 
               const activities = yield* store.activitiesOn(scheduleId, date)
               const ids = activities.map(({ id }) => id)
-              ids.splice(
-                insertionIndexOf(activities, activity.time),
-                0,
-                activity.id,
-              )
+              ids.splice(insertionIndexOf(activities, time), 0, activity.id)
               yield* store.addActivity(scheduleId, date, activity, ids.length)
               yield* store.writeActivityOrder(scheduleId, ids)
               const added = { activityId: activity.id }

@@ -20,6 +20,7 @@ import {
   ScheduleId,
   ScheduleRecord,
   Stay,
+  TokyoDateTime,
   VerifyClaim,
   VerifyClaimAttachment,
 } from '@/trip/domain'
@@ -174,7 +175,7 @@ const ActivityRow = Schema.Struct({
   date: IsoDate,
   ...ordered,
   title: Schema.String,
-  time: Schema.NullOr(Schema.String),
+  time: Schema.NullOr(TokyoDateTime),
   note: Schema.NullOr(Schema.String),
   ...PinColumns.fields,
 })
@@ -215,7 +216,7 @@ const activityRowOf = (
 
 export interface ActivityChanges {
   readonly title?: string
-  readonly time?: string | null
+  readonly time?: TokyoDateTime | null
   readonly note?: string
 }
 
@@ -412,7 +413,7 @@ export const scheduleStore = Effect.gen(function* () {
     Request: Schema.Struct({
       ...ActivityKey.fields,
       title: Schema.optionalKey(Schema.String),
-      time: Schema.optionalKey(Schema.NullOr(Schema.String)),
+      time: Schema.optionalKey(Schema.NullOr(TokyoDateTime)),
       note: Schema.optionalKey(Schema.NullOr(Schema.String)),
     }),
     execute: ({ scheduleId, id, ...changes }) =>
