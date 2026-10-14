@@ -79,8 +79,11 @@ function stylePropertyKeys<
     | MapLinePaint
     | NonNullable<MapLibreGL.LineLayerSpecification['layout']>,
 >(style: Style) {
-  // SAFETY: callers pass MapLibre paint/layout objects whose own keys are the style properties declared by their contracts.
-  return Object.keys(style) as Array<keyof Style>
+  const keys: Array<Extract<keyof Style, string>> = []
+
+  for (const key in style) keys.push(key)
+
+  return keys
 }
 
 function mergeHoverPaint<Paint extends MapFillPaint | MapLinePaint>(
@@ -2569,11 +2572,20 @@ const isPointGeometry = (geometry: unknown): geometry is GeoJSON.Point =>
       Predicate.isNumber(coordinate) && Number.isFinite(coordinate),
   )
 
-/** Longitude and latitude, copied so world-wrap adjustment leaves the source alone. */
 const pointCoordinates = (point: GeoJSON.Point): [number, number] => [
   point.coordinates[0],
   point.coordinates[1],
 ]
+
+const nearestWorldCopy = (longitude: number, nearLongitude: number) => {
+  let copy = longitude
+
+  while (Math.abs(nearLongitude - copy) > 180) {
+    copy += nearLongitude > copy ? 360 : -360
+  }
+
+  return copy
+}
 
 const DEFAULT_CLUSTER_COLORS: [string, string, string] = [
   '#3b82f6',
@@ -2814,12 +2826,13 @@ function MapClusterLayer<
       const feature = e.features[0]
 
       if (!isPointGeometry(feature.geometry)) return
-      const coordinates = pointCoordinates(feature.geometry)
+      const [longitude, latitude] = pointCoordinates(feature.geometry)
 
       // Handle world copies
-      while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
-        coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360
-      }
+      const coordinates: [number, number] = [
+        nearestWorldCopy(longitude, e.lngLat.lng),
+        latitude,
+      ]
 
       // SAFETY: geometry is checked above; the caller's GeoJSON source defines P for this unclustered feature.
       const point = feature as MapLibreGL.MapGeoJSONFeature &
