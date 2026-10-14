@@ -332,22 +332,20 @@ export const useSave = <V>({
   }
 
   /**
-   * Replaces a value not saved without Phillip editing it, such as to give it
+   * Replaces a NotSaved value without Phillip editing it, such as to give it
    * a fresh operation id. Its draft stays marked for the Schedule it was typed
    * for, so it is restored saying that Schedule changed.
    */
   const renew = (next: V) => {
+    if (!SaveState.$is('NotSaved')(state)) return
+
     const draft = storedDraft()
 
     if (draft !== undefined && draft.writeId === ownDraftWriteId.current) {
       keepDraft(next, draft.scheduleId)
     }
 
-    setState((current) =>
-      SaveState.$is('NotSaved')(current)
-        ? { ...current, value: next }
-        : current,
-    )
+    setState({ ...state, value: next })
   }
 
   const discard = () => {
