@@ -457,20 +457,16 @@ const railPathOf = (section: RailSectionDetail) => {
       }
 }
 
-/**
- * An Itinerary's or Schedule's Stays, Moves and Day trips on its map. Every
- * Move between two Bases that isn't a flight draws along the ground: a train
- * Move along its rail sections, and one without any, such as after a Stay
- * edit, straight between its Bases. A local Move within one Base draws
- * nothing.
- */
+const drawsOnTheGround = (move: DatedMove) =>
+  move.mode !== 'flight' && move.from.id !== move.to.id
+
 const mapOf = (
   plan: Pick<Itinerary, 'stays' | 'moves' | 'dayTrips'>,
 ): ItineraryMap => {
   const moves = datedMovesOf(plan)
 
   const trainMoves = moves
-    .filter((move) => move.mode !== 'flight' && move.from.id !== move.to.id)
+    .filter(drawsOnTheGround)
     .map((move) => ({ move, railPaths: move.sections.map(railPathOf) }))
 
   return {
@@ -766,11 +762,6 @@ const homeStateOf = (
 
 const byCheckIn = (a: Stay, b: Stay) => a.checkIn.localeCompare(b.checkIn)
 
-/**
- * A Schedule's Verify claims after a Stay edit. A claim on a Stay follows
- * that Stay to its new check-in date. A claim whose Stay is gone moves to the
- * Stay that now covers that Stay's first night.
- */
 const claimsFollowingStays = (
   copy: ScheduleCopy,
   stays: ReadonlyArray<ScheduleStay>,
@@ -778,14 +769,20 @@ const claimsFollowingStays = (
   const stayIdOn = new Map(copy.stays.map((stay) => [stay.checkIn, stay.id]))
   const edited = new Map(stays.map((stay) => [stay.id, stay]))
 
+  const sameStayEdited = (checkIn: IsoDate) => {
+    const id = stayIdOn.get(checkIn)
+
+    return id === undefined ? undefined : edited.get(id)
+  }
+
+  const stayNowCoveringNightOf = (checkIn: IsoDate) =>
+    stayForNight(stays, checkIn)
+
   return copy.verifyClaims.map((claim) => {
     if (!VerifyClaimAttachment.guards.Stay(claim.attachedTo)) return claim
     const { checkIn } = claim.attachedTo
-    const id = stayIdOn.get(checkIn)
 
-    const stay =
-      (id === undefined ? undefined : edited.get(id)) ??
-      stayForNight(stays, checkIn)
+    const stay = sameStayEdited(checkIn) ?? stayNowCoveringNightOf(checkIn)
 
     return stay === undefined
       ? claim
