@@ -129,9 +129,10 @@
   h4 {
     @apply font-heading;
   }
-  /* Above the Base markers, which draw above Pins. */
+  /* Level with the Base markers, which draw above Pins, but later in the DOM,
+     so above them; still below the map controls at z-index 2. */
   .maplibregl-popup {
-    @apply z-2;
+    @apply z-1;
   }
   .maplibregl-popup-content {
     @apply bg-transparent! shadow-none! p-0! rounded-none!;
