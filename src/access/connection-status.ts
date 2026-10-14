@@ -26,13 +26,11 @@ const listeners = new Set<() => void>()
 
 export const currentConnection = () => status
 
+const loginReloadInFlight = (current: ConnectionStatus) =>
+  ConnectionStatus.$is('LoginExpired')(current) && current.reloading
+
 export const reportConnection = (next: ConnectionStatus) => {
-  // Once a reload to log in is on its way, nothing else changes the banner.
-  if (
-    next === status ||
-    (ConnectionStatus.$is('LoginExpired')(status) && status.reloading)
-  )
-    return
+  if (next === status || loginReloadInFlight(status)) return
   status = next
 
   for (const listener of listeners) listener()
