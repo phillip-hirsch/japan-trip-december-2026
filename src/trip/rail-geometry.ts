@@ -2,7 +2,7 @@
 // from MLIT's National Land Numerical Information railway data (N02, FY2025
 // edition, CC BY 4.0).
 import type { Coordinates } from '@/trip/domain'
-import { railSectionKey } from '@/trip/rail'
+import { undirectedRailSectionKey } from '@/trip/rail'
 import type { RailSectionIds } from '@/trip/rail'
 import railGeometry from '@/trip/rail-geometry.json'
 
@@ -17,7 +17,7 @@ const featuresByKey = new Map(
 export const railGeometryOf = (
   section: RailSectionIds,
 ): Array<Coordinates> | undefined => {
-  const feature = featuresByKey.get(railSectionKey(section))
+  const feature = featuresByKey.get(undirectedRailSectionKey(section))
 
   if (feature === undefined) return undefined
 

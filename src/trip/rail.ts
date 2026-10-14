@@ -65,9 +65,5 @@ export const railSectionIdsOf = (section: {
   to: section.to.id,
 })
 
-/**
- * One key per rail section, whichever way it's ridden, for the rail geometry:
- * Tokyo → Kyoto and Kyoto → Tokyo on the same line share their track.
- */
-export const railSectionKey = ({ line, from, to }: RailSectionIds) =>
+export const undirectedRailSectionKey = ({ line, from, to }: RailSectionIds) =>
   [line, ...[from, to].sort()].join('/')

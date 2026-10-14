@@ -544,6 +544,37 @@ describe('Trip.restore', () => {
     }).pipe(Effect.provide([trip, storage])),
   )
 
+  it.effect('leaves the current Schedule as it is when restoring it', () =>
+    Effect.gen(function* () {
+      const first = yield* choose(1, operation(1), null)
+      const second = yield* choose(2, operation(2), first.scheduleId)
+
+      const before = {
+        current: yield* currentSchedule,
+        archived: yield* archivedSchedules,
+      }
+
+      yield* setTime('2026-10-05T09:00:00Z')
+
+      const restored = yield* Trip.use((trip) =>
+        trip.restore({
+          operationId: operation(3),
+          scheduleId: second.scheduleId,
+          replacing: second.scheduleId,
+        }),
+      )
+
+      assert.deepStrictEqual(
+        {
+          restored,
+          current: yield* currentSchedule,
+          archived: yield* archivedSchedules,
+        },
+        { restored: { scheduleId: second.scheduleId }, ...before },
+      )
+    }).pipe(Effect.provide([trip, storage])),
+  )
+
   it.effect('refuses a restore naming an archived Schedule', () =>
     Effect.gen(function* () {
       const first = yield* choose(1, operation(1), null)

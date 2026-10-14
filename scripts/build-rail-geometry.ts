@@ -16,7 +16,7 @@ import type {
   Station,
 } from '../src/trip/domain.ts'
 // Relative, not '@/': plain `node` runs this script and can't resolve the alias.
-import { railSectionIdsOf, railSectionKey } from '../src/trip/rail.ts'
+import { railSectionIdsOf, undirectedRailSectionKey } from '../src/trip/rail.ts'
 import type { RailLineId } from '../src/trip/rail.ts'
 
 import { readTrip } from './trip.ts'
@@ -306,7 +306,7 @@ const geometry = {
 
     return {
       type: 'Feature',
-      id: railSectionKey(ids),
+      id: undirectedRailSectionKey(ids),
       properties: ids,
       geometry: { type: 'LineString', coordinates: path },
     }

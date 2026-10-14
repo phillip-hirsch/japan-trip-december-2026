@@ -256,17 +256,13 @@ export const RailSectionDetail = Schema.Struct({
 
 export type RailSectionDetail = typeof RailSectionDetail.Type
 
-/**
- * A Move as its Day shows it: the Bases of the two Stays it connects, and
- * each station where the train changes.
- */
 export const MoveDetail = Schema.Struct({
   mode: MoveMode,
   from: Place,
   to: Place,
   sections: Schema.Array(RailSectionDetail),
   duration: Schema.optionalKey(DurationRange),
-  changes: Schema.Array(Station),
+  changeStations: Schema.Array(Station),
 })
 
 export type MoveDetail = typeof MoveDetail.Type

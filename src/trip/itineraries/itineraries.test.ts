@@ -41,7 +41,7 @@ interface ExpectedItinerary {
       readonly [mode: RailSectionMode, line: string, from: string, to: string]
     >
     readonly minutes?: readonly [min: number, max: number]
-    readonly changes: ReadonlyArray<string>
+    readonly changeStations: ReadonlyArray<string>
   }>
   readonly dayTrips: ReadonlyArray<{
     readonly day: number
@@ -78,7 +78,7 @@ const tokyoToKyoto = {
   sections: [['shinkansen', 'tokaido-shinkansen', 'Tokyo', 'Kyoto']],
   // "Tokyo–Kyoto is approximately 2¼ hours", from Option 1's travel notes.
   minutes: [135, 135],
-  changes: [],
+  changeStations: [],
 } as const
 
 const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
@@ -189,7 +189,7 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
           ['shinkansen', 'hokuriku-shinkansen', 'Tsuruga', 'Kanazawa'],
         ],
         minutes: [120, 120],
-        changes: ['Tsuruga'],
+        changeStations: ['Tsuruga'],
       },
       {
         day: 17,
@@ -198,7 +198,7 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         to: 'Tokyo',
         sections: [['shinkansen', 'hokuriku-shinkansen', 'Kanazawa', 'Tokyo']],
         minutes: [150, 150],
-        changes: [],
+        changeStations: [],
       },
     ],
     dayTrips: [
@@ -332,7 +332,7 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         to: 'Hakone',
         sections: [['shinkansen', 'tokaido-shinkansen', 'Kyoto', 'Odawara']],
         minutes: [210, 270],
-        changes: [],
+        changeStations: [],
       },
       // The source never says how long Hakone–Tokyo takes.
       {
@@ -341,7 +341,7 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         from: 'Hakone',
         to: 'Tokyo',
         sections: [],
-        changes: [],
+        changeStations: [],
       },
     ],
     dayTrips: [
@@ -451,7 +451,7 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         to: 'Tokyo',
         sections: [['shinkansen', 'tokaido-shinkansen', 'Kyoto', 'Tokyo']],
         minutes: [135, 135],
-        changes: [],
+        changeStations: [],
       },
     ],
     dayTrips: [
@@ -589,7 +589,7 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
           ['shinkansen', 'tokaido-sanyo-shinkansen', 'Kyoto', 'Hakata'],
         ],
         minutes: [165, 165],
-        changes: [],
+        changeStations: [],
       },
       // The source never says how long the flight takes.
       {
@@ -598,7 +598,7 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         from: 'Fukuoka',
         to: 'Tokyo',
         sections: [],
-        changes: [],
+        changeStations: [],
       },
     ],
     dayTrips: [
@@ -862,7 +862,7 @@ for (const expected of expectedItineraries) {
                         move.duration.maxMinutes,
                       ],
                     }),
-                    changes: move.changes.map((station) => station.name),
+                    changeStations: move.changes.map((station) => station.name),
                   },
                 ]
               : [],
