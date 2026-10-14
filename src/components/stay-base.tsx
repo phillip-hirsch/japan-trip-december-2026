@@ -13,7 +13,7 @@ import type {
   ScheduleDetail,
   ScheduleStayDetail,
 } from '@/trip/domain'
-import { SaveAnswer, SaveState, useSave } from '@/trip/drafts'
+import { keyedBy, SaveAnswer, SaveState, useSave } from '@/trip/drafts'
 import { placeIds } from '@/trip/catalogue-ids'
 import type { PlaceId } from '@/trip/catalogue-ids'
 import { places } from '@/trip/places'
@@ -22,12 +22,8 @@ import { changeStayBase } from '@/trip/trip.functions'
 const unknownPlace = (rule: HardRule) =>
   SaveAnswer.Refused({ problem: hardRuleProblem(rule) })
 
-/**
- * Changing a Stay's Base to another place in the catalogue on the current
- * Schedule, with an explicit Save. Picking a place keeps no draft, since
- * picking it again loses nothing. Key it by the Stay's id.
- */
-export function StayBaseField({
+/** Picking a place keeps no draft, since picking it again loses nothing. */
+function StayBaseForm({
   schedule,
   stay,
 }: {
@@ -141,3 +137,5 @@ export function StayBaseField({
     </StaySection>
   )
 }
+
+export const StayBaseField = keyedBy(StayBaseForm, ({ stay }) => stay.id)

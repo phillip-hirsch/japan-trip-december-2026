@@ -24,40 +24,27 @@ const findStay = (copy: ScheduleCopy, stayId: string) => {
 export const splitEdit =
   ({ stayId, date }: Pick<SplitStay, 'stayId' | 'date'>) =>
   (copy: ScheduleCopy) =>
-    Effect.flatMap(
-      findStay(copy, stayId),
-      (stay): Effect.Effect<StayEdit, HardRuleBroken> => {
-        // editStays would refuse such a split too, but it might name a Gap or
-        // Overlap first. Checking here names the empty part.
-        if (date <= stay.checkIn || stay.checkOut <= date) {
-          return refuse(
-            HardRule.cases.StayWithoutNights.make({
-              checkIn: date <= stay.checkIn ? stay.checkIn : date,
-            }),
-          )
-        }
+    Effect.map(findStay(copy, stayId), (stay): StayEdit => {
+      const later: ScheduleStay = {
+        id: crypto.randomUUID(),
+        base: stay.base,
+        checkIn: date,
+        checkOut: stay.checkOut,
+        accommodation: stay.accommodation,
+        highlights: [],
+        hotel: Hotel.cases.NotRecorded.make({}),
+      }
 
-        const later: ScheduleStay = {
-          id: crypto.randomUUID(),
-          base: stay.base,
-          checkIn: date,
-          checkOut: stay.checkOut,
-          accommodation: stay.accommodation,
-          highlights: [],
-          hotel: Hotel.cases.NotRecorded.make({}),
-        }
-
-        return Effect.succeed({
-          stays: copy.stays.flatMap((each) =>
-            each.id === stayId ? [{ ...each, checkOut: date }, later] : [each],
-          ),
-          moves: [
-            ...copy.moves,
-            { id: crypto.randomUUID(), date, mode: 'local', sections: [] },
-          ],
-        })
-      },
-    )
+      return {
+        stays: copy.stays.flatMap((each) =>
+          each.id === stayId ? [{ ...each, checkOut: date }, later] : [each],
+        ),
+        moves: [
+          ...copy.moves,
+          { id: crypto.randomUUID(), date, mode: 'local', sections: [] },
+        ],
+      }
+    })
 
 export const mergeEdit =
   ({ stayIds }: Pick<MergeStays, 'stayIds'>) =>
@@ -115,17 +102,6 @@ export const changeBaseEdit =
       } satisfies StayEdit
     })
 
-/**
- * The Stay edit moving the date a Stay checks out. The next Stay's check-in
- * and the Move on the old date move with it. The last Stay has no next Stay,
- * so its check-out moves alone, and editStays refuses any date but
- * December 20 with NotTheTripDates.
- *
- * A date that leaves either Stay without a night is refused here with
- * StayWithoutNights, naming that Stay's check-in as it is now. Any other
- * date keeps the Stays in order, so the Hard rule editStays reports is the
- * one the move breaks.
- */
 export const stayBoundaryMove =
   (stayId: string, checkOut: IsoDate) =>
   (
@@ -139,19 +115,19 @@ export const stayBoundaryMove =
       const from = stay.checkOut
       const next = copy.stays.find(({ checkIn }) => checkIn === from)
 
-      const withoutNights =
+      const leftWithoutNights =
         checkOut <= stay.checkIn
           ? stay
           : next !== undefined && checkOut >= next.checkOut
             ? next
             : undefined
 
-      if (withoutNights !== undefined) {
-        return yield* new HardRuleBroken({
-          rule: HardRule.cases.StayWithoutNights.make({
-            checkIn: withoutNights.checkIn,
+      if (leftWithoutNights !== undefined) {
+        return yield* refuse(
+          HardRule.cases.StayWithoutNights.make({
+            checkIn: leftWithoutNights.checkIn,
           }),
-        })
+        )
       }
 
       return {

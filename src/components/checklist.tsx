@@ -34,6 +34,7 @@ import {
   newChecklistItemTarget,
   SaveAnswer,
   SaveState,
+  useOperationSave,
   useSave,
 } from '@/trip/drafts'
 import type { DraftKeeping } from '@/trip/drafts'
@@ -298,12 +299,6 @@ export function ChecklistItems({
   )
 }
 
-/**
- * A new own Checklist item as typed: its text, its reminder date or '' for
- * none, and the operation id its save carries. Any change takes a fresh
- * operation id; a retry of the same item keeps it, so a save whose answer
- * was lost is never added twice.
- */
 interface NewChecklistItem {
   readonly text: string
   readonly reminderDate: string
@@ -341,7 +336,7 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
   const dateId = useId()
   const problemId = useId()
 
-  const field = useSave({
+  const field = useOperationSave({
     draft: newItemDraft,
     equals: (a, b) => a.text === b.text && a.reminderDate === b.reminderDate,
     scheduleId: null,
@@ -369,7 +364,7 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
   const settling = saving || SaveState.$is('Saved')(state)
 
   const change = (next: Partial<NewChecklistItem>) =>
-    field.change({ ...value, ...next, operationId: crypto.randomUUID() })
+    field.change({ ...value, ...next })
 
   return (
     <form

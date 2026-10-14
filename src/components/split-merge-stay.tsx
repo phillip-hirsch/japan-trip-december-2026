@@ -10,7 +10,7 @@ import { StaySection } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
 import { formatShortDate, tripDates } from '@/trip/calendar'
 import type { IsoDate, ScheduleDetail, ScheduleStayDetail } from '@/trip/domain'
-import { SaveAnswer, SaveState, useSave } from '@/trip/drafts'
+import { keyedBy, SaveAnswer, SaveState, useSave } from '@/trip/drafts'
 import { mergeStays, splitStay } from '@/trip/trip.functions'
 
 type Choice =
@@ -40,13 +40,7 @@ const labels = {
   },
 } as const
 
-/**
- * Splitting a Stay at a date inside it, or merging it with the next Stay
- * when that one is in the same Base, on the current Schedule. One edit at a
- * time on a Stay; nothing shows for a one-night Stay with nothing to merge.
- * Key it by the Stay's id.
- */
-export function SplitMergeStay({
+function SplitMergeStayForm({
   schedule,
   stay,
 }: {
@@ -179,6 +173,8 @@ export function SplitMergeStay({
     </StaySection>
   )
 }
+
+export const SplitMergeStay = keyedBy(SplitMergeStayForm, ({ stay }) => stay.id)
 
 function ChoiceForm({
   labelledBy,

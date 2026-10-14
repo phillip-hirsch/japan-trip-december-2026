@@ -16,7 +16,7 @@ import type {
   ScheduleId,
 } from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
-import { operation, storage, tripWith } from '@/trip/testing'
+import { assertFailedWith, operation, storage, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
 
 const trip = tripWith([option1])
@@ -302,12 +302,35 @@ describe('Trip.splitStay', () => {
             splitStay(scheduleId, stayIdAt(before, 2), date),
           )
 
-          assert.deepStrictEqual(error, new HardRuleBroken({ rule }))
+          assertFailedWith(error, new HardRuleBroken({ rule }))
           assert.deepStrictEqual(yield* currentSchedule, before)
           assert.deepStrictEqual(yield* checklistItems, itemsBefore)
         }).pipe(Effect.provide([trip, storage])),
     )
   }
+
+  it.effect(
+    'refuses a split before the Trip as a Stay with no nights, not as the Trip dates',
+    () =>
+      Effect.gen(function* () {
+        const scheduleId = yield* choose(1, null)
+        const before = yield* currentSchedule
+
+        const error = yield* Effect.flip(
+          splitStay(scheduleId, stayIdAt(before, 0), december(5)),
+        )
+
+        assertFailedWith(
+          error,
+          new HardRuleBroken({
+            rule: HardRule.cases.StayWithoutNights.make({
+              checkIn: december(6),
+            }),
+          }),
+        )
+        assert.deepStrictEqual(yield* currentSchedule, before)
+      }).pipe(Effect.provide([trip, storage])),
+  )
 
   it.effect("refuses a Stay the Schedule doesn't have, changing nothing", () =>
     Effect.gen(function* () {

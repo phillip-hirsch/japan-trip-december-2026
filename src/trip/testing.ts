@@ -1,6 +1,7 @@
 // effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
 // @effect-diagnostics unstableApiUsage:off
 import { SqliteClient, SqliteMigrator } from '@effect/sql-sqlite-node'
+import { deepStrictEqual } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer } from 'effect'
 import { TestClock } from 'effect/testing'
 
@@ -50,3 +51,11 @@ export const setTime = (instant: string) =>
 
 export const operation = (n: number) =>
   OperationId.make(`00000000-0000-4000-8000-${String(n).padStart(12, '0')}`)
+
+/**
+ * Asserts a failure is the one expected, down to what it carries.
+ * `assert.deepStrictEqual` compares errors by name and message alone, so it
+ * can't tell one Hard rule from another.
+ */
+export const assertFailedWith = <E extends Error>(actual: E, expected: E) =>
+  deepStrictEqual(actual, expected)

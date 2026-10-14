@@ -18,7 +18,13 @@ import type {
   ScheduleId,
   SetPinOutcome,
 } from '@/trip/domain'
-import { pinTarget, SaveAnswer, SaveState, useSave } from '@/trip/drafts'
+import {
+  keyedBy,
+  pinTarget,
+  SaveAnswer,
+  SaveState,
+  useSave,
+} from '@/trip/drafts'
 import { locationLinkMaxLength } from '@/trip/limits'
 import { linkRefusalOf } from '@/trip/pins'
 import { resolveLocationLink, setPin } from '@/trip/trip.functions'
@@ -105,13 +111,7 @@ type Finding =
 
 const idle: Finding = { state: 'idle' }
 
-/**
- * The Pin on an Activity or a Stay's hotel, set under the save pattern
- * (`@/trip/drafts`). Phillip pastes a Google Maps link and its coordinates
- * show as a Pin on a map, or he drops one by hand. He drags it into place,
- * and the field saves nothing until he confirms it. Key it by its target.
- */
-export function PinField({
+function PinEditor({
   scheduleId,
   target,
   pin,
@@ -420,3 +420,5 @@ export function PinField({
     </div>
   )
 }
+
+export const PinField = keyedBy(PinEditor, ({ target }) => pinTarget(target))

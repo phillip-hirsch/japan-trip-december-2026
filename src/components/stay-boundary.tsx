@@ -20,19 +20,13 @@ import type {
   ScheduleId,
   ScheduleStayDetail,
 } from '@/trip/domain'
-import { SaveState, stayBoundaryTarget, useSave } from '@/trip/drafts'
+import { keyedBy, SaveState, stayBoundaryTarget, useSave } from '@/trip/drafts'
 import { moveStayBoundary } from '@/trip/trip.functions'
 
 const isDate = (value: unknown): value is IsoDate =>
   Predicate.isString(value) && isTripDate(value)
 
-/**
- * The date a Stay checks out and the next Stay checks in, moved with an
- * explicit Save under the save pattern (`@/trip/drafts`). The Move between
- * them moves too. It offers only dates that leave both Stays a night, and
- * answers as the other Stay edits do. Key it by the Stay's id.
- */
-export function StayBoundaryField({
+function StayBoundaryForm({
   scheduleId,
   stay,
   next,
@@ -147,3 +141,8 @@ export function StayBoundaryField({
     </form>
   )
 }
+
+export const StayBoundaryField = keyedBy(
+  StayBoundaryForm,
+  ({ stay }) => stay.id,
+)

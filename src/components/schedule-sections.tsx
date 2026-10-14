@@ -47,14 +47,12 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
             editable ? (
               <>
                 <HotelDetailsField
-                  key={stay.id}
                   scheduleId={schedule.id}
                   stayId={stay.id}
                   hotel={stay.hotel}
                   labelledBy={headingId}
                 />
                 <PinField
-                  key={`pin:${stay.id}`}
                   scheduleId={schedule.id}
                   target={{ stayId: stay.id }}
                   pin={hotel?.pin}
@@ -75,7 +73,6 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
           {(headingId) =>
             editable ? (
               <StayNote
-                key={stay.id}
                 scheduleId={schedule.id}
                 stayId={stay.id}
                 note={note}
@@ -87,18 +84,11 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
           }
         </StaySection>
       )}
-      {editable && (
-        <StayBaseField
-          key={`base-${stay.id}`}
-          schedule={schedule}
-          stay={stay}
-        />
-      )}
+      {editable && <StayBaseField schedule={schedule} stay={stay} />}
       {editable && next && (
         <StaySection heading="Check-out" stay={stay}>
           {(headingId) => (
             <StayBoundaryField
-              key={stay.id}
               scheduleId={schedule.id}
               stay={stay}
               next={next}
@@ -108,9 +98,7 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
           )}
         </StaySection>
       )}
-      {editable && (
-        <SplitMergeStay key={stay.id} schedule={schedule} stay={stay} />
-      )}
+      {editable && <SplitMergeStay schedule={schedule} stay={stay} />}
     </>
   )
 }

@@ -35,9 +35,11 @@ import type {
 } from '@/trip/domain'
 import {
   activityTarget,
+  keyedBy,
   newActivityTarget,
   SaveAnswer,
   SaveState,
+  useOperationSave,
   useSave,
 } from '@/trip/drafts'
 import type { DraftKeeping } from '@/trip/drafts'
@@ -266,7 +268,7 @@ function ActivityRow({
   beforeWhenDown,
   onMove,
   onRemove,
-  reordering,
+  dayOrderUnsettled,
   moving,
   removal,
   alerts,
@@ -278,7 +280,7 @@ function ActivityRow({
   beforeWhenDown: string | null | undefined
   onMove: (before: string | null) => void
   onRemove: () => void
-  reordering: boolean
+  dayOrderUnsettled: boolean
   moving: boolean
   removal: SaveState<string | null> | undefined
   alerts: ReactNode
@@ -328,7 +330,7 @@ function ActivityRow({
     (removal !== undefined &&
       (SaveState.$is('Saving')(removal) || SaveState.$is('Saved')(removal)))
 
-  const unmovable = reordering || settling || removing
+  const unmovable = dayOrderUnsettled || settling || removing
 
   const showing =
     SaveState.$is('Clean')(editing.state) ||
@@ -450,12 +452,6 @@ function ActivityRow({
   )
 }
 
-/**
- * A new Activity as typed, with the operation id its save carries and the
- * Schedule that id was made for. Any change takes a fresh operation id; a
- * retry of the same Activity on the same Schedule keeps it, so a save whose
- * answer was lost is never added twice.
- */
 interface NewActivity extends ActivityFields {
   readonly operationId: string
   readonly operationScheduleId: string
@@ -478,8 +474,7 @@ const newActivityDraft = (date: IsoDate): DraftKeeping<NewActivity> => ({
     Predicate.isString(value.operationScheduleId),
 })
 
-/** Adds an Activity on a Day, kept as a draft until saved. Key it by date. */
-function AddActivity({
+function AddActivityForm({
   scheduleId,
   date,
 }: {
@@ -488,7 +483,7 @@ function AddActivity({
 }) {
   const add = useServerFn(addActivity)
 
-  const field = useSave({
+  const field = useOperationSave({
     draft: newActivityDraft(date),
     equals: sameFields,
     scheduleId,
@@ -512,22 +507,6 @@ function AddActivity({
 
   const { state, value } = field
 
-  // A draft kept across a Schedule change takes a fresh operation id: its
-  // own may already be recorded with an Activity added to the Schedule it
-  // was made for, which a retry here would answer with instead of adding.
-  useEffect(() => {
-    if (
-      SaveState.$is('NotSaved')(state) &&
-      value.operationScheduleId !== scheduleId
-    ) {
-      field.change({
-        ...value,
-        operationId: crypto.randomUUID(),
-        operationScheduleId: scheduleId,
-      })
-    }
-  }, [state, scheduleId])
-
   if (SaveState.$is('Clean')(state)) {
     return (
       <div className="flex items-center gap-3">
@@ -544,14 +523,7 @@ function AddActivity({
     <ActivityEditor
       state={state}
       value={value}
-      onChange={(next) =>
-        field.change({
-          ...value,
-          ...next,
-          operationId: crypto.randomUUID(),
-          operationScheduleId: scheduleId,
-        })
-      }
+      onChange={(next) => field.change({ ...value, ...next })}
       onSubmit={() => void field.save()}
       onDiscard={field.discard}
       verbs={{ submit: 'Add', submitting: 'Adding…' }}
@@ -559,16 +531,14 @@ function AddActivity({
   )
 }
 
+const AddActivity = keyedBy(AddActivityForm, ({ date }) => date)
+
 interface ActivityMove {
   readonly activityId: string
   readonly before: string | null
 }
 
-/**
- * A Day's Activities in the order Phillip keeps them, never re-sorted by
- * time, and a way to add one. Key it by the Day's date.
- */
-export function Activities({
+function DayActivities({
   scheduleId,
   date,
   activities,
@@ -585,9 +555,6 @@ export function Activities({
 
   const remove = useServerFn(removeActivity)
 
-  // One move or removal at a time on the Day: until the read that confirms
-  // it, or while it isn't saved, every row's neighbours may be out of date,
-  // so no move is sent from them.
   const moving = useSave<ActivityMove | null>({
     scheduleId,
     saved: null,
@@ -610,24 +577,20 @@ export function Activities({
         : removeAnswerOf(await remove({ data: { scheduleId, activityId } })),
   })
 
-  const reordering =
+  const dayOrderUnsettled =
     !SaveState.$is('Clean')(moving.state) ||
     !SaveState.$is('Clean')(removal.state)
 
   const movingId = moving.value?.activityId
   const removingId = removal.value
 
-  // A move or removal not saved whose Activity is no longer shown, such as
-  // one removed on another device or left behind by a Schedule change, has
-  // nothing left to retry and no row to say so: let it go, so the rest can
-  // move again.
   useEffect(() => {
     const shown = new Set(activities.map(({ id }) => id))
 
-    for (const [save, activityId] of [
-      [moving, movingId],
-      [removal, removingId],
-    ] as const) {
+    const discardIfActivityGone = (
+      save: typeof moving | typeof removal,
+      activityId: string | null | undefined,
+    ) => {
       if (
         SaveState.$is('NotSaved')(save.state) &&
         activityId != null &&
@@ -636,6 +599,9 @@ export function Activities({
         save.discard()
       }
     }
+
+    discardIfActivityGone(moving, movingId)
+    discardIfActivityGone(removal, removingId)
   }, [activities, moving.state, removal.state])
 
   const alertOf = <V,>(
@@ -680,7 +646,7 @@ export function Activities({
                   void moving.send({ activityId: activity.id, before })
                 }
                 onRemove={() => void removal.send(activity.id)}
-                reordering={reordering}
+                dayOrderUnsettled={dayOrderUnsettled}
                 moving={
                   movingId === activity.id &&
                   (SaveState.$is('Saving')(moving.state) ||
@@ -698,7 +664,9 @@ export function Activities({
           ))}
         </ol>
       )}
-      <AddActivity key={date} scheduleId={scheduleId} date={date} />
+      <AddActivity scheduleId={scheduleId} date={date} />
     </div>
   )
 }
+
+export const Activities = keyedBy(DayActivities, ({ date }) => date)

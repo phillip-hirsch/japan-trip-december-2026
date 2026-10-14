@@ -457,20 +457,16 @@ const railPathOf = (section: RailSectionDetail) => {
       }
 }
 
-/**
- * An Itinerary's or Schedule's Stays, Moves and Day trips on its map. Every
- * Move between two Bases that isn't a flight draws along the ground: a train
- * Move along its rail sections, and one without any, such as after a Stay
- * edit, straight between its Bases. A local Move within one Base draws
- * nothing.
- */
+const drawsOnTheGround = (move: DatedMove) =>
+  move.mode !== 'flight' && move.from.id !== move.to.id
+
 const mapOf = (
   plan: Pick<Itinerary, 'stays' | 'moves' | 'dayTrips'>,
 ): ItineraryMap => {
   const moves = datedMovesOf(plan)
 
   const trainMoves = moves
-    .filter((move) => move.mode !== 'flight' && move.from.id !== move.to.id)
+    .filter(drawsOnTheGround)
     .map((move) => ({ move, railPaths: move.sections.map(railPathOf) }))
 
   return {
@@ -766,11 +762,6 @@ const homeStateOf = (
 
 const byCheckIn = (a: Stay, b: Stay) => a.checkIn.localeCompare(b.checkIn)
 
-/**
- * A Schedule's Verify claims after a Stay edit. A claim on a Stay follows
- * that Stay to its new check-in date. A claim whose Stay is gone moves to the
- * Stay that now covers that Stay's first night.
- */
 const claimsFollowingStays = (
   copy: ScheduleCopy,
   stays: ReadonlyArray<ScheduleStay>,
@@ -778,14 +769,20 @@ const claimsFollowingStays = (
   const stayIdOn = new Map(copy.stays.map((stay) => [stay.checkIn, stay.id]))
   const edited = new Map(stays.map((stay) => [stay.id, stay]))
 
+  const sameStayEdited = (checkIn: IsoDate) => {
+    const id = stayIdOn.get(checkIn)
+
+    return id === undefined ? undefined : edited.get(id)
+  }
+
+  const stayNowCoveringNightOf = (checkIn: IsoDate) =>
+    stayForNight(stays, checkIn)
+
   return copy.verifyClaims.map((claim) => {
     if (!VerifyClaimAttachment.guards.Stay(claim.attachedTo)) return claim
     const { checkIn } = claim.attachedTo
-    const id = stayIdOn.get(checkIn)
 
-    const stay =
-      (id === undefined ? undefined : edited.get(id)) ??
-      stayForNight(stays, checkIn)
+    const stay = sameStayEdited(checkIn) ?? stayNowCoveringNightOf(checkIn)
 
     return stay === undefined
       ? claim
@@ -1112,6 +1109,9 @@ const requirePin = Effect.fnUntraced(function* (pin: Pin) {
 
   return pin
 })
+
+const stayWithoutNightsFirst = (breaks: ReadonlyArray<StayDateRuleBreak>) =>
+  breaks.find(StayDateRuleBreak.guards.StayWithoutNights) ?? breaks.at(0)
 
 const stayDateRuleBreaksOf = (
   stays: ReadonlyArray<Pick<Stay, 'checkIn' | 'checkOut'>>,
@@ -1442,8 +1442,9 @@ export class Trip extends Context.Service<
      * block the edit.
      *
      * Fails with ScheduleChanged when the Schedule named isn't current,
-     * archived ones included. Fails with HardRuleBroken for the first Hard
-     * rule on Stay dates that the edited Stays break. Also fails with
+     * archived ones included. Fails with HardRuleBroken for a Stay without
+     * nights if the edited Stays leave one, and otherwise for the first Hard
+     * rule on Stay dates they break. Also fails with
      * whatever the edit fails with, such as StayNotFound, or HardRuleBroken
      * when the edit can't apply. A refused edit writes nothing. Moves that
      * don't meet the edited Stays' boundaries are a defect.
@@ -1949,7 +1950,7 @@ export class Trip extends Context.Service<
               const { copy } = yield* requireSchedule(store, scheduleId)
               const changes = yield* edit(copy)
               const stays = [...changes.stays].sort(byCheckIn)
-              const broken = stayDateRuleBreaksOf(stays).at(0)
+              const broken = stayWithoutNightsFirst(stayDateRuleBreaksOf(stays))
 
               if (broken !== undefined) {
                 return yield* new HardRuleBroken({ rule: broken })
