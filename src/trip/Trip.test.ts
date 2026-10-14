@@ -19,13 +19,6 @@ import { Trip } from '@/trip/Trip'
 const describeRailSection = ({ mode, line, from, to }: RailSectionDetail) =>
   `${mode} ${line} ${from.name} → ${to.name}`
 
-/**
- * The rail sections the map draws straight because the rail geometry lacks
- * them, as "mode line from → to". Rebuild the geometry with
- * `vp run build-rail-geometry` rather than flag one here.
- */
-const railSectionsDrawnStraight: ReadonlyArray<string> = []
-
 layer(liveTrip)('Every Itinerary', (it) => {
   it.effect('rides each rail section once, whichever way it’s ridden', () =>
     Effect.gen(function* () {
@@ -44,14 +37,14 @@ layer(liveTrip)('Every Itinerary', (it) => {
     }),
   )
 
-  it.effect('follows the rail line on every rail section not flagged', () =>
+  it.effect('follows the rail line on every rail section', () =>
     Effect.gen(function* () {
       const trip = yield* Trip
       assert.deepStrictEqual(
         (yield* trip.railSections)
           .filter((section) => !section.followsRailLine)
           .map(describeRailSection),
-        railSectionsDrawnStraight,
+        [],
       )
     }),
   )
@@ -467,7 +460,6 @@ describe('Itinerary content version', () => {
       ),
     )
 
-    // Check the shape without decoding: decoding restores schema key order.
     if (!Schema.is(ItineraryContent)(reordered))
       return assert.fail('Re-encoding must preserve Itinerary content')
 
@@ -476,10 +468,12 @@ describe('Itinerary content version', () => {
 
   it.effect('stays the same when the data is re-encoded', () =>
     Effect.gen(function* () {
-      assert.strictEqual(
-        yield* versionOf(reencoded(option1)),
-        yield* versionOf(option1),
+      const reordered = reencoded(option1)
+      assert.deepStrictEqual(
+        Object.keys(reordered),
+        Object.keys(option1).reverse(),
       )
+      assert.strictEqual(yield* versionOf(reordered), yield* versionOf(option1))
     }),
   )
 
@@ -569,8 +563,7 @@ describe('Comparison rows', () => {
         },
         {
           count: 3,
-          // Tokyo–Kyoto's 2¼ hours plus Kanazawa–Tokyo's 2½ hours.
-          travelTime: { minMinutes: 285, maxMinutes: 285 },
+          travelTime: { minMinutes: 135 + 150, maxMinutes: 135 + 150 },
           durationNotGiven: ['2026-12-13 train Kyoto → Kanazawa'],
         },
       )
@@ -759,10 +752,9 @@ describe('Itinerary map', () => {
   )
 
   const kmFrom = (point: Coordinates, path: ReadonlyArray<Coordinates>) => {
-    // Kilometres east and north of the point: close enough at map scale.
     const kmPerDegree = 111.32
 
-    const toKm = ({ latitude, longitude }: Coordinates) => ({
+    const equirectangularKm = ({ latitude, longitude }: Coordinates) => ({
       x:
         (longitude - point.longitude) *
         kmPerDegree *
@@ -771,8 +763,8 @@ describe('Itinerary map', () => {
     })
 
     const kmFromSegment = (start: Coordinates, end: Coordinates) => {
-      const a = toKm(start)
-      const b = toKm(end)
+      const a = equirectangularKm(start)
+      const b = equirectangularKm(end)
       const dx = b.x - a.x
       const dy = b.y - a.y
       const lengthSquared = dx ** 2 + dy ** 2
@@ -792,8 +784,8 @@ describe('Itinerary map', () => {
     )
   }
 
-  // Stations on each line that a straight line between the Bases would miss
-  // by kilometres.
+  const onTheLineKm = 1
+
   const shizuoka = { latitude: 34.9712, longitude: 138.3886 }
 
   const linesThrough = [
@@ -808,13 +800,17 @@ describe('Itinerary map', () => {
 
   for (const [optionNumber, day, station, coordinates] of linesThrough) {
     it.effect(
-      `follows the real line through ${station} on Option ${optionNumber}, December ${day}`,
+      `follows the real line through ${station}, off the straight line, on Option ${optionNumber}, December ${day}`,
       () =>
         Effect.gen(function* () {
           const { trainMoves } = yield* liveMapOf(optionNumber)
           const move = trainMoves.find((move) => move.date === december(day))
           assert.isDefined(move)
-          assert.isBelow(kmFrom(coordinates, move.path), 1)
+          const [from, to] = [move.path[0], move.path.at(-1)]
+          assert.isDefined(from)
+          assert.isDefined(to)
+          assert.isAbove(kmFrom(coordinates, [from, to]), onTheLineKm)
+          assert.isBelow(kmFrom(coordinates, move.path), onTheLineKm)
         }),
     )
   }
