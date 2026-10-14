@@ -2,8 +2,7 @@ import { DateTime, Option, Schema, Struct } from 'effect'
 
 import { displayStrings } from '@/fonts/display-strings'
 import { timeOfDayPattern } from '@/trip/calendar'
-import { placeIds } from '@/trip/places'
-import { railLineIds, stationIds } from '@/trip/rail'
+import { placeIds, railLineIds, stationIds } from '@/trip/catalogue-ids'
 
 /**
  * A calendar date in Tokyo time, as YYYY-MM-DD. The check round-trips the
