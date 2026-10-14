@@ -258,19 +258,19 @@ export const useSave = <V>({
       : current
 
   const stopAwaitingRead = useRef<() => void>(undefined)
-  const open = useRef(false)
+  const editorOpen = useRef(false)
   useEffect(() => {
-    open.current = true
+    editorOpen.current = true
 
     return () => {
-      open.current = false
+      editorOpen.current = false
       stopAwaitingRead.current?.()
     }
   }, [])
 
   const cleanOnNextRead = () => {
     // A save answered after its editor closed has no field left to mark.
-    if (!open.current) return
+    if (!editorOpen.current) return
 
     stopAwaitingRead.current?.()
 

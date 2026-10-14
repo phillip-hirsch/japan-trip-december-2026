@@ -72,14 +72,27 @@ const openTripNoteEditor = async (
   }
 
   return {
-    queryClient,
     field,
+    /** Types `note` and presses Save, before its answer comes. */
+    startSave: async (note: string) => {
+      await act(async () => field().change(note))
+      let finished: Promise<void> = Promise.resolve()
+      await act(async () => {
+        finished = field().save()
+      })
+
+      return { finished }
+    },
+    // The leak in #83 is a listener left on the query cache itself.
+    listening: () => queryClient.getQueryCache().hasListeners(),
+    schedulesRefreshDue: () =>
+      queryClient.getQueryState(schedulesQuery.queryKey)?.isInvalidated,
     close: () => act(async () => root.unmount()),
   }
 }
 
-describe('a save under the save pattern', () => {
-  it('leaves nothing listening for reads when it lands after its editor closed', async () => {
+describe('saving the Trip note', () => {
+  it('leaves nothing listening for reads when the save lands after its editor closed', async () => {
     const answer = deferred<SaveAnswer>()
 
     const editor = await openTripNoteEditor(
@@ -87,19 +100,16 @@ describe('a save under the save pattern', () => {
       async () => 'schedules',
     )
 
-    await act(async () => editor.field().change('Pack lighter.'))
-    let saving: Promise<void> = Promise.resolve()
-    await act(async () => {
-      saving = editor.field().save()
-    })
+    const saving = await editor.startSave('Pack lighter.')
     await editor.close()
 
     await act(async () => {
       answer.resolve(SaveAnswer.Saved())
-      await saving
+      await saving.finished
     })
 
-    assert.isFalse(editor.queryClient.getQueryCache().hasListeners())
+    assert.isFalse(editor.listening())
+    assert.isTrue(editor.schedulesRefreshDue())
   })
 
   it('shows Saved, then Clean once a read confirms it, while its editor stays open', async () => {
@@ -111,12 +121,7 @@ describe('a save under the save pattern', () => {
       () => (reads++ === 0 ? Promise.resolve('schedules') : reread.promise),
     )
 
-    await act(async () => editor.field().change('Pack lighter.'))
-    let saving: Promise<void> = Promise.resolve()
-    await act(async () => {
-      saving = editor.field().save()
-    })
-
+    const saving = await editor.startSave('Pack lighter.')
     assert.deepStrictEqual(
       editor.field().state,
       SaveState.Saved({ value: 'Pack lighter.' }),
@@ -124,14 +129,34 @@ describe('a save under the save pattern', () => {
 
     await act(async () => {
       reread.resolve('schedules, re-read')
-      await saving
+      await saving.finished
     })
 
     assert.deepStrictEqual(
       editor.field().state,
       SaveState.Clean({ justSaved: true }),
     )
-    assert.isFalse(editor.queryClient.getQueryCache().hasListeners())
+    assert.isFalse(editor.listening())
     await editor.close()
+  })
+
+  it('stops waiting for the read when its editor closes after the save landed', async () => {
+    const reread = deferred<string>()
+    let reads = 0
+
+    const editor = await openTripNoteEditor(
+      async () => SaveAnswer.Saved(),
+      () => (reads++ === 0 ? Promise.resolve('schedules') : reread.promise),
+    )
+
+    const saving = await editor.startSave('Pack lighter.')
+    assert.isTrue(editor.listening())
+    await editor.close()
+    assert.isFalse(editor.listening())
+
+    await act(async () => {
+      reread.resolve('schedules, re-read')
+      await saving.finished
+    })
   })
 })
