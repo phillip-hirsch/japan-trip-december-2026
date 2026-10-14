@@ -17,6 +17,7 @@ import type {
 } from '@/trip/domain'
 import {
   dayNoteTarget,
+  keyedBy,
   SaveState,
   SaveAnswer,
   stayNoteTarget,
@@ -37,12 +38,7 @@ const tooLong = (noun: string, maxLength: number) =>
     problem: `A ${noun} can be at most ${maxLength.toLocaleString('en')} characters.`,
   })
 
-/**
- * A plain-text note saved as a whole with an explicit Save under the save
- * pattern (`@/trip/drafts`). Shown as text with its web links clickable;
- * edited in place. Key it by its target.
- */
-function NoteField({
+function NoteEditor({
   labelledBy,
   emptyText,
   textClassName = 'text-base leading-relaxed',
@@ -133,6 +129,8 @@ function NoteField({
   )
 }
 
+const NoteField = keyedBy(NoteEditor, ({ target }) => target)
+
 const dayNoteAnswerOf = (outcome: WriteDayNoteOutcome): SaveAnswer =>
   Match.value(outcome).pipe(
     Match.tagsExhaustive({
@@ -146,7 +144,6 @@ const dayNoteAnswerOf = (outcome: WriteDayNoteOutcome): SaveAnswer =>
     }),
   )
 
-/** Phillip's Day note on a Day of the Schedule. Key it by its date. */
 export function DayNote({
   scheduleId,
   date,
@@ -191,7 +188,6 @@ const stayNoteAnswerOf = (outcome: WriteStayNoteOutcome): SaveAnswer =>
     }),
   )
 
-/** Phillip's Stay note on a Stay of the Schedule. Key it by the Stay's id. */
 export function StayNote({
   scheduleId,
   stayId,

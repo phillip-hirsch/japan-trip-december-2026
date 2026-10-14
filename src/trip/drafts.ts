@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Data, Predicate } from 'effect'
-import { useEffect, useRef, useState } from 'react'
+import { createElement, useEffect, useRef, useState } from 'react'
+import type { FunctionComponent } from 'react'
 
 import { ConnectionStatus, currentConnection } from '@/access/connection-status'
 import type { IsoDate, PinTarget, ScheduleId } from '@/trip/domain'
@@ -181,8 +182,8 @@ const useOnChange = <A>(
  * by an earlier visit or a login reload is restored, marked not saved. A
  * "Schedule changed" refusal refetches the data and keeps the value.
  *
- * Key the component using it by what it saves, so another target starts
- * afresh.
+ * Key the component using it by what it saves, as keyedBy does, so another
+ * target starts afresh.
  */
 export const useSave = <V>({
   draft: keeping,
@@ -429,4 +430,14 @@ export const useOperationSave = <
   }, [field.state, scheduleId])
 
   return { ...field, change }
+}
+
+export const keyedBy = <P extends object>(
+  Component: FunctionComponent<P>,
+  subjectOf: (props: P) => string,
+) => {
+  const Keyed = (props: P) =>
+    createElement(Component, { ...props, key: subjectOf(props) })
+
+  return Keyed
 }

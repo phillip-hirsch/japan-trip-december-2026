@@ -17,6 +17,7 @@ import type {
 } from '@/trip/domain'
 import {
   hotelDetailsTarget,
+  keyedBy,
   SaveAnswer,
   SaveState,
   useSave,
@@ -96,11 +97,7 @@ export function HotelDetailsList({
   )
 }
 
-/**
- * A Stay's Hotel details, saved as a whole with an explicit Save under the
- * save pattern (`@/trip/drafts`). Key it by the Stay's id.
- */
-export function HotelDetailsField({
+function HotelDetailsForm({
   scheduleId,
   stayId,
   hotel,
@@ -213,3 +210,8 @@ export function HotelDetailsField({
     </form>
   )
 }
+
+export const HotelDetailsField = keyedBy(
+  HotelDetailsForm,
+  ({ stayId }) => stayId,
+)

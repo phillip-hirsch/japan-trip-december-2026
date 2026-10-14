@@ -262,7 +262,6 @@ export function ScheduleDayView({
       </DaySection>
       <DaySection id={activitiesHeadingId} title="Activities">
         <Activities
-          key={day.date}
           scheduleId={scheduleId}
           date={day.date}
           activities={day.activities}
@@ -272,7 +271,6 @@ export function ScheduleDayView({
       </DaySection>
       <DaySection id={noteHeadingId} title="Note">
         <DayNote
-          key={day.date}
           scheduleId={scheduleId}
           date={day.date}
           note={day.note}
