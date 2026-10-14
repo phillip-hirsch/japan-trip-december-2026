@@ -2,17 +2,28 @@ import type { DurationRange, IsoDate } from '@/trip/domain'
 
 export const tripTimeZone = 'Asia/Tokyo'
 
-// SAFETY: valid ISO date literal for the Arrival.
-export const tripStartDate = '2026-12-06' as IsoDate
+const isCalendarDate = (date: string): date is IsoDate => {
+  const midnight = new Date(`${date}T00:00:00Z`)
 
-// SAFETY: valid ISO date literal for the Departure.
-export const tripEndDate = '2026-12-20' as IsoDate
+  return (
+    !Number.isNaN(midnight.getTime()) &&
+    midnight.toISOString().slice(0, 10) === date
+  )
+}
 
-// SAFETY: valid ISO date literal for the Shigeharu visit.
-export const shigeharuDate = '2026-12-11' as IsoDate
+const calendarDate = (date: string) => {
+  if (!isCalendarDate(date)) throw new Error(`${date} is not a calendar date.`)
 
-// SAFETY: valid ISO date literal for the Birthday.
-export const birthdayDate = '2026-12-15' as IsoDate
+  return date
+}
+
+export const tripStartDate = calendarDate('2026-12-06')
+
+export const tripEndDate = calendarDate('2026-12-20')
+
+export const shigeharuDate = calendarDate('2026-12-11')
+
+export const birthdayDate = calendarDate('2026-12-15')
 
 const dayInMilliseconds = 24 * 60 * 60 * 1000
 
@@ -25,11 +36,12 @@ export const tripDates: ReadonlyArray<IsoDate> = Array.from(
         dayInMilliseconds +
       1,
   },
-  // SAFETY: UTC day steps between the valid endpoints yield ISO calendar dates; Trip tests cover all 15 Days.
   (_, index) =>
-    new Date(midnightUtc(tripStartDate) + index * dayInMilliseconds)
-      .toISOString()
-      .slice(0, 10) as IsoDate,
+    calendarDate(
+      new Date(midnightUtc(tripStartDate) + index * dayInMilliseconds)
+        .toISOString()
+        .slice(0, 10),
+    ),
 )
 
 /**
