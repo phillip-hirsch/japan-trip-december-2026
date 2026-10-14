@@ -400,3 +400,33 @@ export const useDraftedField = ({
   target: string
 } & Omit<Parameters<typeof useSave<string>>[0], 'draft' | 'equals'>) =>
   useSave({ draft: { target, isValue: Predicate.isString }, ...options })
+
+export const useOperationSave = <
+  V extends {
+    readonly operationId: string
+    readonly operationScheduleId?: string
+  },
+>(
+  options: Parameters<typeof useSave<V>>[0],
+) => {
+  const field = useSave(options)
+  const { scheduleId } = options
+
+  const change = (next: V) =>
+    field.change({
+      ...next,
+      operationId: crypto.randomUUID(),
+      ...(scheduleId !== null && { operationScheduleId: scheduleId }),
+    })
+
+  const operationForAnotherSchedule =
+    SaveState.$is('NotSaved')(field.state) &&
+    scheduleId !== null &&
+    field.value.operationScheduleId !== scheduleId
+
+  useEffect(() => {
+    if (operationForAnotherSchedule) change(field.value)
+  }, [field.state, scheduleId])
+
+  return { ...field, change }
+}

@@ -38,6 +38,7 @@ import {
   newActivityTarget,
   SaveAnswer,
   SaveState,
+  useOperationSave,
   useSave,
 } from '@/trip/drafts'
 import type { DraftKeeping } from '@/trip/drafts'
@@ -450,12 +451,6 @@ function ActivityRow({
   )
 }
 
-/**
- * A new Activity as typed, with the operation id its save carries and the
- * Schedule that id was made for. Any change takes a fresh operation id; a
- * retry of the same Activity on the same Schedule keeps it, so a save whose
- * answer was lost is never added twice.
- */
 interface NewActivity extends ActivityFields {
   readonly operationId: string
   readonly operationScheduleId: string
@@ -488,7 +483,7 @@ function AddActivity({
 }) {
   const add = useServerFn(addActivity)
 
-  const field = useSave({
+  const field = useOperationSave({
     draft: newActivityDraft(date),
     equals: sameFields,
     scheduleId,
@@ -512,22 +507,6 @@ function AddActivity({
 
   const { state, value } = field
 
-  // A draft kept across a Schedule change takes a fresh operation id: its
-  // own may already be recorded with an Activity added to the Schedule it
-  // was made for, which a retry here would answer with instead of adding.
-  useEffect(() => {
-    if (
-      SaveState.$is('NotSaved')(state) &&
-      value.operationScheduleId !== scheduleId
-    ) {
-      field.change({
-        ...value,
-        operationId: crypto.randomUUID(),
-        operationScheduleId: scheduleId,
-      })
-    }
-  }, [state, scheduleId])
-
   if (SaveState.$is('Clean')(state)) {
     return (
       <div className="flex items-center gap-3">
@@ -544,14 +523,7 @@ function AddActivity({
     <ActivityEditor
       state={state}
       value={value}
-      onChange={(next) =>
-        field.change({
-          ...value,
-          ...next,
-          operationId: crypto.randomUUID(),
-          operationScheduleId: scheduleId,
-        })
-      }
+      onChange={(next) => field.change({ ...value, ...next })}
       onSubmit={() => void field.save()}
       onDiscard={field.discard}
       verbs={{ submit: 'Add', submitting: 'Adding…' }}
