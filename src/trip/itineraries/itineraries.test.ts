@@ -871,9 +871,7 @@ for (const expected of expectedItineraries) {
                         move.duration.maxMinutes,
                       ],
                     }),
-                    changeStations: move.changeStations.map(
-                      (station) => station.name,
-                    ),
+                    changeStations: move.changes.map((station) => station.name),
                   },
                 ]
               : [],

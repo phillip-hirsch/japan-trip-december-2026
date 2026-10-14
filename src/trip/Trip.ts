@@ -239,12 +239,14 @@ const moveDetailsOf = <M extends Move>({
         to: stationOf(section.to),
       }))
 
+      const changeStations = sections.slice(1).map((section) => section.from)
+
       const detail = {
         ...Struct.omit(move, ['date', 'sections']),
         from: placeOf(from.base),
         to: placeOf(to.base),
         sections,
-        changeStations: sections.slice(1).map((section) => section.from),
+        changes: changeStations,
       } satisfies MoveDetail
 
       return [[date, detail] as const]

@@ -144,7 +144,7 @@ export function MoveTravel({
               : 'duration not given'}
         </span>
       )}
-      {move.changeStations.map((station) => (
+      {move.changes.map((station) => (
         <span key={station.id}>· change at {station.name}</span>
       ))}
     </p>

@@ -262,7 +262,7 @@ export const MoveDetail = Schema.Struct({
   to: Place,
   sections: Schema.Array(RailSectionDetail),
   duration: Schema.optionalKey(DurationRange),
-  changeStations: Schema.Array(Station),
+  changes: Schema.Array(Station),
 })
 
 export type MoveDetail = typeof MoveDetail.Type
