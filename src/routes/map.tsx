@@ -5,6 +5,8 @@ import { NoSchedule } from '@/components/no-schedule'
 import { ScheduleMap } from '@/components/schedule-map'
 import { scheduleMapQuery } from '@/trip/queries'
 
+const mapViewport = 'h-[calc(100svh-var(--tab-bar-height))] md:h-svh'
+
 export const Route = createFileRoute('/map')({
   loader: {
     handler: ({ context }) => context.queryClient.fetchQuery(scheduleMapQuery),
@@ -20,9 +22,7 @@ function MapPage() {
   if (map === null) return <NoSchedule />
 
   return (
-    // The whole screen above the tab bar on phones, and beside the sidebar on
-    // desktop.
-    <div className="h-[calc(100svh-var(--tab-bar-height))] md:h-svh">
+    <div className={mapViewport}>
       <h1 className="sr-only">Map</h1>
       <ScheduleMap map={map} />
     </div>

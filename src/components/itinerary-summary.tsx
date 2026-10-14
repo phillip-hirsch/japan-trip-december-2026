@@ -24,8 +24,10 @@ export function RouteBases({ route }: { route: ReadonlyArray<Place> }) {
   return (
     <ol className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
       {route.map((place, index) => (
-        // A Base can appear twice, as Tokyo does at both ends.
-        <li key={index} className="inline-flex items-baseline gap-2">
+        <li
+          key={`${index}:${place.id}`}
+          className="inline-flex items-baseline gap-2"
+        >
           {index > 0 && (
             <span aria-hidden className="text-muted-foreground">
               →

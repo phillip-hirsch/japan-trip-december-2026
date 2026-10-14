@@ -74,6 +74,11 @@ export const hardRuleProblem = (rule: HardRule) =>
     }),
   )
 
+const staleStays = (rule: HardRule) =>
+  SaveAnswer.Gone({
+    problem: `${hardRuleProblem(rule)} Nothing changed. Your Stays may have changed on another device.`,
+  })
+
 export const stayEditAnswerOf =
   (anchorBroken: string, warningsBefore: ReadonlyArray<AnchorWarning>) =>
   (outcome: StayEditOutcome): SaveAnswer =>
@@ -101,11 +106,6 @@ export const stayEditAnswerOf =
             problem:
               'This Stay is no longer part of your Schedule. It may have changed on another device.',
           }),
-        // The controls offer only edits that keep the Hard rules, so a refusal
-        // means another device changed these Stays: refetch them.
-        HardRuleBroken: ({ rule }) =>
-          SaveAnswer.Gone({
-            problem: `${hardRuleProblem(rule)} Nothing changed. Your Stays may have changed on another device.`,
-          }),
+        HardRuleBroken: ({ rule }) => staleStays(rule),
       }),
     )

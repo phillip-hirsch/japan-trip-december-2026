@@ -7,13 +7,7 @@ const closerOf = new Map([
   ['[', ']'],
 ])
 
-/**
- * A link as written, without the punctuation that usually ends its sentence
- * rather than the link. A closing bracket stays when the link opened it, as
- * in Wikipedia's addresses. One pass counts each bracket's unmatched closes,
- * and one backward pass trims, so it stays linear however long the note.
- */
-const trimmed = (link: string) => {
+const unmatchedClosers = (link: string) => {
   const unmatched = new Map<string, number>()
 
   for (const char of link) {
@@ -26,6 +20,11 @@ const trimmed = (link: string) => {
     }
   }
 
+  return unmatched
+}
+
+const trimTrailingPunctuation = (link: string) => {
+  const unmatched = unmatchedClosers(link)
   let end = link.length
 
   while (end > 0) {
@@ -72,7 +71,7 @@ export function NoteText({
   let from = 0
 
   for (const match of text.matchAll(webLink)) {
-    const link = trimmed(match[0])
+    const link = trimTrailingPunctuation(match[0])
     const href = hrefOf(link)
 
     if (href === undefined) continue

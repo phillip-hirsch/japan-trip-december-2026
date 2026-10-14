@@ -14,13 +14,13 @@ import {
   NotSavedAlert,
   RetryOrDismiss,
   SavedStatus,
+  warnAfterRowGoes,
 } from '@/components/not-saved-alert'
 import { NoteText } from '@/components/note-text'
 import { PinField } from '@/components/pin-field'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import { formatDay, timeOfDayOf, timeOfDayPattern } from '@/trip/calendar'
 import type {
@@ -118,14 +118,14 @@ const editAnswerOf = (outcome: EditActivityOutcome): SaveAnswer =>
     }),
   )
 
+const alreadyRemoved = () => SaveAnswer.Saved()
+
 const removeAnswerOf = (outcome: RemoveActivityOutcome): SaveAnswer =>
   Match.value(outcome).pipe(
     Match.tagsExhaustive({
       Removed: () => SaveAnswer.Saved(),
       ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-      // Already gone, such as by a removal whose answer was lost: what
-      // removing asked for.
-      ActivityNotFound: () => SaveAnswer.Saved(),
+      ActivityNotFound: alreadyRemoved,
     }),
   )
 
@@ -143,10 +143,7 @@ const moveAnswerOf =
             })
           }
 
-          // Its neighbour is gone, so retrying the same move never could
-          // land: settle it, and say so where it outlives the refetch.
-          toast.add({
-            type: 'warning',
+          warnAfterRowGoes({
             title: 'The Activity wasn’t moved',
             description:
               'The one it was moving past was removed, perhaps on another device. Move it again if you still want to.',

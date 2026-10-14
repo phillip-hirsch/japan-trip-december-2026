@@ -50,6 +50,11 @@ const isPinFields = (value: unknown): value is PinFields =>
   Predicate.isString(value.link) &&
   (Predicate.isNull(value.coordinates) || isCoordinates(value.coordinates))
 
+const droppedByHand = (near: Coordinates): PinFields => ({
+  link: '',
+  coordinates: near,
+})
+
 const pinOfFields = ({ link, coordinates }: PinFields): Pin | undefined =>
   coordinates === null
     ? undefined
@@ -132,14 +137,20 @@ export function PinField({
   const problemId = useId()
   const [finding, setFinding] = useState<Finding>(idle)
   const [frame, setFrame] = useState<Coordinates | undefined>(undefined)
-  // Counts lookups, so one cancelled or overtaken never places its Pin.
-  const lookup = useRef(0)
-  useEffect(
-    () => () => {
-      lookup.current += 1
-    },
-    [],
-  )
+  const lookups = useRef(0)
+
+  const cancelLookups = () => {
+    lookups.current += 1
+  }
+
+  const beginLookup = () => {
+    cancelLookups()
+    const lookup = lookups.current
+
+    return () => lookups.current === lookup
+  }
+
+  useEffect(() => cancelLookups, [])
 
   const field = useSave<PinFields>({
     draft: { target: pinTarget(target), isValue: isPinFields },
@@ -171,7 +182,7 @@ export function PinField({
   }, [placing, frame, value.coordinates])
 
   const stopFinding = () => {
-    lookup.current += 1
+    cancelLookups()
     setFinding(idle)
   }
 
@@ -216,10 +227,7 @@ export function PinField({
 
   const dropByHand = () => {
     setFrame(near)
-    // A Pin dropped by hand keeps no link. A link shown here was refused or
-    // never found, so it may point somewhere else. A link without
-    // coordinates keeps its link, but finding it already placed the Pin.
-    field.change({ link: '', coordinates: near })
+    field.change(droppedByHand(near))
     setFinding({
       state: 'byHand',
       note: 'Drag the pin into place, or tap the map where it goes.',
@@ -227,9 +235,7 @@ export function PinField({
   }
 
   const find = async (link: string) => {
-    // Any newer finding supersedes a lookup in flight, even one refused here.
-    lookup.current += 1
-    const current = lookup.current
+    const isCurrent = beginLookup()
 
     if (link.trim() === '') return
 
@@ -247,7 +253,7 @@ export function PinField({
     try {
       outcome = await resolve({ data: { link } })
     } catch {
-      if (lookup.current !== current) return
+      if (!isCurrent()) return
       setFinding({
         state: 'problem',
         note: 'The app couldn’t reach the server. Try again when you’re back online.',
@@ -256,7 +262,7 @@ export function PinField({
       return
     }
 
-    if (lookup.current !== current) return
+    if (!isCurrent()) return
     Match.value(outcome).pipe(
       Match.tagsExhaustive({
         Resolved: ({ coordinates }) => {

@@ -3,6 +3,12 @@ import type { ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { toast } from '@/components/ui/toast'
+
+export const warnAfterRowGoes = (warning: {
+  readonly title: string
+  readonly description: string
+}) => toast.add({ type: 'warning', ...warning })
 
 export function NotSavedAlert({
   problem,

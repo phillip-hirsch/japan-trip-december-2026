@@ -20,28 +20,17 @@ export function ChooseItinerary({ optionNumber }: { optionNumber: number }) {
 
   const fromThis = summary?.sourceOptionNumber === optionNumber
 
-  // Choose keeps its identity (its key) whichever links surround it, so an
-  // open dialog stays open while the summary changes under it.
   return (
     <div>
       <div className="flex flex-wrap gap-2">
         {fromThis && (
-          <ButtonLink key="open" to="/schedule" size="lg">
+          <ButtonLink to="/schedule" size="lg">
             Open your Schedule
           </ButtonLink>
         )}
-        <ChooseItineraryButton
-          key="choose"
-          optionNumber={optionNumber}
-          current={summary}
-        />
+        <ChooseItineraryButton optionNumber={optionNumber} current={summary} />
         {summary && !fromThis && (
-          <ButtonLink
-            key="open-outline"
-            to="/schedule"
-            size="lg"
-            variant="outline"
-          >
+          <ButtonLink to="/schedule" size="lg" variant="outline">
             Open your Schedule
           </ButtonLink>
         )}
