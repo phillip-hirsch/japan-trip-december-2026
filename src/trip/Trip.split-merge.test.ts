@@ -309,6 +309,29 @@ describe('Trip.splitStay', () => {
     )
   }
 
+  it.effect(
+    'refuses a split before the Trip as a Stay with no nights, not as the Trip dates',
+    () =>
+      Effect.gen(function* () {
+        const scheduleId = yield* choose(1, null)
+        const before = yield* currentSchedule
+
+        const error = yield* Effect.flip(
+          splitStay(scheduleId, stayIdAt(before, 0), december(5)),
+        )
+
+        assert.deepStrictEqual(
+          error,
+          new HardRuleBroken({
+            rule: HardRule.cases.StayWithoutNights.make({
+              checkIn: december(6),
+            }),
+          }),
+        )
+        assert.deepStrictEqual(yield* currentSchedule, before)
+      }).pipe(Effect.provide([trip, storage])),
+  )
+
   it.effect("refuses a Stay the Schedule doesn't have, changing nothing", () =>
     Effect.gen(function* () {
       const scheduleId = yield* choose(1, null)

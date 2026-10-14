@@ -1113,6 +1113,9 @@ const requirePin = Effect.fnUntraced(function* (pin: Pin) {
   return pin
 })
 
+const stayWithoutNightsFirst = (breaks: ReadonlyArray<StayDateRuleBreak>) =>
+  breaks.find(StayDateRuleBreak.guards.StayWithoutNights) ?? breaks.at(0)
+
 const stayDateRuleBreaksOf = (
   stays: ReadonlyArray<Pick<Stay, 'checkIn' | 'checkOut'>>,
 ): Array<StayDateRuleBreak> => {
@@ -1442,8 +1445,9 @@ export class Trip extends Context.Service<
      * block the edit.
      *
      * Fails with ScheduleChanged when the Schedule named isn't current,
-     * archived ones included. Fails with HardRuleBroken for the first Hard
-     * rule on Stay dates that the edited Stays break. Also fails with
+     * archived ones included. Fails with HardRuleBroken for a Stay without
+     * nights if the edited Stays leave one, and otherwise for the first Hard
+     * rule on Stay dates they break. Also fails with
      * whatever the edit fails with, such as StayNotFound, or HardRuleBroken
      * when the edit can't apply. A refused edit writes nothing. Moves that
      * don't meet the edited Stays' boundaries are a defect.
@@ -1949,7 +1953,7 @@ export class Trip extends Context.Service<
               const { copy } = yield* requireSchedule(store, scheduleId)
               const changes = yield* edit(copy)
               const stays = [...changes.stays].sort(byCheckIn)
-              const broken = stayDateRuleBreaksOf(stays).at(0)
+              const broken = stayWithoutNightsFirst(stayDateRuleBreaksOf(stays))
 
               if (broken !== undefined) {
                 return yield* new HardRuleBroken({ rule: broken })
