@@ -201,6 +201,7 @@ function ActivityEditor({
           <Input
             id={titleId}
             aria-describedby={notSaved ? problemId : undefined}
+            // Opening the editor focuses it; a restored draft opens unfocused.
             autoFocus={SaveState.$is('Editing')(state)}
             value={value.title}
             onChange={(event) => onChange({ title: event.target.value })}

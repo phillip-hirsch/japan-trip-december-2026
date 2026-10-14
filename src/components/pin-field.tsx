@@ -311,6 +311,7 @@ export function PinField({
                 ...(notSaved ? [problemId] : []),
               ].join(' ') || undefined
             }
+            // Opening the editor focuses it; a restored draft opens unfocused.
             autoFocus={SaveState.$is('Editing')(state) && placed === null}
             readOnly={busy}
             value={value.link}

@@ -117,6 +117,7 @@ export function TripMapView({
       }}
     >
       {children}
+      {/* Top right, clear of the attribution, which wraps on phones. */}
       <MapControls position="top-right" />
     </MapView>
   )

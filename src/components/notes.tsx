@@ -102,6 +102,7 @@ function NoteField({
       <Textarea
         aria-labelledby={labelledBy}
         aria-describedby={notSaved ? problemId : undefined}
+        // Opening the editor focuses it; a restored draft opens unfocused.
         autoFocus={SaveState.$is('Editing')(state)}
         readOnly={saving}
         value={value}

@@ -30,6 +30,8 @@ if (typeof window !== 'undefined' && !MapLibreGL.getWorkerUrl()) {
   MapLibreGL.setWorkerUrl(workerUrl)
 }
 
+// The app is dark-only, so both themes use OpenFreeMap's dark style. Its
+// labels pair each place's Latin name with its Japanese one.
 const openFreeMapDark = 'https://tiles.openfreemap.org/styles/dark'
 
 const defaultStyles = { dark: openFreeMapDark, light: openFreeMapDark }

@@ -183,6 +183,7 @@ export function HotelDetailsField({
           <Input
             id={`${fieldId}-${key}`}
             aria-describedby={notSaved ? problemId : undefined}
+            // Opening the editor focuses it; a restored draft opens unfocused.
             autoFocus={index === 0 && SaveState.$is('Editing')(state)}
             readOnly={saving}
             value={value[key]}
