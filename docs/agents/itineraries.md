@@ -58,7 +58,7 @@ When several texts place on one Day, use the table or Stay row. December 15 take
 - Add one Move on every date where one Stay checks out and the next checks in, and on no other date.
 - `mode` is `'flight'` for a flight, `'local'` for a Move within one Base, and `'train'` otherwise.
 - `sections` are the shinkansen and limited-express trains the source names or clearly implies, in travel order. For example, "a change at Tsuruga" gives Thunderbird to Tsuruga, then the Hokuriku Shinkansen. A train that runs through from one line to another without a change rides a combined line, such as `tokaido-sanyo-shinkansen`. Leave out any leg the source doesn't name: "Hakone … through Odawara" gives only Kyoto → Odawara. Changes of train are derived from the sections.
-- `duration` is in minutes, with `minMinutes` equal to `maxMinutes` when the source gives one value. You may reuse a duration stated elsewhere in `docs/itinerary.md` for the same journey, and "Tokyo–Kyoto" covers both directions. Otherwise leave `duration` out, and the page shows "duration not given". Never estimate one.
+- `duration` is in minutes, with `minMinutes` equal to `maxMinutes` when the source gives one value. You may reuse a duration stated elsewhere in `docs/itinerary.md` for the same journey, and "Tokyo–Kyoto" covers both directions. Import it from the Option that states it, as Options 2 to 4 import `tokyoKyotoDuration` from `option-1.ts`. Otherwise leave `duration` out, and the page shows "duration not given". Never estimate one.
 
 ### Verify claims
 
