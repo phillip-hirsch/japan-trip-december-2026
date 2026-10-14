@@ -1,3 +1,6 @@
+// What following real short Google Maps links answered, recorded with
+// `curl -sS -o /dev/null -D - <link>` in October 2026, for the location-link
+// resolver the tests replay. Only the tests import this.
 import type { LinkResponse } from '@/trip/LocationLinkResolver'
 
 const redirectTo = (location: string): LinkResponse => ({
@@ -20,6 +23,8 @@ export interface RecordedResponses {
 }
 
 export const recordedResponses: RecordedResponses = {
+  // DILL COFFEE PARLOR, Tokyo. The map shown is zoomed out over the Kanto
+  // plain, well west of the place's pin.
   'https://maps.app.goo.gl/75CwmUKb62uxphUq9': redirectTo(
     'https://www.google.com/maps/place/DILL+COFFEE+PARLOR/@35.6938493,139.1537297,10z/data=!3m1!5s0x60188c054c3409ff:0x4469b87e56c429d4!4m7!3m6!1s0x60188d005be0b9e9:0xa1df4b63af83deb0!8m2!3d35.6938493!4d139.7634709!15sCgRkaWxsWgYiBGRpbGySAQtjb2ZmZWVfc2hvcOABAA!16s%2Fg%2F11y34f7yh0?entry=tts&g_ep=EgoyMDI0MTAyOS4wIPu8ASoASAFQAw%3D%3D',
   ),
@@ -39,6 +44,7 @@ export const recordedResponses: RecordedResponses = {
     "https://www.google.dk/maps/place/Frenesi+Cafe/@41.3848532,2.1525209,17z/data=!4m13!1m7!3m6!1s0x12a4a2861f7ed10b:0x551c998ca4d4ac0d!2sCarrer+del+Comte+d'Urgell,+115,+08011+Barcelona!3b1!8m2!3d41.3848492!4d2.1547149!3m4!1s0x12a4a2861f6e93f3:0xe0621c16264abcb8!8m2!3d41.384906!4d2.1546423?shorturl=1",
   ),
   'https://maps.app.goo.gl/doesnotexist123': { status: 404 },
+  // Made up from here on, not recorded.
   'https://maps.app.goo.gl/toHttp': redirectTo(
     'http://www.google.com/maps/@35.0116,135.7681,15z',
   ),

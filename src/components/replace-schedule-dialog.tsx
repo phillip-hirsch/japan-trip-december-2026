@@ -122,6 +122,7 @@ export function ReplaceScheduleDialog({
       const answer = await run(operationId)
 
       if (ReplaceAnswer.$is('Replaced')(answer)) setOpen(false)
+      // A refusal means this screen is out of date, so invalidate either way.
       await invalidateAfter(queryClient, write)
 
       if (ReplaceAnswer.$is('Replaced')(answer)) {

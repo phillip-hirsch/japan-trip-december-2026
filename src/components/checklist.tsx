@@ -151,6 +151,7 @@ function ChecklistRow({
   const remove = useServerFn(removeOwnChecklistItem)
 
   const tick = useSave({
+    // Own items belong to the Trip, so a Schedule change never refuses them.
     scheduleId: own ? null : scheduleId,
     saved: item.ticked,
     write: 'checklist',

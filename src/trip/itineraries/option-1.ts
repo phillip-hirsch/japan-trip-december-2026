@@ -109,6 +109,7 @@ export const option1: ItineraryContent = {
   ],
   dayTrips: [
     { date: december(8), place: 'kamakura', optional: false },
+    // "Uji or a leisurely Kyoto day": an either-or, so optional.
     { date: december(12), place: 'uji', optional: true },
     { date: december(18), place: 'enoshima', optional: true },
   ],
@@ -143,6 +144,8 @@ export const option1: ItineraryContent = {
     'No dedicated hot-spring retreat.',
     'Nikko is omitted; adding it would mean replacing another excursion or giving up downtime.',
   ],
+  // The source gives no "choose this if" for Option 1, only "Why I recommend
+  // it most".
   whyRecommended:
     'It makes the trip feel different from your previous visits while giving the knife shop appropriate attention. You get one new city in depth, a relaxed return to Kyoto, and Tokyo time at both ends.',
   travelNotes:

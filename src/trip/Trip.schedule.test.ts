@@ -374,6 +374,8 @@ describe('Trip.choose again', () => {
     'archives nothing when storing the fresh Schedule fails part-way',
     () =>
       Effect.gen(function* () {
+        // Two Days on one date can't be stored, so the copy fails after the
+        // current Schedule has been archived in the same transaction.
         const unstorable: ItineraryContent = {
           ...option2,
           days: [...option2.days, ...option2.days.slice(0, 1)],

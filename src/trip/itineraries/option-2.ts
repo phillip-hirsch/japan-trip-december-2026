@@ -38,12 +38,15 @@ export const option2: ItineraryContent = {
     },
   ],
   days: [
+    // "Arrival, recovery, Kamakura, and an easy Tokyo day": one item per Day
+    // of the Stay, in order.
     { date: december(6), description: 'Arrival.' },
     { date: december(7), description: 'Recovery.' },
     { date: december(8), description: 'Kamakura.' },
     { date: december(9), description: 'An easy Tokyo day.' },
     { date: december(10), description: 'Arrive Thursday.' },
     { date: december(11), description: 'Target Shigeharu Friday morning.' },
+    // The weekend is both Days.
     {
       date: december(12),
       description: 'Leave the weekend lightly planned, with optional Uji.',
@@ -53,6 +56,7 @@ export const option2: ItineraryContent = {
       description: 'Leave the weekend lightly planned, with optional Uji.',
     },
     { date: december(14), description: 'Arrive the day before your birthday.' },
+    // From the Birthday paragraph, which also names December 16.
     {
       date: december(15),
       description:
@@ -64,6 +68,8 @@ export const option2: ItineraryContent = {
         'Your sightseeing day—perhaps the Open-Air Museum or a lake/ropeway outing, depending on conditions.',
     },
     { date: december(17) },
+    // "Optional Enoshima, shopping, and rest before departure" is for the Stay
+    // as a whole, so it describes no Day.
     { date: december(18) },
     { date: december(19) },
     { date: december(20) },
@@ -86,6 +92,8 @@ export const option2: ItineraryContent = {
     {
       date: december(14),
       mode: 'train',
+      // "Through Odawara". The source doesn't say how the rest of the way to
+      // Hakone goes.
       sections: [
         {
           mode: 'shinkansen',
@@ -94,14 +102,18 @@ export const option2: ItineraryContent = {
           to: 'odawara',
         },
       ],
+      // "3½–4½ hours hotel to hotel".
       duration: { minMinutes: 210, maxMinutes: 270 },
     },
+    // The source gives neither the route nor the duration.
     { date: december(17), mode: 'train', sections: [] },
   ],
   dayTrips: [
     { date: december(8), place: 'kamakura', optional: false },
+    // "Optional Uji" on a weekend that names no Day, so on both.
     { date: december(12), place: 'uji', optional: true },
     { date: december(13), place: 'uji', optional: true },
+    // "Optional Enoshima" in a Stay that names no Day, so on both whole Days.
     { date: december(18), place: 'enoshima', optional: true },
     { date: december(19), place: 'enoshima', optional: true },
   ],
@@ -121,6 +133,7 @@ export const option2: ItineraryContent = {
     'Best suited to someone who enjoys bathing, leisurely meals, and time at the accommodation.',
     'Nikko is omitted.',
   ],
+  // The source reads "Choose this over Option 1 if".
   chooseThisIf:
     'your ideal birthday is a retreat, and that matters more than discovering another city.',
   travelNotes:

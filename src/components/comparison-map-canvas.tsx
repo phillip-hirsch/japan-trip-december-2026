@@ -15,6 +15,8 @@ const otherColors = ['#7cc1e9', '#e8be62', '#eee7d9', '#bba3e8', '#75cca7']
 
 const laneWidth = 3.5
 
+// Fetched here rather than by the route's loader, so the map's data stays out
+// of the page's initial load along with its code.
 let comparisonMap: Promise<ComparisonMap> | undefined
 
 const loadComparisonMap = () =>
