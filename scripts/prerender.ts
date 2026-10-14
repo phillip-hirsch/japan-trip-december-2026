@@ -26,9 +26,7 @@ export const readPrerenderedPaths = () =>
  */
 const htmlFile = (pagePath: string) => `${pagePath.slice(1)}.html`
 
-// The verified email in the request context is the personal state a
-// prerendered page could leak, so no email address may appear at all.
-const emailAddress = /[\w.%+-]+@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}\b/i
+const leakedEmailAddress = /[\w.%+-]+@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}\b/i
 
 const optionsLink = /href="(\/options[^"?#]*)"/g
 
@@ -37,7 +35,9 @@ const pageProblems = (
   file: string,
   html: string,
 ) => [
-  ...(emailAddress.test(html) ? [`${file} contains an email address`] : []),
+  ...(leakedEmailAddress.test(html)
+    ? [`${file} contains an email address`]
+    : []),
   ...[...html.matchAll(optionsLink)].flatMap(([, href]) =>
     !prerenderedPaths.includes(href)
       ? [`${file} links to ${href}, which isn't prerendered`]
