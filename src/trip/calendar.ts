@@ -2,17 +2,28 @@ import type { DurationRange, IsoDate } from '@/trip/domain'
 
 export const tripTimeZone = 'Asia/Tokyo'
 
-const isCalendarDate = (date: string): date is IsoDate => {
+const calendarDatePattern = /^\d{4}-\d{2}-\d{2}$/
+
+/**
+ * Whether a string is a real calendar date, as YYYY-MM-DD. The round trip
+ * rejects an impossible date such as 2026-02-30, which otherwise normalises
+ * silently to another date. The pattern rejects an expanded year such as
+ * +010000-01, whose first ten characters survive the round trip.
+ */
+export const isCalendarDate = (date: string) => {
   const midnight = new Date(`${date}T00:00:00Z`)
 
   return (
+    calendarDatePattern.test(date) &&
     !Number.isNaN(midnight.getTime()) &&
     midnight.toISOString().slice(0, 10) === date
   )
 }
 
+const isIsoDate = (date: string): date is IsoDate => isCalendarDate(date)
+
 const calendarDate = (date: string) => {
-  if (!isCalendarDate(date)) throw new Error(`${date} is not a calendar date.`)
+  if (!isIsoDate(date)) throw new Error(`${date} is not a calendar date.`)
 
   return date
 }
