@@ -1,4 +1,4 @@
-import type { DurationRange, IsoDate } from '@/trip/domain'
+import type { DurationRange, IsoDate, TokyoDateTime } from '@/trip/domain'
 
 export const tripTimeZone = 'Asia/Tokyo'
 
@@ -104,7 +104,7 @@ export const timeOfDayPattern = /^([01]\d|2[0-3]):[0-5]\d$/
  * An Activity's time, a zoned date-time in Tokyo such as
  * 2026-12-15T19:00:00.000+09:00[Asia/Tokyo], as its time of day, "19:00".
  */
-export const timeOfDayOf = (time: string) => time.slice(11, 16)
+export const timeOfDayOf = (time: TokyoDateTime) => time.slice(11, 16)
 
 export const formatNights = (nights: number) =>
   `${nights} ${nights === 1 ? 'night' : 'nights'}`

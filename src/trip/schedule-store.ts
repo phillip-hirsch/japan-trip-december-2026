@@ -13,6 +13,7 @@ import {
   DurationRange,
   Hotel,
   IsoDate,
+  IsoInstant,
   Move,
   OperationId,
   Pin,
@@ -20,6 +21,7 @@ import {
   ScheduleId,
   ScheduleRecord,
   Stay,
+  TokyoDateTime,
   VerifyClaim,
   VerifyClaimAttachment,
 } from '@/trip/domain'
@@ -174,7 +176,7 @@ const ActivityRow = Schema.Struct({
   date: IsoDate,
   ...ordered,
   title: Schema.String,
-  time: Schema.NullOr(Schema.String),
+  time: Schema.NullOr(TokyoDateTime),
   note: Schema.NullOr(Schema.String),
   ...PinColumns.fields,
 })
@@ -215,7 +217,7 @@ const activityRowOf = (
 
 export interface ActivityChanges {
   readonly title?: string
-  readonly time?: string | null
+  readonly time?: TokyoDateTime | null
   readonly note?: string
 }
 
@@ -274,7 +276,7 @@ export const scheduleStore = Effect.gen(function* () {
   })
 
   const archiveSchedule = SqlSchema.void({
-    Request: Schema.Struct({ id: ScheduleId, archivedAt: Schema.String }),
+    Request: Schema.Struct({ id: ScheduleId, archivedAt: IsoInstant }),
     execute: ({ id, archivedAt }) =>
       sql`
         UPDATE schedules SET status = 'archived', archivedAt = ${archivedAt}
@@ -412,7 +414,7 @@ export const scheduleStore = Effect.gen(function* () {
     Request: Schema.Struct({
       ...ActivityKey.fields,
       title: Schema.optionalKey(Schema.String),
-      time: Schema.optionalKey(Schema.NullOr(Schema.String)),
+      time: Schema.optionalKey(Schema.NullOr(TokyoDateTime)),
       note: Schema.optionalKey(Schema.NullOr(Schema.String)),
     }),
     execute: ({ scheduleId, id, ...changes }) =>
@@ -703,8 +705,7 @@ export const scheduleStore = Effect.gen(function* () {
     /** Every archived Schedule, the most recently archived first. */
     archived: findArchived(undefined),
 
-    /** Archives a Schedule at a moment, given as an ISO 8601 UTC string. */
-    archive: (id: ScheduleId, archivedAt: string) =>
+    archive: (id: ScheduleId, archivedAt: IsoInstant) =>
       archiveSchedule({ id, archivedAt }),
 
     makeCurrent: makeScheduleCurrent,

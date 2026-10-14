@@ -17,6 +17,7 @@ import {
   birthdayDate,
   isTripDate,
   shigeharuDate,
+  timeOfDayOf,
   tripDates,
   tripEndDate,
   tripStartDate,
@@ -38,6 +39,7 @@ import {
   Hotel,
   HotelDetailTooLong,
   IsoDate,
+  IsoInstant,
   ItineraryNotFound,
   LocationLinkRefused,
   NoCoordinatesInLink,
@@ -52,6 +54,7 @@ import {
   StaysEdited,
   StayDateRuleBreak,
   StayNotFound,
+  TokyoDateTime,
   TripRuleBreak,
   VerifyClaimAttachment,
 } from '@/trip/domain'
@@ -161,6 +164,9 @@ export type { ScheduleCopy, ScheduleStay } from '@/trip/schedule-store'
  * editStays moves them with their Stays.
  */
 export type StayEdit = Pick<ScheduleCopy, 'stays' | 'moves'>
+
+const isoInstantOf = (now: DateTime.DateTime) =>
+  IsoInstant.make(DateTime.formatIso(now))
 
 const tokyoDateOf = (now: DateTime.DateTime) =>
   IsoDate.make(
@@ -816,14 +822,10 @@ const requireStay = Effect.fnUntraced(function* (
   }
 })
 
-/**
- * Archives the current Schedule that choosing or restoring replaces, at a
- * moment given as an ISO 8601 UTC string; nothing when none exists yet.
- */
 const archiveReplaced = Effect.fnUntraced(function* (
   store: ScheduleStore,
   replacing: ScheduleId | null,
-  archivedAt: string,
+  archivedAt: IsoInstant,
 ) {
   const current = yield* requireCurrent(store, replacing)
 
@@ -1011,27 +1013,25 @@ const requireActivityTitle = (title: string) =>
  * date-time. Tokyo keeps UTC+9 all year, so every time of day exists once.
  */
 const activityTimeOf = (date: IsoDate, time: TimeOfDay) =>
-  DateTime.formatIsoZoned(
-    DateTime.makeZonedUnsafe(`${date}T${time}:00`, {
-      timeZone: tripTimeZone,
-      adjustForTimeZone: true,
-    }),
+  TokyoDateTime.make(
+    DateTime.formatIsoZoned(
+      DateTime.makeZonedUnsafe(`${date}T${time}:00`, {
+        timeZone: tripTimeZone,
+        adjustForTimeZone: true,
+      }),
+    ),
   )
 
-/**
- * Where a new Activity goes among a Day's: a timed one before the first with
- * a later time, any other last. The times on one Day share its date and
- * Tokyo's offset, so their strings sort in time order.
- */
 const insertionIndexOf = (
   activities: ReadonlyArray<Activity>,
-  time: string | undefined,
+  time: TimeOfDay | undefined,
 ) => {
   const later =
     time === undefined
       ? -1
       : activities.findIndex(
-          (activity) => activity.time !== undefined && activity.time > time,
+          (activity) =>
+            activity.time !== undefined && timeOfDayOf(activity.time) > time,
         )
 
   return later === -1 ? activities.length : later
@@ -1724,7 +1724,7 @@ export class Trip extends Context.Service<
 
               if (Option.isSome(recorded)) return recorded.value.result
               const itinerary = yield* find(byOptionNumber, optionNumber)
-              const now = DateTime.formatIso(yield* DateTime.now)
+              const now = isoInstantOf(yield* DateTime.now)
               yield* archiveReplaced(store, replacing, now)
               const scheduleId = ScheduleId.make(crypto.randomUUID())
               yield* store.insert(
@@ -1773,7 +1773,7 @@ export class Trip extends Context.Service<
               if (alreadyCurrent) {
                 yield* requireCurrent(store, replacing)
               } else {
-                const now = DateTime.formatIso(yield* DateTime.now)
+                const now = isoInstantOf(yield* DateTime.now)
                 yield* archiveReplaced(store, replacing, now)
                 yield* store.makeCurrent(scheduleId)
               }
@@ -2160,11 +2160,7 @@ export class Trip extends Context.Service<
 
               const activities = yield* store.activitiesOn(scheduleId, date)
               const ids = activities.map(({ id }) => id)
-              ids.splice(
-                insertionIndexOf(activities, activity.time),
-                0,
-                activity.id,
-              )
+              ids.splice(insertionIndexOf(activities, time), 0, activity.id)
               yield* store.addActivity(scheduleId, date, activity, ids.length)
               yield* store.writeActivityOrder(scheduleId, ids)
               const added = { activityId: activity.id }

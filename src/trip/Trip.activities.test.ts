@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect, Option, Predicate } from 'effect'
 
 import { timeOfDayOf } from '@/trip/calendar'
-import { december, IsoDate, TimeOfDay } from '@/trip/domain'
+import { december, IsoDate, TimeOfDay, TokyoDateTime } from '@/trip/domain'
 import type { Activity, EditActivity, ScheduleId } from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
@@ -125,8 +125,8 @@ describe('Trip.addActivity', () => {
         assert.deepStrictEqual(
           (yield* activitiesOn(december(15))).map(({ time }) => time),
           [
-            '2026-12-15T19:00:00.000+09:00[Asia/Tokyo]',
-            '2026-12-15T23:59:00.000+09:00[Asia/Tokyo]',
+            TokyoDateTime.make('2026-12-15T19:00:00.000+09:00[Asia/Tokyo]'),
+            TokyoDateTime.make('2026-12-15T23:59:00.000+09:00[Asia/Tokyo]'),
           ],
         )
       }).pipe(Effect.provide([trip, storage])),
@@ -361,7 +361,7 @@ describe('Trip.editActivity', () => {
         })
         assert.deepStrictEqual(
           (yield* activitiesOn(december(20))).map(({ time }) => time),
-          ['2026-12-20T23:59:00.000+09:00[Asia/Tokyo]'],
+          [TokyoDateTime.make('2026-12-20T23:59:00.000+09:00[Asia/Tokyo]')],
         )
       }).pipe(Effect.provide([trip, storage])),
   )

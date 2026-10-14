@@ -1,7 +1,7 @@
-import { Schema, Struct } from 'effect'
+import { DateTime, Option, Schema, Struct } from 'effect'
 
 import { displayStrings } from '@/fonts/display-strings'
-import { isCalendarDate, timeOfDayPattern } from '@/trip/calendar'
+import { isCalendarDate, timeOfDayPattern, tripTimeZone } from '@/trip/calendar'
 import { placeIds, railLineIds, stationIds } from '@/trip/catalogue-ids'
 
 /** A calendar date in Tokyo time, as YYYY-MM-DD. */
@@ -10,6 +10,17 @@ export const IsoDate = Schema.String.check(
 ).pipe(Schema.brand('IsoDate'))
 
 export type IsoDate = typeof IsoDate.Type
+
+export const IsoInstant = Schema.String.check(
+  Schema.makeFilter((instant: string) =>
+    Option.exists(
+      DateTime.make(instant),
+      (parsed) => DateTime.formatIso(parsed) === instant,
+    ),
+  ),
+).pipe(Schema.brand('IsoInstant'))
+
+export type IsoInstant = typeof IsoInstant.Type
 
 export const december = (day: number) =>
   IsoDate.make(`2026-12-${String(day).padStart(2, '0')}`)
@@ -573,15 +584,23 @@ export const TimeOfDay = Schema.String.check(
 
 export type TimeOfDay = typeof TimeOfDay.Type
 
-/**
- * One thing planned on a Day of the Schedule. Its time is a zoned date-time
- * in Asia/Tokyo on its Day's date, as ISO 8601 with the zone, such as
- * 2026-12-15T19:00:00.000+09:00[Asia/Tokyo].
- */
+export const TokyoDateTime = Schema.String.check(
+  Schema.makeFilter((dateTime: string) =>
+    Option.exists(
+      DateTime.makeZonedFromString(dateTime),
+      (zoned) =>
+        DateTime.zoneToString(zoned.zone) === tripTimeZone &&
+        DateTime.formatIsoZoned(zoned) === dateTime,
+    ),
+  ),
+).pipe(Schema.brand('TokyoDateTime'))
+
+export type TokyoDateTime = typeof TokyoDateTime.Type
+
 export const Activity = Schema.Struct({
   id: ActivityId,
   title: Schema.String,
-  time: Schema.optionalKey(Schema.String),
+  time: Schema.optionalKey(TokyoDateTime),
   note: Schema.optionalKey(Schema.String),
   pin: Schema.optionalKey(Pin),
 })
@@ -636,10 +655,8 @@ export const ScheduleRecord = Schema.Struct({
   sourceOptionNumber: OptionNumber,
   /** The content version of the Itinerary when it was chosen. */
   sourceContentVersion: Schema.String,
-  /** The moment it was chosen, as an ISO 8601 UTC string. */
-  chosenAt: Schema.String,
-  /** The moment it was last archived, as an ISO 8601 UTC string. */
-  archivedAt: Schema.NullOr(Schema.String),
+  chosenAt: IsoInstant,
+  archivedAt: Schema.NullOr(IsoInstant),
   birthdayOutline: Schema.String,
 })
 
@@ -717,7 +734,7 @@ export const ArchivedScheduleSummary = Schema.Struct({
     'sourceOptionNumber',
     'chosenAt',
   ]),
-  archivedAt: Schema.String,
+  archivedAt: IsoInstant,
 })
 
 export type ArchivedScheduleSummary = typeof ArchivedScheduleSummary.Type
