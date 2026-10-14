@@ -2,17 +2,39 @@ import type { DurationRange, IsoDate } from '@/trip/domain'
 
 export const tripTimeZone = 'Asia/Tokyo'
 
-// SAFETY: valid ISO date literal for the Arrival.
-export const tripStartDate = '2026-12-06' as IsoDate
+const calendarDatePattern = /^\d{4}-\d{2}-\d{2}$/
 
-// SAFETY: valid ISO date literal for the Departure.
-export const tripEndDate = '2026-12-20' as IsoDate
+/**
+ * Whether a string is a real calendar date, as YYYY-MM-DD. The round trip
+ * rejects an impossible date such as 2026-02-30, which otherwise normalises
+ * silently to another date. The pattern rejects an expanded year such as
+ * +010000-01, whose first ten characters survive the round trip.
+ */
+export const isCalendarDate = (date: string) => {
+  const midnight = new Date(`${date}T00:00:00Z`)
 
-// SAFETY: valid ISO date literal for the Shigeharu visit.
-export const shigeharuDate = '2026-12-11' as IsoDate
+  return (
+    calendarDatePattern.test(date) &&
+    !Number.isNaN(midnight.getTime()) &&
+    midnight.toISOString().slice(0, 10) === date
+  )
+}
 
-// SAFETY: valid ISO date literal for the Birthday.
-export const birthdayDate = '2026-12-15' as IsoDate
+const isIsoDate = (date: string): date is IsoDate => isCalendarDate(date)
+
+const calendarDate = (date: string) => {
+  if (!isIsoDate(date)) throw new Error(`${date} is not a calendar date.`)
+
+  return date
+}
+
+export const tripStartDate = calendarDate('2026-12-06')
+
+export const tripEndDate = calendarDate('2026-12-20')
+
+export const shigeharuDate = calendarDate('2026-12-11')
+
+export const birthdayDate = calendarDate('2026-12-15')
 
 const dayInMilliseconds = 24 * 60 * 60 * 1000
 
@@ -25,11 +47,12 @@ export const tripDates: ReadonlyArray<IsoDate> = Array.from(
         dayInMilliseconds +
       1,
   },
-  // SAFETY: UTC day steps between the valid endpoints yield ISO calendar dates; Trip tests cover all 15 Days.
   (_, index) =>
-    new Date(midnightUtc(tripStartDate) + index * dayInMilliseconds)
-      .toISOString()
-      .slice(0, 10) as IsoDate,
+    calendarDate(
+      new Date(midnightUtc(tripStartDate) + index * dayInMilliseconds)
+        .toISOString()
+        .slice(0, 10),
+    ),
 )
 
 /**

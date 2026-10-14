@@ -1,5 +1,4 @@
-// Browser-safe catalogue; see AGENTS.md: Effect in the browser. The rail
-// schemas read their ids here, like the place catalogue.
+import type { RailLineId, StationId } from '@/trip/catalogue-ids'
 import type { CatalogueCoordinates } from '@/trip/places'
 
 export const stations = {
@@ -28,26 +27,12 @@ export const stations = {
     coordinates: { latitude: 33.5897, longitude: 130.4207 },
   },
 } as const satisfies Record<
-  string,
+  StationId,
   {
     readonly name: string
     readonly coordinates: CatalogueCoordinates
   }
 >
-
-export type StationId = keyof typeof stations
-
-// SAFETY: stations is the closed catalogue literal above; its enumerable own keys are exactly StationId.
-export const stationIds = Object.keys(stations) as ReadonlyArray<StationId>
-
-export const railLineIds = [
-  'tokaido-shinkansen',
-  'tokaido-sanyo-shinkansen',
-  'hokuriku-shinkansen',
-  'thunderbird',
-] as const
-
-export type RailLineId = (typeof railLineIds)[number]
 
 export type RailSectionIds = {
   readonly line: RailLineId

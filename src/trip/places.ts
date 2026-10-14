@@ -1,6 +1,5 @@
-// Browser-safe catalogue; see AGENTS.md: Effect in the browser. The Place
-// schema reads its ids here, so deriving this shape from it would create a cycle.
 import type { DisplayString } from '@/fonts/display-strings'
+import type { PlaceId } from '@/trip/catalogue-ids'
 
 export type CatalogueCoordinates = {
   readonly latitude: number
@@ -74,18 +73,13 @@ export const places = {
     coordinates: { latitude: 33.519, longitude: 130.5314 },
   },
 } as const satisfies Record<
-  string,
+  PlaceId,
   {
     readonly romaji: string
     readonly kanji: DisplayString
     readonly coordinates: CatalogueCoordinates
   }
 >
-
-export type PlaceId = keyof typeof places
-
-// SAFETY: places is the closed catalogue literal above; its enumerable own keys are exactly PlaceId.
-export const placeIds = Object.keys(places) as ReadonlyArray<PlaceId>
 
 export const isPlaceId = (id: string): id is PlaceId =>
   Object.hasOwn(places, id)

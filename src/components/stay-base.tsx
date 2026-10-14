@@ -14,8 +14,9 @@ import type {
   ScheduleStayDetail,
 } from '@/trip/domain'
 import { SaveAnswer, SaveState, useSave } from '@/trip/drafts'
-import { placeIds, places } from '@/trip/places'
-import type { PlaceId } from '@/trip/places'
+import { placeIds } from '@/trip/catalogue-ids'
+import type { PlaceId } from '@/trip/catalogue-ids'
+import { places } from '@/trip/places'
 import { changeStayBase } from '@/trip/trip.functions'
 
 const unknownPlace = (rule: HardRule) =>

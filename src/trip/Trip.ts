@@ -116,6 +116,7 @@ import type {
 } from '@/trip/domain'
 import { Itineraries } from '@/trip/Itineraries'
 import { LocationLinkResolver } from '@/trip/LocationLinkResolver'
+import type { PlaceId, StationId } from '@/trip/catalogue-ids'
 import { reminderDateOf } from '@/trip/checklist-items'
 import { trimmedHotelDetails } from '@/trip/hotel-details'
 import {
@@ -132,13 +133,11 @@ import {
   linkRefusalOf,
 } from '@/trip/pins'
 import { places, visitedPlaceIds } from '@/trip/places'
-import type { PlaceId } from '@/trip/places'
 import {
   railSectionIdsOf,
   stations,
   undirectedRailSectionKey,
 } from '@/trip/rail'
-import type { StationId } from '@/trip/rail'
 import { railGeometryAttribution, railGeometryOf } from '@/trip/rail-geometry'
 import { scheduleStore } from '@/trip/schedule-store'
 import {

@@ -1,23 +1,12 @@
-import { DateTime, Option, Schema, Struct } from 'effect'
+import { Schema, Struct } from 'effect'
 
 import { displayStrings } from '@/fonts/display-strings'
-import { timeOfDayPattern } from '@/trip/calendar'
-import { placeIds } from '@/trip/places'
-import { railLineIds, stationIds } from '@/trip/rail'
+import { isCalendarDate, timeOfDayPattern } from '@/trip/calendar'
+import { placeIds, railLineIds, stationIds } from '@/trip/catalogue-ids'
 
-/**
- * A calendar date in Tokyo time, as YYYY-MM-DD. The check round-trips the
- * date, because an impossible one such as 2026-02-30 otherwise normalises
- * silently to another date.
- */
+/** A calendar date in Tokyo time, as YYYY-MM-DD. */
 export const IsoDate = Schema.String.check(
-  Schema.isPattern(/^\d{4}-\d{2}-\d{2}$/),
-  Schema.makeFilter((date: string) =>
-    Option.exists(
-      DateTime.make(date),
-      (parsed) => DateTime.formatIsoDate(parsed) === date,
-    ),
-  ),
+  Schema.makeFilter(isCalendarDate),
 ).pipe(Schema.brand('IsoDate'))
 
 export type IsoDate = typeof IsoDate.Type

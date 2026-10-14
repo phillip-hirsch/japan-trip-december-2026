@@ -82,16 +82,17 @@ Copy each part verbatim from its labelled paragraph, and leave out any part the 
 
 ## Places, stations and lines
 
-Every Base and Day trip destination must be in the place catalogue in `src/trip/places.ts`. To add a place:
+Every Base and Day trip destination must be in the place catalogue. To add a place:
 
-- Give it a lowercase id, its romaji name and its kanji name.
+- Add its lowercase id to `placeIds` in `src/trip/catalogue-ids.ts`. The Stay editor lists the Base chips in that order.
+- Add its entry to `places` in `src/trip/places.ts`, with its romaji name and its kanji name.
 - Give it the coordinates of the town's main station, in decimal degrees to four places, taken from a reliable source.
 - Add its kanji to `src/fonts/display-strings.ts`. The `kanji` field's type requires it.
 - Run `vp run subset-display-font` (needs `uv`), and commit the regenerated woff2.
 
 A new place is a New place automatically. `visitedPlaceIds` changes only when Phillip says he has been somewhere.
 
-The station or line ids that rail sections use live in `src/trip/rail.ts`. Add any that are missing. Give a new station its coordinates in decimal degrees to four places, taken from a reliable source: the Itinerary's map draws train Moves through them.
+Rail sections use station ids and line ids, which `src/trip/catalogue-ids.ts` declares in `stationIds` and `railLineIds`. Add any that are missing. A new station id also needs its entry in `stations` in `src/trip/rail.ts`. Give a new station its coordinates in decimal degrees to four places, taken from a reliable source: the Itinerary's map draws train Moves through them.
 
 The map draws each rail section along its real line, from the rail geometry in `src/trip/rail-geometry.json`. When the catalogue gains a rail section that it doesn't have yet, in either direction, run `vp run build-rail-geometry` (it needs network access and `unzip`) and commit the regenerated GeoJSON. A new line also needs its MLIT line names in `mlitLines` in `scripts/build-rail-geometry.ts`. The build fails if a station is more than 1 km from its line, or if the GeoJSON goes over its 15 KB gzipped budget. A section the build can't cover is drawn straight between its stations. Add it, as "mode line from → to", to the expected list of the "follows the rail line on every rail section" test in `src/trip/Trip.test.ts`, or that test fails.
 

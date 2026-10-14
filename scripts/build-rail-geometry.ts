@@ -17,7 +17,7 @@ import type {
 } from '../src/trip/domain.ts'
 // Relative, not '@/': plain `node` runs this script and can't resolve the alias.
 import { railSectionIdsOf, undirectedRailSectionKey } from '../src/trip/rail.ts'
-import type { RailLineId } from '../src/trip/rail.ts'
+import type { RailLineId } from '../src/trip/catalogue-ids.ts'
 
 import { readTrip } from './trip.ts'
 
