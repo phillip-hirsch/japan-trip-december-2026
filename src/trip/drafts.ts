@@ -345,7 +345,11 @@ export const useSave = <V>({
       keepDraft(next, draft.scheduleId)
     }
 
-    setState({ ...state, value: next })
+    setState((current) =>
+      SaveState.$is('NotSaved')(current)
+        ? { ...current, value: next }
+        : current,
+    )
   }
 
   const discard = () => {
