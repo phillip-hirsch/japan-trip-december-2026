@@ -1,8 +1,9 @@
 import type { ESTree } from "vite-plus/lint/plugins";
 
+import { childNodes } from "./child-nodes.ts";
+import type { VisitorKeys } from "./child-nodes.ts";
 import { lexicalTypeParameterNames } from "./lexical-type-parameters.ts";
 
-type VisitorKeys = Readonly<Record<string, readonly string[]>>;
 type TypeScope = ESTree.Node;
 
 type TypeBinding = {
@@ -30,15 +31,6 @@ export type ResolvedTypeMatcher = (
 ) => boolean;
 
 const environmentsByProgram = new WeakMap<ESTree.Program, TypeAliasEnvironment>();
-
-function isNode(value: unknown): value is ESTree.Node {
-	return (
-		typeof value === "object" &&
-		value !== null &&
-		"type" in value &&
-		typeof value.type === "string"
-	);
-}
 
 function enclosingTypeScope(node: ESTree.Node): TypeScope {
 	let current: ESTree.Node | null = node.parent;
@@ -96,20 +88,8 @@ function collectTypeBindings(
 		if (declared.alias !== null) aliases.push(declared.alias);
 	}
 
-	// SAFETY: Oxlint's visitor keys identify only ESTree child-node properties.
-	const fields = node as unknown as Readonly<Record<string, unknown>>;
-	for (const key of visitorKeys[node.type] ?? []) {
-		const value = fields[key];
-		if (isNode(value)) {
-			collectTypeBindings(value, visitorKeys, bindingsByName, aliases);
-			continue;
-		}
-		if (!Array.isArray(value)) continue;
-		for (const child of value) {
-			if (isNode(child)) {
-				collectTypeBindings(child, visitorKeys, bindingsByName, aliases);
-			}
-		}
+	for (const child of childNodes(node, visitorKeys)) {
+		collectTypeBindings(child, visitorKeys, bindingsByName, aliases);
 	}
 }
 
