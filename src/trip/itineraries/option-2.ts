@@ -1,4 +1,3 @@
-// Converted from docs/itinerary.md, "2. Tokyo → Kyoto → Hakone → Tokyo".
 import { december } from '@/trip/domain'
 import type { ItineraryContent } from '@/trip/domain'
 import { shigeharuOpeningDays } from '@/trip/itineraries/shigeharu'

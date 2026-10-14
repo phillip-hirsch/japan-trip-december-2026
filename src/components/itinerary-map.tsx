@@ -11,7 +11,6 @@ const ItineraryMapCanvas: ComponentType<{ map: ItineraryMapData }> = import.meta
   ? () => null
   : lazy(() => import('@/components/itinerary-map-canvas'))
 
-/** An Itinerary's Bases, Moves and Day trips on an interactive dark map. */
 export function ItineraryMap({ map }: { map: ItineraryMapData }) {
   return (
     <LazyMap>

@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/item'
 import type { ItinerarySummary } from '@/trip/domain'
 
-/** Every Itinerary as "Option N" with its name, linking to its page. */
 export function ItineraryList({
   itineraries,
 }: {

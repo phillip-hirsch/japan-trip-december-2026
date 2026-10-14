@@ -13,7 +13,6 @@ import { VerifyClaims } from '@/components/verify-claims'
 import { formatMoment } from '@/trip/calendar'
 import { schedulesQuery } from '@/trip/queries'
 
-// Personal state, so never prerendered: each visit asks the Trip store.
 export const Route = createFileRoute('/schedule/')({
   loader: {
     handler: ({ context }) => context.queryClient.fetchQuery(schedulesQuery),

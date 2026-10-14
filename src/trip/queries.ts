@@ -1,6 +1,3 @@
-// The browser's cache of Trip server data, and which writes make it stale.
-// Itinerary content changes only with a deploy, so its pages keep their route
-// loaders; this cache holds what Phillip's writes change.
 import {
   partialMatchKey,
   queryOptions,
@@ -30,10 +27,8 @@ import {
 const keys = {
   home: ['home'],
   schedules: ['schedules'],
-  /** The prefix of every Day page's query. */
   days: ['days'],
   scheduleSummary: ['schedule-summary'],
-  /** The prefix of every query for one Schedule by its id. */
   scheduleById: ['schedule-by-id'],
   checklist: ['checklist'],
   scheduleMap: ['schedule-map'],
@@ -53,7 +48,6 @@ export const homeQuery = queryOptions({
   refetchOnMount: false,
 })
 
-/** How long after a failed refetch Home tries again. */
 const retryDelay = 60_000
 
 /**
@@ -86,10 +80,6 @@ export const useHome = () => {
   return data
 }
 
-/**
- * One Day of the current Schedule as its page shows it: null before a
- * Schedule exists. The date is a Day of the Trip; the route checks it first.
- */
 export const dayQuery = (date: IsoDate) =>
   queryOptions({
     queryKey: [...keys.days, date],
@@ -97,17 +87,12 @@ export const dayQuery = (date: IsoDate) =>
     refetchOnMount: false,
   })
 
-/** The current Schedule and the archived ones, for /schedule. */
 export const schedulesQuery = queryOptions({
   queryKey: keys.schedules,
   queryFn: () => getSchedules(),
   refetchOnMount: false,
 })
 
-/**
- * One Schedule by id, current or archived, for an archived Schedule's page:
- * null when none has that id.
- */
 export const scheduleByIdQuery = (scheduleId: string) =>
   queryOptions({
     queryKey: [...keys.scheduleById, scheduleId],
@@ -115,25 +100,18 @@ export const scheduleByIdQuery = (scheduleId: string) =>
     refetchOnMount: false,
   })
 
-/** The Checklist, for /checklist. */
 export const checklistQuery = queryOptions({
   queryKey: keys.checklist,
   queryFn: () => getChecklist(),
   refetchOnMount: false,
 })
 
-/** The current Schedule on its map, for /map: null before one exists. */
 export const scheduleMapQuery = queryOptions({
   queryKey: keys.scheduleMap,
   queryFn: () => getScheduleMap(),
   refetchOnMount: false,
 })
 
-/**
- * The storage-dependent parts of every page, prerendered ones included, read
- * this: the navigation's Options or Schedule entry, the Choose button, and
- * "your Schedule came from this Itinerary".
- */
 const scheduleSummaryQuery = queryOptions({
   queryKey: keys.scheduleSummary,
   queryFn: () => getScheduleSummary(),
@@ -152,7 +130,6 @@ export const useScheduleSummary = () => useQuery(scheduleSummaryQuery).data
 export const shouldDehydrateQuery = (query: Query) =>
   query.queryKey[0] !== keys.scheduleSummary[0]
 
-/** What replacing the current Schedule, by choosing or restoring, affects. */
 const replacingTheSchedule = [
   keys.schedules,
   keys.days,
@@ -163,10 +140,6 @@ const replacingTheSchedule = [
   keys.scheduleMap,
 ] as const
 
-/**
- * The invalidation contract: the queries each write affects. Every write
- * lists its own here.
- */
 const affectedBy = {
   choose: replacingTheSchedule,
   restore: replacingTheSchedule,
@@ -261,10 +234,5 @@ export const subscribeToReadsAfter = (
     }
   })
 
-/**
- * Refetches after a write was refused as "Schedule changed": another device
- * replaced the Schedule this screen shows, so everything replacing it
- * affects is stale.
- */
 export const invalidateAfterScheduleChanged = (queryClient: QueryClient) =>
   invalidate(queryClient, replacingTheSchedule)

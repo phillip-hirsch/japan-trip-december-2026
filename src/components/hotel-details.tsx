@@ -25,14 +25,11 @@ import { trimmedHotelDetails } from '@/trip/hotel-details'
 import { hotelDetailMaxLength } from '@/trip/limits'
 import { writeHotelDetails } from '@/trip/trip.functions'
 
-/** Hotel details as typed, '' for a field not recorded. */
 type HotelFields = Required<HotelDetails>
 
-/** The form's field for each of the Hotel details, in order. */
 const hotelFields = [
   { key: 'name', label: 'Hotel name', code: false },
   { key: 'address', label: 'Address', code: false },
-  // A code to read out or paste at check-in: monospaced, never spell-checked.
   { key: 'confirmationNumber', label: 'Confirmation number', code: true },
 ] as const
 
@@ -45,7 +42,6 @@ const fieldsOf = (hotel: Hotel): HotelFields =>
       }
     : { name: '', address: '', confirmationNumber: '' }
 
-// Fields equal once trimmed save the same.
 const sameFields = (a: HotelFields, b: HotelFields) => {
   const [trimmedA, trimmedB] = [a, b].map(trimmedHotelDetails)
 
@@ -73,11 +69,6 @@ const answerOf = (outcome: WriteHotelDetailsOutcome): SaveAnswer =>
     }),
   )
 
-/**
- * A Stay's recorded Hotel details: the hotel's name, its address and the
- * confirmation number, each only once recorded, and "Open in Google Maps"
- * once it's pinned.
- */
 export function HotelDetailsList({
   details: { name, address, confirmationNumber, pin },
   className,
@@ -118,7 +109,6 @@ export function HotelDetailsField({
   scheduleId: ScheduleId
   stayId: string
   hotel: Hotel
-  /** The id of the heading naming the details. */
   labelledBy: string
 }) {
   const write = useServerFn(writeHotelDetails)
@@ -139,8 +129,6 @@ export function HotelDetailsField({
 
   if (SaveState.$is('Clean')(state) || SaveState.$is('Saved')(state)) {
     const justSaved = SaveState.$is('Saved')(state) || state.justSaved
-    // What shows: the details just saved until a read confirms them, then
-    // what the server holds.
     const details = trimmedHotelDetails(value)
     const recorded = Object.keys(details).length > 0
 
@@ -197,7 +185,6 @@ export function HotelDetailsField({
             aria-describedby={notSaved ? problemId : undefined}
             // Opening the editor focuses it; a restored draft opens unfocused.
             autoFocus={index === 0 && SaveState.$is('Editing')(state)}
-            // A save in flight fixes the value, so two saves never race.
             readOnly={saving}
             value={value[key]}
             onChange={(event) =>

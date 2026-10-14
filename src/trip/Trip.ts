@@ -159,7 +159,6 @@ export type { ScheduleCopy, ScheduleStay } from '@/trip/schedule-store'
  */
 export type StayEdit = Pick<ScheduleCopy, 'stays' | 'moves'>
 
-/** The calendar date in Tokyo at a moment. */
 const tokyoDateOf = (now: DateTime.DateTime) =>
   IsoDate.make(
     DateTime.formatIsoDate(
@@ -179,7 +178,6 @@ const addDays = (date: IsoDate, days: number) =>
     DateTime.formatIsoDate(DateTime.add(DateTime.makeUnsafe(date), { days })),
   )
 
-/** The same date a month earlier: November 9 for December 9. */
 const monthBefore = (date: IsoDate) =>
   IsoDate.make(
     DateTime.formatIsoDate(
@@ -189,7 +187,6 @@ const monthBefore = (date: IsoDate) =>
 
 const nightsOf = (stay: Stay) => daysBetween(stay.checkIn, stay.checkOut)
 
-/** The Thursday before the Shigeharu visit, its backup morning. */
 const thursdayBeforeShigeharu = addDays(shigeharuDate, -1)
 
 const placeOf = (id: PlaceId): Place => ({
@@ -205,13 +202,11 @@ const staySummaryOf = (stay: Stay): StaySummary => ({
   nights: nightsOf(stay),
 })
 
-/** The Stay whose hotel Phillip sleeps in on the night starting on a date. */
 const stayForNight = <S extends Pick<Stay, 'checkIn' | 'checkOut'>>(
   stays: ReadonlyArray<S>,
   date: IsoDate,
 ) => stays.find((stay) => stay.checkIn <= date && date < stay.checkOut)
 
-/** The dates where one Stay checks out and the next checks in. */
 const stayBoundariesOf = (stays: ReadonlyArray<Stay>) =>
   stays.slice(1).flatMap((to, index) => {
     const from = stays[index]
@@ -221,10 +216,6 @@ const stayBoundariesOf = (stays: ReadonlyArray<Stay>) =>
 
 const stationOf = (id: StationId): Station => ({ id, ...stations[id] })
 
-/**
- * Each Move with the Stays it connects, by date. A Schedule's Moves keep
- * their ids.
- */
 const moveDetailsOf = <M extends Move>({
   stays,
   moves,
@@ -284,7 +275,6 @@ const anchorsOf = ({ stays, shigeharuVisit }: Itinerary): Array<Anchor> => [
   Anchor.cases.Departure.make({ date: tripEndDate }),
 ]
 
-/** One key per place a Verify claim can attach to, for matching. */
 const attachmentKey = (attachedTo: VerifyClaimAttachment) =>
   VerifyClaimAttachment.match(attachedTo, {
     Day: (attachedTo) => `Day ${attachedTo.date}`,
@@ -292,7 +282,6 @@ const attachmentKey = (attachedTo: VerifyClaimAttachment) =>
     Itinerary: () => 'Itinerary',
   })
 
-/** The Verify claims attached to one place, without their attachment. */
 const claimsAttachedTo = (
   { verifyClaims }: { readonly verifyClaims: ReadonlyArray<VerifyClaim> },
   attachment: VerifyClaimAttachment,
@@ -339,7 +328,6 @@ const summaryOf = (itinerary: Itinerary): ItinerarySummary => ({
   newToYou: newToYouOf(itinerary),
 })
 
-/** Each Move with its date and the Bases it connects, in travel order. */
 const datedMovesOf = (plan: Pick<Itinerary, 'stays' | 'moves'>) =>
   Array.from(moveDetailsOf(plan), ([date, move]) => ({ date, ...move }))
 
@@ -436,7 +424,6 @@ const withoutRepeats = (path: ReadonlyArray<Coordinates>) =>
     )
   })
 
-/** Each pair of Base and Day trip destination once. */
 const mapDayTripsOf = ({
   stays,
   dayTrips,
@@ -456,10 +443,6 @@ const mapDayTripsOf = ({
   })
 }
 
-/**
- * A rail section's path on the map: along its rail line, or straight between
- * its stations when the rail geometry lacks it.
- */
 const railPathOf = (section: RailSectionDetail) => {
   const path = railGeometryOf(railSectionIdsOf(section))
 
@@ -507,11 +490,6 @@ const mapOf = (
   }
 }
 
-/**
- * The current Schedule on its map, from its copy: drawn as an Itinerary's
- * map is, with each pinned hotel in Trip order and each pinned Activity by
- * Day.
- */
 const scheduleMapOf = (copy: ScheduleCopy): ScheduleMap => ({
   ...mapOf(copy),
   hotels: copy.stays.flatMap((stay) =>
@@ -555,10 +533,6 @@ const comparisonMapOf = (
   }
 }
 
-/**
- * Every rail section the Itineraries ride, once whichever way it's ridden,
- * in the direction first ridden.
- */
 const railSectionsOf = (
   itineraries: ReadonlyArray<Itinerary>,
 ): Array<MapRailSection> => {
@@ -577,11 +551,6 @@ const railSectionsOf = (
   return Array.from(sections.values())
 }
 
-/**
- * What Stays and Days are shown from: an Itinerary's content with its
- * Anchors, or a Schedule's copy of them, whose entities keep their ids and
- * whose Days carry Phillip's Day notes.
- */
 interface Plan<
   S extends Stay,
   D extends Day,
@@ -597,7 +566,6 @@ interface Plan<
   readonly anchors: ReadonlyArray<A>
 }
 
-/** The Stays and all 15 Days, and the Verify claims about the whole. */
 const staysAndDaysOf = <
   S extends Stay,
   D extends Day,
@@ -674,10 +642,6 @@ const detailOf = (itinerary: Itinerary): ItineraryDetail => ({
   map: mapOf(itinerary),
 })
 
-/**
- * A complete copy of an Itinerary for a new Schedule, with a fresh id for
- * each Stay, Move, Day trip, Verify claim and Anchor.
- */
 const copyOf = (itinerary: Itinerary): ScheduleCopy => {
   const withFreshId = <A extends object>(entity: A) => ({
     ...entity,
@@ -697,10 +661,6 @@ const copyOf = (itinerary: Itinerary): ScheduleCopy => {
   }
 }
 
-/**
- * Whether the Itinerary a Schedule came from has had a Revision since it was
- * chosen, by comparing content versions under the same Option number.
- */
 const sourceItineraryOf = (
   schedule: ScheduleRecord,
   itineraries: ReadonlyMap<number, Itinerary>,
@@ -714,10 +674,6 @@ const sourceItineraryOf = (
     : 'revised'
 }
 
-/**
- * A Schedule as its page shows it, from its own record and copy alone, and
- * the current content version of the Itinerary it came from.
- */
 const scheduleDetailOf =
   (itineraries: ReadonlyMap<number, Itinerary>) =>
   ({
@@ -772,11 +728,6 @@ const dayPageOf = (schedule: ScheduleDetail, date: IsoDate) =>
     },
   )
 
-/**
- * Home's state at a moment: before the Trip, the countdown and the Schedule;
- * during it, Today, the Day page of the Tokyo date; after it, the Schedule
- * as a record. The Itineraries stand in for a Schedule not yet chosen.
- */
 const homeStateOf = (
   now: DateTime.DateTime,
   schedule: Option.Option<ScheduleDetail>,
@@ -809,7 +760,6 @@ const homeStateOf = (
   })
 }
 
-/** Stays in Trip order, the order a Schedule's Stays are read in. */
 const byCheckIn = (a: Stay, b: Stay) => a.checkIn.localeCompare(b.checkIn)
 
 /**
@@ -862,10 +812,6 @@ const requireCurrent = Effect.fnUntraced(function* (
   return current
 })
 
-/**
- * Checks a write to a Stay of the Schedule it names: ScheduleChanged unless
- * that Schedule is current, StayNotFound unless it has a Stay with the id.
- */
 const requireStay = Effect.fnUntraced(function* (
   store: ScheduleStore,
   scheduleId: ScheduleId,
@@ -894,18 +840,11 @@ const archiveReplaced = Effect.fnUntraced(function* (
   }
 })
 
-/** NoteTooLong past the longest note the Trip service accepts. */
 const requireNoteLength = (note: string) =>
   note.length > noteMaxLength
     ? Effect.fail(new NoteTooLong({ maxLength: noteMaxLength }))
     : Effect.void
 
-/**
- * Where an item derived from a Schedule falls in Trip order on its date: a
- * Move first, then the Stay it reaches with that Stay's Verify claims, then
- * the Anchors and the Day's Verify claims. Verify claims about the whole
- * Schedule come before everything, on the first Day.
- */
 const tripOrderOnDate = {
   wholeClaim: 0,
   move: 1,
@@ -921,11 +860,6 @@ interface DerivedEntry {
   readonly item: ChecklistItem
 }
 
-/**
- * The Checklist items a Schedule's copy derives, in Trip order, each ticked
- * when its id, that of what it refers to, is among the ticks. Local Moves
- * and the Arrival and Departure Anchors derive none.
- */
 const derivedChecklistOf = (
   copy: ScheduleCopy,
   ticks: ReadonlySet<string>,
@@ -1018,10 +952,6 @@ const derivedChecklistOf = (
     .map(({ item }) => item)
 }
 
-/**
- * Where an item falls on the Checklist before its reminder date counts:
- * derived items without one, dated items, then own items without one.
- */
 const checklistGroups = { undatedDerived: 0, dated: 1, undatedOwn: 2 }
 
 const checklistGroupOf = (item: ChecklistItem) =>
@@ -1055,7 +985,6 @@ const checklistOf = (
       (reminderDateOf(a) ?? '').localeCompare(reminderDateOf(b) ?? ''),
   )
 
-/** Text trimmed; the failure made for the cap when that is blank or too long. */
 const requireText = <E>(
   text: string,
   maxLength: number,
@@ -1068,10 +997,6 @@ const requireText = <E>(
     : Effect.succeed(trimmed)
 }
 
-/**
- * An own Checklist item's text, trimmed; ChecklistTextInvalid when that is
- * blank or too long.
- */
 const requireChecklistText = (text: string) =>
   requireText(
     text,
@@ -1079,10 +1004,6 @@ const requireChecklistText = (text: string) =>
     (maxLength) => new ChecklistTextInvalid({ maxLength }),
   )
 
-/**
- * An Activity's title, trimmed; ActivityTitleInvalid when that is blank or
- * too long.
- */
 const requireActivityTitle = (title: string) =>
   requireText(
     title,
@@ -1121,10 +1042,6 @@ const insertionIndexOf = (
   return later === -1 ? activities.length : later
 }
 
-/**
- * Hotel details with each field trimmed and a blank one removed;
- * HotelDetailTooLong when one is too long.
- */
 const requireHotelDetails = (details: HotelDetails) => {
   const trimmed = trimmedHotelDetails(details)
 
@@ -1135,10 +1052,6 @@ const requireHotelDetails = (details: HotelDetails) => {
     : Effect.succeed(trimmed)
 }
 
-/**
- * A location link as a URL; LocationLinkRefused unless it is an https Google
- * Maps link no longer than 2,000 characters.
- */
 const requireGoogleMapsUrl = (link: string) => {
   const refusal = linkRefusalOf(link)
   const url = googleMapsUrlOf(link)
@@ -1150,22 +1063,15 @@ const requireGoogleMapsUrl = (link: string) => {
       )
 }
 
-/** Coordinates as they are; CoordinatesOutsideJapan when outside Japan. */
 const requireInJapan = (coordinates: Coordinates) =>
   isInJapan(coordinates)
     ? Effect.succeed(coordinates)
     : Effect.fail(new CoordinatesOutsideJapan({ coordinates }))
 
-/** The most redirects a short link may take to reach its place. */
 const maxRedirects = 5
 
-/** How long following a location link may take. */
 const linkTimeout = Duration.seconds(10)
 
-/**
- * The coordinates a Google Maps link carries. It follows a short link one
- * redirect at a time and checks that each stays on an https Google Maps host.
- */
 const coordinatesOfLink = Effect.fnUntraced(function* (
   resolver: LocationLinkResolver['Service'],
   link: string,
@@ -1205,10 +1111,6 @@ const coordinatesOfLink = Effect.fnUntraced(function* (
   return yield* requireInJapan(coordinates)
 })
 
-/**
- * A Pin as Phillip confirmed it; LocationLinkRefused when its link isn't a
- * Google Maps link, and CoordinatesOutsideJapan when it's outside Japan.
- */
 const requirePin = Effect.fnUntraced(function* (pin: Pin) {
   if (pin.link !== undefined) yield* requireGoogleMapsUrl(pin.link)
   yield* requireInJapan(pin.coordinates)
@@ -1216,11 +1118,6 @@ const requirePin = Effect.fnUntraced(function* (pin: Pin) {
   return pin
 })
 
-/**
- * Every way Stays break the Hard rules on Stay dates, in Trip order: the Trip
- * dates, a Stay without nights, and a Gap or Overlap between consecutive
- * Stays. Empty when they keep them.
- */
 const stayDateRuleBreaksOf = (
   stays: ReadonlyArray<Pick<Stay, 'checkIn' | 'checkOut'>>,
 ): Array<StayDateRuleBreak> => {
@@ -1276,11 +1173,6 @@ const stayDateRuleBreaksOf = (
   return breaks
 }
 
-/**
- * Every way the parts of an Itinerary or a Schedule fail to fit together: a
- * Move where no Stays meet, two Moves on one date, Stays that meet without a
- * Move, and a Verify claim attached to no Day or Stay. Empty when they fit.
- */
 const fitBreaksOf = ({
   stays,
   days,
@@ -1329,11 +1221,6 @@ const fitBreaksOf = ({
   return breaks
 }
 
-/**
- * The Anchor warnings of an Itinerary or a Schedule, in Trip order: not
- * waking up in Kyoto on December 11, a Move on December 15, and the last
- * Stay outside Tokyo. Empty when it keeps every Anchor.
- */
 const anchorWarningsOf = ({
   stays,
   moves,
@@ -1435,11 +1322,8 @@ export class Trip extends Context.Service<
     day(
       date: IsoDate,
     ): Effect.Effect<Option.Option<DayPage>, DayNotFound, SqlClient.SqlClient>
-    /** Every Itinerary with its comparison rows. */
     readonly itineraries: Effect.Effect<ReadonlyArray<ItineraryComparison>>
-    /** Every Itinerary's Moves and Bases, overlaid on one map. */
     readonly comparisonMap: Effect.Effect<ComparisonMap>
-    /** One Itinerary with its Stays and all 15 Days. */
     itinerary(
       optionNumber: number,
     ): Effect.Effect<ItineraryDetail, ItineraryNotFound>
@@ -1501,16 +1385,11 @@ export class Trip extends Context.Service<
       never,
       SqlClient.SqlClient
     >
-    /**
-     * The current Schedule on its map, with every pinned hotel and Activity,
-     * if Phillip has chosen one.
-     */
     readonly scheduleMap: Effect.Effect<
       Option.Option<ScheduleMap>,
       never,
       SqlClient.SqlClient
     >
-    /** The current Schedule's summary, if Phillip has chosen one. */
     readonly scheduleSummary: Effect.Effect<
       Option.Option<ScheduleSummary>,
       never,
@@ -1706,10 +1585,6 @@ export class Trip extends Context.Service<
       ChecklistTextInvalid,
       SqlClient.SqlClient
     >
-    /**
-     * Sets the tick on one of Phillip's own Checklist items, to true or
-     * false. ChecklistItemNotFound when none has the id, such as one removed.
-     */
     tickOwnChecklistItem(
       input: TickOwnChecklistItem,
     ): Effect.Effect<void, ChecklistItemNotFound, SqlClient.SqlClient>
@@ -1752,11 +1627,6 @@ export class Trip extends Context.Service<
       ScheduleChanged | ActivityNotFound | ActivityTitleInvalid | NoteTooLong,
       SqlClient.SqlClient
     >
-    /**
-     * Removes an Activity of the Schedule named. ScheduleChanged when the
-     * Schedule named isn't current; ActivityNotFound when it has no Activity
-     * with the id, such as one already removed.
-     */
     removeActivity(
       input: RemoveActivity,
     ): Effect.Effect<
@@ -1830,7 +1700,6 @@ export class Trip extends Context.Service<
         all.map((itinerary) => [itinerary.optionNumber, itinerary]),
       )
 
-      // Content never changes while the Worker runs, so derive it once.
       const details = new Map(
         all.map((itinerary) => [itinerary.optionNumber, detailOf(itinerary)]),
       )
@@ -1984,7 +1853,6 @@ export class Trip extends Context.Service<
         Effect.withSpan('Trip.scheduleSummary'),
       )
 
-      /** The current Schedule with its copy, as its page shows it. */
       const currentSchedule = Effect.gen(function* () {
         const store = yield* scheduleStore
         const current = yield* store.transaction(store.current)
@@ -2052,7 +1920,6 @@ export class Trip extends Context.Service<
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
       )
 
-      /** A Schedule with its copy; ScheduleChanged when none has the id. */
       const requireSchedule = Effect.fnUntraced(function* (
         store: ScheduleStore,
         scheduleId: ScheduleId,
@@ -2315,10 +2182,6 @@ export class Trip extends Context.Service<
         Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
       )
 
-      /**
-       * The Day of the current Schedule's Activity named; ScheduleChanged or
-       * ActivityNotFound otherwise.
-       */
       const requireActivityDay = Effect.fnUntraced(function* (
         store: ScheduleStore,
         scheduleId: ScheduleId,

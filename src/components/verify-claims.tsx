@@ -4,7 +4,6 @@ import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import type { VerifyClaimDetail } from '@/trip/domain'
 
-/** Verify claims, each with a badge, where they're attached. */
 export function VerifyClaims({
   claims,
   className,

@@ -3,7 +3,6 @@
   "name": "japan-trip-december-2026",
   "compatibility_date": "2025-09-02",
   "compatibility_flags": ["nodejs_compat"],
-  // Runs the Access gate before TanStack Start (ADR 0002).
   "main": "src/server.ts",
   // The app's stable address. Worker-level Access protects it (#14).
   "workers_dev": true,
@@ -16,9 +15,6 @@
   "exports": {
     "TripStore": { "type": "durable-object", "storage": "sqlite" },
   },
-  // The Access gate's configuration; all three values are public. The AUD tag
-  // is the Worker-level Access application's.
-  // .dev.vars supplies local values for `vp dev` and `vp preview`.
   "vars": {
     "ACCESS_TEAM_DOMAIN": "https://phillip-hirsch.cloudflareaccess.com",
     "ACCESS_AUD": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16",

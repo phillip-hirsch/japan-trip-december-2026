@@ -1,5 +1,3 @@
-// Regenerates the Shippori Mincho display subset from the curated display
-// strings plus printable ASCII. Needs `uv` (for fonttools) and network access.
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

@@ -13,14 +13,12 @@ const recommendedColor = '#e85336'
 
 const otherColors = ['#7cc1e9', '#e8be62', '#eee7d9', '#bba3e8', '#75cca7']
 
-/** How far apart, in pixels, the Itineraries run where they share a path. */
 const laneWidth = 3.5
 
 // Fetched here rather than by the route's loader, so the map's data stays out
 // of the page's initial load along with its code.
 let comparisonMap: Promise<ComparisonMap> | undefined
 
-/** The map's data, fetched once, and again after a failure. */
 const loadComparisonMap = () =>
   (comparisonMap ??= getComparisonMap().catch((cause: unknown) => {
     comparisonMap = undefined
@@ -39,10 +37,6 @@ const westToEast = (path: ReadonlyArray<Coordinates>) => {
     : path
 }
 
-/**
- * Each Itinerary's colour, vermilion when recommended, and its lane: an
- * offset that keeps it beside the others where they share a path.
- */
 const withColorAndLane = (itineraries: ComparisonMap['itineraries']) =>
   itineraries.map((itinerary, index) => {
     const others = itineraries
@@ -81,12 +75,6 @@ function Legend({ itineraries }: { itineraries: ReadonlyArray<Line> }) {
   )
 }
 
-/**
- * The map itself, loaded lazily with its data: every Base once as a point,
- * and each Itinerary's train Moves along their rail lines and flights as
- * arcs, in its own colour and lane, framed to fit them all. Day trips stay on
- * each Itinerary's own map.
- */
 export default function ComparisonMapCanvas() {
   const { bases, itineraries, railAttribution } = use(loadComparisonMap())
   const lines = withColorAndLane(itineraries)

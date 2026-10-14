@@ -55,12 +55,6 @@ const checklist: NavEntry = {
   exact: false,
 }
 
-/**
- * The destinations shared by the bottom tab bar and the sidebar. Add an entry
- * only once its page exists. Options becomes Schedule once one exists; until
- * the Schedule summary answers, that entry is undefined and shows a neutral
- * placeholder.
- */
 const useNavEntries = (): ReadonlyArray<NavEntry | undefined> => {
   const summary = useScheduleSummary()
 
@@ -84,7 +78,6 @@ const navLinkProps = ({ to, exact }: NavEntry) => ({
   activeProps: { 'data-active': true },
 })
 
-/** Desktop navigation. */
 export function AppSidebar() {
   const entries = useNavEntries()
 
@@ -137,7 +130,6 @@ export function AppSidebar() {
   )
 }
 
-/** Mobile navigation, within reach of the thumb. */
 export function BottomTabBar() {
   const entries = useNavEntries()
 

@@ -18,7 +18,6 @@ const trip = tripWith([option1, option2])
 const resolve = (link: string) =>
   Trip.use((trip) => trip.resolveLocationLink({ link }))
 
-/** The tag resolving a link failed with, and the reason for a refusal. */
 const refusalOf = (link: string) =>
   Effect.map(Effect.flip(resolve(link)), (error) =>
     Predicate.isTagged('LocationLinkRefused')(error)
@@ -254,7 +253,6 @@ describe('Trip.resolveLocationLink', () => {
   )
 })
 
-/** Chooses an Itinerary, replacing the Schedule named, if any. */
 const choose = (
   optionNumber: number,
   n: number,
@@ -272,7 +270,6 @@ const setPin = (scheduleId: ScheduleId, target: PinTarget, pin?: Pin) =>
     trip.setPin({ scheduleId, target, ...(pin !== undefined && { pin }) }),
   )
 
-/** Adds an Activity on a Day, returning its id. */
 const addActivity = (
   n: number,
   scheduleId: ScheduleId,
@@ -290,29 +287,24 @@ const activityTarget = (activityId: string): PinTarget => ({ activityId })
 
 const hotelTarget = (stayId: string): PinTarget => ({ stayId })
 
-/** The Activities on a Day of the current Schedule. */
 const activitiesOn = (date: IsoDate) =>
   Effect.map(
     Trip.use((trip) => trip.day(date)),
     (page) => Option.getOrThrow(page).day.activities,
   )
 
-/** A Schedule's Stays, current or archived, in Trip order. */
 const staysOf = (scheduleId: ScheduleId) =>
   Effect.map(
     Trip.use((trip) => trip.schedule(scheduleId)),
     ({ stays }) => stays,
   )
 
-/** The id of a Schedule's second Stay: Option 1's Kyoto, December 9–13. */
 const kyotoStayId = (scheduleId: ScheduleId) =>
   Effect.map(staysOf(scheduleId), (stays) => stays[1]?.id ?? '')
 
-/** The Kyoto Stay's hotel as a Schedule, current or archived, shows it. */
 const kyotoHotelOf = (scheduleId: ScheduleId) =>
   Effect.map(staysOf(scheduleId), (stays) => stays[1]?.hotel)
 
-/** Tonight's hotel on a Day of the current Schedule. */
 const tonightsHotel = (date: IsoDate) =>
   Effect.map(
     Trip.use((trip) => trip.day(date)),
@@ -324,7 +316,6 @@ const fushimiInari: Pin = {
   link: 'https://goo.gl/maps/9e6EdUNDE18LuEwR7',
 }
 
-/** A Pin dropped by hand without a link, near Kyoto Station. */
 const droppedByHand: Pin = {
   coordinates: { latitude: 34.9858, longitude: 135.7588 },
 }
@@ -490,7 +481,6 @@ describe('Trip.setPin', () => {
         const at = (date: IsoDate) =>
           date === december(13) ? december(14) : date
 
-        // Kyoto stays a night longer, in Osaka.
         const { schedule } = yield* Trip.use((trip) =>
           trip.editStays({ scheduleId }, (copy) =>
             Effect.succeed({

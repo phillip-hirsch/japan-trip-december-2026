@@ -12,10 +12,6 @@ import { option1 } from '@/trip/itineraries/option-1'
 import { operation, storage, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
 
-/**
- * Option 1 flying home from Kanazawa, then changing hotels in Tokyo on
- * December 19 with a local Move, and with a Verify claim about the whole.
- */
 const withEveryKindOfItem: ItineraryContent = {
   ...option1,
   stays: [
@@ -55,7 +51,6 @@ const plainOption1: ItineraryContent = { ...option1, optionNumber: 2 }
 
 const trip = tripWith([withEveryKindOfItem, plainOption1])
 
-/** Chooses an Itinerary, replacing the Schedule named, if any. */
 const choose = (
   optionNumber: number,
   n: number,
@@ -75,7 +70,6 @@ const restore = (scheduleId: ScheduleId, n: number, replacing: ScheduleId) =>
 
 const checklist = Trip.use((trip) => trip.checklist)
 
-/** One item in glossary terms, as /checklist would read it. */
 const described = (item: ChecklistItem) => {
   const tick = item.ticked ? '[x]' : '[ ]'
 
@@ -107,7 +101,6 @@ const describedChecklist = Effect.map(checklist, ({ items }) =>
   items.map(described),
 )
 
-/** The id of the first item a predicate matches. */
 const idOf = (matches: (item: ChecklistItem) => boolean) =>
   Effect.map(checklist, ({ items }) => items.find(matches)?.id ?? '')
 
@@ -264,7 +257,6 @@ describe('Trip.tickChecklistItem', () => {
       Effect.gen(function* () {
         const stale = yield* choose(1, 1, null)
         const staleItemId = yield* idOf(ChecklistItem.guards.BookHotel)
-        // Another device chooses again, so this screen's Schedule is stale.
         yield* choose(1, 2, stale)
         const error = yield* Effect.flip(tick(stale, staleItemId, true))
 

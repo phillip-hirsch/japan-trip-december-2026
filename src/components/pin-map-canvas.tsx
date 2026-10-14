@@ -14,15 +14,11 @@ import type { Coordinates } from '@/trip/domain'
 const pinZoom = 16
 
 export interface PinMapProps {
-  /** Where the Pin is. */
   pin: Coordinates
-  /** Where the map is framed. The map moves there whenever this changes. */
   frame: Coordinates
-  /** Moves the Pin after Phillip drags it or taps the map. */
   onMove: (pin: Coordinates) => void
 }
 
-/** Moves the map to its frame whenever that changes. */
 function Framing({ frame }: { frame: Coordinates }) {
   const { map } = useMap()
   useEffect(() => {
@@ -35,7 +31,6 @@ function Framing({ frame }: { frame: Coordinates }) {
   return null
 }
 
-/** Tapping the map moves the Pin there. */
 function TapToMove({ onMove }: { onMove: (pin: Coordinates) => void }) {
   const { map } = useMap()
   const onMoveRef = useRef(onMove)
@@ -56,10 +51,6 @@ function TapToMove({ onMove }: { onMove: (pin: Coordinates) => void }) {
   return null
 }
 
-/**
- * The lazily loaded map with one Pin. Phillip drags it, or taps the map, to
- * put it exactly in place.
- */
 export default function PinMapCanvas({ pin, frame, onMove }: PinMapProps) {
   return (
     <TripMapView points={[frame]} maxZoom={pinZoom} railAttribution={undefined}>

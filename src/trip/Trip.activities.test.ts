@@ -11,7 +11,6 @@ import { Trip } from '@/trip/Trip'
 
 const trip = tripWith([option1, option2])
 
-/** Chooses an Itinerary, replacing the Schedule named, if any. */
 const choose = (
   optionNumber: number,
   n: number,
@@ -29,7 +28,6 @@ const restore = (scheduleId: ScheduleId, n: number, replacing: ScheduleId) =>
     trip.restore({ operationId: operation(n), scheduleId, replacing }),
   )
 
-/** Adds an Activity, with a time and a note when given, returning its id. */
 const add = (
   n: number,
   scheduleId: ScheduleId,
@@ -65,14 +63,12 @@ const move = (
   before: string | null,
 ) => Trip.use((trip) => trip.moveActivity({ scheduleId, activityId, before }))
 
-/** The Activities on a Day of the current Schedule, in their stored order. */
 const activitiesOn = (date: IsoDate) =>
   Effect.map(
     Trip.use((trip) => trip.day(date)),
     (page) => Option.getOrThrow(page).day.activities,
   )
 
-/** One Activity as its Day page reads: its Tokyo time, title and note. */
 const described = ({ title, time, note }: Activity) =>
   [
     time === undefined ? '--:--' : timeOfDayOf(time),
@@ -80,11 +76,9 @@ const described = ({ title, time, note }: Activity) =>
     ...(note ? [`(${note})`] : []),
   ].join(' ')
 
-/** The Activities on a Day of the current Schedule, described in order. */
 const describedOn = (date: IsoDate) =>
   Effect.map(activitiesOn(date), (activities) => activities.map(described))
 
-/** A Day holding 09:00, an untimed Activity and 19:00, in that order. */
 const dayWithThree = Effect.gen(function* () {
   const scheduleId = yield* choose(1, 1, null)
 
@@ -380,7 +374,6 @@ describe('Trip.editActivity', () => {
         time: '18:00',
       })
 
-      // One device renames it while another adds a note.
       yield* edit({ scheduleId, activityId: onsen, title: 'Onsen, Hakone' })
       yield* edit({ scheduleId, activityId: onsen, note: 'Bring a towel.' })
       yield* edit({ scheduleId, activityId: onsen, title: 'Onsen, Gora' })

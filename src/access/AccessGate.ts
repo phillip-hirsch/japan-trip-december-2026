@@ -11,7 +11,6 @@ import {
 import { createRemoteJWKSet, customFetch, errors, jwtVerify } from 'jose'
 import type { JWTVerifyGetKey } from 'jose'
 
-/** What the gate decided for one request. */
 export type AccessDecision = Data.TaggedEnum<{
   Allowed: { readonly email: string }
   Refused: { readonly status: 403 | 503 }
@@ -23,22 +22,16 @@ const forbidden: AccessDecision = AccessDecision.Refused({ status: 403 })
 
 const unavailable: AccessDecision = AccessDecision.Refused({ status: 503 })
 
-/** The request carries no identity, or one that isn't Phillip's. */
 class IdentityRejected extends Schema.TaggedError<IdentityRejected>()(
   'IdentityRejected',
   { reason: Schema.String },
 ) {}
 
-/** Access can't vouch for anyone right now, such as an unreachable key set. */
 class AccessUnavailable extends Schema.TaggedError<AccessUnavailable>()(
   'AccessUnavailable',
   { reason: Schema.String },
 ) {}
 
-/**
- * How the gate fetches the team's key set. Replaced in tests, so they control
- * what the key set serves without touching the network.
- */
 export class KeySetTransport extends Context.Service<
   KeySetTransport,
   {
@@ -51,12 +44,10 @@ export class KeySetTransport extends Context.Service<
   )
 }
 
-// All three are public, so they are plain Worker variables, not secrets.
 const AccessConfig = Config.all({
   teamDomain: Config.URL('ACCESS_TEAM_DOMAIN'),
   audience: Config.NonEmptyString('ACCESS_AUD'),
   allowedEmail: Config.NonEmptyString('ACCESS_ALLOWED_EMAIL'),
-  // Set only in .dev.vars, so production never reads `ctx.access`.
   devSimulation: Config.Boolean('ACCESS_DEV_SIMULATION').pipe(
     Config.withDefault(false),
   ),
@@ -66,7 +57,6 @@ const EmailClaim = Schema.Struct({ email: Schema.String })
 
 const decodeEmailClaim = Schema.decodeUnknownOption(EmailClaim)
 
-/** Key lookups that fail because of the token, not because of the key set. */
 const isTokenKeyMismatch = (cause: unknown) =>
   cause instanceof errors.JWKSNoMatchingKey ||
   cause instanceof errors.JWKSMultipleMatchingKeys
@@ -121,7 +111,6 @@ export class AccessGate extends Context.Service<
         { [customFetch]: transport.fetch },
       )
 
-      // Separates "the key set can't be fetched" from "the token is bad".
       const resolveKey: JWTVerifyGetKey = (header, token) =>
         keySet(header, token).catch((cause: unknown) => {
           throw isTokenKeyMismatch(cause)

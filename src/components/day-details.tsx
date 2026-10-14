@@ -17,8 +17,6 @@ import { cn } from '@/lib/utils'
 import { formatDurationRange } from '@/trip/calendar'
 import type { Anchor, DayTripDetail, MoveDetail, MoveMode } from '@/trip/domain'
 
-// The pieces of a Day, shared by the Day timeline and a Day's own page.
-
 const anchorBadges: Record<
   Anchor['_tag'],
   { label: string; variant: 'default' | 'secondary' | 'outline' }
@@ -32,7 +30,6 @@ const anchorBadges: Record<
 export const isBirthday = (anchors: ReadonlyArray<Anchor>) =>
   anchors.some((anchor) => Predicate.isTagged('Birthday')(anchor))
 
-/** A Day's Anchors as badges, and Free day when it is one; nothing otherwise. */
 export function AnchorBadges({
   anchors,
   freeDay,
@@ -73,7 +70,6 @@ export function AnchorBadges({
   )
 }
 
-/** What an Anchor adds in words: only the Shigeharu visit has a note. */
 export function AnchorNotes({ anchors }: { anchors: ReadonlyArray<Anchor> }) {
   return anchors.map((anchor) =>
     Predicate.isTagged('ShigeharuVisit')(anchor) ? (
@@ -91,7 +87,6 @@ const moveModes: Record<MoveMode, { label: string; icon: LucideIcon }> = {
   local: { label: 'Local', icon: BuildingIcon },
 }
 
-/** A Move's two Bases, with luggage. */
 export function MoveRoute({
   move,
   className,
@@ -111,7 +106,6 @@ export function MoveRoute({
   )
 }
 
-/** How a Move travels: its mode, rough duration and any change of train. */
 export function MoveTravel({
   move,
   onSchedule = false,
@@ -156,7 +150,6 @@ export function MoveTravel({
   )
 }
 
-/** A Day trip's destination, with whether it's New and whether it's optional. */
 export function DayTripLine({
   dayTrip: { place, optional },
   className,

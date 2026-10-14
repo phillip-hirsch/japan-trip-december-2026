@@ -22,12 +22,8 @@ import { operation, storage, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
 import type { ScheduleCopy, StayEdit } from '@/trip/Trip'
 
-// Option 1 has four Stays: Tokyo from December 6 to 9, Kyoto to 13, Kanazawa
-// to 17 and Tokyo to 20. A train Move joins each pair, and the Kanazawa Stay
-// has two Verify claims.
 const trip = tripWith([option1])
 
-/** Chooses Option 1, replacing the Schedule named, if any. */
 const choose = (n: number, replacing: ScheduleId | null) =>
   Effect.map(
     Trip.use((trip) =>
@@ -60,7 +56,6 @@ const editStays = (
     trip.editStays({ scheduleId, ...(operationId && { operationId }) }, edit),
   )
 
-/** An edit changing the Stay at an index in Trip order. */
 const changeStay =
   (index: number, changes: Partial<Stay>): Edit =>
   (copy) =>
@@ -71,7 +66,6 @@ const changeStay =
       ),
     })
 
-/** An edit moving the date where two Stays meet, with the Move between them. */
 const moveBoundary =
   (from: number, to: number): Edit =>
   (copy) => {
@@ -88,7 +82,6 @@ const moveBoundary =
     })
   }
 
-/** Option 1 with Stays over the given nights, a train Move at each boundary. */
 const option1With = (
   ...ranges: ReadonlyArray<readonly [base: Stay['base'], number, number]>
 ): ItineraryContent => ({

@@ -1,9 +1,5 @@
 // effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
 // @effect-diagnostics unstableApiUsage:off
-// How Schedules, the Trip note and the Checklist are stored, row by row, with
-// the operation ids of writes that carry one and their results. Only the Trip
-// service uses it, inside the Durable Object or over Node's SQLite in the
-// tests; tables stay behind it.
 import { Effect, Option, Schema, Struct } from 'effect'
 import { SqlClient, SqlSchema } from 'effect/sql'
 import type { Statement } from 'effect/sql'
@@ -31,29 +27,16 @@ import type { Activity, Day, HotelDetails } from '@/trip/domain'
 
 type Copied<A> = A & { readonly id: string }
 
-/**
- * A Stay of a Schedule, with Phillip's Stay note once he writes one and its
- * hotel.
- */
 export type ScheduleStay = Copied<Stay> & {
   readonly note?: string
   readonly hotel: Hotel
 }
 
-/**
- * A Day of a Schedule, with Phillip's Day note once he writes one and his
- * Activities, in the order he keeps them.
- */
 export type ScheduleDay = Day & {
   readonly note?: string
   readonly activities: ReadonlyArray<Activity>
 }
 
-/**
- * Everything a Schedule copies from the Itinerary chosen, each Stay, Move, Day
- * trip, Verify claim and Anchor with its own id, and Phillip's Stay and Day
- * notes, Hotel details and Activities.
- */
 export interface ScheduleCopy {
   readonly stays: ReadonlyArray<ScheduleStay>
   readonly days: ReadonlyArray<ScheduleDay>
@@ -63,25 +46,14 @@ export interface ScheduleCopy {
   readonly anchors: ReadonlyArray<ScheduleAnchor>
 }
 
-/**
- * What a Stay edit writes: a Schedule's Stays, with their Hotel details and
- * Stay notes, its Moves, and its Verify claims, which attach to a Stay by its
- * check-in date. Its Days, Day trips and Anchors stay as they are.
- */
 export type StayChanges = Pick<ScheduleCopy, 'stays' | 'moves' | 'verifyClaims'>
 
-// Rows: lists and unions are stored as JSON, and lists of entities keep the
-// Itinerary's order by position.
 const ofSchedule = { scheduleId: ScheduleId }
 
 const ordered = { position: Schema.Int }
 
-/** A note as stored: null for an empty one, which removes it. */
 const storedNote = (note: string) => (note === '' ? null : note)
 
-// A Pin, on an Activity's row or, for its hotel, on a Stay's. The
-// coordinates are null while unpinned, and the link is null while the Pin
-// has none.
 const PinColumns = Schema.Struct({
   pinLatitude: Schema.NullOr(Schema.Finite),
   pinLongitude: Schema.NullOr(Schema.Finite),
@@ -90,14 +62,12 @@ const PinColumns = Schema.Struct({
 
 type PinColumns = typeof PinColumns.Type
 
-/** A Pin as stored: every column null for none. */
 const pinColumnsOf = (pin: Pin | undefined): PinColumns => ({
   pinLatitude: pin?.coordinates.latitude ?? null,
   pinLongitude: pin?.coordinates.longitude ?? null,
   pinLink: pin?.link ?? null,
 })
 
-/** The Pin a row holds, if any. */
 const pinOf = ({
   pinLatitude,
   pinLongitude,
@@ -122,7 +92,6 @@ const StayRow = Schema.Struct({
   ...PinColumns.fields,
 })
 
-/** The columns on a Stay's row holding its hotel. */
 const hotelColumns = [
   'hotelName',
   'hotelAddress',
@@ -132,17 +101,12 @@ const hotelColumns = [
   'pinLink',
 ] as const
 
-/** Hotel details as stored: null for each field not recorded. */
 const hotelColumnsOf = (details: HotelDetails) => ({
   hotelName: details.name ?? null,
   hotelAddress: details.address ?? null,
   hotelConfirmationNumber: details.confirmationNumber ?? null,
 })
 
-/**
- * A Stay's hotel from its row: not recorded while every field and its Pin
- * are null.
- */
 const hotelOf = ({
   hotelName,
   hotelAddress,
@@ -233,7 +197,6 @@ const activityOf = ({
   }
 }
 
-/** An Activity's row on a Day of a Schedule, at a position. */
 const activityRowOf = (
   scheduleId: ScheduleId,
   date: IsoDate,
@@ -250,10 +213,6 @@ const activityRowOf = (
   ...pinColumnsOf(activity.pin),
 })
 
-/**
- * The fields an Activity edit writes, as stored: a null time or note removes
- * it.
- */
 export interface ActivityChanges {
   readonly title?: string
   readonly time?: string | null
@@ -267,12 +226,10 @@ const OwnChecklistItemRow = Schema.Struct({
   ticked: Schema.BooleanFromBit,
 })
 
-/** One of Phillip's own Checklist items, as stored. */
 export type OwnChecklistItem = typeof OwnChecklistItemRow.Type
 
 export type ScheduleStore = Effect.Success<typeof scheduleStore>
 
-/** The storage operations, over the SQL client in context. */
 export const scheduleStore = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
 
@@ -389,7 +346,6 @@ export const scheduleStore = Effect.gen(function* () {
       `,
   })
 
-  /** Replaces the Pin on a row of a table, by its Schedule and id. */
   const updatePin = (table: 'activities' | 'stays') =>
     SqlSchema.void({
       Request: Schema.Struct({
@@ -597,7 +553,6 @@ export const scheduleStore = Effect.gen(function* () {
   const withoutSchedule = <A extends { readonly scheduleId: string }>(row: A) =>
     Struct.omit(row, ['scheduleId'])
 
-  /** A Schedule's copy, read back from its rows alone. */
   const findCopy = Effect.fnUntraced(function* (scheduleId: ScheduleId) {
     const [stays, days, moves, dayTrips, verifyClaims, anchors, activities] =
       yield* Effect.all([
@@ -640,10 +595,6 @@ export const scheduleStore = Effect.gen(function* () {
     return copy
   })
 
-  /**
-   * Inserts a row, or updates the stored row with the same id. It never
-   * updates a row of another Schedule.
-   */
   const upsertInto = (table: string) => (row: Schema.JsonObject) =>
     sql`
       INSERT INTO ${sql(table)} ${sql.insert(row)}
@@ -651,7 +602,6 @@ export const scheduleStore = Effect.gen(function* () {
       WHERE ${sql(table)}.scheduleId = excluded.scheduleId
     `
 
-  /** The writers for each row a Stay edit changes, by insert or by upsert. */
   const stayChangeWriters = (
     write: (
       table: string,
@@ -667,11 +617,8 @@ export const scheduleStore = Effect.gen(function* () {
 
   const inserting = stayChangeWriters(insertInto)
 
-  // An upsert updates only the columns a Stay edit carries. Any other column
-  // on a kept row keeps its value.
   const upserting = stayChangeWriters(upsertInto)
 
-  /** Writes a Schedule's Stays, Moves and Verify claims, one row each. */
   const writeStayChanges = Effect.fnUntraced(function* (
     scheduleId: ScheduleId,
     { stays, moves, verifyClaims }: StayChanges,
@@ -685,8 +632,6 @@ export const scheduleStore = Effect.gen(function* () {
           scheduleId,
           note: stay.note ?? null,
           ...hotelColumnsOf(Hotel.guards.Recorded(hotel) ? hotel : {}),
-          // The hotel's Pin is part of its Hotel details, so a Stay edit
-          // carries it with the Stay.
           ...pinColumnsOf(Hotel.guards.Recorded(hotel) ? hotel.pin : undefined),
         }),
       { discard: true },
@@ -709,10 +654,6 @@ export const scheduleStore = Effect.gen(function* () {
     )
   })
 
-  /**
-   * Deletes a Schedule's rows in a table that aren't among those kept, and
-   * the ticks on the Checklist items those rows derived.
-   */
   const removeOthers = Effect.fnUntraced(function* (
     table: string,
     scheduleId: ScheduleId,
@@ -733,7 +674,6 @@ export const scheduleStore = Effect.gen(function* () {
     yield* sql`DELETE FROM ${sql(table)} WHERE id IN (${removed})`
   })
 
-  /** A Schedule found by its own fields, with its copy. */
   const withCopy = <E, R>(
     found: Effect.Effect<Option.Option<ScheduleRecord>, E, R>,
   ) =>
@@ -750,19 +690,14 @@ export const scheduleStore = Effect.gen(function* () {
     )
 
   return {
-    /** Runs storage operations as one transaction. */
     transaction: sql.withTransaction,
 
-    /** The current Schedule's own fields, if there is one. */
     currentRecord: findCurrent(undefined),
 
-    /** The current Schedule with its copy, if there is one. */
     current: withCopy(findCurrent(undefined)),
 
-    /** A Schedule's own fields, current or archived, if it exists. */
     recordById: findById,
 
-    /** A Schedule with its copy, current or archived, if it exists. */
     scheduleById: (id: ScheduleId) => withCopy(findById(id)),
 
     /** Every archived Schedule, the most recently archived first. */
@@ -772,10 +707,8 @@ export const scheduleStore = Effect.gen(function* () {
     archive: (id: ScheduleId, archivedAt: string) =>
       archiveSchedule({ id, archivedAt }),
 
-    /** Makes an archived Schedule current again. */
     makeCurrent: makeScheduleCurrent,
 
-    /** Whether a Schedule has a Day on a date. */
     hasDay: (scheduleId: ScheduleId, date: IsoDate) =>
       Effect.map(findDay({ scheduleId, date }), Option.isSome),
 
@@ -789,7 +722,6 @@ export const scheduleStore = Effect.gen(function* () {
         rows.map(activityOf),
       ),
 
-    /** The Day of a Schedule's Activity with an id, if it has one. */
     activityDate: (scheduleId: ScheduleId, id: string) =>
       Effect.map(
         findActivityDate({ scheduleId, id }),
@@ -807,7 +739,6 @@ export const scheduleStore = Effect.gen(function* () {
       position: number,
     ) => insertActivity(activityRowOf(scheduleId, date, activity, position)),
 
-    /** Writes the fields an edit changes on a Schedule's Activity. */
     editActivity: (
       scheduleId: ScheduleId,
       id: string,
@@ -823,11 +754,9 @@ export const scheduleStore = Effect.gen(function* () {
         : updateActivity({ scheduleId, id, ...stored })
     },
 
-    /** Removes a Schedule's Activity. */
     removeActivity: (scheduleId: ScheduleId, id: string) =>
       deleteActivity({ scheduleId, id }),
 
-    /** Keeps a Day's Activities in the order of their ids. */
     writeActivityOrder: (scheduleId: ScheduleId, ids: ReadonlyArray<string>) =>
       Effect.forEach(
         ids,
@@ -835,7 +764,6 @@ export const scheduleStore = Effect.gen(function* () {
         { discard: true },
       ),
 
-    /** Whether a Schedule has a Stay with an id. */
     hasStay: (scheduleId: ScheduleId, stayId: string) =>
       Effect.map(findStay({ scheduleId, stayId }), Option.isSome),
 
@@ -861,7 +789,6 @@ export const scheduleStore = Effect.gen(function* () {
     writeHotelPin: (scheduleId: ScheduleId, stayId: string, pin?: Pin) =>
       updateHotelPin({ scheduleId, id: stayId, ...pinColumnsOf(pin) }),
 
-    /** The Trip note, if Phillip has written one. */
     tripNote: Effect.map(
       findTripNote(undefined),
       Option.map(({ note }) => note),
@@ -871,7 +798,6 @@ export const scheduleStore = Effect.gen(function* () {
     writeTripNote: (note: string) =>
       note === '' ? deleteTripNote(undefined) : upsertTripNote(note),
 
-    /** The ids of what a Schedule's ticked Checklist items refer to. */
     ticks: (scheduleId: ScheduleId) =>
       Effect.map(
         findTicks(scheduleId),
@@ -879,7 +805,6 @@ export const scheduleStore = Effect.gen(function* () {
           new Set(rows.map(({ itemId }) => itemId)),
       ),
 
-    /** Sets the tick on a Schedule's item, by the id of what it refers to. */
     writeTick: (scheduleId: ScheduleId, itemId: string, ticked: boolean) =>
       (ticked ? insertTick : deleteTick)({ scheduleId, itemId }),
 
@@ -894,7 +819,6 @@ export const scheduleStore = Effect.gen(function* () {
     writeOwnTick: (id: string, ticked: boolean) =>
       Effect.map(updateOwnTick({ id, ticked }), Option.isSome),
 
-    /** Removes one of Phillip's own items, if it is still there. */
     removeOwnItem: deleteOwnItem,
 
     /**
@@ -942,11 +866,6 @@ export const scheduleStore = Effect.gen(function* () {
       )
     }),
 
-    /**
-     * Replaces a Schedule's Stays, Moves and Verify claims with a Stay edit's.
-     * It deletes the rows the edit dropped and stores the rest by id, each
-     * with the Hotel details and Stay note it carries.
-     */
     replaceStays: Effect.fnUntraced(function* (
       scheduleId: ScheduleId,
       changes: StayChanges,
@@ -957,7 +876,6 @@ export const scheduleStore = Effect.gen(function* () {
       yield* writeStayChanges(scheduleId, changes, upserting)
     }),
 
-    /** The result recorded with an operation id, if it has run. */
     recordedResult: <S extends Schema.Top>(Result: S) =>
       SqlSchema.findOneOption({
         Request: OperationId,
@@ -965,7 +883,6 @@ export const scheduleStore = Effect.gen(function* () {
         execute: (id) => sql`SELECT result FROM operations WHERE id = ${id}`,
       }),
 
-    /** Records an operation id with its result. */
     recordResult: <S extends Schema.Top>(Result: S) =>
       SqlSchema.void({
         Request: Schema.Struct({

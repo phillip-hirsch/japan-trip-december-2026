@@ -29,7 +29,6 @@ import {
 } from '@/trip/calendar'
 import type { DayDetail, StayDetail } from '@/trip/domain'
 
-/** A Day, opening its own page when the timeline links its Days. */
 function DayItem({
   day,
   linked,
@@ -107,11 +106,6 @@ function DayItem({
   )
 }
 
-/**
- * All 15 Days as one timeline, under a marker for each Stay they fall in. The
- * Days are sections of the page, each addressable by its date; on the
- * current Schedule, each also opens its own page.
- */
 export function DayTimeline({
   days,
   stays,
@@ -120,13 +114,9 @@ export function DayTimeline({
 }: {
   days: ReadonlyArray<DayDetail>
   stays: ReadonlyArray<StayDetail>
-  /** Whether each Day opens its page at /schedule/$date. */
   linkDays?: boolean
-  /** Whether the Days are the Schedule's, not an Itinerary's. */
   onSchedule?: boolean
 }) {
-  // Each Day sits under the latest Stay that has checked in by then, so a
-  // Move day opens the Stay it moves to and Departure closes the last one.
   const sections = stays.map((stay, index) => {
     const next = stays[index + 1]
 

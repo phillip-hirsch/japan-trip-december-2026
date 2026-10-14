@@ -15,7 +15,6 @@ import type { MapActivity, MapHotel, Pin, ScheduleMap } from '@/trip/domain'
 const popupLinkClassName =
   'text-sm font-medium text-foreground underline underline-offset-3'
 
-/** A pinned hotel or Activity, as its marker names it and its popup shows it. */
 interface PinnedPlace {
   readonly key: string
   readonly pin: Pin
@@ -24,7 +23,6 @@ interface PinnedPlace {
   readonly details: ReactNode
 }
 
-/** A pinned hotel: its Hotel details and a link to its Stay. */
 function HotelDetails({ hotel }: { hotel: MapHotel }) {
   const { stayId, base, checkIn, checkOut } = hotel
 
@@ -35,7 +33,6 @@ function HotelDetails({ hotel }: { hotel: MapHotel }) {
         {formatShortDate(checkOut)}
       </p>
       <HotelDetailsList details={hotel} />
-      {/* HotelDetailsList offers "Open in Google Maps" with the Pin. */}
       <Link
         to="/schedule"
         hash={stayElementId(stayId)}
@@ -47,7 +44,6 @@ function HotelDetails({ hotel }: { hotel: MapHotel }) {
   )
 }
 
-/** A pinned Activity: its title, Day and time, and a link to its Day. */
 function ActivityDetails({ activity }: { activity: MapActivity }) {
   const { date, title, time, pin } = activity
 
@@ -75,7 +71,6 @@ function ActivityDetails({ activity }: { activity: MapActivity }) {
   )
 }
 
-/** Every pinned hotel, then every pinned Activity. */
 const pinnedPlacesOf = ({ hotels, activities }: ScheduleMap) => [
   ...hotels.map((hotel): PinnedPlace => ({
     key: `hotel ${hotel.stayId}`,
@@ -93,11 +88,6 @@ const pinnedPlacesOf = ({ hotels, activities }: ScheduleMap) => [
   })),
 ]
 
-/**
- * The pinned places grouped by their exact spot, such as a hotel and the
- * breakfast there, so one marker shows them all rather than one hiding
- * another.
- */
 const bySpot = (places: ReadonlyArray<PinnedPlace>) => {
   const spots = new Map<string, Array<PinnedPlace>>()
 
@@ -110,10 +100,6 @@ const bySpot = (places: ReadonlyArray<PinnedPlace>) => {
   return Array.from(spots)
 }
 
-/**
- * One spot's pinned places: a marker showing the first one's icon, and how
- * many there are when more than one, opening a popup with each in turn.
- */
 function SpotMarker({ places }: { places: ReadonlyArray<PinnedPlace> }) {
   const [first] = places
 
@@ -156,12 +142,6 @@ function SpotMarker({ places }: { places: ReadonlyArray<PinnedPlace> }) {
   )
 }
 
-/**
- * The map itself, loaded lazily: the Schedule's Bases, Moves and Day trips,
- * and its pinned hotels and Activities, framed to fit them all, and framed
- * again when an edit changes them. It fills the page, so gestures move the
- * map directly.
- */
 export default function ScheduleMapCanvas({ map }: { map: ScheduleMap }) {
   const points = [
     ...pointsOf(map),

@@ -13,7 +13,6 @@ export function DateChoice({
   onChange,
 }: {
   dates: ReadonlyArray<IsoDate>
-  /** The date chosen, if it's one of the dates. */
   value: IsoDate | undefined
   disabled: boolean
   onChange: (date: IsoDate) => void

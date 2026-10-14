@@ -23,11 +23,6 @@ import { locationLinkMaxLength } from '@/trip/limits'
 import { linkRefusalOf } from '@/trip/pins'
 import { resolveLocationLink, setPin } from '@/trip/trip.functions'
 
-/**
- * A Pin as placed. Its link is the Google Maps link as pasted, or '' for
- * none. Its coordinates are null until the link resolves or Phillip drops
- * the Pin by hand.
- */
 interface PinFields {
   readonly link: string
   readonly coordinates: Coordinates | null
@@ -55,13 +50,11 @@ const isPinFields = (value: unknown): value is PinFields =>
   Predicate.isString(value.link) &&
   (Predicate.isNull(value.coordinates) || isCoordinates(value.coordinates))
 
-/** The Pin a placed one saves as, or none while it has no coordinates. */
 const pinOfFields = ({ link, coordinates }: PinFields): Pin | undefined =>
   coordinates === null
     ? undefined
     : { coordinates, ...(link.trim() !== '' && { link: link.trim() }) }
 
-/** Why a link was refused, and what Phillip can do instead. */
 const refusalProblems: Record<LocationLinkRefusal, string> = {
   NotGoogleMaps:
     'That isn’t a Google Maps link. Paste one that starts with https://maps.app.goo.gl/ or https://www.google.com/maps, or drop the pin by hand.',
@@ -100,7 +93,6 @@ const setAnswerOf =
       }),
     )
 
-/** Where finding a pasted link stands, while placing a Pin. */
 type Finding =
   | { readonly state: 'idle' }
   | { readonly state: 'finding' }
@@ -127,15 +119,10 @@ export function PinField({
   scheduleId: ScheduleId
   target: PinTarget
   pin: Pin | undefined
-  /** Where a Pin dropped by hand starts, such as the Stay's Base. */
   near: Coordinates
-  /** What the Pin is called on its controls, such as "location". */
   noun: string
-  /** The id of what the Pin is for, such as its Activity's title. */
   labelledBy: string
-  /** Why the Pin can't be saved once what it's on is gone. */
   gone: string
-  /** Where the Pin and its button sit while not being placed. */
   summaryClassName?: string
 }) {
   const resolve = useServerFn(resolveLocationLink)
@@ -144,9 +131,6 @@ export function PinField({
   const noteId = useId()
   const problemId = useId()
   const [finding, setFinding] = useState<Finding>(idle)
-  // Where the map is framed while placing. It starts on the Pin placing
-  // starts from, then moves wherever a link resolves or Phillip drops a Pin
-  // by hand.
   const [frame, setFrame] = useState<Coordinates | undefined>(undefined)
   // Counts lookups, so one cancelled or overtaken never places its Pin.
   const lookup = useRef(0)
@@ -179,7 +163,6 @@ export function PinField({
   const placing =
     !SaveState.$is('Clean')(state) && !SaveState.$is('Saved')(state)
 
-  // Placing frames the Pin it starts from, a restored draft's included.
   useEffect(() => {
     if (!placing) setFrame(undefined)
     else if (frame === undefined && value.coordinates !== null) {
@@ -187,7 +170,6 @@ export function PinField({
     }
   }, [placing, frame, value.coordinates])
 
-  /** Stops waiting for any lookup in flight. */
   const stopFinding = () => {
     lookup.current += 1
     setFinding(idle)
@@ -195,8 +177,6 @@ export function PinField({
 
   if (!placing) {
     const justSaved = SaveState.$is('Saved')(state) || state.justSaved
-    // This shows the Pin just saved until a read confirms it, then what the
-    // server holds.
     const shown = pinOfFields(value)
 
     return (
@@ -211,7 +191,6 @@ export function PinField({
           variant="ghost"
           size="sm"
           aria-describedby={labelledBy}
-          // A new placing starts from the Pin the confirming read brings.
           disabled={SaveState.$is('Saved')(state)}
           onClick={() => {
             stopFinding()
@@ -247,7 +226,6 @@ export function PinField({
     })
   }
 
-  /** Finds a pasted link's coordinates and places the Pin there. */
   const find = async (link: string) => {
     // Any newer finding supersedes a lookup in flight, even one refused here.
     lookup.current += 1
@@ -340,7 +318,6 @@ export function PinField({
             maxLength={locationLinkMaxLength}
             autoComplete="off"
             spellCheck={false}
-            // A changed link no longer says where the Pin is.
             onChange={(event) => {
               stopFinding()
               field.change({ link: event.target.value, coordinates: null })

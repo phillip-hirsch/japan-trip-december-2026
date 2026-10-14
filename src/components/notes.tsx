@@ -49,11 +49,8 @@ function NoteField({
   textClassName = 'text-base leading-relaxed',
   ...options
 }: Parameters<typeof useDraftedField>[0] & {
-  /** The id of the heading naming the note. */
   labelledBy: string
-  /** What shows while there is no note; nothing when absent. */
   emptyText?: string
-  /** The size of the note's text when shown. */
   textClassName?: string
 }) {
   const field = useDraftedField(options)
@@ -107,7 +104,6 @@ function NoteField({
         aria-describedby={notSaved ? problemId : undefined}
         // Opening the editor focuses it; a restored draft opens unfocused.
         autoFocus={SaveState.$is('Editing')(state)}
-        // A save in flight fixes the value, so two saves never race.
         readOnly={saving}
         value={value}
         onChange={(event) => field.change(event.target.value)}
@@ -161,7 +157,6 @@ export function DayNote({
   scheduleId: ScheduleId
   date: IsoDate
   note: string | undefined
-  /** The id of the heading naming the note. */
   labelledBy: string
 }) {
   const write = useServerFn(writeDayNote)
@@ -172,8 +167,6 @@ export function DayNote({
       scheduleId={scheduleId}
       saved={note ?? ''}
       write="dayNote"
-      // The Schedule this screen shows now, so a retry after a refusal names
-      // the Schedule the refreshed page shows.
       run={async (value) =>
         dayNoteAnswerOf(
           await write({ data: { scheduleId, date, note: value } }),
@@ -209,7 +202,6 @@ export function StayNote({
   scheduleId: ScheduleId
   stayId: string
   note: string | undefined
-  /** The id of the heading naming the note. */
   labelledBy: string
 }) {
   const write = useServerFn(writeStayNote)
@@ -248,7 +240,6 @@ export function TripNote({
   labelledBy,
 }: {
   note: string | undefined
-  /** The id of the heading naming the note. */
   labelledBy: string
 }) {
   const write = useServerFn(writeTripNote)

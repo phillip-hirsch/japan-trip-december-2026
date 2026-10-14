@@ -8,7 +8,6 @@ import {
 } from '@/components/checklist'
 import { checklistQuery } from '@/trip/queries'
 
-// Personal state, so never prerendered: each visit asks the Trip store.
 export const Route = createFileRoute('/checklist')({
   loader: {
     handler: ({ context }) => context.queryClient.fetchQuery(checklistQuery),

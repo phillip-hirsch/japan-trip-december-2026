@@ -2,7 +2,6 @@ import { DisplayJa } from '@/components/display-ja'
 import { cn } from '@/lib/utils'
 import type { Place } from '@/trip/domain'
 
-/** A place in kanji followed by its romaji name. */
 export function PlaceName({
   place,
   className,

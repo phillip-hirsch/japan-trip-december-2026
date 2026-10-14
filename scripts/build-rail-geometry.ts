@@ -30,16 +30,10 @@ const output = 'src/trip/rail-geometry.json'
 /** The ceiling on the gzipped GeoJSON, which ships in every Itinerary page. */
 const budgetBytes = 15 * 1024
 
-/** How far the simplified line may stray from the real one. */
 const toleranceKm = 0.03
 
-/** How far a station may be from its line before the build gives up. */
 const stationReachKm = 1
 
-/**
- * The MLIT lines each rail line's trains ride, by line name and, where
- * several railways share a name, operator.
- */
 const mlitLines: Record<
   RailLineId,
   ReadonlyArray<{ readonly name: string; readonly operator?: string }>
@@ -88,7 +82,6 @@ const positionOf = ({ longitude, latitude }: Coordinates): Position => [
   latitude,
 ]
 
-/** Kilometres east and north of an origin: close enough at this scale. */
 const planarFrom = (origin: Position) => {
   const kmPerDegree = 111.32
   const kmPerLongitude = kmPerDegree * Math.cos((origin[1] * Math.PI) / 180)
@@ -105,7 +98,6 @@ const kmBetween = (a: Position, b: Position) => {
   return Math.hypot(x, y)
 }
 
-/** The line's track as a graph of its vertices, joined where pieces meet. */
 const graphOf = (
   features: (typeof MlitRailroadSections.Type)['features'],
   line: RailLineId,
@@ -152,7 +144,6 @@ const graphOf = (
 
 type TrackGraph = ReturnType<typeof graphOf>
 
-/** The shortest way along the track between the vertices nearest two stations. */
 const trackBetween = (
   { positions, edges }: TrackGraph,
   section: RailSectionDetail,
@@ -272,7 +263,6 @@ const rounded = ([longitude, latitude]: Position): Position => [
   Math.round(latitude * 1e5) / 1e5,
 ]
 
-// The catalogue's rail sections, read through the Trip service.
 const sections = await readTrip((trip) => trip.railSections)
 
 const work = mkdtempSync(join(tmpdir(), 'rail-geometry-'))

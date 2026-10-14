@@ -20,7 +20,6 @@ import { option2 } from '@/trip/itineraries/option-2'
 import { operation, setTime, storage, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
 
-/** Option 1 with a Verify claim about the Itinerary as a whole. */
 const option1WithEveryAttachment: ItineraryContent = {
   ...option1,
   verifyClaims: [
@@ -44,7 +43,6 @@ const chooseOption1 = (operationId: OperationId) =>
     trip.choose({ operationId, optionNumber: 1, replacing: null }),
   )
 
-/** Chooses an Itinerary, replacing the Schedule named, if any. */
 const choose = (
   optionNumber: number,
   operationId: OperationId,
@@ -59,10 +57,6 @@ const currentSchedule = Effect.map(schedules, ({ current }) =>
   Option.getOrThrow(current),
 )
 
-/**
- * A value with every `id` removed, at any depth, to compare a Schedule's copy
- * with the Itinerary it came from.
- */
 const withoutIds = (value: Schema.Json): Schema.Json =>
   Array.isArray(value)
     ? value.map(withoutIds)
@@ -74,15 +68,12 @@ const withoutIds = (value: Schema.Json): Schema.Json =>
         )
       : value
 
-/** An Itinerary's Days as a fresh Schedule copies them, without Activities. */
 const withoutActivities = (days: ReadonlyArray<DayDetail>) =>
   days.map((day) => ({ ...day, activities: [] }))
 
-/** An Itinerary's Stays as a fresh Schedule copies them, hotel not recorded. */
 const withoutHotels = (stays: ReadonlyArray<StayDetail>) =>
   stays.map((stay) => ({ ...stay, hotel: Hotel.cases.NotRecorded.make({}) }))
 
-/** Option 1 after a Revision that changes everything a Schedule copies. */
 const revisedOption1: ItineraryContent = {
   ...option1WithEveryAttachment,
   birthdayOutline: 'A quiet birthday in Kanazawa.',
@@ -156,10 +147,6 @@ describe('Trip.choose', () => {
           birthdayOutline: option1.birthdayOutline,
         },
       )
-      // Stays with their highlights and accommodation; each Day's
-      // description, Anchors, Move with its rail sections and duration, Day
-      // trips and Verify claims, with no Activities yet; and the Verify
-      // claims about the whole.
       assert.deepStrictEqual(
         withoutIds({
           stays: schedule.stays,
@@ -216,7 +203,6 @@ describe('Trip.choose', () => {
       const before = yield* currentSchedule
       const repeated = yield* chooseOption1(firstChoose)
 
-      // The same operation id names the same choose, whatever it now asks.
       const reworded = yield* Trip.use((trip) =>
         trip.choose({
           operationId: firstChoose,
@@ -445,7 +431,6 @@ describe('Trip.choose again', () => {
   )
 })
 
-/** What a Schedule copied from its Itinerary, ids included. */
 const copyOf = (schedule: ScheduleDetail) =>
   Struct.pick(schedule, ['birthdayOutline', 'verifyClaims', 'stays', 'days'])
 
@@ -636,7 +621,6 @@ describe('Trip.schedule', () => {
 })
 
 describe('The Revision notice', () => {
-  /** The current Schedule's source Itinerary status, read under content. */
   const statusUnder = (contents: ReadonlyArray<ItineraryContent>) =>
     currentSchedule.pipe(
       Effect.map((schedule) => schedule.sourceItinerary),

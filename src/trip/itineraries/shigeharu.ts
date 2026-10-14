@@ -1,5 +1,3 @@
-// Converted from docs/itinerary.md, the paragraph before the Options: it builds
-// Shigeharu into every Itinerary, so each one carries this Verify claim.
 import { december, VerifyClaimAttachment } from '@/trip/domain'
 import type { VerifyClaim } from '@/trip/domain'
 

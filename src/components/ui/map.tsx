@@ -26,7 +26,6 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 
 import { cn } from '@/lib/utils'
 
-// The worker is bundled with the app, so the map never fetches it from a CDN.
 if (typeof window !== 'undefined' && !MapLibreGL.getWorkerUrl()) {
   MapLibreGL.setWorkerUrl(workerUrl)
 }
@@ -272,7 +271,6 @@ function DefaultLoader() {
   )
 }
 
-// How long the first style may take before the map counts as failed.
 const STYLE_LOAD_TIMEOUT_MS = 20_000
 
 function getViewport(map: MapLibreGL.Map): MapViewport {

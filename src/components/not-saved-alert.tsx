@@ -4,17 +4,12 @@ import type { ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
-/**
- * Says a save under the save pattern didn't go through, and why, with
- * whatever lets Phillip act on it.
- */
 export function NotSavedAlert({
   problem,
   problemId,
   children,
 }: {
   problem: string
-  /** The id the field it belongs to is described by. */
   problemId?: string
   children?: ReactNode
 }) {
@@ -31,7 +26,6 @@ export function NotSavedAlert({
   )
 }
 
-/** Retrying or dismissing a one-tap save that didn't go through. */
 export function RetryOrDismiss({
   onRetry,
   onDismiss,
@@ -51,7 +45,6 @@ export function RetryOrDismiss({
   )
 }
 
-/** Says a save just landed, such as "Saved", for the screen reader too. */
 export function SavedStatus({
   saved,
   children,

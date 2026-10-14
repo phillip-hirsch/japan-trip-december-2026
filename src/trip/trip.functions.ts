@@ -69,11 +69,6 @@ export const getHome = createServerFn({ method: 'GET' }).handler(() =>
   callTripStore(HomeState, (store) => store.home()),
 )
 
-/**
- * One Day of Phillip's Schedule as its page shows it, null before he chooses
- * one, or not-found for a date outside the Trip. The browser checks the date
- * first; this is the server's own check.
- */
 export const getDay = createServerFn({ method: 'GET' })
   .validator(Schema.toStandardSchemaV1(Schema.Struct({ date: IsoDate })))
   .handler(async ({ data }) => {
@@ -90,17 +85,14 @@ export const getDay = createServerFn({ method: 'GET' })
     })
   })
 
-/** Every Itinerary with its comparison rows. */
 export const getItineraries = createServerFn({ method: 'GET' }).handler(() =>
   runTrip(Trip.use((trip) => trip.itineraries)),
 )
 
-/** Every Itinerary's Moves and Bases for the map overlaying them all. */
 export const getComparisonMap = createServerFn({ method: 'GET' }).handler(() =>
   runTrip(Trip.use((trip) => trip.comparisonMap)),
 )
 
-/** One Itinerary with its Stays and 15 Days, or not-found. */
 export const getItinerary = createServerFn({ method: 'GET' })
   .validator(
     Schema.toStandardSchemaV1(Schema.Struct({ optionNumber: OptionNumber })),
@@ -139,34 +131,18 @@ export const restoreSchedule = createServerFn({ method: 'POST' })
     callTripStore(RestoreOutcome, (store) => store.restore(data)),
   )
 
-/**
- * Writes the Day note on a Day of the Schedule named, as a whole value. The
- * write is idempotent, so it carries no operation id; the Trip service
- * enforces the length cap and refuses a Schedule that isn't current.
- */
 export const writeDayNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteDayNote))
   .handler(({ data }) =>
     callTripStore(WriteDayNoteOutcome, (store) => store.writeDayNote(data)),
   )
 
-/**
- * Writes the Stay note on a Stay of the Schedule named, as a whole value.
- * The write is idempotent, so it carries no operation id; the Trip service
- * enforces the length cap and refuses a Schedule that isn't current.
- */
 export const writeStayNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteStayNote))
   .handler(({ data }) =>
     callTripStore(WriteStayNoteOutcome, (store) => store.writeStayNote(data)),
   )
 
-/**
- * Writes the Hotel details on a Stay of the Schedule named, as a whole value.
- * The write is idempotent, so it carries no operation id; the Trip service
- * trims the fields, enforces the length cap and refuses a Schedule that isn't
- * current.
- */
 export const writeHotelDetails = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteHotelDetails))
   .handler(({ data }) =>
@@ -175,55 +151,30 @@ export const writeHotelDetails = createServerFn({ method: 'POST' })
     ),
   )
 
-/**
- * Splits a Stay of the Schedule named at a date inside it. Repeating the
- * operation id returns the first result, so a retry never splits twice.
- */
 export const splitStay = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(SplitStay))
   .handler(({ data }) =>
     callTripStore(StayEditOutcome, (store) => store.splitStay(data)),
   )
 
-/**
- * Merges two adjacent Stays in one Base of the Schedule named. Repeating the
- * operation id returns the first result, so a retry after the later Stay is
- * gone still answers with the merge.
- */
 export const mergeStays = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(MergeStays))
   .handler(({ data }) =>
     callTripStore(StayEditOutcome, (store) => store.mergeStays(data)),
   )
 
-/**
- * Moves the date a Stay of the Schedule named checks out, with the next Stay's
- * check-in and the Move between them. Setting a date twice changes nothing
- * more, so it carries no operation id. The Trip service enforces the Hard
- * rules and refuses a Schedule that isn't current.
- */
 export const moveStayBoundary = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(MoveStayBoundary))
   .handler(({ data }) =>
     callTripStore(StayEditOutcome, (store) => store.moveStayBoundary(data)),
   )
 
-/**
- * Changes the Base of a Stay of the Schedule named. Setting a Base is
- * idempotent, so it carries no operation id. The Trip service refuses a place
- * outside the catalogue and a Schedule that isn't current.
- */
 export const changeStayBase = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(ChangeStayBase))
   .handler(({ data }) =>
     callTripStore(StayEditOutcome, (store) => store.changeStayBase(data)),
   )
 
-/**
- * The coordinates a Google Maps link Phillip pasted carries, for him to
- * confirm as a Pin. It reads no storage, so it runs in the Worker. The Trip
- * service checks the link and every redirect it follows.
- */
 export const resolveLocationLink = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(ResolveLocationLink))
   .handler(({ data }) =>
@@ -254,29 +205,18 @@ export const resolveLocationLink = createServerFn({ method: 'POST' })
     ),
   )
 
-/**
- * Sets or removes the Pin on an Activity or a Stay's hotel of the Schedule
- * named, once Phillip confirms it, as a whole value. The write is
- * idempotent, so it carries no operation id; the Trip service checks the
- * link and the coordinates and refuses a Schedule that isn't current.
- */
 export const setPin = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(SetPin))
   .handler(({ data }) =>
     callTripStore(SetPinOutcome, (store) => store.setPin(data)),
   )
 
-/**
- * Writes the Trip note as a whole value. It belongs to no Schedule, so it
- * names none; the Trip service enforces the length cap.
- */
 export const writeTripNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteTripNote))
   .handler(({ data }) =>
     callTripStore(WriteTripNoteOutcome, (store) => store.writeTripNote(data)),
   )
 
-/** One Schedule, current or archived, or null when none has that id. */
 export const getScheduleById = createServerFn({ method: 'GET' })
   .validator(
     Schema.toStandardSchemaV1(Schema.Struct({ scheduleId: ScheduleId })),
@@ -287,18 +227,10 @@ export const getScheduleById = createServerFn({ method: 'GET' })
     ),
   )
 
-/**
- * The current Schedule (null before Phillip chooses one), the archived ones
- * and the Trip note, from one moment.
- */
 export const getSchedules = createServerFn({ method: 'GET' }).handler(() =>
   callTripStore(Schedules, (store) => store.schedules()),
 )
 
-/**
- * The current Schedule on its map, with its pinned hotels and Activities,
- * or null before Phillip chooses one.
- */
 export const getScheduleMap = createServerFn({ method: 'GET' }).handler(() =>
   callTripStore(Schema.NullOr(ScheduleMap), (store) => store.scheduleMap()),
 )
@@ -315,19 +247,10 @@ export const getScheduleSummary = createServerFn({ method: 'GET' }).handler(
     ),
 )
 
-/**
- * The Checklist, derived from the current Schedule as it is now, with
- * Phillip's own items; only his own before he chooses one.
- */
 export const getChecklist = createServerFn({ method: 'GET' }).handler(() =>
   callTripStore(Checklist, (store) => store.checklist()),
 )
 
-/**
- * Sets the tick on an item derived from the Schedule named, to true or
- * false. Setting is idempotent, so it carries no operation id; the Trip
- * service refuses a Schedule that isn't current.
- */
 export const tickChecklistItem = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(TickChecklistItem))
   .handler(({ data }) =>
@@ -348,10 +271,6 @@ export const addOwnChecklistItem = createServerFn({ method: 'POST' })
     ),
   )
 
-/**
- * Sets the tick on one of Phillip's own Checklist items, to true or false.
- * It belongs to no Schedule, so it names none.
- */
 export const tickOwnChecklistItem = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(TickOwnChecklistItem))
   .handler(({ data }) =>
@@ -360,10 +279,6 @@ export const tickOwnChecklistItem = createServerFn({ method: 'POST' })
     ),
   )
 
-/**
- * Removes one of Phillip's own Checklist items; removing one already gone
- * succeeds, so a retry is safe.
- */
 export const removeOwnChecklistItem = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(RemoveOwnChecklistItem))
   .handler(({ data }) =>
@@ -382,11 +297,6 @@ export const addActivity = createServerFn({ method: 'POST' })
     callTripStore(AddActivityOutcome, (store) => store.addActivity(data)),
   )
 
-/**
- * Writes the fields an edit carries on an Activity of the Schedule named.
- * Each field is a whole value, so the write is idempotent and carries no
- * operation id.
- */
 export const editActivity = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(EditActivity))
   .handler(({ data }) =>

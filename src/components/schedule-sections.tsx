@@ -27,12 +27,6 @@ import type {
   ScheduleStayDetail,
 } from '@/trip/domain'
 
-/**
- * A Stay's Base, check-out, Hotel details and Stay note. On the current
- * Schedule they're editable, the check-out only when a next Stay checks in
- * that day, and the Stay can be split or merged. An archived Schedule shows
- * only the Hotel details and Stay note it has, read-only.
- */
 const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
   const editable = schedule.status === 'current'
 
@@ -121,11 +115,6 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
   )
 }
 
-/**
- * A Schedule's Stays, with their Hotel details and Stay notes, and Days,
- * current or archived. Only the current Schedule's Days have pages of their
- * own to link to, and only its Hotel details and Stay notes can be edited.
- */
 export function ScheduleSections({
   schedule,
   linkDays = false,
@@ -156,11 +145,6 @@ export function ScheduleSections({
   )
 }
 
-/**
- * Says when the Itinerary a Schedule came from has had a Revision since it
- * was chosen, or is gone. It can't be dismissed: it stays until the Schedule
- * is replaced.
- */
 export function RevisionNotice({
   schedule: { sourceItinerary, sourceOptionNumber },
   className,
@@ -191,7 +175,6 @@ export function RevisionNotice({
   )
 }
 
-/** The archived Schedules, each opening read-only. */
 export function ArchivedScheduleList({
   schedules,
 }: {

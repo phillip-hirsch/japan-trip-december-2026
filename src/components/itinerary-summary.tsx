@@ -7,7 +7,6 @@ import { cn } from '@/lib/utils'
 import { formatNights } from '@/trip/calendar'
 import type { BaseNights, ItinerarySummary, Place } from '@/trip/domain'
 
-/** gpt-6-astra's recommendation: a star in the vermilion accent. */
 export function RecommendationStar({ className }: { className?: string }) {
   return (
     <span
@@ -21,7 +20,6 @@ export function RecommendationStar({ className }: { className?: string }) {
   )
 }
 
-/** Each Base in kanji followed by its romaji in parentheses. */
 export function RouteBases({ route }: { route: ReadonlyArray<Place> }) {
   return (
     <ol className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -42,7 +40,6 @@ export function RouteBases({ route }: { route: ReadonlyArray<Place> }) {
   )
 }
 
-/** How the 14 nights are spread across the Bases. */
 export function NightsPerBase({
   nightsPerBase,
 }: {
@@ -65,7 +62,6 @@ export function NightsPerBase({
   )
 }
 
-/** The New places among the Bases and Day trips, or "None". */
 export function NewToYou({ places }: { places: ReadonlyArray<Place> }) {
   if (places.length === 0) {
     return <span className="text-muted-foreground">None</span>
@@ -99,10 +95,6 @@ function SummaryRow({
   )
 }
 
-/**
- * The top of an Itinerary's page: "Option N" with its name beneath, the
- * recommendation star, and its derived summary rows.
- */
 export function ItinerarySummaryHeader({
   summary,
   children,

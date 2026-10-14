@@ -1,22 +1,16 @@
-// Browser-safe Trip dates and durations. See AGENTS.md: Effect in the browser.
 import type { DurationRange, IsoDate } from '@/trip/domain'
 
-/** The Trip's time zone: every Day is a calendar date in Tokyo. */
 export const tripTimeZone = 'Asia/Tokyo'
 
-/** Arrival: the first Day of the Trip, as a Tokyo calendar date. */
 // SAFETY: valid ISO date literal for the Arrival.
 export const tripStartDate = '2026-12-06' as IsoDate
 
-/** Departure: the last Day of the Trip. */
 // SAFETY: valid ISO date literal for the Departure.
 export const tripEndDate = '2026-12-20' as IsoDate
 
-/** The Shigeharu visit: the morning of Friday, December 11. */
 // SAFETY: valid ISO date literal for the Shigeharu visit.
 export const shigeharuDate = '2026-12-11' as IsoDate
 
-/** The Birthday: Tuesday, December 15, never a Move day. */
 // SAFETY: valid ISO date literal for the Birthday.
 export const birthdayDate = '2026-12-15' as IsoDate
 
@@ -24,7 +18,6 @@ const dayInMilliseconds = 24 * 60 * 60 * 1000
 
 const midnightUtc = (isoDate: IsoDate) => Date.parse(`${isoDate}T00:00:00Z`)
 
-/** Every Day of the Trip, December 6 through December 20, in order. */
 export const tripDates: ReadonlyArray<IsoDate> = Array.from(
   {
     length:
@@ -45,30 +38,24 @@ export const tripDates: ReadonlyArray<IsoDate> = Array.from(
  */
 const tokyoOffsetInMilliseconds = 9 * 60 * 60 * 1000
 
-/** How long until the date next changes in Tokyo, from a moment in epoch ms. */
 export const millisecondsUntilTokyoMidnight = (now: number) => {
   const tokyo = now + tokyoOffsetInMilliseconds
 
   return Math.ceil((tokyo + 1) / dayInMilliseconds) * dayInMilliseconds - tokyo
 }
 
-/** Whether a string names a Day of the Trip. */
 export const isTripDate = (date: string): date is IsoDate =>
   tripDates.some((tripDate) => tripDate === date)
 
-/** The Day before, or undefined on December 6. */
 export const previousTripDate = (date: IsoDate) =>
   tripDates[tripDates.indexOf(date) - 1]
 
-/** The nights between two Trip dates, such as a Stay's check-in and check-out. */
 export const nightsBetween = (checkIn: IsoDate, checkOut: IsoDate) =>
   tripDates.indexOf(checkOut) - tripDates.indexOf(checkIn)
 
-/** The Day after, or undefined on December 20. */
 export const nextTripDate = (date: IsoDate) =>
   tripDates[tripDates.indexOf(date) + 1]
 
-/** A formatter of moments, in US English. */
 const formatter = (options: Intl.DateTimeFormatOptions) => {
   const dateTimeFormat = new Intl.DateTimeFormat('en-US', options)
 
@@ -82,14 +69,12 @@ const format = (options: Intl.DateTimeFormatOptions) => {
   return (isoDate: string) => formatDate(new Date(`${isoDate}T00:00:00Z`))
 }
 
-/** A calendar date as "Sunday, December 6". */
 export const formatDay = format({
   weekday: 'long',
   month: 'long',
   day: 'numeric',
 })
 
-/** A time of day as HH:MM on the 24-hour clock, such as "19:00". */
 export const timeOfDayPattern = /^([01]\d|2[0-3]):[0-5]\d$/
 
 /**
@@ -98,17 +83,13 @@ export const timeOfDayPattern = /^([01]\d|2[0-3]):[0-5]\d$/
  */
 export const timeOfDayOf = (time: string) => time.slice(11, 16)
 
-/** A number of nights as "3 nights". */
 export const formatNights = (nights: number) =>
   `${nights} ${nights === 1 ? 'night' : 'nights'}`
 
-/** A calendar date as "Dec 6". */
 export const formatShortDate = format({ month: 'short', day: 'numeric' })
 
-/** A calendar date's weekday as "Sun". */
 export const formatWeekday = format({ weekday: 'short' })
 
-/** A calendar date's day of the month as "6". */
 export const formatDayOfMonth = format({ day: 'numeric' })
 
 const formatMinutes = (minutes: number) => {
@@ -120,7 +101,6 @@ const formatMinutes = (minutes: number) => {
     .join(' ')
 }
 
-/** A rough travel time as "about 2 h 15 min" or "3 h 30 min – 4 h 30 min". */
 export const formatDurationRange = ({
   minMinutes,
   maxMinutes,
@@ -136,9 +116,5 @@ const formatTokyoDate = formatter({
   timeZone: tripTimeZone,
 })
 
-/**
- * A moment, such as when a Schedule was chosen or archived, as
- * "October 2, 2026" in Tokyo.
- */
 export const formatMoment = (isoInstant: string) =>
   formatTokyoDate(new Date(isoInstant))

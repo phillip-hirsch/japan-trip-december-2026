@@ -12,7 +12,6 @@ const viteConfig: InlineConfig = {
   resolve: { tsconfigPaths: true },
 }
 
-/** Runs `read` against the Trip service over the real Itinerary catalogue. */
 export const readTrip = async <A>(
   read: (trip: Trip['Service']) => Effect.Effect<A>,
 ): Promise<A> => {

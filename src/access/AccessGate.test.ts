@@ -25,7 +25,6 @@ const now = DateTime.makeUnsafe('2026-10-01T09:00:00Z')
 
 const nowSeconds = DateTime.toEpochMillis(now) / 1000
 
-// A locally generated signing key, published in the key set as Access would.
 const signingKey = await generateKeyPair('RS256')
 
 const keySet = {
@@ -52,7 +51,6 @@ interface TokenOptions {
   readonly expiresAt?: number
 }
 
-/** An Access token signed with the published key. */
 const accessToken = (options: TokenOptions = {}) =>
   new SignJWT({ email: options.email ?? allowedEmail })
     .setProtectedHeader({
@@ -81,7 +79,6 @@ interface GateOptions {
   readonly transport?: KeySetTransport['Service']
 }
 
-/** The gate as one isolate builds it, with its own key cache. */
 const gateWith = (options: GateOptions = {}) =>
   AccessGate.layer.pipe(
     Layer.provide([
@@ -103,7 +100,6 @@ const check = (
     return yield* gate.check(request, options?.access)
   }).pipe(Effect.provide(gateWith(options)))
 
-/** Local development's configuration, with Wrangler's Access simulation. */
 const simulationConfiguration = {
   ...configuration,
   ACCESS_DEV_SIMULATION: 'true',
@@ -114,7 +110,6 @@ const checkToken = (options: TokenOptions) =>
     Effect.flatMap((token) => check(requestWith(token))),
   )
 
-/** The context Wrangler's Access dev simulation gives the Worker. */
 const simulatedAccess = (
   aud: string,
   identity: CloudflareAccessIdentity,
