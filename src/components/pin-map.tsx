@@ -10,7 +10,6 @@ const PinMapCanvas: ComponentType<PinMapProps> = import.meta.env.SSR
   ? () => null
   : lazy(() => import('@/components/pin-map-canvas'))
 
-/** A Pin on an interactive dark map, to drag into place. */
 export function PinMap(props: PinMapProps) {
   return (
     <LazyMap className="aspect-[4/3] sm:aspect-[2/1]">

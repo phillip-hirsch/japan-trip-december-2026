@@ -104,7 +104,6 @@ export function StayBaseField({
                   label: places[place].romaji,
                 }))}
                 value={value}
-                // A save in flight fixes the value, so two saves never race.
                 disabled={saving}
                 onChange={field.change}
               />

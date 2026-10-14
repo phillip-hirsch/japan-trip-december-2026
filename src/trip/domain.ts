@@ -1,5 +1,3 @@
-// The Trip's domain types, named as in GLOSSARY.md. For browser imports, see
-// AGENTS.md: Effect in the browser.
 import { DateTime, Option, Schema, Struct } from 'effect'
 
 import { displayStrings } from '@/fonts/display-strings'
@@ -24,16 +22,11 @@ export const IsoDate = Schema.String.check(
 
 export type IsoDate = typeof IsoDate.Type
 
-/**
- * A date in December 2026, for Itinerary content. Content is trusted and
- * checked by the Trip-rule tests; the constructor also checks the date.
- */
 export const december = (day: number) =>
   IsoDate.make(`2026-12-${String(day).padStart(2, '0')}`)
 
 export const PlaceId = Schema.Literals(placeIds)
 
-/** A point on the map, in decimal degrees. */
 export const Coordinates = Schema.Struct({
   latitude: Schema.Finite,
   longitude: Schema.Finite,
@@ -41,7 +34,6 @@ export const Coordinates = Schema.Struct({
 
 export type Coordinates = typeof Coordinates.Type
 
-/** A place from the catalogue, with whether it's a New place for Phillip. */
 export const Place = Schema.Struct({
   id: PlaceId,
   romaji: Schema.String,
@@ -52,10 +44,8 @@ export const Place = Schema.Struct({
 
 export type Place = typeof Place.Type
 
-/** The number that labels an Itinerary, shown as "Option 1". */
 export const OptionNumber = Schema.Int.check(Schema.isGreaterThan(0))
 
-/** A Stay's accommodation: a ryokan only when the source says so. */
 export const AccommodationKind = Schema.Literals(['hotel', 'ryokan'])
 
 export type AccommodationKind = typeof AccommodationKind.Type
@@ -94,7 +84,6 @@ export type RailSectionMode = typeof RailSectionMode.Type
 
 export const RailLineId = Schema.Literals(railLineIds)
 
-/** One train ridden without changing, from one station to another. */
 export const RailSection = Schema.Struct({
   mode: RailSectionMode,
   line: RailLineId,
@@ -147,7 +136,6 @@ export const DayTrip = Schema.Struct({
 
 export type DayTrip = typeof DayTrip.Type
 
-/** One calendar date of the Trip, with what the source says about it. */
 export const Day = Schema.Struct({
   date: IsoDate,
   description: Schema.optionalKey(Schema.String),
@@ -159,15 +147,10 @@ export const DaySlot = Schema.Literals(['morning', 'afternoon', 'evening'])
 
 export type DaySlot = typeof DaySlot.Type
 
-/** When an Itinerary plans to visit Shigeharu. The visit is tentative. */
 export const ShigeharuVisit = Schema.Struct({ date: IsoDate, slot: DaySlot })
 
 export type ShigeharuVisit = typeof ShigeharuVisit.Type
 
-/**
- * A time-sensitive statement to confirm before relying on it, attached to a
- * Day by its date, a Stay by its check-in date, or the whole Itinerary.
- */
 export const VerifyClaimAttachment = Schema.TaggedUnion({
   Day: { date: IsoDate },
   Stay: { checkIn: IsoDate },
@@ -184,10 +167,6 @@ export const VerifyClaim = Schema.Struct({
 
 export type VerifyClaim = typeof VerifyClaim.Type
 
-/**
- * gpt-6-astra's reasoning about an Itinerary. A field the source doesn't give
- * is absent: Option 1 has no "choose this if", only why it is recommended.
- */
 export const ItineraryReasoning = Schema.Struct({
   birthdayOutline: Schema.String,
   pros: Schema.Array(Schema.String),
@@ -241,12 +220,10 @@ const anchorFields = {
   Departure: { date: IsoDate },
 }
 
-/** A fixed date every Itinerary must respect. */
 export const Anchor = Schema.TaggedUnion(anchorFields)
 
 export type Anchor = typeof Anchor.Type
 
-/** A Verify claim as shown where it's attached. */
 export const VerifyClaimDetail = Schema.Struct({
   id: Schema.String,
   text: Schema.String,
@@ -254,7 +231,6 @@ export const VerifyClaimDetail = Schema.Struct({
 
 export type VerifyClaimDetail = typeof VerifyClaimDetail.Type
 
-/** A Stay by its Base, dates and nights. */
 export const StaySummary = Schema.Struct({
   base: Place,
   checkIn: IsoDate,
@@ -318,7 +294,6 @@ export const BaseNights = Schema.Struct({ base: Place, nights: Schema.Int })
 
 export type BaseNights = typeof BaseNights.Type
 
-/** An Itinerary's character at a glance, derived from its data. */
 export const ItinerarySummary = Schema.Struct({
   optionNumber: OptionNumber,
   name: Schema.String,
@@ -337,7 +312,6 @@ export const ItinerarySummary = Schema.Struct({
 
 export type ItinerarySummary = typeof ItinerarySummary.Type
 
-/** A Move by its date, how it travels and the Bases it connects. */
 export const MoveSummary = Schema.Struct({
   date: IsoDate,
   mode: MoveMode,
@@ -347,7 +321,6 @@ export const MoveSummary = Schema.Struct({
 
 export type MoveSummary = typeof MoveSummary.Type
 
-/** An Itinerary's Moves at a glance. */
 export const MovesComparison = Schema.Struct({
   count: Schema.Int,
   /**
@@ -361,10 +334,6 @@ export const MovesComparison = Schema.Struct({
 
 export type MovesComparison = typeof MovesComparison.Type
 
-/**
- * An Itinerary on the comparison rows, every one derived from its data so a
- * Revision updates them.
- */
 export const ItineraryComparison = Schema.Struct({
   ...ItinerarySummary.fields,
   /**
@@ -416,7 +385,6 @@ export const MapTrainMove = Schema.Struct({
 
 export type MapTrainMove = typeof MapTrainMove.Type
 
-/** A Day trip as the map draws it, from its Base to its destination. */
 export const MapDayTrip = Schema.Struct({
   from: Place,
   to: Place,
@@ -444,7 +412,6 @@ export const ItineraryMap = Schema.Struct({
 
 export type ItineraryMap = typeof ItineraryMap.Type
 
-/** An Itinerary's Moves on the comparison map, drawn as on its own map. */
 export const ComparisonMapItinerary = Schema.Struct({
   ...Struct.pick(ItinerarySummary.fields, ['optionNumber', 'recommended']),
   ...Struct.pick(ItineraryMap.fields, ['trainMoves', 'flights']),
@@ -452,7 +419,6 @@ export const ComparisonMapItinerary = Schema.Struct({
 
 export type ComparisonMapItinerary = typeof ComparisonMapItinerary.Type
 
-/** Every Itinerary's Moves and Bases overlaid on one map. */
 export const ComparisonMap = Schema.Struct({
   /** Each Base once, in the order the Itineraries first reach it. */
   bases: Schema.Array(Place),
@@ -466,10 +432,6 @@ export const ComparisonMap = Schema.Struct({
 
 export type ComparisonMap = typeof ComparisonMap.Type
 
-/**
- * One Itinerary as its page shows it: its summary, Stays, all 15 Days,
- * gpt-6-astra's reasoning and its map.
- */
 export const ItineraryDetail = Schema.Struct({
   ...ItinerarySummary.fields,
   ...ItineraryReasoning.fields,
@@ -496,7 +458,6 @@ const stayDateRules = {
   Overlap: { from: IsoDate, to: IsoDate },
 }
 
-/** How Stays break the Hard rules on Stay dates. */
 export const StayDateRuleBreak = Schema.TaggedUnion(stayDateRules)
 
 export type StayDateRuleBreak = typeof StayDateRuleBreak.Type
@@ -508,7 +469,6 @@ const anchorWarnings = {
    * when no Stay covers that night.
    */
   NotWakingUpInKyoto: { base: Schema.optionalKey(PlaceId) },
-  /** A Move on December 15, the Birthday. */
   MoveOnBirthday: {},
   /** The last Stay, before flying home, is at the Base given, not Tokyo. */
   EndsOutsideTokyo: { base: PlaceId },
@@ -566,7 +526,6 @@ export const ScheduleStatus = Schema.Literals(['current', 'archived'])
 
 export type ScheduleStatus = typeof ScheduleStatus.Type
 
-/** An Anchor as copied into a Schedule. */
 export const ScheduleAnchor = Schema.TaggedUnion({
   Arrival: { id: CopyId, ...anchorFields.Arrival },
   ShigeharuVisit: { id: CopyId, ...anchorFields.ShigeharuVisit },
@@ -587,10 +546,6 @@ export const Pin = Schema.Struct({
 
 export type Pin = typeof Pin.Type
 
-/**
- * Phillip's Hotel details on a Stay: its hotel's name, address and
- * confirmation number, each absent until he records it.
- */
 export const HotelDetails = Schema.Struct({
   name: Schema.optionalKey(Schema.String),
   address: Schema.optionalKey(Schema.String),
@@ -599,15 +554,10 @@ export const HotelDetails = Schema.Struct({
 
 export type HotelDetails = typeof HotelDetails.Type
 
-/**
- * A Stay's hotel: its Hotel details once Phillip records any, and until then
- * not recorded, so a Day page shows the Base marked "hotel not recorded".
- */
 export const Hotel = Schema.TaggedUnion({
   NotRecorded: {},
   Recorded: {
     ...HotelDetails.fields,
-    /** The hotel's Pin, absent until Phillip sets it. */
     pin: Schema.optionalKey(Pin),
   },
 })
@@ -617,14 +567,12 @@ export type Hotel = typeof Hotel.Type
 export const ScheduleStayDetail = Schema.Struct({
   id: CopyId,
   ...StayDetail.fields,
-  /** Phillip's Stay note, absent until he writes one. */
   note: Schema.optionalKey(Schema.String),
   hotel: Hotel,
 })
 
 export type ScheduleStayDetail = typeof ScheduleStayDetail.Type
 
-/** A Move as copied into a Schedule, as its Day shows it. */
 export const ScheduleMoveDetail = Schema.Struct({
   id: CopyId,
   ...MoveDetail.fields,
@@ -632,10 +580,8 @@ export const ScheduleMoveDetail = Schema.Struct({
 
 export type ScheduleMoveDetail = typeof ScheduleMoveDetail.Type
 
-/** An Activity's id, fresh for each Activity Phillip adds. */
 export const ActivityId = Schema.String
 
-/** A time of day in Tokyo, as HH:MM on the 24-hour clock. */
 export const TimeOfDay = Schema.String.check(
   Schema.isPattern(timeOfDayPattern),
 ).pipe(Schema.brand('TimeOfDay'))
@@ -650,11 +596,8 @@ export type TimeOfDay = typeof TimeOfDay.Type
 export const Activity = Schema.Struct({
   id: ActivityId,
   title: Schema.String,
-  /** Absent for an Activity without a time. */
   time: Schema.optionalKey(Schema.String),
-  /** Absent until Phillip writes one. */
   note: Schema.optionalKey(Schema.String),
-  /** Its location, absent until Phillip sets its Pin. */
   pin: Schema.optionalKey(Pin),
 })
 
@@ -662,7 +605,6 @@ export type Activity = typeof Activity.Type
 
 export const ScheduleDayDetail = Schema.Struct({
   ...DayDetail.fields,
-  /** Phillip's Day note, absent until he writes one. */
   note: Schema.optionalKey(Schema.String),
   /** Phillip's Activities, in the order he keeps them. */
   activities: Schema.Array(Activity),
@@ -675,7 +617,6 @@ export const ScheduleDayDetail = Schema.Struct({
 
 export type ScheduleDayDetail = typeof ScheduleDayDetail.Type
 
-/** Tonight's hotel: the Stay covering the night a Day ends with. */
 export const TonightsHotel = Schema.Struct({
   id: CopyId,
   ...StaySummary.fields,
@@ -692,10 +633,6 @@ export const NextMove = Schema.Struct({
 
 export type NextMove = typeof NextMove.Type
 
-/**
- * A Day of Phillip's Schedule as its page shows it, and as Home shows Today
- * during the Trip.
- */
 export const DayPage = Schema.Struct({
   /** The Schedule the Day belongs to, which every write to it names. */
   scheduleId: ScheduleId,
@@ -708,7 +645,6 @@ export const DayPage = Schema.Struct({
 
 export type DayPage = typeof DayPage.Type
 
-/** A Schedule's own fields: where it came from and when. */
 export const ScheduleRecord = Schema.Struct({
   id: ScheduleId,
   status: ScheduleStatus,
@@ -724,20 +660,12 @@ export const ScheduleRecord = Schema.Struct({
 
 export type ScheduleRecord = typeof ScheduleRecord.Type
 
-/**
- * What every page needs to know about Phillip's Schedule: which it is, and
- * the Itinerary it came from. Its absence means none is chosen yet.
- */
 export const ScheduleSummary = Schema.Struct(
   Struct.pick(ScheduleRecord.fields, ['id', 'sourceOptionNumber']),
 )
 
 export type ScheduleSummary = typeof ScheduleSummary.Type
 
-/**
- * The Itinerary a Schedule came from, now: unchanged since it was chosen,
- * revised since (a Revision notice), or no longer available.
- */
 export const SourceItineraryStatus = Schema.Literals([
   'unchanged',
   'revised',
@@ -767,7 +695,6 @@ export const ScheduleDetail = Schema.Struct({
 
 export type ScheduleDetail = typeof ScheduleDetail.Type
 
-/** A pinned hotel on the Schedule's map, with its Stay and Hotel details. */
 export const MapHotel = Schema.Struct({
   stayId: CopyId,
   ...StaySummary.fields,
@@ -777,10 +704,6 @@ export const MapHotel = Schema.Struct({
 
 export type MapHotel = typeof MapHotel.Type
 
-/**
- * A pinned Activity on the Schedule's map, with the date of its Day. Only
- * what its pin shows: never its note, which can be long.
- */
 export const MapActivity = Schema.Struct({
   ...Struct.pick(Activity.fields, ['id', 'title', 'time']),
   date: IsoDate,
@@ -803,7 +726,6 @@ export const ScheduleMap = Schema.Struct({
 
 export type ScheduleMap = typeof ScheduleMap.Type
 
-/** An archived Schedule as /schedule lists it. */
 export const ArchivedScheduleSummary = Schema.Struct({
   ...Struct.pick(ScheduleRecord.fields, [
     'id',
@@ -823,7 +745,6 @@ export type ArchivedScheduleSummary = typeof ArchivedScheduleSummary.Type
 export const Schedules = Schema.Struct({
   current: Schema.NullOr(ScheduleDetail),
   archived: Schema.Array(ArchivedScheduleSummary),
-  /** Phillip's Trip note, absent until he writes one. */
   tripNote: Schema.optionalKey(Schema.String),
 })
 
@@ -874,14 +795,12 @@ export class DayNotFound extends Schema.TaggedError<DayNotFound>()(
   { date: IsoDate },
 ) {}
 
-/** What every Home state carries. */
 const homeFields = {
   /**
    * The moment of the Clock the state was read at, as an ISO 8601 UTC
    * string. The browser counts from it to the next Tokyo midnight.
    */
   readAt: Schema.String,
-  /** The Itineraries, shown until Phillip has chosen one. */
   itineraries: Schema.Array(ItinerarySummary),
 }
 
@@ -901,21 +820,18 @@ export const HomeState = Schema.TaggedUnion({
   },
   DuringTrip: {
     ...homeFields,
-    /** The Day in Tokyo. */
     date: IsoDate,
     /** Today: that Day's page, null until a Schedule exists. */
     today: Schema.NullOr(DayPage),
   },
   AfterTrip: {
     ...homeFields,
-    /** The Schedule as a record. */
     schedule: Schema.NullOr(ScheduleDetail),
   },
 })
 
 export type HomeState = typeof HomeState.Type
 
-/** What reading a Day page found, as plain data for the browser. */
 export const DayOutcome = Schema.TaggedUnion({
   Day: { page: DayPage },
   NoSchedule: {},
@@ -952,7 +868,6 @@ export class NoteTooLong extends Schema.TaggedError<NoteTooLong>()(
   { maxLength: Schema.Int },
 ) {}
 
-/** What writing a Day note did, as plain data for the browser. */
 export const WriteDayNoteOutcome = Schema.TaggedUnion({
   Written: {},
   ScheduleChanged: ScheduleChanged.fields,
@@ -962,7 +877,6 @@ export const WriteDayNoteOutcome = Schema.TaggedUnion({
 
 export type WriteDayNoteOutcome = typeof WriteDayNoteOutcome.Type
 
-/** The Schedule named has no Stay with that id, such as one since replaced. */
 export class StayNotFound extends Schema.TaggedError<StayNotFound>()(
   'StayNotFound',
   { stayId: CopyId },
@@ -980,7 +894,6 @@ export const WriteStayNote = Schema.Struct({
 
 export type WriteStayNote = typeof WriteStayNote.Type
 
-/** What writing a Stay note did, as plain data for the browser. */
 export const WriteStayNoteOutcome = Schema.TaggedUnion({
   Written: {},
   ScheduleChanged: ScheduleChanged.fields,
@@ -1003,7 +916,6 @@ export const WriteHotelDetails = Schema.Struct({
 
 export type WriteHotelDetails = typeof WriteHotelDetails.Type
 
-/** A Hotel details field longer than the Trip service accepts. */
 export class HotelDetailTooLong extends Schema.TaggedError<HotelDetailTooLong>()(
   'HotelDetailTooLong',
   { maxLength: Schema.Int },
@@ -1042,12 +954,10 @@ export const StayEditTarget = Schema.Struct({
 
 export type StayEditTarget = typeof StayEditTarget.Type
 
-/** What a Stay edit did: the Schedule as edited, with its Anchor warnings. */
 export const StaysEdited = Schema.Struct({ schedule: ScheduleDetail })
 
 export type StaysEdited = typeof StaysEdited.Type
 
-/** What a Stay edit did, as plain data for the browser. */
 export const StayEditOutcome = Schema.TaggedUnion({
   Edited: StaysEdited.fields,
   ScheduleChanged: ScheduleChanged.fields,
@@ -1114,7 +1024,6 @@ export const ChangeStayBase = Schema.Struct({
 
 export type ChangeStayBase = typeof ChangeStayBase.Type
 
-/** What writing Hotel details did, as plain data for the browser. */
 export const WriteHotelDetailsOutcome = Schema.TaggedUnion({
   Written: {},
   ScheduleChanged: ScheduleChanged.fields,
@@ -1132,7 +1041,6 @@ export const WriteTripNote = Schema.Struct({ note: Schema.String })
 
 export type WriteTripNote = typeof WriteTripNote.Type
 
-/** What writing the Trip note did, as plain data for the browser. */
 export const WriteTripNoteOutcome = Schema.TaggedUnion({
   Written: {},
   NoteTooLong: NoteTooLong.fields,
@@ -1174,7 +1082,6 @@ export const EditActivity = Schema.Struct({
 
 export type EditActivity = typeof EditActivity.Type
 
-/** Remove an Activity of the Schedule named. */
 export const RemoveActivity = Schema.Struct({
   scheduleId: ScheduleId,
   activityId: ActivityId,
@@ -1194,10 +1101,6 @@ export const MoveActivity = Schema.Struct({
 
 export type MoveActivity = typeof MoveActivity.Type
 
-/**
- * The Schedule named has no Activity with that id on the Day concerned, such
- * as one removed on another device.
- */
 export class ActivityNotFound extends Schema.TaggedError<ActivityNotFound>()(
   'ActivityNotFound',
   { activityId: ActivityId },
@@ -1209,7 +1112,6 @@ export class ActivityTitleInvalid extends Schema.TaggedError<ActivityTitleInvali
   { maxLength: Schema.Int },
 ) {}
 
-/** What adding an Activity did, as plain data for the browser. */
 export const AddActivityOutcome = Schema.TaggedUnion({
   Added: ActivityAdded.fields,
   ScheduleChanged: ScheduleChanged.fields,
@@ -1220,7 +1122,6 @@ export const AddActivityOutcome = Schema.TaggedUnion({
 
 export type AddActivityOutcome = typeof AddActivityOutcome.Type
 
-/** What editing an Activity did, as plain data for the browser. */
 export const EditActivityOutcome = Schema.TaggedUnion({
   Edited: {},
   ScheduleChanged: ScheduleChanged.fields,
@@ -1231,7 +1132,6 @@ export const EditActivityOutcome = Schema.TaggedUnion({
 
 export type EditActivityOutcome = typeof EditActivityOutcome.Type
 
-/** What removing an Activity did, as plain data for the browser. */
 export const RemoveActivityOutcome = Schema.TaggedUnion({
   Removed: {},
   ScheduleChanged: ScheduleChanged.fields,
@@ -1240,7 +1140,6 @@ export const RemoveActivityOutcome = Schema.TaggedUnion({
 
 export type RemoveActivityOutcome = typeof RemoveActivityOutcome.Type
 
-/** What moving an Activity did, as plain data for the browser. */
 export const MoveActivityOutcome = Schema.TaggedUnion({
   Moved: {},
   ScheduleChanged: ScheduleChanged.fields,
@@ -1249,7 +1148,6 @@ export const MoveActivityOutcome = Schema.TaggedUnion({
 
 export type MoveActivityOutcome = typeof MoveActivityOutcome.Type
 
-/** Resolve a Google Maps link Phillip pasted to the coordinates it carries. */
 export const ResolveLocationLink = Schema.Struct({ link: Schema.String })
 
 export type ResolveLocationLink = typeof ResolveLocationLink.Type
@@ -1271,7 +1169,6 @@ export const LocationLinkRefusal = Schema.Literals([
 
 export type LocationLinkRefusal = typeof LocationLinkRefusal.Type
 
-/** A location link the Trip service won't read coordinates from. */
 export class LocationLinkRefused extends Schema.TaggedError<LocationLinkRefused>()(
   'LocationLinkRefused',
   { reason: LocationLinkRefusal },
@@ -1286,13 +1183,11 @@ export class NoCoordinatesInLink extends Schema.TaggedError<NoCoordinatesInLink>
   {},
 ) {}
 
-/** Coordinates outside Japan, which no Pin of the Trip can have. */
 export class CoordinatesOutsideJapan extends Schema.TaggedError<CoordinatesOutsideJapan>()(
   'CoordinatesOutsideJapan',
   { coordinates: Coordinates },
 ) {}
 
-/** What resolving a location link found, as plain data for the browser. */
 export const ResolveLocationLinkOutcome = Schema.TaggedUnion({
   Resolved: { coordinates: Coordinates },
   LocationLinkRefused: LocationLinkRefused.fields,
@@ -1302,7 +1197,6 @@ export const ResolveLocationLinkOutcome = Schema.TaggedUnion({
 
 export type ResolveLocationLinkOutcome = typeof ResolveLocationLinkOutcome.Type
 
-/** What a Pin is set on: an Activity, or a Stay's hotel, by its id. */
 export const PinTarget = Schema.Union([
   Schema.Struct({ activityId: ActivityId }),
   Schema.Struct({ stayId: CopyId }),
@@ -1323,7 +1217,6 @@ export const SetPin = Schema.Struct({
 
 export type SetPin = typeof SetPin.Type
 
-/** What setting a Pin did, as plain data for the browser. */
 export const SetPinOutcome = Schema.TaggedUnion({
   Set: {},
   ScheduleChanged: ScheduleChanged.fields,
@@ -1335,7 +1228,6 @@ export const SetPinOutcome = Schema.TaggedUnion({
 
 export type SetPinOutcome = typeof SetPinOutcome.Type
 
-/** What choosing an Itinerary did, as plain data for the browser. */
 export const ChooseOutcome = Schema.TaggedUnion({
   Chosen: ScheduleChosen.fields,
   ItineraryNotFound: ItineraryNotFound.fields,
@@ -1344,7 +1236,6 @@ export const ChooseOutcome = Schema.TaggedUnion({
 
 export type ChooseOutcome = typeof ChooseOutcome.Type
 
-/** What restoring a Schedule did, as plain data for the browser. */
 export const RestoreOutcome = Schema.TaggedUnion({
   Restored: ScheduleRestored.fields,
   ScheduleNotFound: ScheduleNotFound.fields,
@@ -1359,7 +1250,6 @@ export type RestoreOutcome = typeof RestoreOutcome.Type
  */
 export const ChecklistItemId = Schema.String
 
-/** A Move on the Checklist: its date and the Bases it connects. */
 export const ChecklistMove = Schema.Struct(
   Struct.pick(MoveSummary.fields, ['date', 'from', 'to']),
 )
@@ -1374,7 +1264,6 @@ const checklistItemFields = { id: ChecklistItemId, ticked: Schema.Boolean }
  * still exists in it. A reminder date is only shown: nothing is sent.
  */
 export const ChecklistItem = Schema.TaggedUnion({
-  /** "Book hotel" for a Stay. */
   BookHotel: { ...checklistItemFields, stay: StaySummary },
   /**
    * "Reserve seats" for a train Move, reminded one month before it, when
@@ -1386,15 +1275,12 @@ export const ChecklistItem = Schema.TaggedUnion({
     reminderDate: IsoDate,
     verify: Schema.Literal('reminder-date'),
   },
-  /** "Book flight" for a flight Move, to verify when booking opens. */
   BookFlight: {
     ...checklistItemFields,
     move: ChecklistMove,
     verify: Schema.Literal('when-booking-opens'),
   },
-  /** "Confirm Shigeharu is open" on the day of the Shigeharu visit. */
   ConfirmShigeharu: { ...checklistItemFields, date: IsoDate },
-  /** "Reserve birthday dinner" for the Birthday. */
   ReserveBirthdayDinner: { ...checklistItemFields, date: IsoDate },
   /** One Verify claim, even when it overlaps an Anchor item. */
   VerifyClaim: {
@@ -1470,7 +1356,6 @@ export const RemoveOwnChecklistItem = Schema.Struct({ itemId: ChecklistItemId })
 
 export type RemoveOwnChecklistItem = typeof RemoveOwnChecklistItem.Type
 
-/** No Checklist item has that id, such as one since removed or replaced. */
 export class ChecklistItemNotFound extends Schema.TaggedError<ChecklistItemNotFound>()(
   'ChecklistItemNotFound',
   { itemId: ChecklistItemId },
@@ -1482,7 +1367,6 @@ export class ChecklistTextInvalid extends Schema.TaggedError<ChecklistTextInvali
   { maxLength: Schema.Int },
 ) {}
 
-/** What ticking an item derived from the Schedule did, for the browser. */
 export const TickChecklistItemOutcome = Schema.TaggedUnion({
   Ticked: {},
   ScheduleChanged: ScheduleChanged.fields,
@@ -1491,7 +1375,6 @@ export const TickChecklistItemOutcome = Schema.TaggedUnion({
 
 export type TickChecklistItemOutcome = typeof TickChecklistItemOutcome.Type
 
-/** What ticking one of Phillip's own items did, for the browser. */
 export const TickOwnChecklistItemOutcome = Schema.TaggedUnion({
   Ticked: {},
   ChecklistItemNotFound: ChecklistItemNotFound.fields,
@@ -1500,7 +1383,6 @@ export const TickOwnChecklistItemOutcome = Schema.TaggedUnion({
 export type TickOwnChecklistItemOutcome =
   typeof TickOwnChecklistItemOutcome.Type
 
-/** What adding one of Phillip's own items did, for the browser. */
 export const AddOwnChecklistItemOutcome = Schema.TaggedUnion({
   Added: OwnChecklistItemAdded.fields,
   ChecklistTextInvalid: ChecklistTextInvalid.fields,
@@ -1508,7 +1390,6 @@ export const AddOwnChecklistItemOutcome = Schema.TaggedUnion({
 
 export type AddOwnChecklistItemOutcome = typeof AddOwnChecklistItemOutcome.Type
 
-/** What removing one of Phillip's own items did, for the browser. */
 export const RemoveOwnChecklistItemOutcome = Schema.TaggedUnion({
   Removed: {},
 })

@@ -1,4 +1,3 @@
-// Converted from docs/itinerary.md, "3. Tokyo → Kyoto → Tokyo".
 import { december, VerifyClaimAttachment } from '@/trip/domain'
 import type { ItineraryContent } from '@/trip/domain'
 import { shigeharuOpeningDays } from '@/trip/itineraries/shigeharu'
@@ -32,8 +31,6 @@ export const option3: ItineraryContent = {
     },
   ],
   days: [
-    // "Arrival, jet-lag recovery, and relaxed neighborhood time": one item
-    // per Day of the Stay, in order.
     { date: december(6), description: 'Arrival.' },
     { date: december(7), description: 'Jet-lag recovery.' },
     { date: december(8), description: 'Relaxed neighborhood time.' },
@@ -42,11 +39,9 @@ export const option3: ItineraryContent = {
     { date: december(11), description: 'Friday morning for Shigeharu.' },
     { date: december(12), description: 'An easy Saturday.' },
     { date: december(13) },
-    // December 14–19 come from the source's day-by-day table.
     { date: december(14), description: 'Kamakura.' },
     { date: december(15), description: 'Birthday in Tokyo.' },
     { date: december(16), description: 'Nikko.' },
-    // "Unscheduled Tokyo day": a Free day.
     { date: december(17) },
     { date: december(18), description: 'Enoshima afternoon and evening.' },
     {
@@ -119,5 +114,4 @@ export const option3: ItineraryContent = {
   ],
   chooseThisIf:
     'freedom and minimal packing matter more than staying somewhere new.',
-  // The source gives Option 3 no "Travel" paragraph.
 }

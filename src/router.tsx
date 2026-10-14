@@ -17,8 +17,6 @@ export function getRouter() {
     defaultNotFoundComponent: NotFound,
   })
 
-  // Carries the queries a server render fetched into the browser's cache,
-  // and provides the QueryClient to components.
   setupRouterSsrQueryIntegration({
     router,
     queryClient,

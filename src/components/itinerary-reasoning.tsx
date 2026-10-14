@@ -51,10 +51,6 @@ function Points({
   )
 }
 
-/**
- * gpt-6-astra's reasoning about an Itinerary, showing only the parts the
- * source gives.
- */
 export function ItineraryReasoning({ reasoning }: { reasoning: Reasoning }) {
   return (
     <div className="flex flex-col gap-6 text-sm leading-relaxed">

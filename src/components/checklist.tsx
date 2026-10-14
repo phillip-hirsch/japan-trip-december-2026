@@ -46,14 +46,12 @@ import {
   tickOwnChecklistItem,
 } from '@/trip/trip.functions'
 
-/** A date as "Fri Dec 11". */
 const formatWeekdayDate = (date: string) =>
   `${formatWeekday(date)} ${formatShortDate(date)}`
 
 const moveRoute = ({ from, to }: ChecklistMove) =>
   `${from.romaji} → ${to.romaji}`
 
-/** What an item asks for, and what it's about, in glossary terms. */
 const wordingOf = (
   item: ChecklistItem,
 ): { readonly title: string; readonly about?: string } =>
@@ -97,7 +95,6 @@ const verifyNotes = {
   'when-booking-opens': 'Verify when booking opens',
 }
 
-/** What, if anything, an item says to verify, beside its reminder date. */
 const verifyNoteOf = (item: ChecklistItem) =>
   Match.value(item).pipe(
     Match.tags({
@@ -140,16 +137,11 @@ const ownTickAnswerOf = (outcome: TickOwnChecklistItemOutcome): SaveAnswer =>
     }),
   )
 
-/**
- * One Checklist item: its tick, what it asks for and when, and for Phillip's
- * own, a way to remove it. A tick is sent at once, as the value it sets.
- */
 function ChecklistRow({
   item,
   scheduleId,
 }: {
   item: ChecklistItem
-  /** The Schedule its derived items came from; null before one is chosen. */
   scheduleId: ScheduleId | null
 }) {
   const titleId = useId()
@@ -159,7 +151,6 @@ function ChecklistRow({
   const remove = useServerFn(removeOwnChecklistItem)
 
   const tick = useSave({
-    // Own items belong to the Trip, so a Schedule change never refuses them.
     scheduleId: own ? null : scheduleId,
     saved: item.ticked,
     write: 'checklist',
@@ -178,7 +169,6 @@ function ChecklistRow({
     },
   })
 
-  // Removed is the value removing saves: once saved, the item is gone.
   const removal = useSave({
     scheduleId: null,
     saved: false,
@@ -210,7 +200,6 @@ function ChecklistRow({
       <Checkbox
         aria-labelledby={titleId}
         checked={ticked}
-        // A save in flight fixes the tick, so two saves never race.
         readOnly={SaveState.$is('Saving')(tick.state)}
         disabled={removing && !SaveState.$is('NotSaved')(removal.state)}
         onCheckedChange={(checked) => void tick.send(checked)}
@@ -285,7 +274,6 @@ function ChecklistRow({
   )
 }
 
-/** The Checklist's items, the next thing to do on top. */
 export function ChecklistItems({
   items,
   scheduleId,
@@ -350,7 +338,6 @@ const addAnswerOf = (outcome: AddOwnChecklistItemOutcome): SaveAnswer =>
     }),
   )
 
-/** Adds one of Phillip's own Checklist items, kept as a draft until saved. */
 export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
   const add = useServerFn(addOwnChecklistItem)
   const dateId = useId()
@@ -381,7 +368,6 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
   const { state, value } = field
   const saving = SaveState.$is('Saving')(state)
   const notSaved = SaveState.$is('NotSaved')(state)
-  // A saved item shows in the list once read; until then its text stays.
   const settling = saving || SaveState.$is('Saved')(state)
 
   const change = (next: Partial<NewChecklistItem>) =>
@@ -441,7 +427,6 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
   )
 }
 
-/** Before a Schedule exists: the prompt to choose an Itinerary. */
 export function ChooseItineraryPrompt() {
   return (
     <div className="flex flex-col items-start gap-4 rounded-md border border-border bg-secondary px-4 py-4 text-sm text-secondary-foreground">

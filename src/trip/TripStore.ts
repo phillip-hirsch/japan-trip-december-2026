@@ -61,10 +61,6 @@ import { migrations } from '@/trip/migrations'
 import { runToPromise } from '@/trip/runtime.server'
 import { Trip } from '@/trip/Trip'
 
-/**
- * Turns a Stay edit's result or refusal into its outcome. Every Stay edit's
- * RPC method uses it, so all Stay edits answer in the same shape.
- */
 export const stayEditOutcomeOf = <R>(
   edit: Effect.Effect<
     StaysEdited,
@@ -133,15 +129,10 @@ export class TripStore extends DurableObject<Env> {
     return runToPromise(this.#runtime, operation)
   }
 
-  /** Home's state at the moment of the request, in Tokyo. */
   home(): Promise<HomeState> {
     return this.#run(Trip.use((trip) => trip.home))
   }
 
-  /**
-   * One Day of Phillip's Schedule as its page shows it, no Schedule before
-   * he chooses one, or DayNotFound for a date outside the Trip.
-   */
   day(date: IsoDate): Promise<DayOutcome> {
     return this.#run(
       Trip.use((trip) => trip.day(date)).pipe(
@@ -160,7 +151,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Copies an Itinerary into Phillip's Schedule, archiving the current one. */
   choose(input: ChooseItinerary): Promise<ChooseOutcome> {
     return this.#run(
       Trip.use((trip) => trip.choose(input)).pipe(
@@ -181,7 +171,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Makes an archived Schedule current again, archiving the current one. */
   restore(input: RestoreSchedule): Promise<RestoreOutcome> {
     return this.#run(
       Trip.use((trip) => trip.restore(input)).pipe(
@@ -202,7 +191,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Writes the Day note on a Day of the current Schedule, as a whole. */
   writeDayNote(input: WriteDayNote): Promise<WriteDayNoteOutcome> {
     return this.#run(
       Trip.use((trip) => trip.writeDayNote(input)).pipe(
@@ -227,7 +215,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Writes the Stay note on a Stay of the current Schedule, as a whole. */
   writeStayNote(input: WriteStayNote): Promise<WriteStayNoteOutcome> {
     return this.#run(
       Trip.use((trip) => trip.writeStayNote(input)).pipe(
@@ -252,7 +239,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Writes the Hotel details on a Stay of the current Schedule, as a whole. */
   writeHotelDetails(
     input: WriteHotelDetails,
   ): Promise<WriteHotelDetailsOutcome> {
@@ -281,14 +267,12 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Splits a Stay of the current Schedule at a date inside it. */
   splitStay(input: SplitStay): Promise<StayEditOutcome> {
     return this.#run(
       stayEditOutcomeOf(Trip.use((trip) => trip.splitStay(input))),
     )
   }
 
-  /** Merges two adjacent Stays in one Base of the current Schedule. */
   mergeStays(input: MergeStays): Promise<StayEditOutcome> {
     return this.#run(
       stayEditOutcomeOf(Trip.use((trip) => trip.mergeStays(input))),
@@ -305,14 +289,12 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Changes the Base of a Stay of the current Schedule. */
   changeStayBase(input: ChangeStayBase): Promise<StayEditOutcome> {
     return this.#run(
       stayEditOutcomeOf(Trip.use((trip) => trip.changeStayBase(input))),
     )
   }
 
-  /** Sets or removes the Pin on an Activity or a Stay's hotel. */
   setPin(input: SetPin): Promise<SetPinOutcome> {
     return this.#run(
       Trip.use((trip) => trip.setPin(input)).pipe(
@@ -345,7 +327,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Writes the Trip note, as a whole. */
   writeTripNote(input: WriteTripNote): Promise<WriteTripNoteOutcome> {
     return this.#run(
       Trip.use((trip) => trip.writeTripNote(input)).pipe(
@@ -361,12 +342,10 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** The Checklist, from the current Schedule as it is now. */
   checklist(): Promise<Checklist> {
     return this.#run(Trip.use((trip) => trip.checklist))
   }
 
-  /** Sets the tick on an item derived from the current Schedule. */
   tickChecklistItem(
     input: TickChecklistItem,
   ): Promise<TickChecklistItemOutcome> {
@@ -391,7 +370,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Adds one of Phillip's own Checklist items. */
   addOwnChecklistItem(
     input: AddOwnChecklistItem,
   ): Promise<AddOwnChecklistItemOutcome> {
@@ -411,7 +389,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Sets the tick on one of Phillip's own Checklist items. */
   tickOwnChecklistItem(
     input: TickOwnChecklistItem,
   ): Promise<TickOwnChecklistItemOutcome> {
@@ -431,7 +408,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Removes one of Phillip's own Checklist items. */
   removeOwnChecklistItem(
     input: RemoveOwnChecklistItem,
   ): Promise<RemoveOwnChecklistItemOutcome> {
@@ -444,7 +420,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Adds an Activity on a Day of the current Schedule. */
   addActivity(input: AddActivity): Promise<AddActivityOutcome> {
     return this.#run(
       Trip.use((trip) => trip.addActivity(input)).pipe(
@@ -473,7 +448,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Writes the fields an edit carries on an Activity of the current Schedule. */
   editActivity(input: EditActivity): Promise<EditActivityOutcome> {
     return this.#run(
       Trip.use((trip) => trip.editActivity(input)).pipe(
@@ -504,7 +478,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Removes an Activity of the current Schedule. */
   removeActivity(input: RemoveActivity): Promise<RemoveActivityOutcome> {
     return this.#run(
       Trip.use((trip) => trip.removeActivity(input)).pipe(
@@ -525,7 +498,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** Moves an Activity of the current Schedule within its Day. */
   moveActivity(input: MoveActivity): Promise<MoveActivityOutcome> {
     return this.#run(
       Trip.use((trip) => trip.moveActivity(input)).pipe(
@@ -546,7 +518,6 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /** One Schedule, current or archived, or null when none has that id. */
   schedule(scheduleId: ScheduleId): Promise<ScheduleDetail | null> {
     return this.#run(
       Trip.use((trip) => trip.schedule(scheduleId)).pipe(
@@ -570,17 +541,12 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  /**
-   * The current Schedule on its map, with its pinned hotels and Activities,
-   * or null before Phillip chooses one.
-   */
   scheduleMap(): Promise<ScheduleMap | null> {
     return this.#run(
       Trip.use((trip) => trip.scheduleMap).pipe(Effect.map(Option.getOrNull)),
     )
   }
 
-  /** The current Schedule's summary, or null before Phillip chooses one. */
   scheduleSummary(): Promise<ScheduleSummary | null> {
     return this.#run(
       Trip.use((trip) => trip.scheduleSummary).pipe(

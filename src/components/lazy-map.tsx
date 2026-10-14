@@ -14,10 +14,6 @@ const supportsWebGl2 = () => {
 
 type MapState = 'waiting' | 'unsupported' | 'shown'
 
-/**
- * Waits until the element first scrolls into view, then shows the map unless
- * the device lacks WebGL2. It only ever changes in the browser.
- */
 function useMapState() {
   const ref = useRef<HTMLDivElement>(null)
   const [state, setState] = useState<MapState>('waiting')
@@ -65,7 +61,6 @@ function MapUnavailable() {
   )
 }
 
-/** Catches the map failing to load or to start, such as without WebGL2. */
 class MapErrorBoundary extends Component<
   { children: ReactNode },
   { failed: boolean }
@@ -81,12 +76,6 @@ class MapErrorBoundary extends Component<
   }
 }
 
-/**
- * A fixed-size placeholder that renders its map, a lazy component, only once
- * it first becomes visible in the browser, so the map's code, styles and
- * worker stay out of the initial page load. If the map can't load, a clear
- * placeholder stays instead and the rest of the page keeps working.
- */
 export function LazyMap({
   className,
   children,

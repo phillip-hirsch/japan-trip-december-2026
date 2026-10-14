@@ -10,8 +10,6 @@ import { formatDay, tripEndDate, tripStartDate } from '@/trip/calendar'
 import type { HomeState, ItinerarySummary, ScheduleDetail } from '@/trip/domain'
 import { homeQuery, useHome } from '@/trip/queries'
 
-// Personal state, so never prerendered: Home follows the Trip and the
-// Schedule, and asks the Trip store on each visit.
 export const Route = createFileRoute('/')({
   loader: {
     handler: ({ context }) => context.queryClient.fetchQuery(homeQuery),
@@ -55,11 +53,6 @@ function Home() {
   )
 }
 
-/**
- * Home's hero: an eyebrow, a title and a lede, with the Schedule or the
- * Itineraries below. The glow is capped to the hero's height, and nothing
- * clips, so the content stays reachable on short phones.
- */
 function Hero({
   eyebrow,
   title,
@@ -91,7 +84,6 @@ function Hero({
   )
 }
 
-/** A hero's title in words, where the countdown would otherwise be. */
 function HeroTitle({ children }: { children: ReactNode }) {
   return <h1 className="mt-4 text-4xl font-semibold md:text-5xl">{children}</h1>
 }
@@ -136,7 +128,6 @@ function BeforeTrip({
   )
 }
 
-/** Phillip's Schedule once chosen; the Itineraries until then. */
 function ScheduleOrItineraries({
   schedule,
   itineraries,
@@ -151,7 +142,6 @@ function ScheduleOrItineraries({
   )
 }
 
-/** The Itineraries, until Phillip chooses one. */
 function HomeItineraries({
   itineraries,
 }: {
@@ -170,7 +160,6 @@ function HomeItineraries({
   )
 }
 
-/** Phillip's Schedule: its Stays and Days, each Day opening its own page. */
 function HomeSchedule({ schedule }: { schedule: ScheduleDetail }) {
   return (
     <section aria-labelledby="schedule">

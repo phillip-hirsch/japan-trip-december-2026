@@ -41,11 +41,8 @@ export function StayBoundaryField({
 }: {
   scheduleId: ScheduleId
   stay: ScheduleStayDetail
-  /** The Stay checking in on the day this one checks out. */
   next: ScheduleStayDetail
-  /** The Schedule's Anchor warnings before the move. */
   anchorWarnings: ReadonlyArray<AnchorWarning>
-  /** The id of the heading naming the check-out. */
   labelledBy: string
 }) {
   const move = useServerFn(moveStayBoundary)
@@ -122,7 +119,6 @@ export function StayBoundaryField({
         <DateChoice
           dates={dates}
           value={chosen}
-          // A save in flight fixes the value, so two saves never race.
           disabled={saving}
           onChange={field.change}
         />

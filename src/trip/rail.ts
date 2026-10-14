@@ -2,10 +2,6 @@
 // schemas read their ids here, like the place catalogue.
 import type { CatalogueCoordinates } from '@/trip/places'
 
-/**
- * The stations where Moves' rail sections start and end, keyed by stable id,
- * with their coordinates in decimal degrees.
- */
 export const stations = {
   tokyo: {
     name: 'Tokyo',
@@ -44,11 +40,6 @@ export type StationId = keyof typeof stations
 // SAFETY: stations is the closed catalogue literal above; its enumerable own keys are exactly StationId.
 export const stationIds = Object.keys(stations) as ReadonlyArray<StationId>
 
-/**
- * The shinkansen and limited-express lines that Moves' rail sections ride. A
- * train that runs through from one line onto another without a change, such
- * as a Nozomi from Kyoto to Hakata, rides a combined line.
- */
 export const railLineIds = [
   'tokaido-shinkansen',
   'tokaido-sanyo-shinkansen',
@@ -58,14 +49,12 @@ export const railLineIds = [
 
 export type RailLineId = (typeof railLineIds)[number]
 
-/** A rail section by the ids of its line and stations. */
 export type RailSectionIds = {
   readonly line: RailLineId
   readonly from: StationId
   readonly to: StationId
 }
 
-/** The ids of a rail section whose stations are given in full. */
 export const railSectionIdsOf = (section: {
   readonly line: RailLineId
   readonly from: { readonly id: StationId }

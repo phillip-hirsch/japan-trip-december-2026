@@ -1,9 +1,3 @@
-// The save pattern every edit uses. What Phillip types is kept as a draft in
-// the browser's local storage, keyed by its target (such as the Day note on
-// 2026-12-14), until a save succeeds, so no failed save, login reload or
-// closed app loses it. A draft is never saved behind his back: only his Save
-// or Retry sends it. A one-tap value, such as a tick, keeps no draft: tapping
-// again loses nothing.
 import { useQueryClient } from '@tanstack/react-query'
 import { Data, Predicate } from 'effect'
 import { useEffect, useRef, useState } from 'react'
@@ -30,10 +24,6 @@ interface Draft<V> {
   readonly id: string
 }
 
-/**
- * Where a value's draft is kept: its target, and the check that what is
- * stored there is such a value.
- */
 export interface DraftKeeping<V> {
   readonly target: string
   readonly isValue: (value: unknown) => value is V
@@ -63,7 +53,6 @@ const readDraft = <V>({
   }
 }
 
-/** Keeps a value as the target's draft, returning that write's id. */
 const writeDraft = <V>(target: string, value: V, scheduleId: string | null) => {
   const draft: Draft<V> = { value, scheduleId, id: crypto.randomUUID() }
 
@@ -84,7 +73,6 @@ const clearDraft = (target: string) => {
   }
 }
 
-/** The draft target of the Day note on a date. */
 export const dayNoteTarget = (date: IsoDate) => `day-note:${date}`
 
 /**
@@ -96,43 +84,23 @@ export const dayNoteTarget = (date: IsoDate) => `day-note:${date}`
  */
 export const stayNoteTarget = (stayId: string) => `stay-note:${stayId}`
 
-/**
- * The draft target of the Hotel details on a Stay, by its id, as the Stay
- * note's is.
- */
 export const hotelDetailsTarget = (stayId: string) => `hotel-details:${stayId}`
 
-/**
- * The draft target of the date a Stay checks out, by the Stay's id, as the
- * Stay note's is.
- */
 export const stayBoundaryTarget = (stayId: string) => `stay-boundary:${stayId}`
 
-/** The draft target of the Trip note. */
 export const tripNoteTarget = 'trip-note'
 
-/** The draft target of a new Activity on a Day, by its date. */
 export const newActivityTarget = (date: IsoDate) => `activity:new:${date}`
 
-/**
- * The draft target of an edit to an Activity, by its id, which is fresh in
- * each Schedule, as a Stay's is.
- */
 export const activityTarget = (activityId: string) => `activity:${activityId}`
 
-/**
- * The draft target of the Pin on an Activity or a Stay's hotel, by its id,
- * which is fresh in each Schedule.
- */
 export const pinTarget = (target: PinTarget) =>
   'activityId' in target
     ? `pin:activity:${target.activityId}`
     : `pin:hotel:${target.stayId}`
 
-/** The draft target of a new own Checklist item. */
 export const newChecklistItemTarget = 'checklist-item:new'
 
-/** What a save answered, when it got an answer. */
 export type SaveAnswer = Data.TaggedEnum<{
   Saved: {}
   ScheduleChanged: {}
@@ -176,16 +144,11 @@ const clean = SaveState.Clean({ justSaved: false })
 const restoredProblem =
   'This is what you typed here last time. Save it, or discard it.'
 
-/** A Schedule change refused the save; a draft says its text is kept. */
 const scheduleChangedProblem = (drafted: boolean) =>
   drafted
     ? 'Your Schedule changed on another device. This page now shows it as it is; your text is kept here to save again.'
     : 'Your Schedule changed on another device. This page now shows it as it is.'
 
-/**
- * Why a save got no answer, from what the request showed; a draft says its
- * text is kept.
- */
 const unansweredProblem = (drafted: boolean) => {
   const loginExpired = ConnectionStatus.$is('LoginExpired')(currentConnection())
 
@@ -218,16 +181,13 @@ export const useSave = <V>({
   write,
   run,
 }: {
-  /** Where the unsaved value is kept as a draft; none for a one-tap value. */
   draft?: DraftKeeping<V>
-  /** Whether two values save the same; strictly equal ones by default. */
   equals?: (a: V, b: V) => boolean
   /**
    * The Schedule the saved value was read from, or null for a value tied to
    * none, such as the Trip note, which a Schedule change never affects.
    */
   scheduleId: ScheduleId | null
-  /** The value as last read from the server. */
   saved: V
   write: TripWrite
   /** Sends the value; throws when the request gets no answer. */
@@ -263,16 +223,13 @@ export const useSave = <V>({
     if (storedDraft()?.id === ownDraftId.current) clearStoredDraft()
   }
 
-  /** Whether a stored draft holds what its Schedule, shown now, has saved. */
   const savedAlready = (draft: Draft<V>) =>
     draft.scheduleId === scheduleIdRef.current &&
     equals(draft.value, savedRef.current)
 
-  // Stops waiting for the read that confirms the last save.
   const stopAwaitingRead = useRef<() => void>(undefined)
   useEffect(() => () => stopAwaitingRead.current?.(), [])
 
-  // Local storage exists only in the browser, after hydration.
   useEffect(() => {
     const draft = storedDraft()
 
@@ -424,14 +381,12 @@ export const useSave = <V>({
     }
   }
 
-  /** Saves the value being edited, or retries one not saved. */
   const save = async () => {
     if (SaveState.$is('Editing')(state) || SaveState.$is('NotSaved')(state)) {
       await saveValue(state.value)
     }
   }
 
-  /** Saves a value at once, for a one-tap control such as a tick. */
   const send = async (next: V) => {
     if (!SaveState.$is('Saving')(state)) await saveValue(next)
   }
@@ -447,7 +402,6 @@ export const useDraftedField = ({
   target,
   ...options
 }: {
-  /** What the value is for, such as the Day note on a date. */
   target: string
 } & Omit<Parameters<typeof useSave<string>>[0], 'draft' | 'equals'>) =>
   useSave({ draft: { target, isValue: Predicate.isString }, ...options })

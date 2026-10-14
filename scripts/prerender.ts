@@ -1,4 +1,3 @@
-// The build's prerendering: which pages, and the check on their HTML.
 import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 
@@ -31,11 +30,8 @@ const htmlFile = (pagePath: string) => `${pagePath.slice(1)}.html`
 // prerendered page could leak, so no email address may appear at all.
 const emailAddress = /[\w.%+-]+@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}\b/i
 
-// Links to the comparison page or an Itinerary page, all of which are
-// prerendered.
 const optionsLink = /href="(\/options[^"?#]*)"/g
 
-/** What's wrong with one prerendered page's HTML. */
 const pageProblems = (
   prerenderedPaths: ReadonlyArray<string>,
   file: string,

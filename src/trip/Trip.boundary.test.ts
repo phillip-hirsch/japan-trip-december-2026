@@ -16,12 +16,8 @@ import { option1 } from '@/trip/itineraries/option-1'
 import { operation, storage, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
 
-// Option 1 has four Stays: Tokyo from December 6 to 9, Kyoto to 13, Kanazawa
-// to 17 and Tokyo to 20. A train Move joins each pair, and the Kanazawa Stay
-// has two Verify claims.
 const trip = tripWith([option1])
 
-/** Chooses Option 1, replacing the Schedule named, if any. */
 const choose = (n: number, replacing: ScheduleId | null) =>
   Effect.map(
     Trip.use((trip) =>
@@ -35,11 +31,9 @@ const currentSchedule = Effect.map(
   ({ current }) => Option.getOrThrow(current),
 )
 
-/** The id of the Stay at an index in Trip order. */
 const stayIdAt = (schedule: ScheduleDetail, index: number) =>
   schedule.stays[index]?.id ?? ''
 
-/** Moves the check-out of the Stay at an index of the current Schedule. */
 const moveCheckOut = (index: number, checkOut: IsoDate) =>
   Effect.gen(function* () {
     const schedule = yield* currentSchedule
@@ -53,7 +47,6 @@ const moveCheckOut = (index: number, checkOut: IsoDate) =>
     )
   })
 
-/** Each Stay's Base and dates, and each Move's date, in Trip order. */
 const datesOf = (schedule: ScheduleDetail) => ({
   stays: schedule.stays.map(({ base, checkIn, checkOut }) => [
     base.id,

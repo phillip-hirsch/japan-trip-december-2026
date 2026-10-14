@@ -42,7 +42,6 @@ import {
 import type { DayPage, IsoDate, NextMove, TonightsHotel } from '@/trip/domain'
 import { places } from '@/trip/places'
 
-/** A link to the Day before or after, or a disabled control at the Trip's ends. */
 function DayStep({
   date,
   direction,
@@ -89,7 +88,6 @@ function DayStep({
   )
 }
 
-/** Steps to the previous or next Day, never beyond December 6 or 20. */
 function DayPager({ date, className }: { date: IsoDate; className?: string }) {
   return (
     <nav
@@ -124,7 +122,6 @@ function DaySection({
   )
 }
 
-/** Tonight's hotel: the Stay covering the night, and its hotel once recorded. */
 function TonightsHotelCard({ tonight }: { tonight: TonightsHotel }) {
   return (
     <Item variant="outline">
@@ -166,7 +163,6 @@ function TonightsHotelCard({ tonight }: { tonight: TonightsHotel }) {
   )
 }
 
-/** The next Move: today's, or the first later one, with its travel. */
 function NextMoveCard({ move, today }: { move: NextMove; today: IsoDate }) {
   return (
     <Item variant="outline" className="flex-col items-stretch gap-2">
@@ -187,12 +183,6 @@ const activitiesHeadingId = 'activities'
 
 const noteHeadingId = 'note'
 
-/**
- * A Day of the Schedule, on its own page and as Today on Home: the Day's
- * source description and Day trips, Phillip's Activities and Day note,
- * tonight's hotel and the next Move, with controls to step between Days. On
- * a touch screen, swiping steps too.
- */
 export function ScheduleDayView({
   page: { scheduleId, day, tonight, nextMove },
   eyebrow,

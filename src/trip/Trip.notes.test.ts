@@ -10,7 +10,6 @@ import { Trip } from '@/trip/Trip'
 
 const trip = tripWith([option1, option2])
 
-/** Chooses an Itinerary, replacing the Schedule named, if any. */
 const choose = (
   optionNumber: number,
   n: number,
@@ -37,34 +36,28 @@ const restore = (scheduleId: ScheduleId, n: number, replacing: ScheduleId) =>
     trip.restore({ operationId: operation(n), scheduleId, replacing }),
   )
 
-/** A Schedule's Stays, current or archived, in Trip order. */
 const staysOf = (scheduleId: ScheduleId) =>
   Effect.map(
     Trip.use((trip) => trip.schedule(scheduleId)),
     ({ stays }) => stays,
   )
 
-/** The id of a Schedule's first Stay. */
 const firstStayId = (scheduleId: ScheduleId) =>
   Effect.map(staysOf(scheduleId), (stays) => stays[0]?.id ?? '')
 
-/** The Stay note on a Schedule's first Stay, if it has one. */
 const firstStayNote = (scheduleId: ScheduleId) =>
   Effect.map(staysOf(scheduleId), (stays) => stays[0]?.note)
 
-/** Every Stay note a Schedule has. */
 const stayNotesOf = (scheduleId: ScheduleId) =>
   Effect.map(staysOf(scheduleId), (stays) =>
     stays.flatMap(({ note }) => note ?? []),
   )
 
-/** The Trip note as /schedule shows it, if Phillip has written one. */
 const tripNote = Effect.map(
   Trip.use((trip) => trip.schedules),
   ({ tripNote }) => tripNote,
 )
 
-/** The Day note on a Day of the current Schedule, if it has one. */
 const dayNote = (date: IsoDate) =>
   Effect.map(
     Trip.use((trip) => trip.day(date)),
@@ -89,7 +82,6 @@ describe('Trip.writeDayNote', () => {
     () =>
       Effect.gen(function* () {
         const stale = yield* choose(1, 1, null)
-        // Another device chooses again, so this screen's Schedule is stale.
         const current = yield* choose(2, 2, stale)
         yield* writeDayNote(current, december(14), 'Pack for the Alps.')
 
@@ -245,7 +237,6 @@ describe('Trip.writeStayNote', () => {
       Effect.gen(function* () {
         const stale = yield* choose(1, 1, null)
         const staleStayId = yield* firstStayId(stale)
-        // Another device chooses again, so this screen's Schedule is stale.
         const current = yield* choose(2, 2, stale)
 
         const error = yield* Effect.flip(

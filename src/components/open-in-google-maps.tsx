@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils'
 import type { Pin } from '@/trip/domain'
 import { openInGoogleMapsUrlOf } from '@/trip/pins'
 
-/** "Open in Google Maps" for a Pin: its own link, or else its coordinates. */
 export function OpenInGoogleMaps({
   pin,
   className,

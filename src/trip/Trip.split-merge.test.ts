@@ -19,12 +19,8 @@ import { option1 } from '@/trip/itineraries/option-1'
 import { operation, storage, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
 
-// Option 1 has four Stays: Tokyo from December 6 to 9, Kyoto to 13, Kanazawa
-// to 17 and Tokyo to 20. A train Move joins each pair, and the Kanazawa Stay
-// has highlights and two Verify claims.
 const trip = tripWith([option1])
 
-/** Chooses Option 1, replacing the Schedule named, if any. */
 const choose = (n: number, replacing: ScheduleId | null) =>
   Effect.map(
     Trip.use((trip) =>
@@ -70,19 +66,15 @@ const tick = (scheduleId: ScheduleId, itemId: string) =>
     trip.tickChecklistItem({ scheduleId, itemId, ticked: true }),
   )
 
-/** Each Stay of a Schedule as its Base, check-in and check-out, in order. */
 const staySpans = ({ stays }: ScheduleDetail) =>
   stays.map(({ base, checkIn, checkOut }) => [base.id, checkIn, checkOut])
 
-/** The id of a Stay at an index in Trip order. */
 const stayIdAt = (schedule: ScheduleDetail, index: number) =>
   schedule.stays[index]?.id ?? ''
 
-/** Every Move of a Schedule, as its Day shows it, in Trip order. */
 const movesOf = ({ days }: ScheduleDetail) =>
   days.flatMap(({ date, move }) => (move ? [{ date, ...move }] : []))
 
-/** Option 1 with its Kyoto Stay as two, joined by a local Move. */
 const option1WithTwoKyotoStays: ItineraryContent = {
   ...option1,
   stays: option1.stays.flatMap((stay) =>
@@ -156,7 +148,6 @@ describe('Trip.splitStay', () => {
         assert.isNotEmpty(original?.highlights ?? [])
         assert.deepStrictEqual(yield* currentSchedule, schedule)
 
-        // The later part is a new Stay, starting empty.
         assert.isFalse(
           before.stays.some((stay) => stay.id === later?.id) ||
             later?.id === undefined,
@@ -461,7 +452,6 @@ describe('Trip.mergeStays', () => {
           true,
         )
 
-        // Splitting again makes a new Stay, so its item starts unticked.
         const { schedule } = yield* splitStay(
           scheduleId,
           earlierId,

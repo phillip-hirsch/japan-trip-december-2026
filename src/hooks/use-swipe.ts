@@ -1,13 +1,10 @@
 import { useRef } from 'react'
 import type { TouchEvent } from 'react'
 
-/** How far a finger must travel sideways to count as a swipe, in CSS pixels. */
 const minDistance = 48
 
-/** How much further sideways than up or down, so scrolling is never a swipe. */
 const minRatio = 1.5
 
-/** Where a drag selects text or moves the caret rather than swipes. */
 const editable =
   'input, textarea, [contenteditable]:not([contenteditable="false"])'
 

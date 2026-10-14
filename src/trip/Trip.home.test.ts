@@ -13,7 +13,6 @@ const chooseOption1 = Trip.use((trip) =>
   trip.choose({ operationId: operation(1), optionNumber: 1, replacing: null }),
 )
 
-/** Home's state at a moment given as an ISO 8601 UTC string. */
 const homeAt = (instant: string) =>
   Effect.gen(function* () {
     yield* setTime(instant)
@@ -21,7 +20,6 @@ const homeAt = (instant: string) =>
     return yield* Trip.use((trip) => trip.home)
   })
 
-/** Home's shared fields, read through the Trip service. */
 const expectedHomeFields = (readAt: string) =>
   Trip.use((trip) => trip.itineraries).pipe(
     Effect.map((itineraries) => ({
@@ -40,7 +38,6 @@ const expectedHomeFields = (readAt: string) =>
     })),
   )
 
-/** The current Schedule, read through the Trip service. */
 const currentSchedule = Trip.use((trip) => trip.schedules).pipe(
   Effect.map(({ current }) => Option.getOrThrow(current)),
 )
@@ -270,7 +267,6 @@ describe('Trip.home Itineraries', () => {
     Effect.gen(function* () {
       const home = yield* homeAt('2026-10-01T00:00:00Z')
       const itineraries = yield* Trip.use((trip) => trip.itineraries)
-      // Home shows each Itinerary's summary, without its comparison rows.
       assert.deepStrictEqual(
         home.itineraries,
         itineraries.map((itinerary) =>
@@ -289,7 +285,6 @@ describe('Trip.home Itineraries', () => {
   )
 })
 
-/** The Day page of the current Schedule for a date. */
 const dayPage = (date: IsoDate) =>
   Effect.map(
     Trip.use((trip) => trip.day(date)),
@@ -354,7 +349,6 @@ describe('Trip.day', () => {
         yield* chooseOption1
         const { current } = yield* Trip.use((trip) => trip.schedules)
         const kyoto = Option.getOrThrow(current).stays[1]
-        // A Move day ends in the Stay it moves to.
         const { tonight } = yield* dayPage(december(9))
         assert.deepStrictEqual(tonight, {
           id: kyoto?.id,

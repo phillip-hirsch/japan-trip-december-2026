@@ -38,11 +38,6 @@ const refetchOnReturn = (queryClient: QueryClient) => {
   })
 }
 
-/**
- * The cache of server data: one per request on the server, one for the page
- * in the browser. Its data is stale at once, so opening the app, focusing it
- * and reconnecting all refetch whatever is shown.
- */
 export const createQueryClient = () => {
   const queryClient = new QueryClient()
 

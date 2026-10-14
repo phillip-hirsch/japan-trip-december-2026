@@ -18,10 +18,6 @@ const flightColor = '#a1c3db'
 
 const dayTripColor = '#aba397'
 
-/**
- * A Day trip destination: a smaller point named when tapped, since nearby
- * destinations such as Kamakura and Enoshima would overlap as labels.
- */
 function DestinationMarker({ place }: { place: Place }) {
   const { latitude, longitude } = place.coordinates
 
@@ -41,7 +37,6 @@ function DestinationMarker({ place }: { place: Place }) {
   )
 }
 
-/** The Day trip destinations that aren't also Bases, each once. */
 const destinationsOf = ({ bases, dayTrips }: ItineraryMap) => {
   const baseIds = new Set(bases.map((base) => base.id))
 
@@ -50,17 +45,11 @@ const destinationsOf = ({ bases, dayTrips }: ItineraryMap) => {
   ).filter((place) => !baseIds.has(place.id))
 }
 
-/** Every point the map draws, to frame it. */
 export const pointsOf = (map: ItineraryMap): Array<Coordinates> => [
   ...[...map.bases, ...destinationsOf(map)].map((place) => place.coordinates),
   ...map.trainMoves.flatMap((move) => move.path),
 ]
 
-/**
- * An Itinerary or Schedule drawn on a map: Bases as points, train Moves as
- * solid lines along their rail lines, flights as arcs and Day trips as dashed
- * lines.
- */
 export function ItineraryMapLayers({ map }: { map: ItineraryMap }) {
   return (
     <>

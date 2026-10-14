@@ -1,12 +1,10 @@
 import { Context, Effect, Layer, Schema } from 'effect'
 
-/** The status and any Location header that one request for a link got. */
 export interface LinkResponse {
   readonly status: number
   readonly location?: string
 }
 
-/** A request for a link got no answer, such as from a network failure. */
 export class LinkRequestFailed extends Schema.TaggedError<LinkRequestFailed>()(
   'LinkRequestFailed',
   { cause: Schema.Defect() },

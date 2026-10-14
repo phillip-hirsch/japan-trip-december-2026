@@ -589,7 +589,6 @@ const StatementTypes: Record<string, NodeTestObject> = {
   ),
 }
 
-/** Build the vendored padding rule with caller-owned, typed policy options. */
 export default function createPaddingLineRule(options: RuleOptions): CreateRule {
 return {
   meta: {

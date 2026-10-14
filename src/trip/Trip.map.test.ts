@@ -7,7 +7,6 @@ import { places } from '@/trip/places'
 import { liveTrip, operation, storage } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
 
-/** Chooses an Itinerary, replacing the Schedule named, if any. */
 const choose = (
   optionNumber: number,
   n: number,
@@ -22,7 +21,6 @@ const choose = (
 
 const scheduleMap = Trip.use((trip) => trip.scheduleMap)
 
-/** The id of the current Schedule's Stay at an index in Trip order. */
 const stayId = (index: number) =>
   Effect.map(
     Trip.use((trip) => trip.schedules),
@@ -34,7 +32,6 @@ const changeBase = (scheduleId: ScheduleId, index: number, place: string) =>
     Trip.use((trip) => trip.changeStayBase({ scheduleId, stayId, place })),
   )
 
-/** The current Schedule's map, which a test expects to exist. */
 const currentMap = Effect.map(scheduleMap, Option.getOrThrow)
 
 describe('Trip.scheduleMap', () => {
@@ -69,8 +66,6 @@ describe('Trip.scheduleMap', () => {
       }).pipe(Effect.provide([liveTrip, storage])),
   )
 
-  // Option 1's Stays: Tokyo from December 6 to 9, Kyoto to 13, Kanazawa to 17
-  // and Tokyo to 20, joined by train Moves with rail sections.
   const { tokyo, kyoto, osaka } = places
 
   it.effect(
@@ -151,7 +146,6 @@ describe('Trip.scheduleMap', () => {
       }).pipe(Effect.provide([liveTrip, storage])),
   )
 
-  /** Adds an Activity on a Day, returning its id. */
   const addActivity = (
     n: number,
     scheduleId: ScheduleId,
@@ -175,12 +169,10 @@ describe('Trip.scheduleMap', () => {
     link: 'https://goo.gl/maps/9e6EdUNDE18LuEwR7',
   }
 
-  /** A Pin dropped by hand without a link, near Kyoto Station. */
   const nearKyotoStation: Pin = {
     coordinates: { latitude: 34.9858, longitude: 135.7588 },
   }
 
-  /** A Pin dropped by hand without a link, in Ginza. */
   const ginza: Pin = {
     coordinates: { latitude: 35.6717, longitude: 139.765 },
   }
@@ -229,7 +221,6 @@ describe('Trip.scheduleMap', () => {
         yield* addActivity(4, scheduleId, december(10), 'Unpinned lunch')
         yield* setPin({ activityId: birthday }, ginza)
         yield* setPin({ activityId: shrine }, fushimiInari)
-        // The map shows no notes, so it leaves them out.
         yield* Trip.use((trip) =>
           trip.editActivity({
             scheduleId,

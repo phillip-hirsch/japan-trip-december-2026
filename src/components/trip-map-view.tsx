@@ -21,7 +21,6 @@ export const lngLatOf = ({
   latitude,
 }: Coordinates): [number, number] => [longitude, latitude]
 
-/** Coordinates from MapLibre's longitude and latitude, as dragged or tapped. */
 export const coordinatesOfLngLat = ({
   lng,
   lat,
@@ -30,7 +29,6 @@ export const coordinatesOfLngLat = ({
   readonly lat: number
 }): Coordinates => ({ latitude: lat, longitude: lng })
 
-/** The smallest box around every point, as [south-west, north-east]. */
 const boundsOf = (points: ReadonlyArray<Coordinates>): LngLatBoundsLike => {
   const longitudes = points.map((point) => point.longitude)
   const latitudes = points.map((point) => point.latitude)
@@ -41,7 +39,6 @@ const boundsOf = (points: ReadonlyArray<Coordinates>): LngLatBoundsLike => {
   ]
 }
 
-/** How a map frames its points, closest at the zoom given. */
 const fitOptionsOf = (maxZoom: number | undefined) => ({
   padding: 48,
   ...(maxZoom !== undefined && { maxZoom }),
@@ -67,7 +64,6 @@ export function FitToPoints({
     .sort()
     .join(' ')
 
-  // The map opens framed to the first points.
   const framed = useRef(key)
   useEffect(() => {
     if (map === null || framed.current === key) return
@@ -78,7 +74,6 @@ export function FitToPoints({
   return null
 }
 
-/** A Base: a point with its name always shown. */
 export function BaseMarker({ place }: { place: Place }) {
   const { latitude, longitude } = place.coordinates
 
@@ -94,11 +89,6 @@ export function BaseMarker({ place }: { place: Place }) {
   )
 }
 
-/**
- * A dark map framed to fit every point, with its attributions always shown
- * in full and zoom controls. Gestures are cooperative unless it fills the
- * screen, so a page still scrolls past the map.
- */
 export function TripMapView({
   points,
   maxZoom,
@@ -107,11 +97,8 @@ export function TripMapView({
   children,
 }: {
   points: ReadonlyArray<Coordinates>
-  /** The closest the framing zooms in, such as for a single point. */
   maxZoom?: number
-  /** The rail geometry's credit, when the map follows a rail line. */
   railAttribution: string | undefined
-  /** Whether the map is the whole page, with nothing to scroll past. */
   fullScreen?: boolean
   children: ReactNode
 }) {
@@ -130,7 +117,6 @@ export function TripMapView({
       }}
     >
       {children}
-      {/* Top right, clear of the attribution, which wraps on phones. */}
       <MapControls position="top-right" />
     </MapView>
   )

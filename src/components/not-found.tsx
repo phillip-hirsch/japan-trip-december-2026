@@ -1,6 +1,5 @@
 import { ButtonLink } from '@/components/button-link'
 
-/** The page for an address with nothing behind it. */
 export function NotFound() {
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 py-16 md:px-12">

@@ -1,5 +1,3 @@
-// Every real Itinerary, read back through the Trip service and checked against
-// what docs/itinerary.md says about it.
 import { assert, layer } from '@effect/vitest'
 import { Effect } from 'effect'
 
@@ -19,7 +17,6 @@ interface ExpectedItinerary {
   readonly name: string
   readonly recommended: boolean
   readonly bestFor: string
-  /** Each Base as "kanji (romaji)", joined by arrows. */
   readonly route: string
   readonly nightsPerBase: ReadonlyArray<readonly [base: string, nights: number]>
   readonly newToYou: ReadonlyArray<string>
@@ -28,13 +25,11 @@ interface ExpectedItinerary {
     readonly base: string
     readonly kanji: string
     readonly newPlace: boolean
-    /** Check-in and check-out days of December. */
     readonly dates: readonly [number, number]
     readonly nights: number
     readonly accommodation: AccommodationKind
     readonly highlights: ReadonlyArray<string>
   }>
-  /** Each of the 15 Days of December with its source description, if any. */
   readonly days: ReadonlyArray<readonly [day: number, description?: string]>
   readonly freeDays: ReadonlyArray<number>
   readonly moves: ReadonlyArray<{
@@ -53,26 +48,19 @@ interface ExpectedItinerary {
     readonly place: string
     readonly optional: boolean
   }>
-  /** Each Verify claim as where it's attached, its id and its text. */
   readonly verifyClaims: ReadonlyArray<
     readonly [attachedTo: string, id: string, text: string]
   >
   readonly thursdayBackup: boolean
-  /** The comparison rows that the fields above don't already give. */
   readonly comparison: {
-    /** The Base on December 15. */
     readonly birthdayBase: string
     readonly moves: {
       readonly count: number
       readonly travelTime?: readonly [min: number, max: number]
-      /** Each train or flight Move without a duration, as "day mode from → to". */
       readonly durationNotGiven: ReadonlyArray<string>
     }
-    /** Each Day trip destination once, marked "(optional)" when it is. */
     readonly dayTrips: ReadonlyArray<string>
-    /** Each flight Move as "day from → to". */
     readonly flights: ReadonlyArray<string>
-    /** Each ryokan Stay as "Base, check-in–check-out". */
     readonly ryokanStays: ReadonlyArray<string>
   }
 }
@@ -120,8 +108,6 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         'No dedicated hot-spring retreat.',
         'Nikko is omitted; adding it would mean replacing another excursion or giving up downtime.',
       ],
-      // The source gives Option 1 no "choose this if", only why it is
-      // recommended.
       whyRecommended:
         'It makes the trip feel different from your previous visits while giving the knife shop appropriate attention. You get one new city in depth, a relaxed return to Kyoto, and Tokyo time at both ends.',
       travelNotes:
@@ -346,7 +332,6 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         minutes: [210, 270],
         changes: [],
       },
-      // The source never says how long Hakone–Tokyo takes.
       {
         day: 17,
         mode: 'train',
@@ -447,7 +432,6 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
       [14, 'Kamakura.'],
       [15, 'Birthday in Tokyo.'],
       [16, 'Nikko.'],
-      // "Unscheduled Tokyo day": deliberately left unplanned.
       [17],
       [18, 'Enoshima afternoon and evening.'],
       [19, 'Shopping, favorite food, and packing.'],
@@ -585,7 +569,6 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
       [16, 'Dazaifu, for the shrine and surrounding streets.'],
       [17, 'Fly back.'],
       [18, 'Leave room for Enoshima.'],
-      // "A free final day": deliberately left unplanned.
       [19],
       [20],
     ],
@@ -603,7 +586,6 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         minutes: [165, 165],
         changes: [],
       },
-      // The source never says how long the flight takes.
       {
         day: 17,
         mode: 'flight',
@@ -654,7 +636,6 @@ layer(liveTrip)('The Itinerary catalogue', (it) => {
   )
 })
 
-/** A date in December as its day of the month. */
 const dayOfMonth = (date: IsoDate) => Number(date.slice(-2))
 
 for (const expected of expectedItineraries) {

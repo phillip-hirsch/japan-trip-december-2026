@@ -5,7 +5,6 @@ import { NoSchedule } from '@/components/no-schedule'
 import { ScheduleMap } from '@/components/schedule-map'
 import { scheduleMapQuery } from '@/trip/queries'
 
-// Personal state, so never prerendered: each visit asks the Trip store.
 export const Route = createFileRoute('/map')({
   loader: {
     handler: ({ context }) => context.queryClient.fetchQuery(scheduleMapQuery),

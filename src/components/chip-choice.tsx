@@ -14,7 +14,6 @@ export function ChipChoice<T extends string>({
   onChange,
 }: {
   options: ReadonlyArray<{ readonly value: T; readonly label: ReactNode }>
-  /** The option chosen, if it's one of the options. */
   value: T | undefined
   disabled: boolean
   onChange: (value: T) => void

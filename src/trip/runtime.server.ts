@@ -33,6 +33,5 @@ export const runToPromise = async <A, R>(
   return exit.value
 }
 
-/** The adapter every server function uses to call the Trip service. */
 export const runTrip = <A>(operation: Effect.Effect<A, never, Trip>) =>
   runToPromise(tripRuntime, operation)

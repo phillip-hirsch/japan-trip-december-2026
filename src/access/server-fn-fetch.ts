@@ -38,10 +38,6 @@ const recordReload = (at: number) => {
   }
 }
 
-/**
- * Reloads the page at the top level, so Access can show its login page,
- * unless a reload just happened. Returns whether it will reload.
- */
 const reloadToLogIn = () => {
   if (reloadScheduled) return true
   const now = Date.now()
@@ -55,7 +51,6 @@ const reloadToLogIn = () => {
   return true
 }
 
-// Soon after going offline, then once a minute.
 const probeDelaysMs = [2_000, 5_000, 15_000, 30_000, 60_000]
 
 let probing = false
@@ -112,7 +107,6 @@ const probeUntilAnswered = () => {
   schedule()
 }
 
-/** Reloads the page now, when Phillip asks to log in again. */
 export const logInAgain = () => {
   recordReload(Date.now())
   window.location.reload()

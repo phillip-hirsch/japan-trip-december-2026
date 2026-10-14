@@ -7,9 +7,6 @@ import { formatDay, isTripDate } from '@/trip/calendar'
 import { parseTripDate } from '@/trip/params'
 import { dayQuery } from '@/trip/queries'
 
-// Personal state, so never prerendered: each visit asks the Trip store. The
-// date is checked here, in the browser and on the server render alike, and
-// again by the server function.
 export const Route = createFileRoute('/schedule/$date')({
   params: {
     parse: (params) => {

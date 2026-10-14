@@ -7,10 +7,6 @@ import {
 import { logInAgain } from '@/access/server-fn-fetch'
 import { Button } from '@/components/ui/button'
 
-/**
- * Says why the app can't reach its server: "login expired" (log in again) in
- * vermilion, or "offline" (wait) in a quiet grey, so the two never look alike.
- */
 export function ConnectionBanner() {
   const status = useConnectionStatus()
 

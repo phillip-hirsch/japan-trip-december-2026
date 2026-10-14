@@ -16,7 +16,6 @@ import { stations } from '@/trip/rail'
 import { liveTrip, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
 
-/** A rail section as "mode line from → to". */
 const describeRailSection = ({ mode, line, from, to }: RailSectionDetail) =>
   `${mode} ${line} ${from.name} → ${to.name}`
 
@@ -95,16 +94,11 @@ layer(liveTrip)('Trip.itinerary', (it) => {
   )
 })
 
-/** Option 1 with some of its content replaced. */
 const option1With = (changes: Partial<ItineraryContent>): ItineraryContent => ({
   ...option1,
   ...changes,
 })
 
-/**
- * Stays over the given nights, with a train Move at each Stay boundary and
- * none of Option 1's Verify claims, which belong to its own Stays.
- */
 const withStays = (
   ...ranges: ReadonlyArray<
     readonly [base: ItineraryContent['stays'][number]['base'], number, number]
@@ -452,7 +446,6 @@ describe('Itinerary content version', () => {
       Effect.provide(tripWith([content])),
     )
 
-  /** The same data with every object's keys in reverse order. */
   const reverseKeys = (value: Schema.Json): Schema.Json => {
     if (Array.isArray(value)) return value.map(reverseKeys)
 
@@ -555,7 +548,6 @@ describe('Comparison rows', () => {
       Effect.provide(tripWith([content])),
     )
 
-  /** A Move as "date mode from → to". */
   const describeMove = ({ date, mode, from, to }: MoveSummary) =>
     `${date} ${mode} ${from.romaji} → ${to.romaji}`
 
@@ -766,7 +758,6 @@ describe('Itinerary map', () => {
     }),
   )
 
-  /** The distance in km from a point to the nearest part of a path. */
   const kmFrom = (point: Coordinates, path: ReadonlyArray<Coordinates>) => {
     // Kilometres east and north of the point: close enough at map scale.
     const kmPerDegree = 111.32
@@ -838,7 +829,6 @@ describe('Itinerary map', () => {
         },
         {
           toHakone: [stations.odawara.coordinates, hakone.coordinates],
-          // The source names no rail section for it.
           toTokyo: {
             date: december(17),
             path: [hakone.coordinates, tokyo.coordinates],
@@ -858,7 +848,6 @@ describe('Itinerary map', () => {
             move.date === december(17)
               ? {
                   ...move,
-                  // No train runs this way, so the rail geometry never has it.
                   sections: [
                     {
                       mode: 'limited-express',

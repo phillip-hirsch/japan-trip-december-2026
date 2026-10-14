@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 
 import type { ScheduleStayDetail } from '@/trip/domain'
 
-/** A part of a Stay on the Schedule, under its own heading. */
 export function StaySection({
   heading,
   stay,
@@ -11,7 +10,6 @@ export function StaySection({
 }: {
   heading: string
   stay: ScheduleStayDetail
-  /** What the section holds, given the id of its heading. */
   children: (headingId: string) => ReactNode
 }) {
   const headingId = useId()

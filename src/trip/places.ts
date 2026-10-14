@@ -2,7 +2,6 @@
 // schema reads its ids here, so deriving this shape from it would create a cycle.
 import type { DisplayString } from '@/fonts/display-strings'
 
-/** A point in decimal degrees, shared by the place and station catalogues. */
 export type CatalogueCoordinates = {
   readonly latitude: number
   readonly longitude: number
@@ -88,11 +87,9 @@ export type PlaceId = keyof typeof places
 // SAFETY: places is the closed catalogue literal above; its enumerable own keys are exactly PlaceId.
 export const placeIds = Object.keys(places) as ReadonlyArray<PlaceId>
 
-/** Whether an id names a place in the catalogue. */
 export const isPlaceId = (id: string): id is PlaceId =>
   Object.hasOwn(places, id)
 
-/** Places Phillip saw on a previous trip. Every other place is a New place. */
 export const visitedPlaceIds: ReadonlySet<PlaceId> = new Set<PlaceId>([
   'tokyo',
   'kyoto',

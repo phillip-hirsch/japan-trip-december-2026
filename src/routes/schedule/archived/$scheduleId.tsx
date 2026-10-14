@@ -26,7 +26,6 @@ import { scheduleByIdQuery, useScheduleSummary } from '@/trip/queries'
 import { parseScheduleId } from '@/trip/params'
 import { restoreSchedule } from '@/trip/trip.functions'
 
-// Personal state, so never prerendered: each visit asks the Trip store.
 export const Route = createFileRoute('/schedule/archived/$scheduleId')({
   params: {
     parse: (params) => {
@@ -46,7 +45,6 @@ export const Route = createFileRoute('/schedule/archived/$scheduleId')({
 
       if (schedule === null) throw notFound()
 
-      // The current Schedule lives at /schedule.
       if (schedule.status === 'current') throw redirect({ to: '/schedule' })
     },
     staleReloadMode: 'blocking',
@@ -106,11 +104,6 @@ function ArchivedSchedulePage() {
   )
 }
 
-/**
- * Restore, after a confirmation: makes this Schedule current again,
- * archiving the current one, and opens it. It waits for the Schedule summary,
- * which names the Schedule it archives.
- */
 function RestoreButton({ schedule }: { schedule: ScheduleDetail }) {
   const restore = useServerFn(restoreSchedule)
   const current = useScheduleSummary()

@@ -21,7 +21,6 @@ import type { TripWrite } from '@/trip/queries'
 
 type Refusal = { readonly problem: string; readonly final: boolean }
 
-/** What a write replacing the current Schedule answered. */
 export type ReplaceAnswer = Data.TaggedEnum<{
   Replaced: {}
   Refused: Refusal
@@ -29,14 +28,12 @@ export type ReplaceAnswer = Data.TaggedEnum<{
 
 export const ReplaceAnswer = Data.taggedEnum<ReplaceAnswer>()
 
-/** The refusal of a write made from an out-of-date screen. */
 export const scheduleChanged: ReplaceAnswer = ReplaceAnswer.Refused({
   problem:
     'Your Schedule changed on another device, so nothing changed. Check what happens now, then confirm again.',
   final: false,
 })
 
-/** Maps writes that replace the Schedule to the confirmation dialog's answer. */
 export const replacementAnswerOf = (
   outcome: ChooseOutcome | RestoreOutcome,
 ): ReplaceAnswer =>
@@ -99,15 +96,12 @@ export function ReplaceScheduleDialog({
    */
   target: string
   run: (operationId: string) => Promise<ReplaceAnswer>
-  /** The trigger's button, without children. */
   trigger: ReactElement
   triggerLabel: ReactNode
   title: string
   description: ReactNode
-  /** The confirm button's label, and its label while the write runs. */
   action: string
   working: string
-  /** Why it didn't go through when the write failed. */
   failed: string
 }) {
   const queryClient = useQueryClient()
@@ -127,8 +121,6 @@ export function ReplaceScheduleDialog({
     try {
       const answer = await run(operationId)
 
-      // Either it changed the Schedule, or a refusal says this screen is out
-      // of date; both make what's shown stale.
       if (ReplaceAnswer.$is('Replaced')(answer)) setOpen(false)
       await invalidateAfter(queryClient, write)
 

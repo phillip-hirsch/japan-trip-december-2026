@@ -24,10 +24,8 @@ let status: ConnectionStatus = connected
 
 const listeners = new Set<() => void>()
 
-/** What the latest server function call showed. */
 export const currentConnection = () => status
 
-/** Records what the latest server function call showed. */
 export const reportConnection = (next: ConnectionStatus) => {
   // Once a reload to log in is on its way, nothing else changes the banner.
   if (
@@ -40,7 +38,6 @@ export const reportConnection = (next: ConnectionStatus) => {
   for (const listener of listeners) listener()
 }
 
-/** Calls the listener whenever the status changes; returns how to stop. */
 export const subscribeToConnection = (listener: () => void) => {
   listeners.add(listener)
 
@@ -49,7 +46,6 @@ export const subscribeToConnection = (listener: () => void) => {
   }
 }
 
-/** The current connection status, for the banners. */
 export const useConnectionStatus = () =>
   useSyncExternalStore<ConnectionStatus>(
     subscribeToConnection,

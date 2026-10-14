@@ -11,11 +11,6 @@ import type { ScheduleSummary } from '@/trip/domain'
 import { useScheduleSummary } from '@/trip/queries'
 import { chooseItinerary } from '@/trip/trip.functions'
 
-/**
- * What an Itinerary's page offers about Phillip's Schedule, from the Schedule
- * summary: a neutral placeholder until it answers, then Choose, with where
- * the current Schedule came from once one exists.
- */
 export function ChooseItinerary({ optionNumber }: { optionNumber: number }) {
   const summary = useScheduleSummary()
 
@@ -62,10 +57,6 @@ export function ChooseItinerary({ optionNumber }: { optionNumber: number }) {
   )
 }
 
-/**
- * Choose, after a confirmation saying what happens: copies the Itinerary
- * into a fresh Schedule, archiving the current one, and opens it.
- */
 function ChooseItineraryButton({
   optionNumber,
   current,

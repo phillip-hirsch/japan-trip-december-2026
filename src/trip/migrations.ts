@@ -20,7 +20,6 @@ export const migrations = Migrator.fromRecord({
         birthdayOutline TEXT NOT NULL
       )
     `
-    // Never more than one current Schedule, whatever the code does.
     yield* sql`
       CREATE UNIQUE INDEX schedulesOneCurrent ON schedules (status)
       WHERE status = 'current'
@@ -88,7 +87,6 @@ export const migrations = Migrator.fromRecord({
       )
     `
     yield* sql`CREATE INDEX anchorsBySchedule ON anchors (scheduleId, position)`
-    // Each write's client-generated id with its result.
     yield* sql`
       CREATE TABLE operations (
         id TEXT PRIMARY KEY,
@@ -96,23 +94,18 @@ export const migrations = Migrator.fromRecord({
       )
     `
   }),
-  // When each Schedule was last archived; null while it is current.
   '0002_schedules_archived_at': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
     yield* sql`ALTER TABLE schedules ADD COLUMN archivedAt TEXT`
   }),
-  // Phillip's Day note on each Day; null while he has written none.
   '0003_days_note': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
     yield* sql`ALTER TABLE days ADD COLUMN note TEXT`
   }),
-  // Phillip's Stay note on each Stay; null while he has written none.
   '0004_stays_note': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
     yield* sql`ALTER TABLE stays ADD COLUMN note TEXT`
   }),
-  // The Trip note, tied to no Schedule: one row at most, none while Phillip
-  // has written none.
   '0005_trip_note': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
     yield* sql`
@@ -122,9 +115,6 @@ export const migrations = Migrator.fromRecord({
       )
     `
   }),
-  // The Checklist. Ticks on items derived from a Schedule belong to it, one
-  // row per ticked item by the id of what it refers to. Phillip's own items
-  // belong to the Trip, in the order he added them.
   '0006_checklist': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
     yield* sql`
@@ -144,9 +134,6 @@ export const migrations = Migrator.fromRecord({
       )
     `
   }),
-  // Phillip's Activities, belonging to a Day of a Schedule, in the order he
-  // keeps them on that Day. A time is a zoned date-time in Tokyo on that
-  // Day's date; null while it has none, as is a note.
   '0007_activities': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
     yield* sql`
@@ -165,18 +152,12 @@ export const migrations = Migrator.fromRecord({
       CREATE INDEX activitiesByDay ON activities (scheduleId, date, position)
     `
   }),
-  // Phillip's Hotel details on each Stay, a column per field so the hotel's
-  // pin (ticket 27, set by its own write) can join them without a details
-  // write touching it; each null while he has recorded none.
   '0008_stays_hotel': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
     yield* sql`ALTER TABLE stays ADD COLUMN hotelName TEXT`
     yield* sql`ALTER TABLE stays ADD COLUMN hotelAddress TEXT`
     yield* sql`ALTER TABLE stays ADD COLUMN hotelConfirmationNumber TEXT`
   }),
-  // Pins: an Activity's location, and on each Stay its hotel's, beside the
-  // Hotel details. The coordinates are null while unpinned, and the Google
-  // Maps link while the Pin has none.
   '0009_pins': Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient
 

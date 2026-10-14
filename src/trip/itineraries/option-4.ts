@@ -1,4 +1,3 @@
-// Converted from docs/itinerary.md, "4. Tokyo → Kyoto → Fukuoka → Tokyo".
 import { december } from '@/trip/domain'
 import type { ItineraryContent } from '@/trip/domain'
 import { shigeharuOpeningDays } from '@/trip/itineraries/shigeharu'
@@ -46,30 +45,22 @@ export const option4: ItineraryContent = {
     },
   ],
   days: [
-    // "Arrival, recovery, and optional Kamakura": one item per Day of the
-    // Stay, in order.
     { date: december(6), description: 'Arrival.' },
     { date: december(7), description: 'Recovery.' },
     { date: december(8), description: 'Optional Kamakura.' },
     { date: december(9) },
     { date: december(10), description: 'Thursday flexibility.' },
     { date: december(11), description: 'Friday morning for Shigeharu.' },
-    // The weekend is both Days.
     { date: december(12), description: 'A relaxed weekend.' },
     { date: december(13), description: 'A relaxed weekend.' },
     { date: december(14) },
     { date: december(15), description: 'Birthday dinner.' },
-    // "Dazaifu, preferably December 16, for the shrine and surrounding
-    // streets."
     {
       date: december(16),
       description: 'Dazaifu, for the shrine and surrounding streets.',
     },
-    // "Fly back, then leave room for Enoshima and a free final day": one item
-    // per Day of the Stay, in order.
     { date: december(17), description: 'Fly back.' },
     { date: december(18), description: 'Leave room for Enoshima.' },
-    // "A free final day": a Free day.
     { date: december(19) },
     { date: december(20) },
   ],
@@ -101,13 +92,11 @@ export const option4: ItineraryContent = {
       ],
       duration: { minMinutes: 165, maxMinutes: 165 },
     },
-    // Fukuoka–Haneda. The source never gives the flight's duration.
     { date: december(17), mode: 'flight', sections: [] },
   ],
   dayTrips: [
     { date: december(8), place: 'kamakura', optional: true },
     { date: december(16), place: 'dazaifu', optional: true },
-    // "Leave room for Enoshima": offered, not planned, so optional.
     { date: december(18), place: 'enoshima', optional: true },
   ],
   verifyClaims: [shigeharuOpeningDays],

@@ -14,14 +14,12 @@ function getImportedName(specifier: ESTree.ImportSpecifier): string {
 	return specifier.imported.value;
 }
 
-/** A statically known property name: `x.name`, `x["name"]` or `{ name }` / `{ "name": … }`. */
 function staticPropertyName(key: ESTree.Node, computed: boolean): string | undefined {
 	if (!computed && key.type === "Identifier") return key.name;
 	if (key.type === "Literal" && typeof key.value === "string") return key.value;
 	return undefined;
 }
 
-/** Members read from a namespace binding by name: `Ns.make`, `Ns["make"]` or `const { make } = Ns`. */
 function namespaceMembers(identifier: ESTree.Node): Array<{ node: ESTree.Node; name: string }> {
 	const parent = identifier.parent;
 	if (parent?.type === "MemberExpression" && parent.object === identifier) {
@@ -38,7 +36,6 @@ function namespaceMembers(identifier: ESTree.Node): Array<{ node: ESTree.Node; n
 	return [];
 }
 
-/** Keep dependency-bearing Effect service constructors local to their owning capability modules. */
 export const noServiceConstructorImportsRule = defineRule({
 	meta: {
 		type: "problem",
@@ -56,7 +53,6 @@ export const noServiceConstructorImportsRule = defineRule({
 
 		return {
 			ImportDeclaration(node) {
-				// Type-only imports are erased, so they carry no runtime service dependency.
 				if (isTestFile || node.importKind === "type" || !isProjectLocalImport(node.source.value)) return;
 
 				for (const specifier of node.specifiers) {

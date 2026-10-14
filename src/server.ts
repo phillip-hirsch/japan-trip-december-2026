@@ -11,10 +11,6 @@ import {
 // The Durable Object class, exported for the Wrangler configuration (ADR 0001).
 export { TripStore } from '@/trip/TripStore'
 
-/**
- * One gate per isolate, so its remote key set is cached at module scope. Its
- * configuration is the Worker's plain variables.
- */
 const accessRuntime = ManagedRuntime.make(
   AccessGate.layer.pipe(
     Layer.provide([
@@ -43,7 +39,6 @@ export default {
       ),
     )
 
-    // A defect in the gate refuses the request rather than letting it through.
     if (Exit.isFailure(exit)) return refusal(503)
     const decision = exit.value
 

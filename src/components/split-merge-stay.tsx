@@ -13,12 +13,6 @@ import type { IsoDate, ScheduleDetail, ScheduleStayDetail } from '@/trip/domain'
 import { SaveAnswer, SaveState, useSave } from '@/trip/drafts'
 import { mergeStays, splitStay } from '@/trip/trip.functions'
 
-/**
- * The Stay edit being made on a Stay: a split at a date, none chosen yet, or
- * a merge with the next Stay as it was when Phillip chose to merge. It keeps
- * its operation id and its target across retries, so a split or merge whose
- * answer was lost is never made twice, nor made on another Stay.
- */
 type Choice =
   | {
       readonly kind: 'split'
@@ -31,7 +25,6 @@ type Choice =
       readonly operationId: string
     }
 
-/** What each Stay edit's controls say. */
 const labels = {
   split: {
     submit: 'Split',
@@ -187,7 +180,6 @@ export function SplitMergeStay({
   )
 }
 
-/** The split's date or the merge's confirmation, with what sends it. */
 function ChoiceForm({
   labelledBy,
   state,

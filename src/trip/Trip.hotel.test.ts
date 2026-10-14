@@ -10,7 +10,6 @@ import { Trip } from '@/trip/Trip'
 
 const trip = tripWith([option1, option2])
 
-/** Chooses an Itinerary, replacing the Schedule named, if any. */
 const choose = (
   optionNumber: number,
   n: number,
@@ -33,22 +32,18 @@ const writeHotelDetails = (
   },
 ) => Trip.use((trip) => trip.writeHotelDetails({ scheduleId, stayId, details }))
 
-/** A Schedule's Stays, current or archived, in Trip order. */
 const staysOf = (scheduleId: ScheduleId) =>
   Effect.map(
     Trip.use((trip) => trip.schedule(scheduleId)),
     ({ stays }) => stays,
   )
 
-/** The id of a Schedule's second Stay: Option 1's Kyoto, December 9–13. */
 const kyotoStayId = (scheduleId: ScheduleId) =>
   Effect.map(staysOf(scheduleId), (stays) => stays[1]?.id ?? '')
 
-/** The Kyoto Stay's hotel as a Schedule, current or archived, shows it. */
 const kyotoHotelOf = (scheduleId: ScheduleId) =>
   Effect.map(staysOf(scheduleId), (stays) => stays[1]?.hotel)
 
-/** Every Stay's hotel in a Schedule that has been recorded. */
 const recordedHotelsOf = (scheduleId: ScheduleId) =>
   Effect.map(staysOf(scheduleId), (stays) =>
     stays.flatMap(({ hotel }) =>
@@ -56,7 +51,6 @@ const recordedHotelsOf = (scheduleId: ScheduleId) =>
     ),
   )
 
-/** Tonight's hotel on a Day of the current Schedule. */
 const tonightsHotel = (date: IsoDate) =>
   Effect.map(
     Trip.use((trip) => trip.day(date)),
@@ -187,7 +181,6 @@ describe('Trip.writeHotelDetails', () => {
       Effect.gen(function* () {
         const stale = yield* choose(1, 1, null)
         const staleStayId = yield* kyotoStayId(stale)
-        // Another device chooses again, so this screen's Schedule is stale.
         const current = yield* choose(2, 2, stale)
 
         const error = yield* Effect.flip(

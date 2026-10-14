@@ -34,7 +34,6 @@ const effectLintRules = Object.fromEntries(
   ]),
 )
 
-// Installed agent skills and the vendored anti-slop plugin are not app source.
 const agentToolingIgnores = [
   '.agent/**',
   '.agents/**',
@@ -65,7 +64,6 @@ const config = defineConfig({
       '.vite-hooks/**',
       'pnpm-lock.yaml',
       'src/routeTree.gen.ts',
-      // Generated and minified; its build checks its gzipped size.
       'src/trip/rail-geometry.json',
       'worker-configuration.d.ts',
     ],

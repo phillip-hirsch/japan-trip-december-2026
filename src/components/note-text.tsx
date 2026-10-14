@@ -44,7 +44,6 @@ const trimmed = (link: string) => {
   return link.slice(0, end)
 }
 
-/** The address a link opens, when it is a valid http or https URL. */
 const hrefOf = (link: string) => {
   try {
     const url = new URL(link)

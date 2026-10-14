@@ -15,7 +15,6 @@ import type { AnchorWarning, HardRule, StayEditOutcome } from '@/trip/domain'
 import { SaveAnswer } from '@/trip/drafts'
 import { places } from '@/trip/places'
 
-/** What an Anchor warning says, naming the Anchor it breaks. */
 export const anchorWarningText = (warning: AnchorWarning) =>
   Match.value(warning).pipe(
     Match.tagsExhaustive({
@@ -32,10 +31,6 @@ export const anchorWarningText = (warning: AnchorWarning) =>
     }),
   )
 
-/**
- * The Anchors the Schedule breaks, and its last Stay outside Tokyo. They
- * never block a Stay edit, and stay until the Schedule stops breaking them.
- */
 export function AnchorWarnings({
   warnings,
   className,
@@ -60,10 +55,6 @@ export function AnchorWarnings({
   )
 }
 
-/**
- * The problem a refused Stay edit shows. It names the Hard rule the edit
- * would break.
- */
 export const hardRuleProblem = (rule: HardRule) =>
   Match.value(rule).pipe(
     Match.tagsExhaustive({
@@ -83,12 +74,6 @@ export const hardRuleProblem = (rule: HardRule) =>
     }),
   )
 
-/**
- * What a Stay edit answered. When one goes through and breaks an Anchor the
- * Schedule didn't break before, a toast titled as given names it. The
- * Schedule page shows the warning until the Schedule stops breaking that
- * Anchor.
- */
 export const stayEditAnswerOf =
   (anchorBroken: string, warningsBefore: ReadonlyArray<AnchorWarning>) =>
   (outcome: StayEditOutcome): SaveAnswer =>

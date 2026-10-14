@@ -49,10 +49,6 @@ import {
   removeActivity,
 } from '@/trip/trip.functions'
 
-/**
- * An Activity as typed: its title, its Tokyo time of day as HH:MM or '' for
- * none, and its note or '' for none.
- */
 interface ActivityFields {
   readonly title: string
   readonly time: string
@@ -62,7 +58,6 @@ interface ActivityFields {
 const sameFields = (a: ActivityFields, b: ActivityFields) =>
   a.title === b.title && a.time === b.time && a.note === b.note
 
-/** Whether a stored draft holds an Activity's fields. */
 const isActivityFields: Predicate.Refinement<unknown, ActivityFields> = (
   value,
 ): value is ActivityFields =>
@@ -77,7 +72,6 @@ const fieldsOf = ({ title, time, note }: Activity): ActivityFields => ({
   note: note ?? '',
 })
 
-/** A time field holds HH:MM, or nothing for an Activity without a time. */
 const timeRefusal = (time: string) =>
   time === '' || timeOfDayPattern.test(time)
     ? undefined
@@ -114,7 +108,6 @@ const editAnswerOf = (outcome: EditActivityOutcome): SaveAnswer =>
     Match.tagsExhaustive({
       Edited: () => SaveAnswer.Saved(),
       ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
-      // Removed, perhaps on another device: the refetch takes its row away.
       ActivityNotFound: () =>
         SaveAnswer.Gone({
           problem:
@@ -136,7 +129,6 @@ const removeAnswerOf = (outcome: RemoveActivityOutcome): SaveAnswer =>
     }),
   )
 
-/** What moving an Activity answered, by the id of the one moving. */
 const moveAnswerOf =
   (moving: string) =>
   (outcome: MoveActivityOutcome): SaveAnswer =>
@@ -165,11 +157,6 @@ const moveAnswerOf =
       }),
     )
 
-/**
- * The fields of an Activity being added or edited, with what saves it and
- * any other actions. A save in flight fixes the fields, so two saves never
- * race.
- */
 function ActivityEditor({
   state,
   value,
@@ -184,9 +171,7 @@ function ActivityEditor({
   onChange: (next: Partial<ActivityFields>) => void
   onSubmit: () => void
   onDiscard: () => void
-  /** What the submit button says, before and while saving. */
   verbs: { readonly submit: string; readonly submitting: string }
-  /** Other actions, after Save and Cancel. */
   children?: ReactNode
 }) {
   const titleId = useId()
@@ -195,7 +180,6 @@ function ActivityEditor({
   const problemId = useId()
   const saving = SaveState.$is('Saving')(state)
   const notSaved = SaveState.$is('NotSaved')(state)
-  // A saved Activity shows in the list once read; until then its fields stay.
   const settling = saving || SaveState.$is('Saved')(state)
 
   return (
@@ -217,7 +201,6 @@ function ActivityEditor({
           <Input
             id={titleId}
             aria-describedby={notSaved ? problemId : undefined}
-            // Opening the editor focuses it; a restored draft opens unfocused.
             autoFocus={SaveState.$is('Editing')(state)}
             value={value.title}
             onChange={(event) => onChange({ title: event.target.value })}
@@ -273,20 +256,10 @@ function ActivityEditor({
   )
 }
 
-/**
- * An edit to an Activity as typed, with its fields as they were when the
- * edit began: only those changed since are sent, so a change another device
- * makes to the rest meanwhile still stands.
- */
 interface ActivityEdit extends ActivityFields {
   readonly from: ActivityFields
 }
 
-/**
- * One Activity: its Tokyo time, title and note, with controls to move it up
- * or down its Day and to edit or remove it. Edits are kept as a draft until
- * saved; a move or removal is sent at once.
- */
 function ActivityRow({
   activity,
   scheduleId,
@@ -302,33 +275,14 @@ function ActivityRow({
 }: {
   activity: Activity
   scheduleId: ScheduleId
-  /** Where a Pin dropped by hand starts. */
   near: Coordinates
-  /**
-   * The id of the Activity moving it up places it before; undefined for the
-   * first, which can't move up.
-   */
   beforeWhenUp: string | undefined
-  /**
-   * The id of the Activity moving it down places it before, or null to place
-   * it last; undefined for the last, which can't move down.
-   */
   beforeWhenDown: string | null | undefined
-  /** Moves it before the Activity with an id, or last for null. */
   onMove: (before: string | null) => void
-  /** Removes it. */
   onRemove: () => void
-  /**
-   * Whether a move or removal on its Day is unsettled: not yet confirmed by
-   * a read, or not saved. Until it settles, the order shown may be out of
-   * date, so no move is sent from it.
-   */
   reordering: boolean
-  /** Whether this Activity's move awaits the read that confirms it. */
   moving: boolean
-  /** Removing this Activity, if it is being removed. */
   removal: SaveState<string | null> | undefined
-  /** Why this Activity's last move or removal wasn't saved, with Retry. */
   alerts: ReactNode
 }) {
   const titleId = useId()
@@ -367,12 +321,10 @@ function ActivityRow({
   const removing = removal !== undefined
   const removed = removal !== undefined && SaveState.$is('Saved')(removal)
 
-  // Once the Activity is removed, so is any edit to it.
   useEffect(() => {
     if (removed) editing.discard()
   }, [removed])
 
-  // A move or removal holds the row until the read that confirms it.
   const settling =
     moving ||
     (removal !== undefined &&
@@ -388,8 +340,6 @@ function ActivityRow({
     SaveState.$is('Saved')(editing.state) ||
     (SaveState.$is('Clean')(editing.state) && editing.state.justSaved)
 
-  // What the row shows: the value just saved until a read confirms it,
-  // then what the server holds.
   const { title, time, note } = editing.value
   const savedEdit = SaveState.$is('Saved')(editing.state)
 
@@ -456,7 +406,6 @@ function ActivityRow({
               size="icon-sm"
               aria-label="Edit"
               aria-describedby={titleId}
-              // A new edit starts from the value the confirming read brings.
               disabled={settling || removing || savedEdit}
               onClick={editing.edit}
               className="text-muted-foreground"
@@ -612,7 +561,6 @@ function AddActivity({
   )
 }
 
-/** Moving an Activity before another on its Day, or last for null. */
 interface ActivityMove {
   readonly activityId: string
   readonly before: string | null
@@ -632,9 +580,7 @@ export function Activities({
   scheduleId: ScheduleId
   date: IsoDate
   activities: ReadonlyArray<Activity>
-  /** Where a Pin dropped by hand starts, such as tonight's Base. */
   near: Coordinates
-  /** The id of the heading naming the Activities. */
   labelledBy: string
 }) {
   const move = useServerFn(moveActivity)
@@ -656,7 +602,6 @@ export function Activities({
           ),
   })
 
-  // The id of the Activity removing it saves; once saved, it is gone.
   const removal = useSave<string | null>({
     scheduleId,
     saved: null,
@@ -695,7 +640,6 @@ export function Activities({
     }
   }, [activities, moving.state, removal.state])
 
-  /** Why a move or removal of an Activity wasn't saved, with Retry. */
   const alertOf = <V,>(
     save: ReturnType<typeof useSave<V>>,
     concerned: boolean,

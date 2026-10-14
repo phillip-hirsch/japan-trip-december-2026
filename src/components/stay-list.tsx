@@ -35,7 +35,6 @@ export function StayList<S extends StayDetail & { readonly id?: string }>({
   footer,
 }: {
   stays: ReadonlyArray<S>
-  /** More to show at the foot of a Stay, if anything. */
   footer?: (stay: S) => ReactNode
 }) {
   return (
@@ -46,7 +45,6 @@ export function StayList<S extends StayDetail & { readonly id?: string }>({
         return (
           <li
             key={stay.id ?? stay.checkIn}
-            // The map links to a Schedule's Stay by this id.
             id={stay.id === undefined ? undefined : stayElementId(stay.id)}
             className="scroll-mt-6"
           >

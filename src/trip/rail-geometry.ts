@@ -14,10 +14,6 @@ const featuresByKey = new Map(
   railGeometry.features.map((feature) => [feature.id, feature]),
 )
 
-/**
- * A rail section's path along its real line, from its from-station to its
- * to-station, or undefined when the rail geometry lacks it.
- */
 export const railGeometryOf = (
   section: RailSectionIds,
 ): Array<Coordinates> | undefined => {

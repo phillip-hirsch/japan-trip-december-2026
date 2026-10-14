@@ -27,7 +27,6 @@ function Muted({ children }: { children: ReactNode }) {
   return <span className="text-muted-foreground">{children}</span>
 }
 
-/** A Move's Bases as "Fukuoka → Tokyo". */
 function MoveBases({ move }: { move: MoveSummary }) {
   return (
     <span className="inline-flex flex-wrap items-baseline gap-x-1.5">
@@ -126,7 +125,6 @@ function FlightsAndRyokan({
   )
 }
 
-/** The comparison rows, in order: every Itinerary shows each one. */
 const rows: ReadonlyArray<{
   label: string
   render: (itinerary: ItineraryComparison) => ReactNode
@@ -226,7 +224,6 @@ function ItineraryCard({ itinerary }: { itinerary: ItineraryComparison }) {
             key={row.label}
             className={cn('flex flex-col gap-1', rowClassName)}
           >
-            {/* On desktop the label column names the row instead. */}
             <dt className={cn(labelClassName, 'xl:sr-only')}>{row.label}</dt>
             <dd>{row.render(itinerary)}</dd>
           </div>
@@ -236,10 +233,6 @@ function ItineraryCard({ itinerary }: { itinerary: ItineraryComparison }) {
   )
 }
 
-/**
- * Every Itinerary on the same rows: swipeable cards on a phone, side-by-side
- * columns on a desktop, with one label column shared by every row.
- */
 export function ComparisonRows({
   itineraries,
 }: {

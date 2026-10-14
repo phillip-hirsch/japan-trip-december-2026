@@ -11,10 +11,6 @@ const ScheduleMapCanvas: ComponentType<{ map: ScheduleMapData }> = import.meta
   ? () => null
   : lazy(() => import('@/components/schedule-map-canvas'))
 
-/**
- * The Schedule's Bases, Moves, Day trips and pinned places on an interactive
- * dark map that fills its container.
- */
 export function ScheduleMap({ map }: { map: ScheduleMapData }) {
   return (
     <LazyMap className="h-full aspect-auto rounded-none border-0 sm:aspect-auto">
