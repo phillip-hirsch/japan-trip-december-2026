@@ -61,9 +61,9 @@ function ArchivedSchedulePage() {
 
   if (schedule === null) return <NotFound />
 
-  // Restored, here or on another device: the current Schedule lives at
-  // /schedule.
-  if (schedule.status === 'current') return <Navigate to="/schedule" />
+  const restoredSinceOpened = schedule.status === 'current'
+
+  if (restoredSinceOpened) return <Navigate to="/schedule" />
 
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-10 md:px-12 md:py-16">

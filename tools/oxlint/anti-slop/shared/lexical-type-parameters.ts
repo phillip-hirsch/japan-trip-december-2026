@@ -1,15 +1,7 @@
 import type { ESTree } from "vite-plus/lint/plugins";
 
-type VisitorKeys = Readonly<Record<string, readonly string[]>>;
-
-function isNode(value: unknown): value is ESTree.Node {
-	return (
-		typeof value === "object" &&
-		value !== null &&
-		"type" in value &&
-		typeof value.type === "string"
-	);
-}
+import { childNodes } from "./child-nodes.ts";
+import type { VisitorKeys } from "./child-nodes.ts";
 
 function collectInferTypeParameterNames(
 	node: ESTree.Node,
@@ -17,17 +9,8 @@ function collectInferTypeParameterNames(
 	names: Set<string>,
 ): void {
 	if (node.type === "TSInferType") names.add(node.typeParameter.name.name);
-	const record = node as unknown as Readonly<Record<string, unknown>>;
-	for (const key of visitorKeys[node.type] ?? []) {
-		const value = record[key];
-		if (isNode(value)) {
-			collectInferTypeParameterNames(value, visitorKeys, names);
-			continue;
-		}
-		if (!Array.isArray(value)) continue;
-		for (const child of value) {
-			if (isNode(child)) collectInferTypeParameterNames(child, visitorKeys, names);
-		}
+	for (const child of childNodes(node, visitorKeys)) {
+		collectInferTypeParameterNames(child, visitorKeys, names);
 	}
 }
 

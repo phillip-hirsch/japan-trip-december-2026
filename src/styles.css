@@ -66,11 +66,10 @@
 
 /* Winter night: near-black ink with a slight blue tint, warm paper-white
    text, vermilion as the one accent (ink-coloured text on it), and a separate
-   crimson for errors. The ink hex in __root.tsx's theme-color must match
-   --background. */
+   crimson for errors. --ink is set on <html> by __root.tsx, which also gives
+   it to theme-color. */
 :root {
   color-scheme: dark;
-  --ink: oklch(0.17 0.014 255);
   --paper: oklch(0.93 0.02 85);
   --vermilion: oklch(0.64 0.19 33);
   /* The bottom tab bar on phones: its 3.5rem row and the safe area below. */

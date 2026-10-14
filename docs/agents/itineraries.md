@@ -58,7 +58,7 @@ When several texts place on one Day, use the table or Stay row. December 15 take
 - Add one Move on every date where one Stay checks out and the next checks in, and on no other date.
 - `mode` is `'flight'` for a flight, `'local'` for a Move within one Base, and `'train'` otherwise.
 - `sections` are the shinkansen and limited-express trains the source names or clearly implies, in travel order. For example, "a change at Tsuruga" gives Thunderbird to Tsuruga, then the Hokuriku Shinkansen. A train that runs through from one line to another without a change rides a combined line, such as `tokaido-sanyo-shinkansen`. Leave out any leg the source doesn't name: "Hakone … through Odawara" gives only Kyoto → Odawara. Changes of train are derived from the sections.
-- `duration` is in minutes, with `minMinutes` equal to `maxMinutes` when the source gives one value. You may reuse a duration stated elsewhere in `docs/itinerary.md` for the same journey, and "Tokyo–Kyoto" covers both directions. Otherwise leave `duration` out, and the page shows "duration not given". Never estimate one.
+- `duration` is in minutes, with `minMinutes` equal to `maxMinutes` when the source gives one value. You may reuse a duration stated elsewhere in `docs/itinerary.md` for the same journey, and "Tokyo–Kyoto" covers both directions. Import it from the Option that states it, as Options 2 to 4 import `tokyoKyotoDuration` from `option-1.ts`. Otherwise leave `duration` out, and the page shows "duration not given". Never estimate one.
 
 ### Verify claims
 
@@ -93,7 +93,7 @@ A new place is a New place automatically. `visitedPlaceIds` changes only when Ph
 
 The station or line ids that rail sections use live in `src/trip/rail.ts`. Add any that are missing. Give a new station its coordinates in decimal degrees to four places, taken from a reliable source: the Itinerary's map draws train Moves through them.
 
-The map draws each rail section along its real line, from the rail geometry in `src/trip/rail-geometry.json`. When the catalogue gains a rail section that it doesn't have yet, in either direction, run `vp run build-rail-geometry` (it needs network access and `unzip`) and commit the regenerated GeoJSON. A new line also needs its MLIT line names in `mlitLines` in `scripts/build-rail-geometry.ts`. The build fails if a station is more than 1 km from its line, or if the GeoJSON goes over its 15 KB gzipped budget. A section the build can't cover is drawn straight between its stations. Flag it in `railSectionsDrawnStraight` in `src/trip/Trip.test.ts`, or the "follows the rail line on every rail section not flagged" test fails.
+The map draws each rail section along its real line, from the rail geometry in `src/trip/rail-geometry.json`. When the catalogue gains a rail section that it doesn't have yet, in either direction, run `vp run build-rail-geometry` (it needs network access and `unzip`) and commit the regenerated GeoJSON. A new line also needs its MLIT line names in `mlitLines` in `scripts/build-rail-geometry.ts`. The build fails if a station is more than 1 km from its line, or if the GeoJSON goes over its 15 KB gzipped budget. A section the build can't cover is drawn straight between its stations. Add it, as "mode line from → to", to the expected list of the "follows the rail line on every rail section" test in `src/trip/Trip.test.ts`, or that test fails.
 
 ## Checks
 

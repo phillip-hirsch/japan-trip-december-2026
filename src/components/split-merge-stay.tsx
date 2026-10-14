@@ -207,9 +207,7 @@ function ChoiceForm({
 
   const verbs = labels[choice.kind]
 
-  // A boundary move can leave the split date outside this Stay. It's then
-  // chosen again.
-  const splitDate =
+  const splitDateStillOffered =
     choice.kind === 'split'
       ? splitDates.find((date) => date === choice.date)
       : undefined
@@ -235,7 +233,7 @@ function ChoiceForm({
           <legend className="mb-2 text-sm">Split on</legend>
           <DateChoice
             dates={splitDates}
-            value={splitDate}
+            value={splitDateStillOffered}
             disabled={saving}
             onChange={(date) =>
               onChange({
@@ -266,7 +264,8 @@ function ChoiceForm({
           type="submit"
           size="sm"
           disabled={
-            saving || (choice.kind === 'split' && splitDate === undefined)
+            saving ||
+            (choice.kind === 'split' && splitDateStillOffered === undefined)
           }
         >
           {saving ? verbs.submitting : notSaved ? 'Retry' : verbs.submit}

@@ -8,13 +8,13 @@ import {
   NotSavedAlert,
   RetryOrDismiss,
   SavedStatus,
+  warnAfterRowGoes,
 } from '@/components/not-saved-alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
 import { Item } from '@/components/ui/item'
-import { toast } from '@/components/ui/toast'
 import { cn } from '@/lib/utils'
 import {
   formatDay,
@@ -114,10 +114,7 @@ const tickAnswerOf = (outcome: TickChecklistItemOutcome): SaveAnswer =>
     Match.tagsExhaustive({
       Ticked: () => SaveAnswer.Saved(),
       ScheduleChanged: () => {
-        // Its row goes once the new Schedule's items are read, so say so
-        // where it outlives the row.
-        toast.add({
-          type: 'warning',
+        warnAfterRowGoes({
           title: 'Your Schedule changed on another device',
           description:
             'The tick wasn’t saved. The Checklist now shows the Schedule as it is.',

@@ -1,5 +1,6 @@
 import { december, VerifyClaimAttachment } from '@/trip/domain'
 import type { ItineraryContent } from '@/trip/domain'
+import { tokyoKyotoDuration } from '@/trip/itineraries/option-1'
 import { shigeharuOpeningDays } from '@/trip/itineraries/shigeharu'
 
 export const option3: ItineraryContent = {
@@ -66,8 +67,7 @@ export const option3: ItineraryContent = {
           to: 'kyoto',
         },
       ],
-      // Reused from Option 1's "Tokyo–Kyoto is approximately 2¼ hours".
-      duration: { minMinutes: 135, maxMinutes: 135 },
+      duration: tokyoKyotoDuration,
     },
     {
       date: december(13),
@@ -80,8 +80,7 @@ export const option3: ItineraryContent = {
           to: 'tokyo',
         },
       ],
-      // Reused from Option 1's "Tokyo–Kyoto is approximately 2¼ hours".
-      duration: { minMinutes: 135, maxMinutes: 135 },
+      duration: tokyoKyotoDuration,
     },
   ],
   dayTrips: [

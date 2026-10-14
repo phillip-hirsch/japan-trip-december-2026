@@ -13,7 +13,12 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/toast'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import displayFont from '@/fonts/shippori-mincho-600-display.woff2?url'
+import type { StyleWithVariables } from '@/lib/utils'
 import appCss from '@/styles.css?url'
+
+const ink = '#0b1015'
+
+const inkStyle: StyleWithVariables = { '--ink': ink }
 
 export const Route = createRootRouteWithContext<{
   queryClient: QueryClient
@@ -28,9 +33,8 @@ export const Route = createRootRouteWithContext<{
         content: 'width=device-width, initial-scale=1, viewport-fit=cover',
       },
       {
-        // Matches --background (the ink colour) in styles.css.
         name: 'theme-color',
-        content: '#0b1015',
+        content: ink,
       },
       {
         title: 'Japan · December 2026',
@@ -55,7 +59,7 @@ export const Route = createRootRouteWithContext<{
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" style={inkStyle}>
       <head>
         <HeadContent />
       </head>

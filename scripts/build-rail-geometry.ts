@@ -16,7 +16,7 @@ import type {
   Station,
 } from '../src/trip/domain.ts'
 // Relative, not '@/': plain `node` runs this script and can't resolve the alias.
-import { railSectionIdsOf, railSectionKey } from '../src/trip/rail.ts'
+import { railSectionIdsOf, undirectedRailSectionKey } from '../src/trip/rail.ts'
 import type { RailLineId } from '../src/trip/rail.ts'
 
 import { readTrip } from './trip.ts'
@@ -27,32 +27,36 @@ const sourceEntry = 'N02-25_GML/UTF-8/N02-25_RailroadSection.geojson'
 
 const output = 'src/trip/rail-geometry.json'
 
-/** The ceiling on the gzipped GeoJSON, which ships in every Itinerary page. */
-const budgetBytes = 15 * 1024
+const itineraryPageGzipBudgetBytes = 15 * 1024
 
 const toleranceKm = 0.03
 
 const stationReachKm = 1
 
-const mlitLines: Record<
-  RailLineId,
-  ReadonlyArray<{ readonly name: string; readonly operator?: string }>
-> = {
+type MlitLine = { readonly name: string; readonly operator?: string }
+
+const tohokuShinkansenToOmiya: MlitLine = { name: '東北新幹線' }
+
+const joetsuShinkansenToTakasaki: MlitLine = { name: '上越新幹線' }
+
+const tokaidoLineToYamashina: MlitLine = {
+  name: '東海道線',
+  operator: '西日本旅客鉄道',
+}
+
+const mlitLines: Record<RailLineId, ReadonlyArray<MlitLine>> = {
   'tokaido-shinkansen': [{ name: '東海道新幹線' }],
   'tokaido-sanyo-shinkansen': [
     { name: '東海道新幹線' },
     { name: '山陽新幹線' },
   ],
-  // From Tokyo it runs on the Tohoku Shinkansen to Omiya and the Joetsu
-  // Shinkansen to Takasaki.
   'hokuriku-shinkansen': [
-    { name: '東北新幹線' },
-    { name: '上越新幹線' },
+    tohokuShinkansenToOmiya,
+    joetsuShinkansenToTakasaki,
     { name: '北陸新幹線' },
   ],
-  // Kyoto to Yamashina on the Tokaido line, then the Kosei and Hokuriku lines.
   thunderbird: [
-    { name: '東海道線', operator: '西日本旅客鉄道' },
+    tokaidoLineToYamashina,
     { name: '湖西線' },
     { name: '北陸線', operator: '西日本旅客鉄道' },
   ],
@@ -215,8 +219,9 @@ const trackBetween = (
   })
 }
 
-/** Ramer–Douglas–Peucker: drops vertices within the tolerance of the line. */
-const simplified = (path: ReadonlyArray<Position>): Array<Position> => {
+const ramerDouglasPeucker = (
+  path: ReadonlyArray<Position>,
+): Array<Position> => {
   const first = path[0]
 
   if (first === undefined || path.length < 3) return [...path]
@@ -257,10 +262,18 @@ const simplified = (path: ReadonlyArray<Position>): Array<Position> => {
   return path.filter((_, index) => keep.has(index))
 }
 
-/** About 1 m: finer than the simplification. */
-const rounded = ([longitude, latitude]: Position): Position => [
+const roundToMetres = ([longitude, latitude]: Position): Position => [
   Math.round(longitude * 1e5) / 1e5,
   Math.round(latitude * 1e5) / 1e5,
+]
+
+const joinAtStations = (
+  track: ReadonlyArray<Position>,
+  section: RailSectionDetail,
+) => [
+  positionOf(section.from.coordinates),
+  ...track.slice(1, -1),
+  positionOf(section.to.coordinates),
 ]
 
 const sections = await readTrip((trip) => trip.railSections)
@@ -291,14 +304,12 @@ const geometry = {
     const graph = graphs.get(section.line) ?? graphOf(features, section.line)
     graphs.set(section.line, graph)
     const ids = railSectionIdsOf(section)
-    const track = simplified(trackBetween(graph, section)).map(rounded)
 
-    // End exactly at the stations, so consecutive sections join up.
-    const path = [
-      positionOf(section.from.coordinates),
-      ...track.slice(1, -1),
-      positionOf(section.to.coordinates),
-    ]
+    const track = ramerDouglasPeucker(trackBetween(graph, section)).map(
+      roundToMetres,
+    )
+
+    const path = joinAtStations(track, section)
 
     console.log(
       `${section.line} ${section.from.name} → ${section.to.name}: ${path.length} points`,
@@ -306,7 +317,7 @@ const geometry = {
 
     return {
       type: 'Feature',
-      id: railSectionKey(ids),
+      id: undirectedRailSectionKey(ids),
       properties: ids,
       geometry: { type: 'LineString', coordinates: path },
     }
@@ -319,9 +330,9 @@ const gzippedBytes = gzipSync(json, { level: 9 }).length
 
 console.log(`${json.length} bytes, ${gzippedBytes} gzipped`)
 
-if (gzippedBytes > budgetBytes) {
+if (gzippedBytes > itineraryPageGzipBudgetBytes) {
   throw new Error(
-    `The rail geometry is ${gzippedBytes} bytes gzipped, over its ${budgetBytes}-byte budget.`,
+    `The rail geometry is ${gzippedBytes} bytes gzipped, over its ${itineraryPageGzipBudgetBytes}-byte budget.`,
   )
 }
 

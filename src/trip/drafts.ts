@@ -13,15 +13,10 @@ import type { TripWrite } from '@/trip/queries'
 
 const storageKey = (target: string) => `draft:${target}`
 
-/**
- * A stored draft, with the Schedule it was typed for, or null for a value
- * tied to none, such as the Trip note. Each write has its own id, so a save
- * clears only the draft it wrote, never a later one with the same text.
- */
 interface Draft<V> {
   readonly value: V
   readonly scheduleId: string | null
-  readonly id: string
+  readonly writeId: string
 }
 
 export interface DraftKeeping<V> {
@@ -46,7 +41,7 @@ const readDraft = <V>({
       (Predicate.isString(draft.scheduleId) ||
         Predicate.isNull(draft.scheduleId)) &&
       Predicate.isString(draft.id)
-      ? { value: draft.value, scheduleId: draft.scheduleId, id: draft.id }
+      ? { value: draft.value, scheduleId: draft.scheduleId, writeId: draft.id }
       : undefined
   } catch {
     return undefined
@@ -54,15 +49,18 @@ const readDraft = <V>({
 }
 
 const writeDraft = <V>(target: string, value: V, scheduleId: string | null) => {
-  const draft: Draft<V> = { value, scheduleId, id: crypto.randomUUID() }
+  const writeId = crypto.randomUUID()
 
   try {
-    localStorage.setItem(storageKey(target), JSON.stringify(draft))
+    localStorage.setItem(
+      storageKey(target),
+      JSON.stringify({ value, scheduleId, id: writeId }),
+    )
   } catch {
     // Nothing else can keep it; the field still holds it.
   }
 
-  return draft.id
+  return writeId
 }
 
 const clearDraft = (target: string) => {
@@ -220,7 +218,7 @@ export const useSave = <V>({
   }
 
   const clearOwnDraft = () => {
-    if (storedDraft()?.id === ownDraftId.current) clearStoredDraft()
+    if (storedDraft()?.writeId === ownDraftId.current) clearStoredDraft()
   }
 
   const savedAlready = (draft: Draft<V>) =>
@@ -237,7 +235,7 @@ export const useSave = <V>({
 
     if (savedAlready(draft)) clearStoredDraft()
     else {
-      ownDraftId.current = draft.id
+      ownDraftId.current = draft.writeId
       setState(
         SaveState.NotSaved({
           value: draft.value,
@@ -279,7 +277,7 @@ export const useSave = <V>({
     if (equals(lastSaved.current, saved)) return
     lastSaved.current = saved
     const draft = storedDraft()
-    const own = draft !== undefined && draft.id === ownDraftId.current
+    const own = draft !== undefined && draft.writeId === ownDraftId.current
 
     if (own && draft.scheduleId !== scheduleIdRef.current) return
 
@@ -337,7 +335,7 @@ export const useSave = <V>({
     if (SaveAnswer.$is('Saved')(answer)) {
       // Another editor of the target, in this tab or another, may have kept
       // a newer draft since, even with the same value.
-      if (draftId !== undefined && storedDraft()?.id === draftId) {
+      if (draftId !== undefined && storedDraft()?.writeId === draftId) {
         clearStoredDraft()
       }
 

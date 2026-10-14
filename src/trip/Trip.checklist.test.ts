@@ -46,10 +46,9 @@ const withEveryKindOfItem: ItineraryContent = {
   ],
 }
 
-/** Option 1 as it is, as Option 2. */
-const plainOption1: ItineraryContent = { ...option1, optionNumber: 2 }
+const option1AsOption2: ItineraryContent = { ...option1, optionNumber: 2 }
 
-const trip = tripWith([withEveryKindOfItem, plainOption1])
+const trip = tripWith([withEveryKindOfItem, option1AsOption2])
 
 const choose = (
   optionNumber: number,

@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option, Struct } from 'effect'
+import { DateTime, Effect, Option, Struct } from 'effect'
 
 import { december, HomeState, Hotel, IsoDate } from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
@@ -12,6 +12,14 @@ const trip = tripWith([option1, option2])
 const chooseOption1 = Trip.use((trip) =>
   trip.choose({ operationId: operation(1), optionNumber: 1, replacing: null }),
 )
+
+const inTokyo = (wallTime: string) =>
+  DateTime.formatIso(
+    DateTime.makeZonedUnsafe(wallTime, {
+      timeZone: 'Asia/Tokyo',
+      adjustForTimeZone: true,
+    }),
+  )
 
 const homeAt = (instant: string) =>
   Effect.gen(function* () {
@@ -173,8 +181,7 @@ describe('Trip.home Today', () => {
 
   it.effect('follows the Tokyo date when it is ahead of the UTC date', () =>
     Effect.gen(function* () {
-      // 16:00 UTC on December 13 is 01:00 on December 14 in Tokyo.
-      const shared = yield* expectedHomeFields('2026-12-13T16:00:00.000Z')
+      const shared = yield* expectedHomeFields(inTokyo('2026-12-14T01:00'))
       const home = yield* homeAt(shared.readAt)
       assert.deepStrictEqual(
         home,
@@ -189,8 +196,7 @@ describe('Trip.home Today', () => {
 
   it.effect('follows the Tokyo date late in the Tokyo evening', () =>
     Effect.gen(function* () {
-      // 14:59 UTC on December 14 is 23:59 on December 14 in Tokyo.
-      const shared = yield* expectedHomeFields('2026-12-14T14:59:00.000Z')
+      const shared = yield* expectedHomeFields(inTokyo('2026-12-14T23:59'))
       const home = yield* homeAt(shared.readAt)
       assert.deepStrictEqual(
         home,
@@ -241,22 +247,19 @@ describe('Trip.home countdown', () => {
   )
 
   it.effect('follows the Tokyo date when it is ahead of the UTC date', () =>
-    // 16:00 UTC on November 30 is 01:00 on December 1 in Tokyo.
-    assertCountdown('2026-11-30T16:00:00.000Z', 5).pipe(
+    assertCountdown(inTokyo('2026-12-01T01:00'), 5).pipe(
       Effect.provide([trip, storage]),
     ),
   )
 
   it.effect('follows the Tokyo date late in the Tokyo evening', () =>
-    // 14:59 UTC on November 30 is 23:59 on November 30 in Tokyo.
-    assertCountdown('2026-11-30T14:59:00.000Z', 6).pipe(
+    assertCountdown(inTokyo('2026-11-30T23:59'), 6).pipe(
       Effect.provide([trip, storage]),
     ),
   )
 
   it.effect('counts across a month boundary in Tokyo', () =>
-    // 23:30 UTC on September 30 is 08:30 on October 1 in Tokyo.
-    assertCountdown('2026-09-30T23:30:00.000Z', 66).pipe(
+    assertCountdown(inTokyo('2026-10-01T08:30'), 66).pipe(
       Effect.provide([trip, storage]),
     ),
   )

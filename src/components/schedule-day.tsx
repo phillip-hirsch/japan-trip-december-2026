@@ -208,6 +208,9 @@ export function ScheduleDayView({
   const nothingPlanned =
     day.description === undefined && day.dayTrips.length === 0
 
+  const nearTonightOrTokyo =
+    tonight?.base.coordinates ?? places.tokyo.coordinates
+
   return (
     <article
       className="mx-auto w-full max-w-3xl px-6 py-10 md:px-12 md:py-16"
@@ -263,8 +266,7 @@ export function ScheduleDayView({
           scheduleId={scheduleId}
           date={day.date}
           activities={day.activities}
-          // December 20 has no tonight's hotel, and the Trip ends in Tokyo.
-          near={tonight?.base.coordinates ?? places.tokyo.coordinates}
+          near={nearTonightOrTokyo}
           labelledBy={activitiesHeadingId}
         />
       </DaySection>

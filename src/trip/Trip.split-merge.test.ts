@@ -374,7 +374,7 @@ describe('Trip.mergeStays', () => {
   )
 
   it.effect(
-    "keeps the earlier Stay's id and details, spanning both Stays' nights, without the Move between them",
+    "keeps the earlier Stay's id and details whichever is named first, spanning both Stays' nights, without the Move between them",
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* choose(1, null)
@@ -396,8 +396,8 @@ describe('Trip.mergeStays', () => {
           )
         }
 
-        // Given later first, as either order merges.
-        const { schedule } = yield* mergeStays(scheduleId, [laterId, earlierId])
+        const laterFirst = [laterId, earlierId] as const
+        const { schedule } = yield* mergeStays(scheduleId, laterFirst)
 
         assert.deepStrictEqual(staySpans(schedule), [
           ['tokyo', december(6), december(9)],

@@ -1,6 +1,11 @@
 import { december, VerifyClaimAttachment } from '@/trip/domain'
-import type { ItineraryContent } from '@/trip/domain'
+import type { DurationRange, ItineraryContent } from '@/trip/domain'
 import { shigeharuOpeningDays } from '@/trip/itineraries/shigeharu'
+
+export const tokyoKyotoDuration: DurationRange = {
+  minMinutes: 135,
+  maxMinutes: 135,
+}
 
 export const option1: ItineraryContent = {
   optionNumber: 1,
@@ -72,7 +77,7 @@ export const option1: ItineraryContent = {
           to: 'kyoto',
         },
       ],
-      duration: { minMinutes: 135, maxMinutes: 135 },
+      duration: tokyoKyotoDuration,
     },
     {
       date: december(13),

@@ -106,6 +106,9 @@ export function MoveRoute({
   )
 }
 
+const isLocalWithinOneBase = (move: MoveDetail) =>
+  move.mode === 'local' && move.from.id === move.to.id
+
 export function MoveTravel({
   move,
   onSchedule = false,
@@ -131,9 +134,7 @@ export function MoveTravel({
     >
       <Icon className="size-3.5" aria-hidden />
       <span className="text-foreground">{label}</span>
-      {/* A local Move stays within one Base, unless a Base change has
-          made it join two. */}
-      {(move.mode !== 'local' || move.from.id !== move.to.id) && (
+      {!isLocalWithinOneBase(move) && (
         <span>
           ·{' '}
           {move.duration

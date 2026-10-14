@@ -41,12 +41,13 @@ interface ExpectedItinerary {
       readonly [mode: RailSectionMode, line: string, from: string, to: string]
     >
     readonly minutes?: readonly [min: number, max: number]
-    readonly changes: ReadonlyArray<string>
+    readonly changeStations: ReadonlyArray<string>
   }>
   readonly dayTrips: ReadonlyArray<{
     readonly day: number
     readonly place: string
     readonly optional: boolean
+    readonly newPlace: boolean
   }>
   readonly verifyClaims: ReadonlyArray<
     readonly [attachedTo: string, id: string, text: string]
@@ -71,14 +72,15 @@ const shigeharuClaim = [
   'Recent visitor reports favor Friday mornings, with occasional Thursday openings, but this remains an observed pattern rather than a confirmed December schedule. Keep that morning flexible and have your agent or hotel confirm directly.',
 ] as const
 
+const tokyoKyotoMinutes = 135
+
 const tokyoToKyoto = {
   mode: 'train',
   from: 'Tokyo',
   to: 'Kyoto',
   sections: [['shinkansen', 'tokaido-shinkansen', 'Tokyo', 'Kyoto']],
-  // "Tokyo–Kyoto is approximately 2¼ hours", from Option 1's travel notes.
-  minutes: [135, 135],
-  changes: [],
+  minutes: [tokyoKyotoMinutes, tokyoKyotoMinutes],
+  changeStations: [],
 } as const
 
 const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
@@ -189,7 +191,7 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
           ['shinkansen', 'hokuriku-shinkansen', 'Tsuruga', 'Kanazawa'],
         ],
         minutes: [120, 120],
-        changes: ['Tsuruga'],
+        changeStations: ['Tsuruga'],
       },
       {
         day: 17,
@@ -198,13 +200,13 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         to: 'Tokyo',
         sections: [['shinkansen', 'hokuriku-shinkansen', 'Kanazawa', 'Tokyo']],
         minutes: [150, 150],
-        changes: [],
+        changeStations: [],
       },
     ],
     dayTrips: [
-      { day: 8, place: 'Kamakura', optional: false },
-      { day: 12, place: 'Uji', optional: true },
-      { day: 18, place: 'Enoshima', optional: true },
+      { day: 8, place: 'Kamakura', optional: false, newPlace: true },
+      { day: 12, place: 'Uji', optional: true, newPlace: true },
+      { day: 18, place: 'Enoshima', optional: true, newPlace: true },
     ],
     verifyClaims: [
       [
@@ -222,8 +224,14 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
     thursdayBackup: true,
     comparison: {
       birthdayBase: 'Kanazawa',
-      // 2¼ hours, about 2 hours and about 2½ hours.
-      moves: { count: 3, travelTime: [405, 405], durationNotGiven: [] },
+      moves: {
+        count: 3,
+        travelTime: [
+          tokyoKyotoMinutes + 120 + 150,
+          tokyoKyotoMinutes + 120 + 150,
+        ],
+        durationNotGiven: [],
+      },
       dayTrips: ['Kamakura', 'Uji (optional)', 'Enoshima (optional)'],
       flights: [],
       ryokanStays: [],
@@ -332,7 +340,7 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         to: 'Hakone',
         sections: [['shinkansen', 'tokaido-shinkansen', 'Kyoto', 'Odawara']],
         minutes: [210, 270],
-        changes: [],
+        changeStations: [],
       },
       // The source never says how long Hakone–Tokyo takes.
       {
@@ -341,24 +349,23 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         from: 'Hakone',
         to: 'Tokyo',
         sections: [],
-        changes: [],
+        changeStations: [],
       },
     ],
     dayTrips: [
-      { day: 8, place: 'Kamakura', optional: false },
-      { day: 12, place: 'Uji', optional: true },
-      { day: 13, place: 'Uji', optional: true },
-      { day: 18, place: 'Enoshima', optional: true },
-      { day: 19, place: 'Enoshima', optional: true },
+      { day: 8, place: 'Kamakura', optional: false, newPlace: true },
+      { day: 12, place: 'Uji', optional: true, newPlace: true },
+      { day: 13, place: 'Uji', optional: true, newPlace: true },
+      { day: 18, place: 'Enoshima', optional: true, newPlace: true },
+      { day: 19, place: 'Enoshima', optional: true, newPlace: true },
     ],
     verifyClaims: [shigeharuClaim],
     thursdayBackup: false,
     comparison: {
       birthdayBase: 'Hakone',
-      // 2¼ hours plus 3½–4½ hours; the return to Tokyo gives none.
       moves: {
         count: 3,
-        travelTime: [345, 405],
+        travelTime: [tokyoKyotoMinutes + 210, tokyoKyotoMinutes + 270],
         durationNotGiven: ['17 train Hakone → Tokyo'],
       },
       dayTrips: ['Kamakura', 'Uji (optional)', 'Enoshima (optional)'],
@@ -450,14 +457,14 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         from: 'Kyoto',
         to: 'Tokyo',
         sections: [['shinkansen', 'tokaido-shinkansen', 'Kyoto', 'Tokyo']],
-        minutes: [135, 135],
-        changes: [],
+        minutes: [tokyoKyotoMinutes, tokyoKyotoMinutes],
+        changeStations: [],
       },
     ],
     dayTrips: [
-      { day: 14, place: 'Kamakura', optional: false },
-      { day: 16, place: 'Nikko', optional: false },
-      { day: 18, place: 'Enoshima', optional: false },
+      { day: 14, place: 'Kamakura', optional: false, newPlace: true },
+      { day: 16, place: 'Nikko', optional: false, newPlace: true },
+      { day: 18, place: 'Enoshima', optional: false, newPlace: true },
     ],
     verifyClaims: [
       shigeharuClaim,
@@ -475,8 +482,11 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
     thursdayBackup: true,
     comparison: {
       birthdayBase: 'Tokyo',
-      // 2¼ hours each way.
-      moves: { count: 2, travelTime: [270, 270], durationNotGiven: [] },
+      moves: {
+        count: 2,
+        travelTime: [tokyoKyotoMinutes * 2, tokyoKyotoMinutes * 2],
+        durationNotGiven: [],
+      },
       dayTrips: ['Kamakura', 'Nikko', 'Enoshima'],
       flights: [],
       ryokanStays: [],
@@ -589,7 +599,7 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
           ['shinkansen', 'tokaido-sanyo-shinkansen', 'Kyoto', 'Hakata'],
         ],
         minutes: [165, 165],
-        changes: [],
+        changeStations: [],
       },
       // The source never says how long the flight takes.
       {
@@ -598,22 +608,21 @@ const expectedItineraries: ReadonlyArray<ExpectedItinerary> = [
         from: 'Fukuoka',
         to: 'Tokyo',
         sections: [],
-        changes: [],
+        changeStations: [],
       },
     ],
     dayTrips: [
-      { day: 8, place: 'Kamakura', optional: true },
-      { day: 16, place: 'Dazaifu', optional: true },
-      { day: 18, place: 'Enoshima', optional: true },
+      { day: 8, place: 'Kamakura', optional: true, newPlace: true },
+      { day: 16, place: 'Dazaifu', optional: true, newPlace: true },
+      { day: 18, place: 'Enoshima', optional: true, newPlace: true },
     ],
     verifyClaims: [shigeharuClaim],
     thursdayBackup: true,
     comparison: {
       birthdayBase: 'Fukuoka',
-      // 2¼ hours plus 2¾ hours; the flight gives none.
       moves: {
         count: 3,
-        travelTime: [300, 300],
+        travelTime: [tokyoKyotoMinutes + 165, tokyoKyotoMinutes + 165],
         durationNotGiven: ['17 flight Fukuoka → Tokyo'],
       },
       dayTrips: [
@@ -862,7 +871,7 @@ for (const expected of expectedItineraries) {
                         move.duration.maxMinutes,
                       ],
                     }),
-                    changes: move.changes.map((station) => station.name),
+                    changeStations: move.changes.map((station) => station.name),
                   },
                 ]
               : [],
@@ -884,8 +893,7 @@ for (const expected of expectedItineraries) {
               newPlace: place.newPlace,
             })),
           ),
-          // Every Day trip destination so far is somewhere new.
-          expected.dayTrips.map((dayTrip) => ({ ...dayTrip, newPlace: true })),
+          expected.dayTrips,
         )
       }),
     )

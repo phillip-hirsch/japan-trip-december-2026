@@ -8,11 +8,18 @@ import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
 import { hardRuleProblem, stayEditAnswerOf } from '@/components/schedule-rules'
 import { StaySection } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
-import type { ScheduleDetail, ScheduleStayDetail } from '@/trip/domain'
+import type {
+  HardRule,
+  ScheduleDetail,
+  ScheduleStayDetail,
+} from '@/trip/domain'
 import { SaveAnswer, SaveState, useSave } from '@/trip/drafts'
 import { placeIds, places } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
 import { changeStayBase } from '@/trip/trip.functions'
+
+const unknownPlace = (rule: HardRule) =>
+  SaveAnswer.Refused({ problem: hardRuleProblem(rule) })
 
 /**
  * Changing a Stay's Base to another place in the catalogue on the current
@@ -40,11 +47,8 @@ export function StayBaseField({
         data: { scheduleId, stayId: stay.id, place },
       })
 
-      // A Base change keeps the Stay dates, so the one Hard rule it can break
-      // is a place the server doesn't know. Refetching the Stays wouldn't
-      // help, so it's refused rather than gone.
       return Predicate.isTagged('HardRuleBroken')(outcome)
-        ? SaveAnswer.Refused({ problem: hardRuleProblem(outcome.rule) })
+        ? unknownPlace(outcome.rule)
         : stayEditAnswerOf(
             'The Base change breaks an Anchor',
             schedule.anchorWarnings,

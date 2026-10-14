@@ -10,12 +10,9 @@ import {
 
 let reloadScheduled = false
 
-// Long enough to read the banner before the page goes away.
-const reloadDelayMs = 1500
+const bannerReadDelayMs = 1500
 
-// A login takes longer than this; landing back on an expired session sooner
-// means the reload isn't fixing it, so stop instead of looping.
-const reloadLoopWindowMs = 60_000
+const shortestLoginMs = 60_000
 
 const lastReloadKey = 'access:login-reload-at'
 
@@ -27,13 +24,15 @@ const readLastReload = () => {
   }
 }
 
+const reloadWouldLoop = (now: number) =>
+  now - readLastReload() < shortestLoginMs
+
 const recordReload = (at: number) => {
   try {
     sessionStorage.setItem(lastReloadKey, String(at))
 
     return true
   } catch {
-    // Without a record the guard can't work, so don't reload automatically.
     return false
   }
 }
@@ -42,14 +41,17 @@ const reloadToLogIn = () => {
   if (reloadScheduled) return true
   const now = Date.now()
 
-  if (now - readLastReload() < reloadLoopWindowMs) return false
+  if (reloadWouldLoop(now)) return false
+  const loopGuardWorks = recordReload(now)
 
-  if (!recordReload(now)) return false
+  if (!loopGuardWorks) return false
   reloadScheduled = true
-  setTimeout(() => window.location.reload(), reloadDelayMs)
+  setTimeout(() => window.location.reload(), bannerReadDelayMs)
 
   return true
 }
+
+const holdPageUntilReload = () => new Promise<never>(() => {})
 
 const probeDelaysMs = [2_000, 5_000, 15_000, 30_000, 60_000]
 
@@ -144,8 +146,7 @@ export const serverFnFetch: CustomFetch = async (url, init) => {
     const reloading = reloadToLogIn()
     reportConnection(ConnectionStatus.LoginExpired({ reloading }))
 
-    // Keep the current page in place until the reload replaces it.
-    if (reloading) return new Promise<never>(() => {})
+    if (reloading) return holdPageUntilReload()
     throw new Error('Login expired')
   }
 

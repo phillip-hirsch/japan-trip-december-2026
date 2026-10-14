@@ -1,5 +1,6 @@
 import { december } from '@/trip/domain'
 import type { ItineraryContent } from '@/trip/domain'
+import { tokyoKyotoDuration } from '@/trip/itineraries/option-1'
 import { shigeharuOpeningDays } from '@/trip/itineraries/shigeharu'
 
 export const option4: ItineraryContent = {
@@ -84,8 +85,7 @@ export const option4: ItineraryContent = {
           to: 'kyoto',
         },
       ],
-      // Reused from Option 1's "Tokyo–Kyoto is approximately 2¼ hours".
-      duration: { minMinutes: 135, maxMinutes: 135 },
+      duration: tokyoKyotoDuration,
     },
     {
       date: december(13),

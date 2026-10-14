@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option } from 'effect'
+import { Effect, Exit, Option } from 'effect'
 
 import {
   AnchorWarning,
@@ -451,23 +451,26 @@ describe('Trip.editStays', () => {
       }).pipe(Effect.provide([trip, storage])),
   )
 
-  it.effect('writes nothing when the Moves no longer meet the Stays', () =>
-    Effect.gen(function* () {
-      yield* choose(1, null)
-      const before = yield* currentSchedule
+  it.effect(
+    'dies, writing nothing, when the Moves no longer meet the Stays',
+    () =>
+      Effect.gen(function* () {
+        yield* choose(1, null)
+        const before = yield* currentSchedule
 
-      // Such an edit is a defect, so the operation dies. Only the Schedule
-      // read back afterwards matters here.
-      yield* Effect.exit(
-        editStays(before.id, (copy) =>
-          Effect.map(moveBoundary(13, 14)(copy), (changes) => ({
-            ...changes,
-            moves: copy.moves,
-          })),
-        ),
-      )
+        const exit = yield* Effect.exit(
+          editStays(before.id, (copy) =>
+            Effect.map(moveBoundary(13, 14)(copy), (changes) => ({
+              ...changes,
+              moves: copy.moves,
+            })),
+          ),
+        )
 
-      assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([trip, storage])),
+        assert.deepStrictEqual(
+          { died: Exit.hasDies(exit), after: yield* currentSchedule },
+          { died: true, after: before },
+        )
+      }).pipe(Effect.provide([trip, storage])),
   )
 })

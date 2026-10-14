@@ -10,8 +10,7 @@ import {
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
 import type { Coordinates } from '@/trip/domain'
 
-/** The zoom that frames a Pin, about one block across. */
-const pinZoom = 16
+const oneBlockZoom = 16
 
 export interface PinMapProps {
   pin: Coordinates
@@ -24,7 +23,7 @@ function Framing({ frame }: { frame: Coordinates }) {
   useEffect(() => {
     map?.jumpTo({
       center: lngLatOf(frame),
-      zoom: Math.max(map.getZoom(), pinZoom),
+      zoom: Math.max(map.getZoom(), oneBlockZoom),
     })
   }, [map, frame.latitude, frame.longitude])
 
@@ -53,7 +52,11 @@ function TapToMove({ onMove }: { onMove: (pin: Coordinates) => void }) {
 
 export default function PinMapCanvas({ pin, frame, onMove }: PinMapProps) {
   return (
-    <TripMapView points={[frame]} maxZoom={pinZoom} railAttribution={undefined}>
+    <TripMapView
+      points={[frame]}
+      maxZoom={oneBlockZoom}
+      railAttribution={undefined}
+    >
       <Framing frame={frame} />
       <TapToMove onMove={onMove} />
       <MapMarker

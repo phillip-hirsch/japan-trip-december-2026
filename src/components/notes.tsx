@@ -30,8 +30,7 @@ import {
   writeTripNote,
 } from '@/trip/trip.functions'
 
-// The count shows only once the note nears the cap.
-const countFrom = noteMaxLength - 1_000
+const nearsTheCap = (note: string) => note.length >= noteMaxLength - 1_000
 
 const tooLong = (noun: string, maxLength: number) =>
   SaveAnswer.Refused({
@@ -123,7 +122,7 @@ function NoteField({
         >
           {notSaved ? 'Discard' : 'Cancel'}
         </Button>
-        {value.length >= countFrom && (
+        {nearsTheCap(value) && (
           <p className="ml-auto text-sm text-muted-foreground tabular-nums">
             {value.length.toLocaleString('en')} /{' '}
             {noteMaxLength.toLocaleString('en')}

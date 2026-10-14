@@ -48,26 +48,24 @@ export const homeQuery = queryOptions({
   refetchOnMount: false,
 })
 
-const retryDelay = 60_000
+const homeRetryDelay = 60_000
 
-/**
- * Home's state, kept on the right Day. It follows the date in Tokyo, so each
- * answer schedules a refetch a moment past the next Tokyo midnight after the
- * moment the server read it at (not after the answer arrived, which may be
- * past that midnight already): an answer already overdue refetches at once,
- * and a refetch that fails is tried again until one answers.
- */
+const nextTokyoMidnightDeadline = (readAt: number) =>
+  readAt + millisecondsUntilTokyoMidnight(readAt) + 1000
+
 export const useHome = () => {
   const queryClient = useQueryClient()
   const { data, dataUpdatedAt, errorUpdatedAt } = useSuspenseQuery(homeQuery)
   const readAt = Date.parse(data.readAt)
   useEffect(() => {
-    const deadline = readAt + millisecondsUntilTokyoMidnight(readAt) + 1000
+    const deadline = nextTokyoMidnightDeadline(readAt)
     const overdue = Date.now() >= deadline
-    const failedSince = errorUpdatedAt > dataUpdatedAt
+    const lastRefetchFailed = errorUpdatedAt > dataUpdatedAt
 
     const delay =
-      overdue && failedSince ? retryDelay : Math.max(deadline - Date.now(), 0)
+      overdue && lastRefetchFailed
+        ? homeRetryDelay
+        : Math.max(deadline - Date.now(), 0)
 
     const timer = setTimeout(
       () => void queryClient.invalidateQueries({ queryKey: keys.home }),
@@ -140,57 +138,25 @@ const replacingTheSchedule = [
   keys.scheduleMap,
 ] as const
 
+const withTheSchedule = [keys.home, keys.schedules, keys.scheduleById] as const
+
+const withTheScheduleAndDays = [keys.days, ...withTheSchedule] as const
+
+const withTheScheduleDaysAndMap = [
+  ...withTheScheduleAndDays,
+  keys.scheduleMap,
+] as const
+
 const affectedBy = {
   choose: replacingTheSchedule,
   restore: replacingTheSchedule,
-  // Every query carrying the current Schedule's Days: the Day pages, Today
-  // on Home, and the Schedule itself, by id too.
-  dayNote: [keys.days, keys.home, keys.schedules, keys.scheduleById],
-  // Activities are carried by the Days, as Day notes are, and a pinned one
-  // shows on the map.
-  activity: [
-    keys.days,
-    keys.home,
-    keys.schedules,
-    keys.scheduleById,
-    keys.scheduleMap,
-  ],
-  // Every query carrying the current Schedule's Stays: the Schedule on Home
-  // before and after the Trip, and the Schedule itself, by id too.
-  stayNote: [keys.home, keys.schedules, keys.scheduleById],
-  // Hotel details show with the Stays, as tonight's hotel on the Day pages
-  // and Today on Home, and with a pinned hotel on the map.
-  hotelDetails: [
-    keys.days,
-    keys.home,
-    keys.schedules,
-    keys.scheduleById,
-    keys.scheduleMap,
-  ],
-  // A Stay edit changes the Stays, the Moves and Days they make, Tonight's
-  // hotel and the Next Move, the Anchor warnings, the derived Checklist and
-  // the map.
-  stayEdit: [
-    keys.schedules,
-    keys.days,
-    keys.home,
-    keys.scheduleById,
-    keys.checklist,
-    keys.scheduleMap,
-  ],
-  // An Activity's Pin shows with its Day, and the hotel's with its Stay and
-  // as tonight's hotel. Both appear on the Day pages, Today on Home, the
-  // Schedule and the map.
-  pin: [
-    keys.days,
-    keys.home,
-    keys.schedules,
-    keys.scheduleById,
-    keys.scheduleMap,
-  ],
-  // The Trip note shows only with the Schedules on /schedule.
+  dayNote: withTheScheduleAndDays,
+  activity: withTheScheduleDaysAndMap,
+  stayNote: withTheSchedule,
+  hotelDetails: withTheScheduleDaysAndMap,
+  stayEdit: [...withTheScheduleDaysAndMap, keys.checklist],
+  pin: withTheScheduleDaysAndMap,
   tripNote: [keys.schedules],
-  // Ticks, own items added and own items removed show only on /checklist.
   checklist: [keys.checklist],
 } as const satisfies Record<string, ReadonlyArray<QueryKey>>
 

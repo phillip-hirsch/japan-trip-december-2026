@@ -133,7 +133,11 @@ import {
 } from '@/trip/pins'
 import { places, visitedPlaceIds } from '@/trip/places'
 import type { PlaceId } from '@/trip/places'
-import { railSectionIdsOf, railSectionKey, stations } from '@/trip/rail'
+import {
+  railSectionIdsOf,
+  stations,
+  undirectedRailSectionKey,
+} from '@/trip/rail'
 import type { StationId } from '@/trip/rail'
 import { railGeometryAttribution, railGeometryOf } from '@/trip/rail-geometry'
 import { scheduleStore } from '@/trip/schedule-store'
@@ -235,29 +239,27 @@ const moveDetailsOf = <M extends Move>({
         to: stationOf(section.to),
       }))
 
+      const changeStations = sections.slice(1).map((section) => section.from)
+
       const detail = {
         ...Struct.omit(move, ['date', 'sections']),
         from: placeOf(from.base),
         to: placeOf(to.base),
         sections,
-        changes: sections.slice(1).map((section) => section.from),
+        changes: changeStations,
       } satisfies MoveDetail
 
       return [[date, detail] as const]
     }),
   )
 
-/**
- * Whether Thursday, December 10 is a whole day in Kyoto and not a Move day,
- * so the Shigeharu visit can fall back to it: a Kyoto Stay checks in on or
- * before December 9 and checks out on or after December 11.
- */
+const coversWholeDay = (stay: Stay, date: IsoDate) =>
+  stay.checkIn < date && date < stay.checkOut
+
 const hasThursdayBackup = (stays: ReadonlyArray<Stay>) =>
   stays.some(
     (stay) =>
-      stay.base === 'kyoto' &&
-      stay.checkIn < thursdayBeforeShigeharu &&
-      stay.checkOut > thursdayBeforeShigeharu,
+      stay.base === 'kyoto' && coversWholeDay(stay, thursdayBeforeShigeharu),
   )
 
 const anchorsOf = ({ stays, shigeharuVisit }: Itinerary): Array<Anchor> => [
@@ -363,30 +365,27 @@ const birthdayOf = ({ stays, birthdayOutline }: Itinerary) => {
   }
 }
 
-/**
- * Each group of Day trips once, by its first Day trip, in the order the Trip
- * first makes one. A group is optional only when every Day trip in it is. A
- * Day trip without a group is left out.
- */
 const groupedDayTrips = (
   dayTrips: ReadonlyArray<DayTrip>,
   groupOf: (dayTrip: DayTrip) => string | undefined,
 ) => {
-  const groups = new Map<string, { first: DayTrip; optional: boolean }>()
+  const groups = new Map<string, Array<DayTrip>>()
   const byDate = [...dayTrips].sort((a, b) => a.date.localeCompare(b.date))
 
   for (const dayTrip of byDate) {
     const group = groupOf(dayTrip)
 
     if (group === undefined) continue
-    const seen = groups.get(group)
-    groups.set(group, {
-      first: seen?.first ?? dayTrip,
-      optional: (seen?.optional ?? true) && dayTrip.optional,
-    })
+    const members = groups.get(group)
+
+    if (members === undefined) groups.set(group, [dayTrip])
+    else members.push(dayTrip)
   }
 
-  return Array.from(groups.values())
+  return Array.from(groups.values(), (members) => ({
+    first: members[0],
+    optional: members.every((dayTrip) => dayTrip.optional),
+  }))
 }
 
 const dayTripsOf = ({ dayTrips }: Itinerary): Array<DayTripDetail> =>
@@ -413,8 +412,7 @@ const comparisonOf = (itinerary: Itinerary): ItineraryComparison => {
   }
 }
 
-/** Each point once where consecutive points coincide. */
-const withoutRepeats = (path: ReadonlyArray<Coordinates>) =>
+const withoutConsecutiveRepeats = (path: ReadonlyArray<Coordinates>) =>
   path.filter((point, index) => {
     const previous = path[index - 1]
 
@@ -476,7 +474,7 @@ const mapOf = (
     ),
     trainMoves: trainMoves.map(({ move, railPaths }) => ({
       date: move.date,
-      path: withoutRepeats([
+      path: withoutConsecutiveRepeats([
         move.from.coordinates,
         ...railPaths.flatMap((railPath) => railPath.path),
         move.to.coordinates,
@@ -540,7 +538,7 @@ const railSectionsOf = (
 
   for (const move of itineraries.flatMap(datedMovesOf)) {
     for (const section of move.sections) {
-      const key = railSectionKey(railSectionIdsOf(section))
+      const key = undirectedRailSectionKey(railSectionIdsOf(section))
 
       if (sections.has(key)) continue
       const { followsRailLine } = railPathOf(section)
@@ -689,24 +687,25 @@ const scheduleDetailOf =
     anchorWarnings: anchorWarningsOf(copy),
   })
 
-/**
- * A Day of a Schedule as its page shows it: the Day, tonight's hotel (the
- * Stay covering the night, except on December 20, when Phillip flies home)
- * and the next Move (the first dated that Day or later).
- */
+const isDepartureDay = (date: IsoDate) => date === tripEndDate
+
+const firstMoveOnOrAfter = (days: ScheduleDetail['days'], date: IsoDate) =>
+  days
+    .filter((later) => later.date >= date)
+    .flatMap((later) =>
+      later.move ? [{ date: later.date, ...later.move }] : [],
+    )
+    .at(0)
+
 const dayPageOf = (schedule: ScheduleDetail, date: IsoDate) =>
   Option.map(
     Option.fromUndefinedOr(schedule.days.find((day) => day.date === date)),
     (day): DayPage => {
-      const tonight =
-        date === tripEndDate ? undefined : stayForNight(schedule.stays, date)
+      const tonight = isDepartureDay(date)
+        ? undefined
+        : stayForNight(schedule.stays, date)
 
-      const nextMove = schedule.days
-        .filter((later) => later.date >= date)
-        .flatMap((later) =>
-          later.move ? [{ date: later.date, ...later.move }] : [],
-        )
-        .at(0)
+      const nextMove = firstMoveOnOrAfter(schedule.days, date)
 
       return {
         scheduleId: schedule.id,
@@ -794,20 +793,14 @@ const claimsFollowingStays = (
   })
 }
 
-/**
- * The current Schedule, if it is the one a write names (none when it names
- * null); ScheduleChanged otherwise. Every Schedule write checks this first,
- * so a write from an out-of-date screen, or to an archived Schedule, writes
- * nothing.
- */
 const requireCurrent = Effect.fnUntraced(function* (
   store: ScheduleStore,
-  named: ScheduleId | null,
+  believedCurrent: ScheduleId | null,
 ) {
   const current = yield* store.currentRecord
   const currentId = Option.getOrNull(Option.map(current, ({ id }) => id))
 
-  if (currentId !== named) return yield* new ScheduleChanged()
+  if (currentId !== believedCurrent) return yield* new ScheduleChanged()
 
   return current
 })
@@ -844,6 +837,15 @@ const requireNoteLength = (note: string) =>
   note.length > noteMaxLength
     ? Effect.fail(new NoteTooLong({ maxLength: noteMaxLength }))
     : Effect.void
+
+const sortedTiesAsGiven = <A>(
+  items: ReadonlyArray<A>,
+  compare: (a: A, b: A) => number,
+) =>
+  items
+    .map((item, index) => ({ item, index }))
+    .sort((a, b) => compare(a.item, b.item) || a.index - b.index)
+    .map(({ item }) => item)
 
 const tripOrderOnDate = {
   wholeClaim: 0,
@@ -945,11 +947,10 @@ const derivedChecklistOf = (
     }),
   }))
 
-  // Sorting is stable, so entries on the same date and order keep the
-  // Schedule's own order.
-  return [...moves, ...stays, ...anchors, ...claims]
-    .sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order)
-    .map(({ item }) => item)
+  return sortedTiesAsGiven(
+    [...moves, ...stays, ...anchors, ...claims],
+    (a, b) => a.date.localeCompare(b.date) || a.order - b.order,
+  ).map(({ item }) => item)
 }
 
 const checklistGroups = { undatedDerived: 0, dated: 1, undatedOwn: 2 }
@@ -961,25 +962,20 @@ const checklistGroupOf = (item: ChecklistItem) =>
       ? checklistGroups.undatedOwn
       : checklistGroups.undatedDerived
 
-/**
- * The derived items, in Trip order, with Phillip's own, in the order added,
- * the next thing to do on top: items without a reminder date first, then
- * the rest by reminder date (own after derived on the same date), and last
- * his own without one.
- */
 const checklistOf = (
   derived: ReadonlyArray<ChecklistItem>,
   own: ReadonlyArray<OwnChecklistItem>,
 ): Array<ChecklistItem> =>
-  [
-    ...derived,
-    ...own.map(({ reminderDate, ...item }) =>
-      ChecklistItem.cases.Own.make({
-        ...item,
-        ...(reminderDate !== null && { reminderDate }),
-      }),
-    ),
-  ].sort(
+  sortedTiesAsGiven(
+    [
+      ...derived,
+      ...own.map(({ reminderDate, ...item }) =>
+        ChecklistItem.cases.Own.make({
+          ...item,
+          ...(reminderDate !== null && { reminderDate }),
+        }),
+      ),
+    ],
     (a, b) =>
       checklistGroupOf(a) - checklistGroupOf(b) ||
       (reminderDateOf(a) ?? '').localeCompare(reminderDateOf(b) ?? ''),
@@ -1254,11 +1250,9 @@ const anchorWarningsOf = ({
   return warnings
 }
 
-/**
- * Every way an Itinerary breaks the Trip's rules; empty when it keeps them.
- * An Itinerary must never break an Anchor, so each Anchor warning counts as a
- * break here.
- */
+const anchorWarningsAsBreaks = (itinerary: Itinerary): Array<TripRuleBreak> =>
+  anchorWarningsOf(itinerary)
+
 const tripRuleBreaksOf = (itinerary: Itinerary): Array<TripRuleBreak> => {
   const { stays, days, shigeharuVisit } = itinerary
   const stayDateBreaks = stayDateRuleBreaksOf(stays)
@@ -1296,7 +1290,7 @@ const tripRuleBreaksOf = (itinerary: Itinerary): Array<TripRuleBreak> => {
     }
   }
 
-  return [...breaks, ...anchorWarningsOf(itinerary)]
+  return [...breaks, ...anchorWarningsAsBreaks(itinerary)]
 }
 
 /**
@@ -1775,11 +1769,16 @@ export class Trip extends Context.Service<
                 return yield* new ScheduleNotFound({ scheduleId })
               }
 
-              // Restoring the current Schedule archives it and makes it
-              // current again, leaving it as it was.
-              const now = DateTime.formatIso(yield* DateTime.now)
-              yield* archiveReplaced(store, replacing, now)
-              yield* store.makeCurrent(scheduleId)
+              const alreadyCurrent = restoring.value.status === 'current'
+
+              if (alreadyCurrent) {
+                yield* requireCurrent(store, replacing)
+              } else {
+                const now = DateTime.formatIso(yield* DateTime.now)
+                yield* archiveReplaced(store, replacing, now)
+                yield* store.makeCurrent(scheduleId)
+              }
+
               const restored = { scheduleId }
               yield* store.recordResult(ScheduleRestored)({
                 id: operationId,

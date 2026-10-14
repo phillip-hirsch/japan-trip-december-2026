@@ -95,9 +95,7 @@ export function StayBoundaryField({
     (date) => date > stay.checkIn && date < next.checkOut,
   )
 
-  // A move next door, or a draft from an earlier visit, can leave the date
-  // chosen outside what the Stays allow now. It's then chosen again.
-  const chosen = dates.find((date) => date === value)
+  const chosenStillOffered = dates.find((date) => date === value)
 
   return (
     <form
@@ -118,21 +116,21 @@ export function StayBoundaryField({
         <legend className="mb-2 text-sm">Check out on</legend>
         <DateChoice
           dates={dates}
-          value={chosen}
+          value={chosenStillOffered}
           disabled={saving}
           onChange={field.change}
         />
         <p id={hintId} className="text-sm text-muted-foreground">
-          {chosen === undefined
+          {chosenStillOffered === undefined
             ? `The Stays next to this one have changed. Choose the date ${stay.base.romaji} checks out again.`
-            : `${formatNights(nightsBetween(stay.checkIn, chosen))} in ${stay.base.romaji}, then ${formatNights(nightsBetween(chosen, next.checkOut))} in ${next.base.romaji}. Your Move to ${next.base.romaji} changes to that day too.`}
+            : `${formatNights(nightsBetween(stay.checkIn, chosenStillOffered))} in ${stay.base.romaji}, then ${formatNights(nightsBetween(chosenStillOffered, next.checkOut))} in ${next.base.romaji}. Your Move to ${next.base.romaji} changes to that day too.`}
         </p>
       </fieldset>
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type="submit"
           size="sm"
-          disabled={saving || chosen === undefined}
+          disabled={saving || chosenStillOffered === undefined}
         >
           {saving ? 'Saving…' : notSaved ? 'Retry' : 'Save'}
         </Button>
