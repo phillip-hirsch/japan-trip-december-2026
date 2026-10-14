@@ -1,3 +1,4 @@
+import { AttributionControl } from 'maplibre-gl'
 import type { LngLatBoundsLike } from 'maplibre-gl'
 import { useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
@@ -89,6 +90,32 @@ export function BaseMarker({ place }: { place: Place }) {
   )
 }
 
+function Attribution({
+  railAttribution,
+}: {
+  railAttribution: string | undefined
+}) {
+  const { map } = useMap()
+
+  useEffect(() => {
+    if (map === null) return
+
+    // Always shown in full, as the map data's licences require.
+    const control = new AttributionControl({
+      compact: false,
+      ...(railAttribution && { customAttribution: railAttribution }),
+    })
+
+    map.addControl(control)
+
+    return () => {
+      if (map.hasControl(control)) map.removeControl(control)
+    }
+  }, [map, railAttribution])
+
+  return null
+}
+
 export function TripMapView({
   points,
   maxZoom,
@@ -104,21 +131,15 @@ export function TripMapView({
 }) {
   return (
     <MapView
-      // MapLibre sets its attributions only when it starts, so a change of
-      // credit, such as after a refetch brings rail geometry, starts it anew.
-      key={railAttribution ?? ''}
       bounds={boundsOf(points)}
       fitBoundsOptions={fitOptionsOf(maxZoom)}
       cooperativeGestures={!fullScreen}
-      // Always shown in full, as the map data's licences require.
-      attributionControl={{
-        compact: false,
-        ...(railAttribution && { customAttribution: railAttribution }),
-      }}
+      attributionControl={false}
     >
       {children}
       {/* Top right, clear of the attribution, which wraps on phones. */}
       <MapControls position="top-right" />
+      <Attribution railAttribution={railAttribution} />
     </MapView>
   )
 }
