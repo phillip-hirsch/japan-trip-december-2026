@@ -705,7 +705,6 @@ export const scheduleStore = Effect.gen(function* () {
     /** Every archived Schedule, the most recently archived first. */
     archived: findArchived(undefined),
 
-    /** Archives a Schedule at a moment, given as an ISO 8601 UTC string. */
     archive: (id: ScheduleId, archivedAt: IsoInstant) =>
       archiveSchedule({ id, archivedAt }),
 
