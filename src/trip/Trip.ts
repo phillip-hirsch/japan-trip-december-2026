@@ -39,6 +39,7 @@ import {
   Hotel,
   HotelDetailTooLong,
   IsoDate,
+  IsoInstant,
   ItineraryNotFound,
   LocationLinkRefused,
   NoCoordinatesInLink,
@@ -163,6 +164,9 @@ export type { ScheduleCopy, ScheduleStay } from '@/trip/schedule-store'
  * editStays moves them with their Stays.
  */
 export type StayEdit = Pick<ScheduleCopy, 'stays' | 'moves'>
+
+const isoInstantOf = (now: DateTime.DateTime) =>
+  IsoInstant.make(DateTime.formatIso(now))
 
 const tokyoDateOf = (now: DateTime.DateTime) =>
   IsoDate.make(
@@ -818,14 +822,10 @@ const requireStay = Effect.fnUntraced(function* (
   }
 })
 
-/**
- * Archives the current Schedule that choosing or restoring replaces, at a
- * moment given as an ISO 8601 UTC string; nothing when none exists yet.
- */
 const archiveReplaced = Effect.fnUntraced(function* (
   store: ScheduleStore,
   replacing: ScheduleId | null,
-  archivedAt: string,
+  archivedAt: IsoInstant,
 ) {
   const current = yield* requireCurrent(store, replacing)
 
@@ -1724,7 +1724,7 @@ export class Trip extends Context.Service<
 
               if (Option.isSome(recorded)) return recorded.value.result
               const itinerary = yield* find(byOptionNumber, optionNumber)
-              const now = DateTime.formatIso(yield* DateTime.now)
+              const now = isoInstantOf(yield* DateTime.now)
               yield* archiveReplaced(store, replacing, now)
               const scheduleId = ScheduleId.make(crypto.randomUUID())
               yield* store.insert(
@@ -1773,7 +1773,7 @@ export class Trip extends Context.Service<
               if (alreadyCurrent) {
                 yield* requireCurrent(store, replacing)
               } else {
-                const now = DateTime.formatIso(yield* DateTime.now)
+                const now = isoInstantOf(yield* DateTime.now)
                 yield* archiveReplaced(store, replacing, now)
                 yield* store.makeCurrent(scheduleId)
               }

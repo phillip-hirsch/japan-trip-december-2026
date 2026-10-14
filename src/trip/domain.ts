@@ -11,6 +11,17 @@ export const IsoDate = Schema.String.check(
 
 export type IsoDate = typeof IsoDate.Type
 
+export const IsoInstant = Schema.String.check(
+  Schema.makeFilter((instant: string) =>
+    Option.exists(
+      DateTime.make(instant),
+      (parsed) => DateTime.formatIso(parsed) === instant,
+    ),
+  ),
+).pipe(Schema.brand('IsoInstant'))
+
+export type IsoInstant = typeof IsoInstant.Type
+
 export const december = (day: number) =>
   IsoDate.make(`2026-12-${String(day).padStart(2, '0')}`)
 
@@ -644,10 +655,8 @@ export const ScheduleRecord = Schema.Struct({
   sourceOptionNumber: OptionNumber,
   /** The content version of the Itinerary when it was chosen. */
   sourceContentVersion: Schema.String,
-  /** The moment it was chosen, as an ISO 8601 UTC string. */
-  chosenAt: Schema.String,
-  /** The moment it was last archived, as an ISO 8601 UTC string. */
-  archivedAt: Schema.NullOr(Schema.String),
+  chosenAt: IsoInstant,
+  archivedAt: Schema.NullOr(IsoInstant),
   birthdayOutline: Schema.String,
 })
 
@@ -725,7 +734,7 @@ export const ArchivedScheduleSummary = Schema.Struct({
     'sourceOptionNumber',
     'chosenAt',
   ]),
-  archivedAt: Schema.String,
+  archivedAt: IsoInstant,
 })
 
 export type ArchivedScheduleSummary = typeof ArchivedScheduleSummary.Type

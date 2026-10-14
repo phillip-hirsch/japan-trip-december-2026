@@ -13,6 +13,7 @@ import {
   DurationRange,
   Hotel,
   IsoDate,
+  IsoInstant,
   Move,
   OperationId,
   Pin,
@@ -275,7 +276,7 @@ export const scheduleStore = Effect.gen(function* () {
   })
 
   const archiveSchedule = SqlSchema.void({
-    Request: Schema.Struct({ id: ScheduleId, archivedAt: Schema.String }),
+    Request: Schema.Struct({ id: ScheduleId, archivedAt: IsoInstant }),
     execute: ({ id, archivedAt }) =>
       sql`
         UPDATE schedules SET status = 'archived', archivedAt = ${archivedAt}
@@ -705,7 +706,7 @@ export const scheduleStore = Effect.gen(function* () {
     archived: findArchived(undefined),
 
     /** Archives a Schedule at a moment, given as an ISO 8601 UTC string. */
-    archive: (id: ScheduleId, archivedAt: string) =>
+    archive: (id: ScheduleId, archivedAt: IsoInstant) =>
       archiveSchedule({ id, archivedAt }),
 
     makeCurrent: makeScheduleCurrent,
