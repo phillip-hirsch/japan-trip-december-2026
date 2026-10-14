@@ -14,7 +14,6 @@ import {
   NotSavedAlert,
   RetryOrDismiss,
   SavedStatus,
-  warnAfterRowGoes,
 } from '@/components/not-saved-alert'
 import { NoteText } from '@/components/note-text'
 import { PinField } from '@/components/pin-field'
@@ -41,8 +40,9 @@ import {
   SaveState,
   useOperationSave,
   useSave,
+  warned,
 } from '@/trip/drafts'
-import type { DraftKeeping, OwnOutcome } from '@/trip/drafts'
+import type { DraftKeeping, OwnOutcome, SaveWarning } from '@/trip/drafts'
 import { activityTitleMaxLength, noteMaxLength } from '@/trip/limits'
 import {
   addActivity,
@@ -102,6 +102,12 @@ const activityRefusal = (outcome: OwnOutcome<EditActivityOutcome>) =>
 /** Removing an Activity already gone counts as saved. */
 const removalAnswerOf = (outcome: RemoveActivityOutcome) =>
   Predicate.isTagged('ActivityNotFound')(outcome) ? SaveAnswer.Saved() : outcome
+
+const notMoved: SaveWarning = {
+  title: 'The Activity wasn’t moved',
+  description:
+    'The one it was moving past was removed, perhaps on another device. Move it again if you still want to.',
+}
 
 /** The Activity a move was to pass is gone, so nothing moved. */
 const passedActivityGone = (moving: string, outcome: MoveActivityOutcome) =>
@@ -517,15 +523,9 @@ function DayActivities({
 
       const outcome = await move({ data: { scheduleId, ...activityMove } })
 
-      if (!passedActivityGone(activityMove.activityId, outcome)) return outcome
-
-      warnAfterRowGoes({
-        title: 'The Activity wasn’t moved',
-        description:
-          'The one it was moving past was removed, perhaps on another device. Move it again if you still want to.',
-      })
-
-      return SaveAnswer.Saved()
+      return passedActivityGone(activityMove.activityId, outcome)
+        ? warned(SaveAnswer.Saved(), notMoved)
+        : outcome
     },
   })
 

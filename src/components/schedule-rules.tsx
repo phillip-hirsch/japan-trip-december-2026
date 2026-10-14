@@ -2,7 +2,6 @@ import { Match, Predicate } from 'effect'
 import { TriangleAlertIcon } from 'lucide-react'
 
 import { Notice } from '@/components/notice'
-import { toast } from '@/components/ui/toast'
 import {
   birthdayDate,
   formatDay,
@@ -12,7 +11,8 @@ import {
   tripStartDate,
 } from '@/trip/calendar'
 import type { AnchorWarning, HardRule, StayEditOutcome } from '@/trip/domain'
-import { answerOwn, SaveAnswer } from '@/trip/drafts'
+import { answerOwn, SaveAnswer, warned } from '@/trip/drafts'
+import type { SaveWarning } from '@/trip/drafts'
 import { places } from '@/trip/places'
 
 export const anchorWarningText = (warning: AnchorWarning) =>
@@ -79,39 +79,35 @@ const staleStays = (rule: HardRule) =>
     problem: `${hardRuleProblem(rule)} Nothing changed. Your Stays may have changed on another device.`,
   })
 
-/** A Stay edit's own outcome: a broken Hard rule means the Stays shown are stale. */
-const stayEditAnswerOf = (outcome: StayEditOutcome) =>
-  answerOwn(outcome, ({ rule }) => staleStays(rule))
-
-/**
- * Once a Stay edit is answered, warns of the Anchors it broke that weren't
- * broken before.
- */
-export const warnOfBrokenAnchors = (
+const anchorWarningOf = (
   title: string,
   warningsBefore: ReadonlyArray<AnchorWarning>,
   outcome: StayEditOutcome,
-) => {
-  if (!Predicate.isTagged('Edited')(outcome)) return
+): SaveWarning | undefined => {
+  if (!Predicate.isTagged('Edited')(outcome)) return undefined
 
   const added = outcome.schedule.anchorWarnings.filter(
     (warning) => !warningsBefore.some(({ _tag }) => _tag === warning._tag),
   )
 
-  if (added.length > 0) {
-    toast.add({
-      type: 'warning',
-      title,
-      description: added.map(anchorWarningText).join(' '),
-    })
-  }
+  return added.length === 0
+    ? undefined
+    : { title, description: added.map(anchorWarningText).join(' ') }
 }
 
-/** Answers a Stay edit once warned of the Anchors it broke. */
+/**
+ * Answers a Stay edit, warning of the Anchors it broke that weren't broken
+ * before. A broken Hard rule means the Stays shown are stale, unless
+ * `brokenRule` answers it otherwise.
+ */
 export const answerStayEdit =
-  (anchorBroken: string, warningsBefore: ReadonlyArray<AnchorWarning>) =>
-  (outcome: StayEditOutcome) => {
-    warnOfBrokenAnchors(anchorBroken, warningsBefore, outcome)
-
-    return stayEditAnswerOf(outcome)
-  }
+  (
+    anchorBroken: string,
+    warningsBefore: ReadonlyArray<AnchorWarning>,
+    brokenRule: (rule: HardRule) => SaveAnswer = staleStays,
+  ) =>
+  (outcome: StayEditOutcome) =>
+    warned(
+      answerOwn(outcome, ({ rule }) => brokenRule(rule)),
+      anchorWarningOf(anchorBroken, warningsBefore, outcome),
+    )

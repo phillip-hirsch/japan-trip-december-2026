@@ -26,10 +26,12 @@ import {
 
 const nearsTheCap = (note: string) => note.length >= noteMaxLength - 1_000
 
-const tooLong = (noun: string, maxLength: number) =>
-  SaveAnswer.Refused({
-    problem: `A ${noun} can be at most ${maxLength.toLocaleString('en')} characters.`,
-  })
+const tooLong =
+  (noun: string) =>
+  ({ maxLength }: { readonly maxLength: number }) =>
+    SaveAnswer.Refused({
+      problem: `A ${noun} can be at most ${maxLength.toLocaleString('en')} characters.`,
+    })
 
 function NoteEditor({
   labelledBy,
@@ -146,7 +148,7 @@ export function DayNote({
       run={async (value) =>
         answerOwn(
           await write({ data: { scheduleId, date, note: value } }),
-          ({ maxLength }) => tooLong('Day note', maxLength),
+          tooLong('Day note'),
         )
       }
       labelledBy={labelledBy}
@@ -177,7 +179,7 @@ export function StayNote({
       run={async (value) =>
         answerOwn(
           await write({ data: { scheduleId, stayId, note: value } }),
-          ({ maxLength }) => tooLong('Stay note', maxLength),
+          tooLong('Stay note'),
         )
       }
       labelledBy={labelledBy}
@@ -206,9 +208,7 @@ export function TripNote({
       saved={note ?? ''}
       write="tripNote"
       run={async (value) =>
-        answerOwn(await write({ data: { note: value } }), ({ maxLength }) =>
-          tooLong('Trip note', maxLength),
-        )
+        answerOwn(await write({ data: { note: value } }), tooLong('Trip note'))
       }
       labelledBy={labelledBy}
       emptyText="No Trip note yet. It stays as it is when you choose again."

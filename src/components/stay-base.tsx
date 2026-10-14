@@ -4,10 +4,7 @@ import { useId } from 'react'
 
 import { ChipChoice } from '@/components/chip-choice'
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
-import {
-  hardRuleProblem,
-  warnOfBrokenAnchors,
-} from '@/components/schedule-rules'
+import { answerStayEdit, hardRuleProblem } from '@/components/schedule-rules'
 import { StaySection } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
 import type {
@@ -15,13 +12,7 @@ import type {
   ScheduleDetail,
   ScheduleStayDetail,
 } from '@/trip/domain'
-import {
-  answerOwn,
-  keyedBy,
-  SaveAnswer,
-  SaveState,
-  useSave,
-} from '@/trip/drafts'
+import { keyedBy, SaveAnswer, SaveState, useSave } from '@/trip/drafts'
 import { placeIds } from '@/trip/catalogue-ids'
 import type { PlaceId } from '@/trip/catalogue-ids'
 import { places } from '@/trip/places'
@@ -52,13 +43,11 @@ function StayBaseForm({
         data: { scheduleId, stayId: stay.id, place },
       })
 
-      warnOfBrokenAnchors(
+      return answerStayEdit(
         'The Base change breaks an Anchor',
         schedule.anchorWarnings,
-        outcome,
-      )
-
-      return answerOwn(outcome, ({ rule }) => unknownPlace(rule))
+        unknownPlace,
+      )(outcome)
     },
   })
 

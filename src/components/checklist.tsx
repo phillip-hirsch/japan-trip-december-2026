@@ -8,7 +8,6 @@ import {
   NotSavedAlert,
   RetryOrDismiss,
   SavedStatus,
-  warnAfterRowGoes,
 } from '@/components/not-saved-alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,8 +29,9 @@ import {
   SaveState,
   useOperationSave,
   useSave,
+  warned,
 } from '@/trip/drafts'
-import type { DraftKeeping } from '@/trip/drafts'
+import type { DraftKeeping, SaveWarning } from '@/trip/drafts'
 import { reminderDateOf } from '@/trip/checklist-items'
 import { checklistTextMaxLength } from '@/trip/limits'
 import {
@@ -100,6 +100,12 @@ const verifyNoteOf = (item: ChecklistItem) =>
     Match.orElse(() => undefined),
   )
 
+const tickScheduleChanged: SaveWarning = {
+  title: 'Your Schedule changed on another device',
+  description:
+    'The tick wasn’t saved. The Checklist now shows the Schedule as it is.',
+}
+
 function ChecklistRow({
   item,
   scheduleId,
@@ -127,15 +133,12 @@ function ChecklistRow({
         data: { scheduleId, itemId: item.id, ticked },
       })
 
-      if (Predicate.isTagged('ScheduleChanged')(outcome)) {
-        warnAfterRowGoes({
-          title: 'Your Schedule changed on another device',
-          description:
-            'The tick wasn’t saved. The Checklist now shows the Schedule as it is.',
-        })
-      }
-
-      return outcome
+      return warned(
+        outcome,
+        Predicate.isTagged('ScheduleChanged')(outcome)
+          ? tickScheduleChanged
+          : undefined,
+      )
     },
   })
 

@@ -4,6 +4,7 @@ import { createElement, useEffect, useRef, useState } from 'react'
 import type { FunctionComponent } from 'react'
 
 import { ConnectionStatus, currentConnection } from '@/access/connection-status'
+import { toast } from '@/components/ui/toast'
 import { formatDay } from '@/trip/calendar'
 import type { IsoDate, PinTarget, ScheduleId } from '@/trip/domain'
 import {
@@ -195,6 +196,29 @@ export const answerOwn = <O extends { readonly _tag: string }>(
   return own(outcome as OwnOutcome<O>)
 }
 
+/**
+ * A warning shown once a save is answered, about what the field itself can't
+ * show, such as an Anchor a Stay edit broke.
+ */
+export interface SaveWarning {
+  readonly title: string
+  readonly description: string
+}
+
+class Warned extends Data.TaggedClass('Warned')<{
+  readonly reply: SaveAnswer | SharedOutcome
+  readonly warning: SaveWarning
+}> {}
+
+/** What `run` answers: an outcome or answer, perhaps with a warning. */
+export type SaveReply = SaveAnswer | SharedOutcome | Warned
+
+/** A reply the save flow shows `warning` with, once it comes. */
+export const warned = (
+  reply: SaveAnswer | SharedOutcome,
+  warning: SaveWarning | undefined,
+): SaveReply => (warning === undefined ? reply : new Warned({ reply, warning }))
+
 const answerOf = (reply: SaveAnswer | SharedOutcome): SaveAnswer =>
   Match.value(reply).pipe(
     Match.tagsExhaustive({
@@ -300,7 +324,7 @@ export const useSave = <V>({
    * Sends the value, answering the outcomes only this editor has, as
    * `answerOwn` does; throws when the request gets no answer.
    */
-  run: (value: V) => Promise<SaveAnswer | SharedOutcome>
+  run: (value: V) => Promise<SaveReply>
 }) => {
   const queryClient = useQueryClient()
   const [state, setState] = useState<SaveState<V>>(clean)
@@ -469,16 +493,23 @@ export const useSave = <V>({
     const sentTo = scheduleIdRef.current
     const sentDraftWriteId = keepDraft(sending)
     setState(SaveState.Saving({ value: sending }))
-    let answer: SaveAnswer
+    let reply: SaveReply
 
     let mayHaveLanded = false
 
     try {
-      answer = answerOf(await run(sending))
+      reply = await run(sending)
     } catch {
       mayHaveLanded = true
-      answer = SaveAnswer.Refused({ problem: unansweredProblem(drafted) })
+      reply = SaveAnswer.Refused({ problem: unansweredProblem(drafted) })
     }
+
+    if (Predicate.isTagged(reply, 'Warned')) {
+      toast.add({ type: 'warning', ...reply.warning })
+      reply = reply.reply
+    }
+
+    let answer = answerOf(reply)
 
     const shownScheduleChanged = scheduleIdRef.current !== sentTo
 
