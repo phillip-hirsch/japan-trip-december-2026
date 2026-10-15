@@ -108,7 +108,7 @@ I left these untouched: `wrangler.jsonc`, `worker-configuration.d.ts`, `tsconfig
 
 ## Behavior that changed without a hand edit
 
-`.dev.vars` no longer overrides `ACCESS_TEAM_DOMAIN` or `ACCESS_AUD`. Both are `bindings.text()`, and the plugin passes text bindings through unchanged. Dev now uses the production team domain for the token path. The `not-a-jwt` probe fails before any key fetch, so no check exercised this.
+`.dev.vars` does not override `ACCESS_TEAM_DOMAIN` or `ACCESS_AUD`. Both are `bindings.text()`, and the plugin passes text bindings through unchanged. I measured it. `cf dev` printed the live bindings in `cf-dev-vars-probe.log`. `env.ACCESS_TEAM_DOMAIN` was the production host from `cloudflare.config.ts`, truncated as `https://phillip-hirsch.cloudflareacce...`. `.dev.vars` sets `https://local-dev.cloudflareaccess.com`. The same list omitted `ACCESS_DEV_SIMULATION`. Check B is still the evidence that the secret binding is what lets a token-less request through.
 
 Local Durable Object state now lives under `.cloudflare/state`, not `.wrangler/state`.
 
@@ -120,14 +120,23 @@ There are no blockers for local dev, build, prerender, lint, types, or tests.
 - The PR 16250 change above would break the local gate path and the prerender.
 - `cf` needs the `vite` script because Vite+ ships no `vite` bin.
 
-## Wrangler leftovers
+## What still needs Wrangler
 
-No source file imports `wrangler`. `wrangler-census.txt` lists every reference.
+Ben's note for this repo is to use `cf` unless a task still needs Wrangler. This app does not use the Void SDK. Two operational tasks still name Wrangler in the current docs. I fetched those pages on 15 Oct 2026. "cf for Wrangler users" and the Wrangler reference are both dated 30 Sep 2026. The quotes are in `docs-still-needs-wrangler.txt`.
 
-- `package.json` still runs Wrangler in `deploy` (`pnpm run build && wrangler deploy`) and `cf-typegen` (`wrangler types`). It keeps `wrangler` ^4.148.0 as a devDependency.
-- `wrangler.jsonc` remains. The `cf dev` and `cf build` runs did not use it. The build output config matches `cloudflare.config.ts`, including the `ACCESS_DEV_SIMULATION` secret that `wrangler.jsonc` lacks.
-- `worker-configuration.d.ts` is still the `wrangler types` output.
-- Comments still name Wrangler in `AGENTS.md`, `README.md`, `.dev.vars.example`, `src/access/AccessGate.ts`, and `src/server.ts`.
+Live logs still need `wrangler tail`. The docs say `cf` cannot stream live logs, and to run `npx wrangler tail <WORKER_NAME>`. This install also has `cf o11y telemetry live-tail`. Its help says it prepares a websocket server (`cf-command-help.txt`). That is not a `wrangler tail` session. I did not run either command against the account.
+
+A single secret is the other gap, and the docs and this CLI disagree. The docs say `cf` cannot set a single secret, and to run `npx wrangler secret put`, or to pass `--secrets-file` to `cf deploy` or `cf workers versions create`. This install also has `cf workers secrets update <name> --text`. Its help says it adds a secret by creating a new version. I did not run it. Wrangler stays for that task until someone runs the new command on purpose.
+
+Wrangler does not read `cloudflare.config.ts`. The same docs say to keep the Wrangler file while those commands are still used. `wrangler.jsonc` stays for that reason.
+
+These tasks no longer need Wrangler on this machine.
+
+- `cf workers types` exits 0 and writes `.cloudflare/types/index.d.ts` (`cf-workers-types.log`). The header says `@cloudflare/config` generated it from `cloudflare.config.ts`. The `cf-typegen` script still calls `wrangler types`, and the committed `worker-configuration.d.ts` is unchanged.
+- `cf dev` and `cf build` already replace local Wrangler for this app.
+- `cf deploy` is the documented replacement for `wrangler deploy`. It was not run.
+
+`package.json` does not call `wrangler tail` or `wrangler secret put`. The `deploy` script still calls `wrangler deploy`. No source file imports `wrangler`. `wrangler-census.txt` lists every reference, including comments in `AGENTS.md`, `README.md`, `.dev.vars.example`, `src/access/AccessGate.ts`, and `src/server.ts`. The devDependency `wrangler` ^4.148.0 remains.
 
 ## Environment note
 
