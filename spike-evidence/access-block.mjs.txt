@@ -1,0 +1,11 @@
+import { readFileSync } from 'node:fs'
+const block = (file) => {
+  const text = readFileSync(file, 'utf8')
+  const match = text.match(/access: \{[\s\S]*?\n\s*env:/)
+  return match[0].replace(/\s+/g, '').replaceAll("'", '"').replace(/,}/g, '}')
+}
+const before = block(process.argv[2])
+const after = block(process.argv[3])
+console.log('migrate output access block (normalized):', before)
+console.log('final file access block (normalized):    ', after)
+console.log(before === after ? 'IDENTICAL after normalizing whitespace, quotes and trailing commas' : 'DIFFERENT')

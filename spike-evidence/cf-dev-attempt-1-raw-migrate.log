@@ -1,0 +1,6 @@
+│  Delegating to pnpm vite dev
+Error: ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL
+
+  × Command "vite" not found
+
+exit=1

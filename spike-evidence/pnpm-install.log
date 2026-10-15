@@ -1,0 +1,60 @@
+✓ Lockfile passes supply-chain policies (verified 1m ago)
+Lockfile is up to date, resolution step is skipped
+Packages are hard linked from the content-addressable store to the virtual store.
+  Content-addressable store is at: /home/ubuntu/.local/share/pnpm/store/v11
+  Virtual store is at:             node_modules/.pnpm
+Packages: +561
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 561, reused 561, downloaded 0, added 561, done
+Agent skills awaiting approval: @tanstack/devtools-vite, @tanstack/react-start.
+Run "pnpm approve" to review them.
+. prepare$ vp config && effect-tsgo patch --typescript --oxlint && node -e "fs.existsSync('.dev.vars') || fs.copyFileSync('.dev.vars.example', '.dev.vars')"
+. prepare: core.hooksPath is already set to "/home/ubuntu/.cursor/agent-hooks/L3dvcmtzcGFjZQ", skipping
+. prepare: Patched typescript at /tmp/spike-cf/node_modules/.pnpm/@typescript+typescript-linux-x64@7.0.2/node_modules/@typescript/typescript-linux-x64/lib/tsc
+. prepare: Patched oxlint at /tmp/spike-cf/node_modules/.pnpm/@oxlint+binding-linux-x64-gnu@1.87.0/node_modules/@oxlint/binding-linux-x64-gnu/oxlint.linux-x64-gnu.node
+. prepare: Patched oxlint-dts at /tmp/spike-cf/node_modules/.pnpm/oxlint@1.87.0_oxlint-tsgolint@7.0.2003_vite-plus@1.1.0_@types+node@24.19.1_@vitest+ui@5_b0be087a2dccc5f86c5bc4a9a13abbbf/node_modules/oxlint/dist/index.d.ts
+. prepare: Patched oxlint-tsgolint at /tmp/spike-cf/node_modules/.pnpm/@oxlint-tsgolint+linux-x64@7.0.2003/node_modules/@oxlint-tsgolint/linux-x64/tsgolint
+. prepare: Done
+
+dependencies:
++ @base-ui/react 1.8.0
++ @effect/sql-sqlite-do 4.0.1
++ @tailwindcss/vite 4.3.3
++ @tanstack/react-devtools 0.10.13
++ @tanstack/react-query 5.104.1
++ @tanstack/react-router 1.170.41
++ @tanstack/react-router-devtools 1.167.2
++ @tanstack/react-router-ssr-query 1.167.3
++ @tanstack/react-start 1.168.60
++ class-variance-authority 0.7.1
++ cn 0.4.0
++ effect 4.0.1
++ jose 6.2.12
++ lucide-react 1.52.0
++ maplibre-gl 6.12.0
++ react 19.3.0
++ react-dom 19.3.0
++ shadcn 4.21.3
++ tailwindcss 4.3.3
++ tw-animate-css 1.4.0
+
+devDependencies:
++ @cloudflare/vite-plugin 1.63.0
++ @effect/sql-sqlite-node 4.0.1
++ @effect/tsgo 0.49.0
++ @effect/vitest 4.0.1
++ @tanstack/devtools-vite 0.8.5
++ @tanstack/router-cli 1.167.40
++ @types/geojson 7946.0.16
++ @types/node 24.19.1
++ @types/react 19.3.0
++ @types/react-dom 19.3.0
++ @vitejs/plugin-react 6.1.2
++ happy-dom 21.0.1
++ oxc-transform-react 0.153.0
++ typescript 7.0.2
++ vite <- @voidzero-dev/vite-plus-core 1.1.0
++ vite-plus 1.1.0
++ wrangler 4.148.0
+
+Done in 1.2s using pnpm v12.14.0

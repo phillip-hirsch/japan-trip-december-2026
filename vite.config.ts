@@ -110,6 +110,7 @@ const config = defineConfig({
     options: { typeAware: true, typeCheck: true },
   },
   resolve: { tsconfigPaths: true },
+  server: { port: 3000 },
   // MapLibre's docs ask TanStack Start apps to bundle it, avoiding CJS
   // resolution issues. The map itself never renders on the server.
   ssr: { noExternal: ['maplibre-gl'] },

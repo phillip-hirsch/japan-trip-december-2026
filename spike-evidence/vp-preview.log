@@ -1,0 +1,10 @@
+$ vp preview
+  ➜  Local:   http://localhost:4173/
+  ➜  Network: use --host to expose
+  ➜  Debug:   http://localhost:4173/__debug
+✨ Parsed 1 valid header rule.
+GET / 200 OK (96ms)
+[22:00:40.823] WARN (#10): Access gate refused: token: JWSInvalid: Invalid Compact JWS
+GET / 403 Forbidden (3ms)
+GET /_headers 404 Not Found (10ms)
+GET /options 200 OK (2ms)

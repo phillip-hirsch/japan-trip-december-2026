@@ -1,0 +1,3 @@
+$ tsc --noEmit -p tsconfig.json ⊘ cache disabled
+
+exit=0

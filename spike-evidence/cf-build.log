@@ -1,0 +1,160 @@
+├  Build
+│  Delegating to pnpm vite build
+$ vp build
+transforming...
+
+[@tanstack/devtools-vite] Removed devtools code from: /src/routes/__root.tsx
+
+✓ 2660 modules transformed.
+rendering chunks...
+computing gzip size...
+.cloudflare/output/v0/workers/default/assets/assets/shippori-mincho-600-display-DtFcWF-2.woff2     21.73 kB
+.cloudflare/output/v0/workers/default/assets/assets/maplibre-gl-worker-MfjJLauD.js                510.70 kB
+.cloudflare/output/v0/workers/default/assets/assets/trip-map-view-B8-mEBLf.css                     82.96 kB │ gzip:  10.72 kB
+.cloudflare/output/v0/workers/default/assets/assets/styles-D8hCg4qP.css                            89.31 kB │ gzip:  15.70 kB
+.cloudflare/output/v0/workers/default/assets/assets/minus-OwN-qIdN.js                               0.15 kB │ gzip:   0.15 kB
+.cloudflare/output/v0/workers/default/assets/assets/check-C6Hwx62Z.js                               0.16 kB │ gzip:   0.16 kB
+.cloudflare/output/v0/workers/default/assets/assets/plus-CS1id3el.js                                0.19 kB │ gzip:   0.17 kB
+.cloudflare/output/v0/workers/default/assets/assets/params-DfMKiybw.js                              0.26 kB │ gzip:   0.21 kB
+.cloudflare/output/v0/workers/default/assets/assets/trash-Co2RlmKY.js                               0.38 kB │ gzip:   0.25 kB
+.cloudflare/output/v0/workers/default/assets/assets/useNavigate-NCBOsYL6.js                         0.38 kB │ gzip:   0.27 kB
+.cloudflare/output/v0/workers/default/assets/assets/optional-badge-DbTCkOg6.js                      0.46 kB │ gzip:   0.35 kB
+.cloudflare/output/v0/workers/default/assets/assets/itinerary-map-canvas-D6fKWtpu.js                0.53 kB │ gzip:   0.34 kB
+.cloudflare/output/v0/workers/default/assets/assets/place-name-D6j3jtVB.js                          0.57 kB │ gzip:   0.38 kB
+.cloudflare/output/v0/workers/default/assets/assets/button-link-fm1vL97T.js                         0.57 kB │ gzip:   0.38 kB
+.cloudflare/output/v0/workers/default/assets/assets/_date-DD4InUzF.js                               0.58 kB │ gzip:   0.39 kB
+.cloudflare/output/v0/workers/default/assets/assets/no-schedule-DEj56iY-.js                         1.02 kB │ gzip:   0.56 kB
+.cloudflare/output/v0/workers/default/assets/assets/verify-claims-BXjQ5de-.js                       1.02 kB │ gzip:   0.59 kB
+.cloudflare/output/v0/workers/default/assets/assets/stay-list-B0AIYCLc.js                           1.65 kB │ gzip:   0.84 kB
+.cloudflare/output/v0/workers/default/assets/assets/badge-BoxDYl7O.js                               1.74 kB │ gzip:   0.86 kB
+.cloudflare/output/v0/workers/default/assets/assets/pin-map-canvas-cjkYCQUF.js                      1.78 kB │ gzip:   0.98 kB
+.cloudflare/output/v0/workers/default/assets/assets/preload-helper-CUET1yOn.js                      1.83 kB │ gzip:   1.00 kB
+.cloudflare/output/v0/workers/default/assets/assets/map-PTTNyG0P.js                                 2.02 kB │ gzip:   1.05 kB
+.cloudflare/output/v0/workers/default/assets/assets/lazy-map-Bperv-Ks.js                            2.27 kB │ gzip:   1.20 kB
+.cloudflare/output/v0/workers/default/assets/assets/itinerary-map-layers-BcIxLwgV.js                2.34 kB │ gzip:   1.16 kB
+.cloudflare/output/v0/workers/default/assets/assets/schedule-C7OqMgYk.js                            2.61 kB │ gzip:   1.25 kB
+.cloudflare/output/v0/workers/default/assets/assets/comparison-map-canvas-BXCew6gk.js               2.71 kB │ gzip:   1.42 kB
+.cloudflare/output/v0/workers/default/assets/assets/lazyRouteComponent-C2XYwsbo.js                  4.05 kB │ gzip:   1.48 kB
+.cloudflare/output/v0/workers/default/assets/assets/itinerary-summary-BCoXbHLp.js                   4.45 kB │ gzip:   1.79 kB
+.cloudflare/output/v0/workers/default/assets/assets/_scheduleId-1Fs9q08d.js                         4.65 kB │ gzip:   2.05 kB
+.cloudflare/output/v0/workers/default/assets/assets/Predicate-DSXmaNgx.js                           4.83 kB │ gzip:   1.71 kB
+.cloudflare/output/v0/workers/default/assets/assets/schedule-map-canvas-CAtEAVEK.js                 5.01 kB │ gzip:   2.21 kB
+.cloudflare/output/v0/workers/default/assets/assets/routes-BwWOtwR1.js                              6.20 kB │ gzip:   2.38 kB
+.cloudflare/output/v0/workers/default/assets/assets/day-details-tfhKmWFl.js                         6.24 kB │ gzip:   2.59 kB
+.cloudflare/output/v0/workers/default/assets/assets/day-timeline-DGz82hZN.js                        6.24 kB │ gzip:   2.84 kB
+.cloudflare/output/v0/workers/default/assets/assets/hotel-details-DfTIqbI4.js                       7.54 kB │ gzip:   3.56 kB
+.cloudflare/output/v0/workers/default/assets/assets/drafts-k58HxPaj.js                              8.00 kB │ gzip:   3.41 kB
+.cloudflare/output/v0/workers/default/assets/assets/_optionNumber-CpnCro9W.js                       8.45 kB │ gzip:   3.24 kB
+.cloudflare/output/v0/workers/default/assets/assets/options-BPGrI84h.js                            10.06 kB │ gzip:   3.56 kB
+.cloudflare/output/v0/workers/default/assets/assets/replace-schedule-dialog-D73H4onj.js            10.35 kB │ gzip:   3.92 kB
+.cloudflare/output/v0/workers/default/assets/assets/item-DqZHgcg5.js                               13.71 kB │ gzip:   5.13 kB
+.cloudflare/output/v0/workers/default/assets/assets/dist-D_MHrL9n.js                               16.74 kB │ gzip:   7.04 kB
+.cloudflare/output/v0/workers/default/assets/assets/inertValue-D-L7GtJi.js                         17.07 kB │ gzip:   6.75 kB
+.cloudflare/output/v0/workers/default/assets/assets/checklist-DBP_wmFs.js                          18.40 kB │ gzip:   7.95 kB
+.cloudflare/output/v0/workers/default/assets/assets/places-COKrDjLw.js                             19.93 kB │ gzip:   8.28 kB
+.cloudflare/output/v0/workers/default/assets/assets/schedule-sections-mS05RuUK.js                  23.18 kB │ gzip:   8.34 kB
+.cloudflare/output/v0/workers/default/assets/assets/schedule-day-C5t5Nx1J.js                       24.32 kB │ gzip:   9.43 kB
+.cloudflare/output/v0/workers/default/assets/assets/queries-Cx-qa7dp.js                            33.16 kB │ gzip:  11.51 kB
+.cloudflare/output/v0/workers/default/assets/assets/createLucideIcon-uPos5Dpk.js                   37.88 kB │ gzip:  15.35 kB
+.cloudflare/output/v0/workers/default/assets/assets/trip.functions-C_-0ppVC.js                     42.80 kB │ gzip:  14.85 kB
+.cloudflare/output/v0/workers/default/assets/assets/index-x-kXnmu3.js                             441.71 kB │ gzip: 141.84 kB
+.cloudflare/output/v0/workers/default/assets/assets/trip-map-view-kICh70d4.js                   1,066.29 kB │ gzip: 290.25 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.13s
+transforming...
+
+[@tanstack/devtools-vite] Removed devtools code from: /src/routes/__root.tsx
+
+✓ 2791 modules transformed.
+rendering chunks...
+computing gzip size...
+.cloudflare/output/v0/workers/default/bundle/.vite/manifest.json                                        18.00 kB │ gzip:   2.24 kB
+.cloudflare/output/v0/workers/default/bundle/assets/shippori-mincho-600-display-DtFcWF-2.woff2          21.73 kB
+.cloudflare/output/v0/workers/default/bundle/assets/styles-D8hCg4qP.css                                 89.31 kB │ gzip:  15.70 kB
+.cloudflare/output/v0/workers/default/bundle/assets/limits-BzEBXP4M.js                                   0.29 kB │ gzip:   0.22 kB │ map:     0.49 kB
+.cloudflare/output/v0/workers/default/bundle/assets/empty-plugin-adapters-D_0twvAa.js                    0.34 kB │ gzip:   0.21 kB │ map:     0.56 kB
+.cloudflare/output/v0/workers/default/bundle/assets/checklist-items-l5Y6mPhh.js                          0.38 kB │ gzip:   0.25 kB │ map:     0.68 kB
+.cloudflare/output/v0/workers/default/bundle/assets/params-D7ZwWVb1.js                                   0.59 kB │ gzip:   0.33 kB │ map:     0.89 kB
+.cloudflare/output/v0/workers/default/bundle/assets/utils-BLHWO-Nn.js                                    0.61 kB │ gzip:   0.39 kB │ map:     0.84 kB
+.cloudflare/output/v0/workers/default/bundle/assets/check-BtFQl2Jy.js                                    0.62 kB │ gzip:   0.41 kB │ map:     0.91 kB
+.cloudflare/output/v0/workers/default/bundle/assets/plus-DoWmaE_5.js                                     0.65 kB │ gzip:   0.42 kB │ map:     1.01 kB
+.cloudflare/output/v0/workers/default/bundle/assets/_date-CwyX8ee8.js                                    0.85 kB │ gzip:   0.46 kB │ map:     1.90 kB
+.cloudflare/output/v0/workers/default/bundle/assets/trash-DwLFH3jk.js                                    0.92 kB │ gzip:   0.50 kB │ map:     1.43 kB
+.cloudflare/output/v0/workers/default/bundle/assets/matchContext-CHVZDWRS.js                             0.98 kB │ gzip:   0.45 kB │ map:     1.37 kB
+.cloudflare/output/v0/workers/default/bundle/assets/not-found-DhdZhR3a.js                                0.99 kB │ gzip:   0.54 kB │ map:     1.31 kB
+.cloudflare/output/v0/workers/default/bundle/assets/start-B7UnWwQV.js                                    1.31 kB │ gzip:   0.60 kB │ map:     2.37 kB
+.cloudflare/output/v0/workers/default/bundle/assets/no-schedule-AjKaiitM.js                              1.36 kB │ gzip:   0.61 kB │ map:     1.40 kB
+.cloudflare/output/v0/workers/default/bundle/assets/map-455cwYwq.js                                      1.37 kB │ gzip:   0.62 kB │ map:     2.48 kB
+.cloudflare/output/v0/workers/default/bundle/assets/place-name-DUDC2h_s.js                               1.61 kB │ gzip:   0.80 kB │ map:     2.13 kB
+.cloudflare/output/v0/workers/default/bundle/assets/badge-Csw6ApMP.js                                    1.67 kB │ gzip:   0.78 kB │ map:     2.48 kB
+.cloudflare/output/v0/workers/default/bundle/assets/useNavigate-CFtvXhtq.js                              1.94 kB │ gzip:   0.91 kB │ map:     2.46 kB
+.cloudflare/output/v0/workers/default/bundle/assets/schedule-Dq_0mBrc.js                                 3.01 kB │ gzip:   1.05 kB │ map:     4.02 kB
+.cloudflare/output/v0/workers/default/bundle/assets/lazy-map-hwYXr50c.js                                 3.10 kB │ gzip:   1.28 kB │ map:     4.45 kB
+.cloudflare/output/v0/workers/default/bundle/assets/createCsrfMiddleware-BVdjmFDE.js                     3.36 kB │ gzip:   1.07 kB │ map:     7.21 kB
+.cloudflare/output/v0/workers/default/bundle/assets/_tanstack-start-manifest_v-C7MiQcKy.js               3.47 kB │ gzip:   1.00 kB
+.cloudflare/output/v0/workers/default/bundle/assets/places-C0QwrBGm.js                                   4.53 kB │ gzip:   1.79 kB │ map:     8.55 kB
+.cloudflare/output/v0/workers/default/bundle/assets/server-fn-fetch-CuXaCF3y.js                          4.93 kB │ gzip:   2.01 kB │ map:     8.38 kB
+.cloudflare/output/v0/workers/default/bundle/assets/_scheduleId-DvGhsvT2.js                              5.07 kB │ gzip:   1.64 kB │ map:     8.13 kB
+.cloudflare/output/v0/workers/default/bundle/assets/item-BYU3-vpC.js                                     5.40 kB │ gzip:   2.00 kB │ map:     9.31 kB
+.cloudflare/output/v0/workers/default/bundle/assets/itinerary-summary-BD0O5G8Z.js                        5.61 kB │ gzip:   1.77 kB │ map:     7.62 kB
+.cloudflare/output/v0/workers/default/bundle/assets/react-dom-bLVP707V.js                                7.22 kB │ gzip:   2.08 kB │ map:    13.32 kB
+.cloudflare/output/v0/workers/default/bundle/assets/routes-B9RAPorK.js                                   7.56 kB │ gzip:   2.08 kB │ map:    11.28 kB
+.cloudflare/output/v0/workers/default/bundle/assets/stay-list-BVDS0fio.js                                9.29 kB │ gzip:   2.77 kB │ map:    14.58 kB
+.cloudflare/output/v0/workers/default/bundle/assets/_optionNumber-C8cxzSVu.js                            9.53 kB │ gzip:   2.56 kB │ map:    14.78 kB
+.cloudflare/output/v0/workers/default/bundle/assets/verify-claims-CuKKlwAD.js                           10.97 kB │ gzip:   2.82 kB │ map:    18.09 kB
+.cloudflare/output/v0/workers/default/bundle/assets/options-CBzGPoDC.js                                 11.62 kB │ gzip:   2.85 kB │ map:    16.77 kB
+.cloudflare/output/v0/workers/default/bundle/assets/Match-B4DEOgxM.js                                   12.81 kB │ gzip:   3.94 kB │ map:    60.26 kB
+.cloudflare/output/v0/workers/default/bundle/assets/lazyRouteComponent-Bcd_7B3b.js                      13.82 kB │ gzip:   3.38 kB │ map:    30.45 kB
+.cloudflare/output/v0/workers/default/bundle/assets/drafts-CXODP1KE.js                                  15.33 kB │ gzip:   4.83 kB │ map:    29.20 kB
+.cloudflare/output/v0/workers/default/bundle/assets/replace-schedule-dialog-CWWHIULq.js                 17.62 kB │ gzip:   5.00 kB │ map:    32.82 kB
+.cloudflare/output/v0/workers/default/bundle/assets/react-BtYayFmX.js                                   17.97 kB │ gzip:   5.00 kB │ map:    28.86 kB
+.cloudflare/output/v0/workers/default/bundle/assets/trip.functions-TE3-waB6.js                          18.98 kB │ gzip:   4.38 kB │ map:    25.12 kB
+.cloudflare/output/v0/workers/default/bundle/assets/notes-Dp72GvTz.js                                   29.11 kB │ gzip:   7.42 kB │ map:    50.12 kB
+.cloudflare/output/v0/workers/default/bundle/assets/__23tanstack-start-server-fn-resolver-B8zNvVaF.js   29.73 kB │ gzip:   9.77 kB │ map:    40.58 kB
+.cloudflare/output/v0/workers/default/bundle/assets/schedule-day-BMer0rbo.js                            30.06 kB │ gzip:   7.49 kB │ map:    49.12 kB
+.cloudflare/output/v0/workers/default/bundle/assets/checklist-FV-HxAc9.js                               31.67 kB │ gzip:   8.81 kB │ map:    56.59 kB
+.cloudflare/output/v0/workers/default/bundle/assets/schedule-sections-DBSk8iYr.js                       32.41 kB │ gzip:   7.63 kB │ map:    55.52 kB
+.cloudflare/output/v0/workers/default/bundle/assets/inertValue-B7WhX--J.js                              53.17 kB │ gzip:  14.23 kB │ map:   109.86 kB
+.cloudflare/output/v0/workers/default/bundle/assets/Data-BedyrrJ0.js                                    78.80 kB │ gzip:  20.54 kB │ map:   154.75 kB
+.cloudflare/output/v0/workers/default/bundle/assets/trip.functions-DPIT7kb3.js                          90.80 kB │ gzip:  26.95 kB │ map:   166.68 kB
+.cloudflare/output/v0/workers/default/bundle/assets/queries-CFFAks3H.js                                100.53 kB │ gzip:  26.42 kB │ map:   167.48 kB
+.cloudflare/output/v0/workers/default/bundle/assets/manifest-BfUwqSlh.js                               109.86 kB │ gzip:  26.75 kB │ map:   248.96 kB
+.cloudflare/output/v0/workers/default/bundle/assets/runtime.server-CUskUVOr.js                         240.90 kB │ gzip:  59.27 kB │ map:   926.72 kB
+.cloudflare/output/v0/workers/default/bundle/assets/router-BzqH2AwY.js                                 420.89 kB │ gzip:  93.83 kB │ map:   883.20 kB
+.cloudflare/output/v0/workers/default/bundle/assets/domain-BnDQgNzF.js                                 521.65 kB │ gzip: 123.06 kB │ map: 1,993.59 kB
+.cloudflare/output/v0/workers/default/bundle/index.js                                                  845.07 kB │ gzip: 181.63 kB │ map: 1,698.62 kB
+
+[plugin vite:css-post] [33m[SOURCEMAP_BROKEN] [0mSourcemap is likely to be incorrect: a plugin (vite:css-post) was used to transform files, but didn't generate a sourcemap for the transformation. Consult the plugin documentation for help: https://rolldown.rs/guide/troubleshooting#warning-sourcemap-is-likely-to-be-incorrect
+
+✓ built in 770ms
+[prerender] Prerendering pages...
+[prerender] Concurrency: 4
+[prerender] Crawling: /options
+[prerender] Crawling: /options/1
+[prerender] Crawling: /options/2
+[prerender] Crawling: /options/3
+✨ Parsed 1 valid header rule.
+GET /options/2/ 307 Temporary Redirect (27ms)
+GET /options/3/ 307 Temporary Redirect (32ms)
+GET /options/ 307 Temporary Redirect (32ms)
+GET /options/1/ 307 Temporary Redirect (32ms)
+GET /options/3 200 OK (41ms)
+[prerender] Crawling: /options/4
+GET /options/1 200 OK (28ms)
+GET /options/2 200 OK (28ms)
+GET /options 200 OK (29ms)
+GET /options/4/ 307 Temporary Redirect (3ms)
+GET /options/4 200 OK (11ms)
+[prerender] Prerendered 5 pages:
+[prerender] - /options/3
+[prerender] - /options/2
+[prerender] - /options
+[prerender] - /options/1
+[prerender] - /options/4
+◆  Build complete
+exit=0

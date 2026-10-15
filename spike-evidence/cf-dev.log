@@ -1,0 +1,9 @@
+│  Delegating to pnpm vite dev
+$ vp dev
+
+  VITE+ v1.1.0  
+
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: use --host to expose
+  ➜  Debug:   http://localhost:3000/__debug
+[21:56:23.411] WARN (#10): Access gate refused: token: JWSInvalid: Invalid Compact JWS

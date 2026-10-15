@@ -20,3 +20,5 @@ peerDependencyRules:
     vite: '*'
     vite-plus: '*'
     '@vitejs/plugin-react>oxc-transform-react': '*'
+minimumReleaseAgeExclude:
+  - '@cloudflare/vite-plugin@2.0.0-beta.v.0'

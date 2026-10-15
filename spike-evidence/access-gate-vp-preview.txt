@@ -1,0 +1,52 @@
+URL http://localhost:4173
+
+## GET / without Cf-Access-Jwt-Assertion (follows at most one redirect)
+HTTP/1.1 200 OK
+Vary: Origin
+content-type: text/html; charset=utf-8
+transfer-encoding: chunked
+Date: Thu, 15 Oct 2026 22:00:40 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+## first 200 body bytes
+<!DOCTYPE html><html lang="en" class="dark" style="--ink:#0b1015"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/><link rel="style
+
+## GET / with Cf-Access-Jwt-Assertion: not-a-jwt
+HTTP/1.1 403 Forbidden
+Vary: Origin
+cache-control: no-store
+content-length: 9
+content-type: text/plain;charset=UTF-8
+Date: Thu, 15 Oct 2026 22:00:40 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+## body
+Forbidden
+
+## GET /_headers without Cf-Access-Jwt-Assertion
+HTTP/1.1 404 Not Found
+Vary: Origin
+content-type: text/html; charset=utf-8
+transfer-encoding: chunked
+Date: Thu, 15 Oct 2026 22:00:40 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+## first 200 body bytes
+<!DOCTYPE html><html lang="en" class="dark" style="--ink:#0b1015"><head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/><link rel="style
+
+## GET /options (prerendered HTML, served by the assets Worker)
+HTTP/1.1 200 OK
+Vary: Origin
+cache-control: public, max-age=0, must-revalidate
+cf-cache-status: HIT
+content-length: 58510
+content-type: text/html; charset=utf-8
+etag: "9bdf5d5dcc398df5737065a7201d7a34"
+Date: Thu, 15 Oct 2026 22:00:40 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+
+<!DOCTYPE html><html lang="en" class="dark" style="--ink:#0b1015"><head><meta charSet="utf-8"/><meta name="viewport" con

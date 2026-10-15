@@ -1,0 +1,55 @@
+? Verifying lockfile against supply-chain policies (821 entries)...
+✓ Lockfile passes supply-chain policies (821 entries in 916ms)
+Lockfile is up to date, resolution step is skipped
+Already up to date
+Agent skills awaiting approval: @tanstack/devtools-vite, @tanstack/react-start.
+Run "pnpm approve" to review them.
+. prepare$ vp config && effect-tsgo patch --typescript --oxlint && node -e "fs.existsSync('.dev.vars') || fs.copyFileSync('.dev.vars.example', '.dev.vars')"
+. prepare: core.hooksPath is already set to "/home/ubuntu/.cursor/agent-hooks/L3dvcmtzcGFjZQ", skipping
+. prepare: typescript skipped because its hash matches the replacement.
+. prepare: oxlint skipped because its hash matches the replacement.
+. prepare: oxlint-dts skipped because its hash matches the replacement.
+. prepare: oxlint-tsgolint skipped because its hash matches the replacement.
+. prepare: Done
+Done in 1.6s using pnpm v12.14.0
+=== STOP: AGENT COMMAND DISCOVERY ===
+AGENTS: Do not explore commands by chaining nested --help calls.
+Your first port of call and the best way to discover commands is:
+AGENTS: Keep cf cli search and cf docs search queries anonymous; describe the action and resource type only.
+Never include names, email addresses, domains, account or resource IDs, tokens, or other identifying values.
+  cf cli search "<describe the task you want to accomplish>"
+It returns five compact JSON matches with short descriptions. Pick the best match instead of repeating similar searches.
+Run `<discovered command> --help` for detailed command help.
+For API request details, replace the result's leading `cf` with `cf schema`.
+For Cloudflare documentation, guides, and examples, use cf docs search "<question>".
+It returns ranked JSON results. Fetch a result's URL with Accept: text/markdown to read the full page.
+=== END AGENT COMMAND DISCOVERY ===
+cf migrate [path]
+
+Migrate a Wrangler project to cf
+
+Positionals
+  path  Path to a Wrangler configuration file                           [string]
+
+Global flags
+  -q, --quiet       Suppress non-essential output     [boolean] [default: false]
+  -z, --zone        Zone ID or domain name (overrides CLOUDFLARE_ZONE_ID)
+                                                                        [string]
+      --profile     Use a specific auth profile                         [string]
+  -m, --mode        Mode used to evaluate project configuration         [string]
+      --local       Use local resource simulations    [boolean] [default: false]
+      --persist-to  Directory holding local persisted state (default:
+                    ~/.config/cloudflare/state)                         [string]
+  -h, --help        Show help                                          [boolean]
+  -v, --version     Show version number                                [boolean]
+
+Options
+      --dry-run  Show the files that would change without writing them
+                                                      [boolean] [default: false]
+      --bundler  Bundler to use in the migrated project (defaults to vite when
+                 @cloudflare/vite-plugin is declared, otherwise wrangler)
+                                                   [choices: "vite", "wrangler"]
+      --force    Run even if the Git worktree is not clean
+                                                      [boolean] [default: false]
+      --install  Install cf as a project dependency (use --no-install to skip)
+                                                       [boolean] [default: true]
