@@ -1,7 +1,7 @@
 {
-  // Dev and build read cloudflare.config.ts (ADR 0005). This file stays for
-  // `wrangler tail`, `wrangler secret put`, `wrangler deploy`, and
-  // `wrangler types`. Keep it in step with cloudflare.config.ts.
+  // Dev, build, and deploy read cloudflare.config.ts (ADR 0005). This file
+  // stays for `wrangler tail`, `wrangler secret put`, and `wrangler types`.
+  // Keep it in step with cloudflare.config.ts.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "japan-trip-december-2026",
   "compatibility_date": "2025-09-02",

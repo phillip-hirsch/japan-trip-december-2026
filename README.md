@@ -18,7 +18,7 @@ Four phases, in order. Spec: [issue #1](https://github.com/phillip-hirsch/japan-
 
 - [TanStack Start](https://tanstack.com/start) and React 19. Routes in `src/routes`.
 - [Tailwind CSS](https://tailwindcss.com/) 4, dark only.
-- [Cloudflare Workers](https://developers.cloudflare.com/workers/). `cf dev` and `cf build` read `cloudflare.config.ts`. Wrangler stays for deploy, live logs, and single secrets ([ADR 0005](docs/adr/0005-use-cf-cli-for-dev-and-build.md)). Entry is `src/server.ts`.
+- [Cloudflare Workers](https://developers.cloudflare.com/workers/). `cf dev`, `cf build`, and `cf deploy --prebuilt` read `cloudflare.config.ts`. Wrangler stays for live logs, single secrets, and types ([ADR 0005](docs/adr/0005-use-cf-cli-for-dev-and-build.md)). Entry is `src/server.ts`.
 - [MapLibre GL](https://maplibre.org/) with [OpenFreeMap](https://openfreemap.org/) dark tiles. The MapLibre worker is bundled.
 - [Effect](https://effect.website/) 4 for the Trip service and the Access gate. Tests use `@effect/vitest`.
 - [Vite+](https://viteplus.dev/) (`vp`).
@@ -46,7 +46,7 @@ vp test            # tests under src/
 
 ## Deploy
 
-`vp run deploy` runs `cf build`, then `wrangler deploy`, to https://japan-trip-december-2026.phillip-b52.workers.dev, the app's stable address. The Worker name is `japan-trip-december-2026`. `cf deploy` is unverified, so the deploy script still calls Wrangler. You need `wrangler login`. Live logs are `wrangler tail`. A single secret is `wrangler secret put`.
+`vp run deploy` runs `cf build`, then `cf deploy --prebuilt --mode production`, to https://japan-trip-december-2026.phillip-b52.workers.dev, the app's stable address. The Worker name is `japan-trip-december-2026`. That publishes the Build Output in `.cloudflare/output/v0`, including the prerendered pages and the TripStore SQLite export. You need `cf auth login`. A dry run of the deploy command uploads nothing. A live deploy has not been run. Live logs are `wrangler tail`. A single secret is `wrangler secret put`. Types are `wrangler types`.
 
 Sign-in is Cloudflare Access, an email one-time PIN for one address. `src/server.ts` checks the assertion. Access is Worker-level: the team is `phillip-hirsch.cloudflareaccess.com`, the policy allows only phillip@350home.com, and the application and global sessions last one month. `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_ALLOWED_EMAIL` are text bindings in `cloudflare.config.ts` and the same values in `wrangler.jsonc`, not secrets. `ACCESS_AUD` is the Access application's AUD tag. If the application is ever recreated, update it in both files, or the gate refuses every request ([#14](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/14), [ADR 0002](docs/adr/0002-cloudflare-access-instead-of-in-app-login.md)). Shortening a session also ends existing logins older than the new duration, and lengthening it again doesn't bring them back, so redo the [pre-trip routine](docs/pre-trip-routine.md) after any session change ([#22](https://github.com/phillip-hirsch/japan-trip-december-2026/issues/22)).
 
