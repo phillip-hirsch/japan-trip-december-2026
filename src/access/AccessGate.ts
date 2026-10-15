@@ -67,7 +67,7 @@ const isTokenKeyMismatch = (cause: unknown) =>
  * - The `Cf-Access-Jwt-Assertion` token must be signed by a key in the team's
  *   key set (RS256 only), issued by the team domain for this application's
  *   AUD tag, unexpired, and carry the allowed email.
- * - Locally, Wrangler's Access dev simulation sends no token but sets
+ * - Locally, the Access dev simulation (`worker.access.dev`) sends no token but sets
  *   `ctx.access` instead. With ACCESS_DEV_SIMULATION on (only in .dev.vars),
  *   a request without the header may use it, with the same AUD and email
  *   checks. Production never turns it on, so there a request without the

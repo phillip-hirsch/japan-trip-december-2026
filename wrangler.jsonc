@@ -1,4 +1,7 @@
 {
+  // Dev and build read cloudflare.config.ts (ADR 0005). This file stays for
+  // `wrangler tail`, `wrangler secret put`, `wrangler deploy`, and
+  // `wrangler types`. Keep it in step with cloudflare.config.ts.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "japan-trip-december-2026",
   "compatibility_date": "2025-09-02",
@@ -20,9 +23,9 @@
     "ACCESS_AUD": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16",
     "ACCESS_ALLOWED_EMAIL": "phillip@350home.com",
   },
-  // Wrangler's Access dev simulation: ctx.access for local requests, with the
-  // same AUD as ACCESS_AUD in .dev.vars. The gate reads it only when
-  // .dev.vars sets ACCESS_DEV_SIMULATION, which production never does.
+  // Matches worker.access.dev in cloudflare.config.ts. Wrangler reads this
+  // file; cf dev reads cloudflare.config.ts. The gate uses ctx.access only
+  // when .dev.vars sets ACCESS_DEV_SIMULATION, which production never does.
   "access": {
     "dev": {
       "aud": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16",

@@ -1,5 +1,0 @@
-.cloudflare/output/v0/workers/default/assets/options/1.html bytes=121955 emails=0 gate_refusal_text=0 title=<title>Option 1 · Japan · December 2026</title>
-.cloudflare/output/v0/workers/default/assets/options/2.html bytes=109775 emails=0 gate_refusal_text=0 title=<title>Option 2 · Japan · December 2026</title>
-.cloudflare/output/v0/workers/default/assets/options/3.html bytes=102253 emails=0 gate_refusal_text=0 title=<title>Option 3 · Japan · December 2026</title>
-.cloudflare/output/v0/workers/default/assets/options/4.html bytes=113722 emails=0 gate_refusal_text=0 title=<title>Option 4 · Japan · December 2026</title>
-.cloudflare/output/v0/workers/default/assets/options.html bytes=58510 emails=0 gate_refusal_text=0 title=<title>Options · Japan · December 2026</title>

@@ -10,7 +10,7 @@ All editable data (the Schedule, its Checklist and notes, and archived Schedules
 
 ## Consequences
 
-- The Worker entry is a custom `src/server.ts` that re-exports the TanStack Start handler and the Durable Object class. `wrangler.jsonc` declares the class under `exports`, which cannot be combined with the legacy `migrations` array, and deploys must use `wrangler deploy`.
+- The Worker entry is a custom `src/server.ts` that re-exports the TanStack Start handler and the Durable Object class. `cloudflare.config.ts` declares the class for `cf dev` and `cf build`. `wrangler.jsonc` declares it under `exports` for `wrangler deploy`, which cannot be combined with the legacy `migrations` array (ADR 0005).
 - The object's location is permanent. Planning from outside Asia costs roughly 0.1–0.2 s more per save.
 - `@effect/sql-sqlite-do` must stay pinned to exactly the same version as `effect`, bumped together.
 - Research: `docs/research/storage.md`.

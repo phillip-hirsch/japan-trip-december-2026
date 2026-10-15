@@ -126,7 +126,7 @@ const config = defineConfig({
       cloudflare({ viteEnvironment: { name: 'ssr' } }),
       tailwindcss(),
       // Prerenders through the local preview, whose Access dev simulation
-      // passes the gate as it does for `vp dev`.
+      // passes the gate as it does for `cf dev`.
       tanstackStart({
         pages: prerenderedPaths.map((path) => ({ path })),
         prerender: {

@@ -1,7 +1,0 @@
-{
-  "command": "cf build",
-  "dryRun": true,
-  "executed": false,
-  "validated": "arguments only"
-}
-exit=0
