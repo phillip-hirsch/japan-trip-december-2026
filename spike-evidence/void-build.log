@@ -1,0 +1,165 @@
+$ pnpm exec vp build </dev/null
+note: You are running `vp build` as a Vite+ built-in command. If you meant to run the build npm script, use `vpr build` instead.
+transforming...
+
+[@tanstack/devtools-vite] Removed devtools code from: /src/routes/__root.tsx
+
+✓ 2660 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/.assetsignore                                          0.02 kB
+dist/client/assets/shippori-mincho-600-display-DtFcWF-2.woff2     21.73 kB
+dist/client/assets/maplibre-gl-worker-MfjJLauD.js                510.70 kB
+dist/client/assets/trip-map-view-B8-mEBLf.css                     82.96 kB │ gzip:  10.72 kB
+dist/client/assets/styles-D8hCg4qP.css                            89.31 kB │ gzip:  15.70 kB
+dist/client/assets/minus-OwN-qIdN.js                               0.15 kB │ gzip:   0.15 kB
+dist/client/assets/check-C6Hwx62Z.js                               0.16 kB │ gzip:   0.16 kB
+dist/client/assets/plus-CS1id3el.js                                0.19 kB │ gzip:   0.17 kB
+dist/client/assets/params-DfMKiybw.js                              0.26 kB │ gzip:   0.21 kB
+dist/client/assets/trash-Co2RlmKY.js                               0.38 kB │ gzip:   0.25 kB
+dist/client/assets/useNavigate-NCBOsYL6.js                         0.38 kB │ gzip:   0.27 kB
+dist/client/assets/optional-badge-DbTCkOg6.js                      0.46 kB │ gzip:   0.35 kB
+dist/client/assets/itinerary-map-canvas-D6fKWtpu.js                0.53 kB │ gzip:   0.34 kB
+dist/client/assets/place-name-D6j3jtVB.js                          0.57 kB │ gzip:   0.38 kB
+dist/client/assets/button-link-fm1vL97T.js                         0.57 kB │ gzip:   0.38 kB
+dist/client/assets/_date-DD4InUzF.js                               0.58 kB │ gzip:   0.39 kB
+dist/client/assets/no-schedule-DEj56iY-.js                         1.02 kB │ gzip:   0.56 kB
+dist/client/assets/verify-claims-BXjQ5de-.js                       1.02 kB │ gzip:   0.59 kB
+dist/client/assets/stay-list-B0AIYCLc.js                           1.65 kB │ gzip:   0.84 kB
+dist/client/assets/badge-BoxDYl7O.js                               1.74 kB │ gzip:   0.86 kB
+dist/client/assets/pin-map-canvas-cjkYCQUF.js                      1.78 kB │ gzip:   0.98 kB
+dist/client/assets/preload-helper-CUET1yOn.js                      1.83 kB │ gzip:   1.00 kB
+dist/client/assets/map-PTTNyG0P.js                                 2.02 kB │ gzip:   1.05 kB
+dist/client/assets/lazy-map-Bperv-Ks.js                            2.27 kB │ gzip:   1.20 kB
+dist/client/assets/itinerary-map-layers-BcIxLwgV.js                2.34 kB │ gzip:   1.16 kB
+dist/client/assets/schedule-C7OqMgYk.js                            2.61 kB │ gzip:   1.25 kB
+dist/client/assets/comparison-map-canvas-BXCew6gk.js               2.71 kB │ gzip:   1.42 kB
+dist/client/assets/lazyRouteComponent-C2XYwsbo.js                  4.05 kB │ gzip:   1.48 kB
+dist/client/assets/itinerary-summary-BCoXbHLp.js                   4.45 kB │ gzip:   1.79 kB
+dist/client/assets/_scheduleId-1Fs9q08d.js                         4.65 kB │ gzip:   2.05 kB
+dist/client/assets/Predicate-DSXmaNgx.js                           4.83 kB │ gzip:   1.71 kB
+dist/client/assets/schedule-map-canvas-CAtEAVEK.js                 5.01 kB │ gzip:   2.21 kB
+dist/client/assets/routes-BwWOtwR1.js                              6.20 kB │ gzip:   2.38 kB
+dist/client/assets/day-details-tfhKmWFl.js                         6.24 kB │ gzip:   2.59 kB
+dist/client/assets/day-timeline-DGz82hZN.js                        6.24 kB │ gzip:   2.84 kB
+dist/client/assets/hotel-details-DfTIqbI4.js                       7.54 kB │ gzip:   3.56 kB
+dist/client/assets/drafts-k58HxPaj.js                              8.00 kB │ gzip:   3.41 kB
+dist/client/assets/_optionNumber-CpnCro9W.js                       8.45 kB │ gzip:   3.24 kB
+dist/client/assets/options-BPGrI84h.js                            10.06 kB │ gzip:   3.56 kB
+dist/client/assets/replace-schedule-dialog-D73H4onj.js            10.35 kB │ gzip:   3.92 kB
+dist/client/assets/item-DqZHgcg5.js                               13.71 kB │ gzip:   5.13 kB
+dist/client/assets/dist-D_MHrL9n.js                               16.74 kB │ gzip:   7.04 kB
+dist/client/assets/inertValue-D-L7GtJi.js                         17.07 kB │ gzip:   6.75 kB
+dist/client/assets/checklist-DBP_wmFs.js                          18.40 kB │ gzip:   7.95 kB
+dist/client/assets/places-COKrDjLw.js                             19.93 kB │ gzip:   8.28 kB
+dist/client/assets/schedule-sections-mS05RuUK.js                  23.18 kB │ gzip:   8.34 kB
+dist/client/assets/schedule-day-C5t5Nx1J.js                       24.32 kB │ gzip:   9.43 kB
+dist/client/assets/queries-Cx-qa7dp.js                            33.16 kB │ gzip:  11.51 kB
+dist/client/assets/createLucideIcon-uPos5Dpk.js                   37.88 kB │ gzip:  15.35 kB
+dist/client/assets/trip.functions-C_-0ppVC.js                     42.80 kB │ gzip:  14.85 kB
+dist/client/assets/index-x-kXnmu3.js                             441.71 kB │ gzip: 141.84 kB
+dist/client/assets/trip-map-view-kICh70d4.js                   1,066.29 kB │ gzip: 290.25 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.59s
+transforming...
+
+[@tanstack/devtools-vite] Removed devtools code from: /src/routes/__root.tsx
+
+✓ 2803 modules transformed.
+rendering chunks...
+Using secrets defined in .env
+computing gzip size...
+dist/server/.dev.vars                                                   0.16 kB
+dist/server/wrangler.json                                               1.77 kB │ gzip:   0.90 kB
+dist/server/.vite/manifest.json                                        18.00 kB │ gzip:   2.24 kB
+dist/server/assets/shippori-mincho-600-display-DtFcWF-2.woff2          21.73 kB
+dist/server/assets/styles-D8hCg4qP.css                                 89.31 kB │ gzip:  15.70 kB
+dist/server/assets/limits-CUkfFYOB.js                                   0.07 kB │ gzip:   0.09 kB │ map:     0.51 kB
+dist/server/assets/empty-plugin-adapters-BaGcmrjC.js                    0.13 kB │ gzip:   0.13 kB │ map:     0.59 kB
+dist/server/assets/utils-lpmDLmr9.js                                    0.14 kB │ gzip:   0.14 kB │ map:     0.88 kB
+dist/server/assets/not-found-i5RsCZif.js                                0.16 kB │ gzip:   0.15 kB │ map:     1.33 kB
+dist/server/assets/check-CpJpcH9p.js                                    0.20 kB │ gzip:   0.19 kB │ map:     0.94 kB
+dist/server/assets/checklist-items-D933g6qT.js                          0.22 kB │ gzip:   0.19 kB │ map:     0.73 kB
+dist/server/assets/plus-8BpmAwXP.js                                     0.23 kB │ gzip:   0.21 kB │ map:     1.03 kB
+dist/server/assets/matchContext-DtqHmD8A.js                             0.25 kB │ gzip:   0.21 kB │ map:     1.42 kB
+dist/server/assets/params-X2uMWJQc.js                                   0.30 kB │ gzip:   0.24 kB │ map:     0.97 kB
+dist/server/assets/trash-BwMxfHJ_.js                                    0.42 kB │ gzip:   0.28 kB │ map:     1.46 kB
+dist/server/assets/useNavigate-C43NrbyH.js                              0.45 kB │ gzip:   0.31 kB │ map:     2.57 kB
+dist/server/assets/_date-dNgCoHmI.js                                    0.45 kB │ gzip:   0.32 kB │ map:     1.99 kB
+dist/server/assets/start-BuUzHtZ8.js                                    0.56 kB │ gzip:   0.38 kB │ map:     2.49 kB
+dist/server/assets/map-BUt60IB6.js                                      0.71 kB │ gzip:   0.44 kB │ map:     2.58 kB
+dist/server/assets/place-name-5lLKf_iP.js                               0.71 kB │ gzip:   0.47 kB │ map:     2.23 kB
+dist/server/assets/no-schedule-BZUzRiVP.js                              0.87 kB │ gzip:   0.49 kB │ map:     1.43 kB
+dist/server/assets/badge-C8ddUbey.js                                    1.43 kB │ gzip:   0.68 kB │ map:     2.56 kB
+dist/server/assets/createCsrfMiddleware-DJW--B3R.js                     1.50 kB │ gzip:   0.69 kB │ map:     7.34 kB
+dist/server/assets/schedule-DA8Uskp9.js                                 1.56 kB │ gzip:   0.78 kB │ map:     4.19 kB
+dist/server/assets/server-fn-fetch-DCi2rJU9.js                          1.71 kB │ gzip:   0.98 kB │ map:     8.81 kB
+dist/server/assets/lazy-map-Jx-yu42i.js                                 1.78 kB │ gzip:   0.97 kB │ map:     4.64 kB
+dist/server/assets/Match-7o4GFbFx.js                                    2.02 kB │ gzip:   0.95 kB │ map:    60.41 kB
+dist/server/assets/places-DldBsjB-.js                                   2.52 kB │ gzip:   1.21 kB │ map:     8.83 kB
+dist/server/assets/_scheduleId-Dk2E-OJI.js                              2.75 kB │ gzip:   1.26 kB │ map:     8.37 kB
+dist/server/assets/_tanstack-start-manifest_v-BBv4eH7u.js               2.96 kB │ gzip:   0.92 kB
+dist/server/assets/itinerary-summary-2fdUameU.js                        3.08 kB │ gzip:   1.27 kB │ map:     7.79 kB
+dist/server/assets/item-xRfqZHXJ.js                                     3.40 kB │ gzip:   1.41 kB │ map:     9.69 kB
+dist/server/assets/lazyRouteComponent-v7HB0rdH.js                       3.78 kB │ gzip:   1.40 kB │ map:    30.61 kB
+dist/server/assets/react-dom-6cEjSHVw.js                                3.90 kB │ gzip:   1.43 kB │ map:    14.01 kB
+dist/server/assets/routes-87Al0SvR.js                                   4.21 kB │ gzip:   1.62 kB │ map:    11.51 kB
+dist/server/assets/stay-list-CLstTBwz.js                                4.81 kB │ gzip:   1.90 kB │ map:    15.14 kB
+dist/server/assets/_optionNumber-BeU2Ukbd.js                            4.98 kB │ gzip:   1.82 kB │ map:    15.12 kB
+dist/server/assets/verify-claims-BaISwJL7.js                            5.38 kB │ gzip:   2.12 kB │ map:    18.43 kB
+dist/server/assets/drafts-D7J6a8ef.js                                   6.44 kB │ gzip:   2.74 kB │ map:    30.78 kB
+dist/server/assets/options-DGqTtmHZ.js                                  6.44 kB │ gzip:   2.22 kB │ map:    17.09 kB
+dist/server/assets/replace-schedule-dialog-CgGSlmjy.js                  7.38 kB │ gzip:   3.01 kB │ map:    34.93 kB
+dist/server/assets/react-DB-4Zxce.js                                    8.57 kB │ gzip:   3.32 kB │ map:    31.01 kB
+dist/server/assets/trip.functions-DGufLt7w.js                          10.13 kB │ gzip:   3.40 kB │ map:    27.62 kB
+dist/server/assets/__23tanstack-start-server-fn-resolver-DYvm0Kmi.js   12.28 kB │ gzip:   4.90 kB │ map:    43.32 kB
+dist/server/assets/checklist-Bo1YSkoy.js                               14.04 kB │ gzip:   5.90 kB │ map:    60.11 kB
+dist/server/assets/schedule-day-DOLCPHgj.js                            14.85 kB │ gzip:   5.27 kB │ map:    51.35 kB
+dist/server/assets/notes-G_sflcFl.js                                   15.35 kB │ gzip:   5.45 kB │ map:    52.13 kB
+dist/server/assets/inertValue-DnCVMTAg.js                              15.72 kB │ gzip:   6.21 kB │ map:   113.61 kB
+dist/server/assets/Data-BmDB3QLg.js                                    16.21 kB │ gzip:   5.87 kB │ map:   156.35 kB
+dist/server/assets/schedule-sections-BRGhBNIq.js                       16.38 kB │ gzip:   5.47 kB │ map:    57.29 kB
+dist/server/assets/queries-DtZ1HOB-.js                                 32.94 kB │ gzip:  11.34 kB │ map:   172.66 kB
+dist/server/assets/trip.functions-cUnmcX9W.js                          40.79 kB │ gzip:  17.44 kB │ map:   173.86 kB
+dist/server/assets/manifest-DRj2RXK1.js                                47.43 kB │ gzip:  16.42 kB │ map:   259.06 kB
+dist/server/assets/runtime.server-BWUYqzTy.js                         100.65 kB │ gzip:  34.86 kB │ map:   939.36 kB
+dist/server/assets/domain-SfBgRQx5.js                                 120.51 kB │ gzip:  41.36 kB │ map: 2,015.59 kB
+dist/server/assets/router-CMKPX-FV.js                                 157.18 kB │ gzip:  51.62 kB │ map:   916.29 kB
+dist/server/index.js                                                  380.61 kB │ gzip: 119.65 kB │ map: 1,840.25 kB
+
+[plugin spike:void-keep-server-entry] [33m[SOURCEMAP_BROKEN] [0mSourcemap is likely to be incorrect: a plugin (spike:void-keep-server-entry) was used to transform files, but didn't generate a sourcemap for the transformation. Consult the plugin documentation for help: https://rolldown.rs/guide/troubleshooting#warning-sourcemap-is-likely-to-be-incorrect
+
+[plugin vite:css-post] [33m[SOURCEMAP_BROKEN] [0mSourcemap is likely to be incorrect: a plugin (vite:css-post) was used to transform files, but didn't generate a sourcemap for the transformation. Consult the plugin documentation for help: https://rolldown.rs/guide/troubleshooting#warning-sourcemap-is-likely-to-be-incorrect
+
+✓ built in 899ms
+Using secrets defined in dist/server/.dev.vars
+[prerender] Prerendering pages...
+[prerender] Concurrency: 4
+[prerender] Crawling: /options
+[prerender] Crawling: /options/1
+[prerender] Crawling: /options/2
+[prerender] Crawling: /options/3
+✨ Parsed 1 valid header rule.
+GET /options/2/ 307 Temporary Redirect (26ms)
+GET /options/3/ 307 Temporary Redirect (30ms)
+GET /options/ 307 Temporary Redirect (30ms)
+GET /options/1/ 307 Temporary Redirect (30ms)
+GET /options/3 200 OK (38ms)
+[prerender] Crawling: /options/4
+GET /options/1 200 OK (26ms)
+GET /options/2 200 OK (26ms)
+GET /options 200 OK (27ms)
+GET /options/4/ 307 Temporary Redirect (2ms)
+GET /options/4 200 OK (8ms)
+[prerender] Prerendered 5 pages:
+[prerender] - /options/3
+[prerender] - /options
+[prerender] - /options/2
+[prerender] - /options/1
+[prerender] - /options/4
+BUILD_EXIT:0

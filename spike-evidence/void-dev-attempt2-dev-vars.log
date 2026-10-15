@@ -1,0 +1,9 @@
+note: You are running `vp dev` as a Vite+ built-in command. If you meant to run the dev npm script, use `vpr dev` instead.
+error when starting dev server:
+Error: void/env supports one local file: .env. Remove .dev.vars, .dev.vars.example and follow the env migration guide.
+    at BasicMinimalPluginContext.config (file:///tmp/spike-void/node_modules/.pnpm/void@1.1.11_@tanstack+react-start@1.168.60_@voidzero-dev+vite-plus-core@1.1.0_@types+no_a22b28dfddf90bc6dff77f0c305ed9f9/node_modules/void/dist/index.mjs:1567:38)
+    at runConfigHook (file:///tmp/spike-void/node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.1.0_@types+node@24.19.1_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/chunks/node.js:43303:42)
+    at async resolveConfig (file:///tmp/spike-void/node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.1.0_@types+node@24.19.1_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/chunks/node.js:42709:11)
+    at async _createServer (file:///tmp/spike-void/node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.1.0_@types+node@24.19.1_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/chunks/node.js:30144:65)
+    at async CAC.<anonymous> (file:///tmp/spike-void/node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.1.0_@types+node@24.19.1_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/cli.js:712:18)
+DEV_EXIT:1

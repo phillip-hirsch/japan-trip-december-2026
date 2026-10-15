@@ -1,0 +1,88 @@
+Check D. TripStore SQLite export in the build output
+
+Search order: .cloudflare/output, then dist, then paths the build names.
+
+1. .cloudflare/output
+
+The directory does not exist after `pnpm exec vp build` (`ls .cloudflare` fails).
+Void never writes a cf Build Output tree into the project. At deploy time
+`void deploy --platform cloudflare` calls prepareCfBuildOutput() from
+node_modules/void/dist/cf-build-output-Bc8i3dzE.mjs, which writes the tree to a
+temp dir (void-cf-deploy-*) and deletes it afterwards. For TanStack Start the
+preset is cloudflareArtifact "vite-plugin", so it reads dist/server/wrangler.json
+(deploy-DsW-PrRQ.mjs lines 4205-4210).
+
+I ran that one step locally with spike-evidence/run-void-deploy-codemod.mjs
+(placeholder account id, no credentials, no upload). It throws before any tree
+is written. Raw log: spike-evidence/void-deploy-codemod.log
+
+  Error: cf cannot migrate Cloudflare setting exports.TripStore: Durable Object exports require manual review after migration.
+      at assertHandledFollowUps (.../void/dist/cf-build-output-Bc8i3dzE.mjs:120:276)
+      at migrateBuiltWranglerConfig (.../void/dist/cf-build-output-Bc8i3dzE.mjs:276:3)
+      at prepareCfBuildOutput (.../void/dist/cf-build-output-Bc8i3dzE.mjs:393:17)
+
+So .cloudflare/output stays empty. It has nothing to quote.
+
+2. dist (named by the build as the Worker output dir)
+
+Path: /tmp/spike-void/dist/server/wrangler.json
+sha256 3a64e08e138fff1efd8da255f20a6659d4e0acae380d7bc4031ef19f16caf652
+
+  name = "japan-trip-december-2026"
+  main = "index.js"
+  durable_objects = {"bindings": [{"name": "TRIP_STORE", "class_name": "TripStore"}]}
+  migrations = []
+  exports = {"TripStore": {"type": "durable-object", "storage": "sqlite"}}
+  access = {"dev": {"aud": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16", "identity": {"email": "phillip@350home.com"}}}
+  configPath = "/tmp/spike-void/.void-wrangler.jsonc"
+
+The bundle also exports the class. The last line of dist/server/index.js is
+
+  export{px as TripStore,Ax as default};
+
+That export exists only because of hand edit HAND-4 (keepServerEntry in
+vite.config.ts). Without it Void's TanStack Start wrapper re-exports only the
+default handler.
+
+3. Codemod question
+
+Void runs two codemods.
+
+void migrate copied wrangler.jsonc into void.config.ts verbatim, including
+exports.TripStore {type durable-object, storage sqlite}. See access-dev.txt.
+
+At deploy, Void runs @cloudflare/codemods 0.5.0 migrateWranglerToCf on
+dist/server/wrangler.json. I reran that codemod with
+spike-evidence/inspect-cf-codemod.mjs to see what it generates before Void
+rejects it. Raw log: spike-evidence/cf-codemod-inspect.log. The generated
+cloudflare.config.ts keeps the export:
+
+  exports: {
+      TripStore: exports.durableObject({
+          storage: "sqlite",
+      }),
+  },
+
+It also keeps the binding (TRIP_STORE: bindings.durableObject({ worker:
+"japan-trip-december-2026", exportName: "TripStore" })) and access.dev. It
+returns status "needs-intervention" with these blocking follow-ups:
+
+  assets.directory               vite-assets-directory
+  durable_objects.bindings.0     durable-object-review
+  exports.TripStore              durable-object-review
+  (no sourcePath)                vite-plugin-install-disabled
+
+Void's assertHandledFollowUps (cf-build-output-Bc8i3dzE.mjs line 120) accepts
+assets.directory, durable_objects.bindings.N, migrations, containers and the
+pathless install notice. It does not accept exports.*. So exports.TripStore is
+the only follow-up that stops the deploy.
+
+Void derives Durable Object exports itself only from `migrations`
+(durableObjectExports(), same file lines 123-169). This config uses the newer
+top-level `exports` field and `migrations` is empty.
+
+Verdict: PASS for the Vite build output. dist/server/wrangler.json declares
+TripStore as a durable-object with sqlite storage. The export survives both
+codemods as text, but Void 1.1.11 refuses it at the deploy preflight, so no
+deployable cf Build Output can be produced. That is a deploy blocker, reported
+separately.

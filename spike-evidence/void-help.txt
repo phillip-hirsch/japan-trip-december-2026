@@ -1,0 +1,311 @@
+$ void --help
+? Verifying lockfile against supply-chain policies (976 entries)...
+✓ Lockfile passes supply-chain policies (976 entries in 911ms)
+Lockfile is up to date, resolution step is skipped
+Already up to date
+Agent skills awaiting approval: @tanstack/devtools-vite, @tanstack/react-start, void.
+Run "pnpm approve" to review them.
+. prepare$ vp config && effect-tsgo patch --typescript --oxlint && node -e "fs.existsSync('.dev.vars') || fs.copyFileSync('.dev.vars.example', '.dev.vars')"
+. prepare: core.hooksPath is already set to "/home/ubuntu/.cursor/agent-hooks/L3dvcmtzcGFjZQ", skipping
+. prepare: typescript skipped because its hash matches the replacement.
+. prepare: oxlint skipped because its hash matches the replacement.
+. prepare: oxlint-tsgolint skipped because its hash matches the replacement.
+. prepare: Patched oxlint-dts at /tmp/spike-void/node_modules/.pnpm/oxlint@1.87.0_oxlint-tsgolint@7.0.2003_vite-plus@1.1.0_@types+node@24.19.1_@vitest+ui@5_f1fe6774781930bc47f7c329099673f3/node_modules/oxlint/dist/index.d.ts
+. prepare: Done
+Done in 1.7s using pnpm v12.14.0
+
+                  oo       dP 
+                           88 
+dP   .dP .d8888b. dP .d888b88 
+88   d8' 88'  `88 88 88'  `88 
+88 .88'  88.  .88 88 88.  .88 
+8888P'   `88888P' dP `88888P8  v1.1.11
+
+╭─Commands─────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  void init                          Set up Void in a new or existing         │
+│  project                                                                     │
+│    --tsconfig                       Update tsconfig.json and set up coding   │
+│  agents                                                                      │
+│    --git                            Initialize a Git repository without      │
+│  prompting                                                                   │
+│    --no-git                         Skip Git repository initialization       │
+│    --github                         Create the GitHub Actions deploy         │
+│  workflow and set up coding agents                                           │
+│                                                                              │
+│  void migrate                       Move legacy Void project settings into   │
+│  void.config.ts                                                              │
+│                                                                              │
+│  void info [--json]                 Inspect persistent resource names in     │
+│  this project without deploying                                              │
+│                                                                              │
+│  void connect [url]                 Connect this project to Cloudflare or    │
+│  an existing Void platform. Platform hostnames default to HTTPS              │
+│    --platform <cloudflare|void>     Choose the deployment destination        │
+│    --no-login                       Save a Void connection without           │
+│  authenticating                                                              │
+│                                                                              │
+│  void deploy                        Build and deploy. Offers to link an      │
+│  existing Cloudflare Worker when no destination is configured                │
+│    --project <name>                 Deploy target project name               │
+│    --dir <path>                     Deploy a static directory and skip       │
+│  build                                                                       │
+│    --spa                            Use SPA mode for static deploys          │
+│    --skip-build                     Skip the build step and use existing     │
+│  output (static deploys on Cloudflare)                                       │
+│    --platform <cloudflare|void>     Override the platform saved by void      │
+│  init                                                                        │
+│    --require-email                  Fail instead of deploying without email  │
+│   when the mail domain is not set up (with --platform cloudflare)            │
+│    --provision                      Run resource provisioning again, for     │
+│  example to enable D1 read replication (with --platform cloudflare)          │
+│    --atomic                         Publish a Durable Object Worker without  │
+│   pre-traffic staging (Cloudflare only)                                      │
+│    --debug                          Mirror the deploy log to stderr (always  │
+│   written to ~/.void/logs)                                                   │
+│                                                                              │
+│  auth                                                                        │
+│  void auth login                    Sign in to the selected destination      │
+│  void auth status                   Show the selected destination’s          │
+│  identity                                                                    │
+│  void auth logout                   Sign out of the selected destination     │
+│                                                                              │
+│  account                                                                     │
+│  void account login                 Log in with an enabled platform login    │
+│  method                                                                      │
+│  void account link [connection-id]  Link another login method to your        │
+│  account                                                                     │
+│  void account logout                Log out and remove credentials           │
+│  void account whoami                Show the logged-in username              │
+│  void account token                 Copy auth token to clipboard             │
+│                                                                              │
+│  cloudflare                                                                  │
+│  void cloudflare login              Sign in or switch users with browser     │
+│  OAuth                                                                       │
+│  void cloudflare status             Show identity, authentication, and the   │
+│  deployment account                                                          │
+│  void cloudflare logout             Remove the local browser session         │
+│                                                                              │
+│  platform                                                                    │
+│  void platform auth <command>       Administer platform auth                 │
+│  void platform user <command>       Administer platform user                 │
+│  void platform project <command>    Administer platform project              │
+│  void platform zero-trust <command> Administer platform zero-trust           │
+│  void platform deployment <command> Administer platform deployment           │
+│  void platform build <command>      Administer platform build                │
+│  void platform signup <command>     Administer platform signup               │
+│  void platform invitation <command> Administer platform invitation           │
+│  void platform system <command>     Administer platform system               │
+│  void platform email <command>      Administer platform email                │
+│  void platform worker <command>     Administer platform worker               │
+│  void platform config auth [command] Configure login methods, company        │
+│  protection, and provider recovery                                           │
+│  void platform config plans [command] Manage plans, account limits, and the  │
+│   default plan                                                               │
+│  void platform list                 List installed and connected platforms   │
+│  void platform use [id]             Select the default Void platform         │
+│  void platform status [id]          Inspect a platform and its health        │
+│  void platform discover             Recover installations from a Cloudflare  │
+│   account                                                                    │
+│  void platform domain set <domain>  Add an application domain to a test      │
+│  platform                                                                    │
+│  void platform install              Install a Void platform in Cloudflare    │
+│  void platform upgrade [id]         Upgrade an installed Void platform       │
+│  void platform rollback [id]        Restore a compatible earlier platform    │
+│  runtime                                                                     │
+│  void platform repair [id]          Reconcile an installed Void platform or  │
+│   its unfinished login setup                                                 │
+│  void platform disable [id]         Disable traffic without deleting data    │
+│  void platform enable [id]          Restore traffic for a disabled platform  │
+│  void platform uninstall [id]       Safely remove an installed Void          │
+│  platform                                                                    │
+│                                                                              │
+│  project                                                                     │
+│  void project status [name]         Show deployments for a project           │
+│  void project link [name]           Link this directory to a project         │
+│  void project list                  List your projects                       │
+│  void project token <command>       Manage project-scoped CI deploy          │
+│  credentials                                                                 │
+│  void project team <command>        Manage members and project invitations   │
+│  void project zero-trust <command>  Inspect or override Cloudflare Zero      │
+│  Trust protection                                                            │
+│  void project logs                  Show runtime logs from the deployed      │
+│  project                                                                     │
+│  void project requests              Show request-level traffic (status,      │
+│  method, timing)                                                             │
+│  void project rollback [deployId]   Roll back to a previous deployment       │
+│  void project cancel [deployId]     Cancel an active deployment              │
+│  void project delete [name]         Delete a project and all its resources   │
+│  void project purge-cache           Purge all cached pages (Void platform)   │
+│                                                                              │
+│  secrets                                                                     │
+│  void secret list                   List project secrets                     │
+│  void secret put <name>             Set a project secret                     │
+│  void secret delete <name>          Delete a project secret                  │
+│  void secret sync <file>            Sync secrets from a dotenv file          │
+│                                                                              │
+│  domain                                                                      │
+│  void domain add <hostname>         Add a custom domain                      │
+│  void domain delete <hostname>      Remove a custom domain                   │
+│  void domain list                   List custom domains and status           │
+│  void domain status <hostname>      Check domain verification status         │
+│                                                                              │
+│  email                                                                       │
+│  void email usage                   Show monthly outbound/inbound counts     │
+│  and quota                                                                   │
+│  void email logs                    Show recent email delivery activity      │
+│  void email destinations            List verified recipient addresses        │
+│  void email allow <address>         Add a recipient and trigger CF           │
+│  verification                                                                │
+│  void email disallow <address>      Remove a recipient from the allowlist    │
+│  void email domain <add|status|list|sync|rotate-secret|remove> Send and      │
+│  receive at your own domain on a Cloudflare zone                             │
+│  void email status --platform cloudflare Show the email setup state and      │
+│  address map on your own account                                             │
+│  void email setup --platform cloudflare Set email up on your own Cloudflare  │
+│   account (one confirmation)                                                 │
+│                                                                              │
+│  github                                                                      │
+│  void github install                Open the GitHub App install page in      │
+│  your browser                                                                │
+│  void github installations          List your GitHub App installations       │
+│  void github connect [project]      Connect a repository to a project for    │
+│  auto-deploy                                                                 │
+│  void github update [project]       Update an existing connection's branch,  │
+│   build executor, or deploy workflow                                         │
+│  void github status [project]       Show a project's GitHub connection       │
+│  (repo, branch, executor, workflow)                                          │
+│  void github disconnect [project]   Disconnect a project from its GitHub     │
+│  repository                                                                  │
+│  void github link                   Link your GitHub account to Void         │
+│  void github join                   Join your organization's shared GitHub   │
+│  App installations                                                           │
+│                                                                              │
+│  build                                                                       │
+│  void build logs [build]            Stream, tail, or download logs for a     │
+│  build                                                                       │
+│                                                                              │
+│  database                                                                    │
+│  void db push                       Push schema to the development database  │
+│   without migration files                                                    │
+│  void db generate                   Generate SQL migrations from schema      │
+│  changes                                                                     │
+│  void db status                     Show migration status (local and         │
+│  remote)                                                                     │
+│  void db reset                      Reset local DB and re-run migrations     │
+│  void db seed [--file <path>]       Reset local DB, run migrations, and      │
+│  seed                                                                        │
+│  void db execute <sql>              Run SQL against the database (--remote   │
+│  for deployed)                                                               │
+│  void db migrate                    Apply pending migrations                 │
+│  void db studio                     Open Drizzle Studio (--remote for        │
+│  deployed PostgreSQL/MySQL)                                                  │
+│  void db export [--output <path>]   Export local database as SQL             │
+│  void db connect                    Connect or provision an external         │
+│  database                                                                    │
+│  void db set-url                    Update the external database URL         │
+│  void db rename-migrations          Rename migrations to timestamp format    │
+│    --file <path>                    Run SQL from a file instead              │
+│    --remote                         Run against the deployed database (D1    │
+│  via proxy; PostgreSQL via direct connection)                                │
+│    --output <path>                  Export to a specific file path           │
+│    --no-data                        Schema only (no INSERT statements)       │
+│    --no-schema                      Data only (no CREATE TABLE)              │
+│    --table <name>                   Export a single table                    │
+│                                                                              │
+│  env                                                                         │
+│  void env check                     Validate local .env or remote secret     │
+│  names                                                                       │
+│  void env types                     Regenerate .void/env.d.ts from env.ts    │
+│    --remote                         Check required server keys as remote     │
+│  secrets                                                                     │
+│                                                                              │
+│  codegen                                                                     │
+│  void prepare                       Generate .void artifacts without         │
+│  starting Vite                                                               │
+│  void gen model <name> [cols...]    Scaffold a Drizzle table, API routes,    │
+│  and DB types                                                                │
+│  void gen migration <name>          Generate an empty migration file         │
+│  void gen route <path> [--methods]  Generate a route with handler exports    │
+│  void gen middleware <name>         Generate a numbered middleware file      │
+│  void gen ssr                       Generate SSR entry, client, and App      │
+│  component                                                                   │
+│  void gen cron <name>               Generate a cron job file                 │
+│  void gen queue <name>              Generate a queue consumer file           │
+│                                                                              │
+│  help                                                                        │
+│  void help <command>                Show command-specific help               │
+│  void <command> --help              Show command-specific help               │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─Environment──────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  VOID_TOKEN                         Auth token (or use `void account         │
+│  login`)                                                                     │
+│  VOID_PROJECT                       Deploy target project name override      │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+https://void.cloud
+
+EXIT:0
+
+$ void migrate --help
+╭─void migrate─────────────────────────────────────────────────────────────╮
+│                                                                          │
+│  Move legacy Void project settings into void.config.ts.                  │
+│                                                                          │
+│  Usage                                                                   │
+│    void migrate                                                          │
+│                                                                          │
+│  Examples                                                                │
+│  void migrate                       Convert void.json to void.config.ts  │
+│                                                                          │
+╰──────────────────────────────────────────────────────────────────────────╯
+EXIT:0
+
+$ void init --help
+╭─void init────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  Set up Void in a new or existing project.                                   │
+│                                                                              │
+│  Usage                                                                       │
+│    void init [options]                                                       │
+│                                                                              │
+│  Options                                                                     │
+│  --tsconfig                         Update tsconfig.json and set up coding   │
+│  agents                                                                      │
+│  --git                              Initialize a Git repository without      │
+│  prompting                                                                   │
+│  --no-git                           Skip Git repository initialization       │
+│  --github                           Create the GitHub Actions deploy         │
+│  workflow and set up coding agents                                           │
+│                                                                              │
+│  Examples                                                                    │
+│  void init                          Scaffold or configure the current        │
+│  project                                                                     │
+│  void init --github                 Scaffold the GitHub Actions deploy       │
+│  workflow                                                                    │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+EXIT:0
+
+$ void dev --help
+■ Unknown help topic: dev
+EXIT:1
+
+$ void build --help
+╭─void build───────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│  Inspect remote builds.                                                      │
+│                                                                              │
+│  Usage                                                                       │
+│    void build <command>                                                      │
+│                                                                              │
+│  Commands                                                                    │
+│  logs [build]                       Stream, tail, or download logs for a     │
+│  build                                                                       │
+│                                                                              │
+│  Run `void help build <command>` for command-specific help.                  │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯
+EXIT:0

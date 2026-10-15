@@ -1,0 +1,11 @@
+$ pnpm exec wrangler types /tmp/spike-void-cf-typegen-probe.d.ts   (what `vp run cf-typegen` runs, but writing to /tmp)
+
+ ⛅️ wrangler 4.151.0
+────────────────────
+
+[31m✘ [41;31m[[41;97mERROR[41;31m][0m [1mNo config file detected. This command requires a Wrangler configuration file.[0m
+
+
+🪵  Logs were written to "/home/ubuntu/.config/.wrangler/logs/wrangler-2026-10-15_22-19-31_516.log"
+exit=1
+head: cannot open '/tmp/spike-void-cf-typegen-probe.d.ts' for reading: No such file or directory

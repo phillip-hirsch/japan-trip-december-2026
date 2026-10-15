@@ -1,0 +1,12 @@
+note: You are running `vp dev` as a Vite+ built-in command. If you meant to run the dev npm script, use `vpr dev` instead.
+10:00:40 PM [vite+] (ssr) Re-optimizing dependencies because vite config has changed
+Default inspector port 9229 not available, using 9230 instead
+
+Using secrets defined in .env
+
+  VITE+ v1.1.0  
+
+  ➜  Local:   http://localhost:3010/
+  ➜  Network: use --host to expose
+  ➜  Debug:   http://localhost:3010/__debug
+[22:01:31.913] WARN (#10): Access gate refused: token: JWSInvalid: Invalid Compact JWS

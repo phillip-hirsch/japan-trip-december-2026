@@ -1,0 +1,8 @@
+$ pnpm exec void dev </dev/null
+■ cli: Unknown command 'dev'. Run `void --help` for usage.
+EXIT:1
+
+$ pnpm exec void build </dev/null
+■ build: Usage: void build logs [build] [--follow] [--output <file>] [--project 
+  <slug>].
+EXIT:1

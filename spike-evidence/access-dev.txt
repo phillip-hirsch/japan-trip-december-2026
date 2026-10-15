@@ -1,0 +1,54 @@
+Check A evidence. Written immediately after 'CI=1 pnpm exec void migrate </dev/null' (log: spike-evidence/void-migrate.log).
+void.config.ts was created by that command. It did not exist before (git status before/after in void-migrate.log).
+
+$ date -u
+Thu Oct 15 09:54:47 PM UTC 2026
+$ stat -c '%y %n' void.config.ts void.lock.json .void/config-migration/wrangler.jsonc
+2026-10-15 21:54:26.486845719 +0000 void.config.ts
+2026-10-15 21:54:26.590848237 +0000 void.lock.json
+2026-10-15 21:54:26.590848237 +0000 .void/config-migration/wrangler.jsonc
+$ sha256sum void.config.ts void.lock.json  (right after migrate)
+9cc5c096304c9a58dfdc4962bb89dbaad49ab6f248d69c7d1f717dcb098af0a1  void.config.ts
+5f8450a43f3adff4fc85bf30ed88b41d821538a60f659e0d383b1871d29027d7  void.lock.json
+
+$ grep -n -A8 '"access"' void.config.ts
+34:    "access": {
+35-      "dev": {
+36-        "aud": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16",
+37-        "identity": {
+38-          "email": "phillip@350home.com"
+39-        }
+40-      }
+41-    }
+42-  }
+
+$ grep -n -A6 '"exports"' void.config.ts
+23:    "exports": {
+24-      "TripStore": {
+25-        "type": "durable-object",
+26-        "storage": "sqlite"
+27-      }
+28-    },
+29-    "vars": {
+
+$ node spike-evidence/compare-config.mjs  (semantic comparison against git HEAD:wrangler.jsonc)
+void.config.ts cloudflare deep-equals HEAD:wrangler.jsonc: true
+access.dev equal: true {"dev":{"aud":"4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16","identity":{"email":"phillip@350home.com"}}}
+exports.TripStore equal: true {"TripStore":{"type":"durable-object","storage":"sqlite"}}
+top-level keys besides cloudflare: []
+
+End of spike. The files are byte-identical to what migrate wrote (same sha256 as above), so access.dev and exports.TripStore were not added later.
+$ date -u
+Thu Oct 15 10:18:47 PM UTC 2026
+$ sha256sum void.config.ts void.lock.json  (end of spike, before commit)
+9cc5c096304c9a58dfdc4962bb89dbaad49ab6f248d69c7d1f717dcb098af0a1  void.config.ts
+5f8450a43f3adff4fc85bf30ed88b41d821538a60f659e0d383b1871d29027d7  void.lock.json
+$ git log -1 --format=%h HEAD -- wrangler.jsonc ; git show HEAD:wrangler.jsonc | grep -n -A8 "\"access\""
+f2b3686
+26:  "access": {
+27-    "dev": {
+28-      "aud": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16",
+29-      "identity": { "email": "phillip@350home.com" },
+30-    },
+31-  },
+32-}

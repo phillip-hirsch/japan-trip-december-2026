@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "source": {
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "japan-trip-december-2026",
+    "compatibility_date": "2025-09-02",
+    "compatibility_flags": [
+      "nodejs_compat"
+    ],
+    "main": "src/server.ts",
+    "workers_dev": true,
+    "preview_urls": false,
+    "durable_objects": {
+      "bindings": [
+        {
+          "name": "TRIP_STORE",
+          "class_name": "TripStore"
+        }
+      ]
+    },
+    "exports": {
+      "TripStore": {
+        "type": "durable-object",
+        "storage": "sqlite"
+      }
+    },
+    "vars": {
+      "ACCESS_TEAM_DOMAIN": "https://phillip-hirsch.cloudflareaccess.com",
+      "ACCESS_AUD": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16",
+      "ACCESS_ALLOWED_EMAIL": "phillip@350home.com"
+    },
+    "access": {
+      "dev": {
+        "aud": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16",
+        "identity": {
+          "email": "phillip@350home.com"
+        }
+      }
+    }
+  },
+  "resolved": {
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "japan-trip-december-2026",
+    "compatibility_date": "2025-09-02",
+    "compatibility_flags": [
+      "nodejs_compat"
+    ],
+    "main": "src/server.ts",
+    "workers_dev": true,
+    "preview_urls": false,
+    "durable_objects": {
+      "bindings": [
+        {
+          "name": "TRIP_STORE",
+          "class_name": "TripStore"
+        }
+      ]
+    },
+    "exports": {
+      "TripStore": {
+        "type": "durable-object",
+        "storage": "sqlite"
+      }
+    },
+    "vars": {
+      "ACCESS_TEAM_DOMAIN": "https://phillip-hirsch.cloudflareaccess.com",
+      "ACCESS_AUD": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16",
+      "ACCESS_ALLOWED_EMAIL": "phillip@350home.com"
+    },
+    "access": {
+      "dev": {
+        "aud": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16",
+        "identity": {
+          "email": "phillip@350home.com"
+        }
+      }
+    }
+  },
+  "text": "{\n  \"$schema\": \"node_modules/wrangler/config-schema.json\",\n  \"name\": \"japan-trip-december-2026\",\n  \"compatibility_date\": \"2025-09-02\",\n  \"compatibility_flags\": [\"nodejs_compat\"],\n  \"main\": \"src/server.ts\",\n  // The app's stable address. Worker-level Access protects it (#14).\n  \"workers_dev\": true,\n  \"preview_urls\": false,\n  // All editable data lives in one SQLite-backed Durable Object (ADR 0001),\n  // declared under exports, never the legacy migrations list.\n  \"durable_objects\": {\n    \"bindings\": [{ \"name\": \"TRIP_STORE\", \"class_name\": \"TripStore\" }],\n  },\n  \"exports\": {\n    \"TripStore\": { \"type\": \"durable-object\", \"storage\": \"sqlite\" },\n  },\n  \"vars\": {\n    \"ACCESS_TEAM_DOMAIN\": \"https://phillip-hirsch.cloudflareaccess.com\",\n    \"ACCESS_AUD\": \"4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16\",\n    \"ACCESS_ALLOWED_EMAIL\": \"phillip@350home.com\",\n  },\n  // Wrangler's Access dev simulation: ctx.access for local requests, with the\n  // same AUD as ACCESS_AUD in .dev.vars. The gate reads it only when\n  // .dev.vars sets ACCESS_DEV_SIMULATION, which production never does.\n  \"access\": {\n    \"dev\": {\n      \"aud\": \"4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16\",\n      \"identity\": { \"email\": \"phillip@350home.com\" },\n    },\n  },\n}\n"
+}

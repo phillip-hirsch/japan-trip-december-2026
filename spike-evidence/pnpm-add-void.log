@@ -1,0 +1,26 @@
+✓ Lockfile passes supply-chain policies (verified 3m ago)
+Downloading better-sqlite3@13.0.3: 0.00 B/11.40 MB
+Added 6 entries to minimumReleaseAgeExclude in pnpm-workspace.yaml (set minimumReleaseAgeStrict to true to gate these updates with a prompt):
+  @void/deploy-cloudflare@1.1.11
+  @void/deploy-core@1.1.11
+  @void/edge@1.1.11
+  @void/isr@1.1.11
+  @void/platform@1.1.11
+  void@1.1.11
+[WARN] 26 deprecated subdependencies found: @esbuild-kit/core-utils@3.3.2, @esbuild-kit/esm-loader@2.6.5, @yuku-codegen/binding-android-arm64@0.9.5, @yuku-codegen/binding-darwin-arm64@0.9.5, @yuku-codegen/binding-darwin-x64@0.9.5, @yuku-codegen/binding-freebsd-x64@0.9.5, @yuku-codegen/binding-linux-arm-gnu@0.9.5, @yuku-codegen/binding-linux-arm-musl@0.9.5, @yuku-codegen/binding-linux-arm64-gnu@0.9.5, @yuku-codegen/binding-linux-arm64-musl@0.9.5, @yuku-codegen/binding-linux-x64-gnu@0.9.5, @yuku-codegen/binding-linux-x64-musl@0.9.5, @yuku-codegen/binding-win32-arm64@0.9.5, @yuku-codegen/binding-win32-x64@0.9.5, @yuku-parser/binding-android-arm64@0.9.5, @yuku-parser/binding-darwin-arm64@0.9.5, @yuku-parser/binding-darwin-x64@0.9.5, @yuku-parser/binding-freebsd-x64@0.9.5, @yuku-parser/binding-linux-arm-gnu@0.9.5, @yuku-parser/binding-linux-arm-musl@0.9.5, @yuku-parser/binding-linux-arm64-gnu@0.9.5, @yuku-parser/binding-linux-arm64-musl@0.9.5, @yuku-parser/binding-linux-x64-gnu@0.9.5, @yuku-parser/binding-linux-x64-musl@0.9.5, @yuku-parser/binding-win32-arm64@0.9.5, @yuku-parser/binding-win32-x64@0.9.5
+Packages: +130 -19
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++-----------
+Progress: resolved 130, reused 119, downloaded 98, added 130, done
+.../esbuild@0.18.20/node_modules/esbuild postinstall$ node install.js
+.../esbuild@0.25.12/node_modules/esbuild postinstall$ node install.js
+.../esbuild@0.18.20/node_modules/esbuild postinstall: Done
+.../esbuild@0.25.12/node_modules/esbuild postinstall: Done
+Agent skills awaiting approval: @tanstack/devtools-vite, @tanstack/react-start, void.
+Run "pnpm approve" to review them.
+[WARN] Issues with peer dependencies found. Run "pnpm peers check" to list them.
+
+devDependencies:
++ void 1.1.11
+
+Done in 1.1s using pnpm v12.14.0
+ADD_EXIT:0

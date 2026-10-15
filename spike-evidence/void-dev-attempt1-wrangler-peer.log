@@ -1,0 +1,8 @@
+note: You are running `vp dev` as a Vite+ built-in command. If you meant to run the dev npm script, use `vpr dev` instead.
+failed to load config from /tmp/spike-void/vite.config.ts
+error when starting dev server:
+Error: The installed version of Wrangler (4.148.0) does not satisfy the peer dependency required by @cloudflare/vite-plugin (^4.151.0).
+Please install wrangler@^4.151.0.
+    at assertWranglerVersion (file:///tmp/spike-void/node_modules/.pnpm/@cloudflare+vite-plugin@1.64.0_@types+node@24.19.1_@voidzero-dev+vite-plus-core@1.1.0_@_260b5fea521d93754392906867cab32d/node_modules/@cloudflare/vite-plugin/dist/index.mjs:54053:77)
+    at async file:///tmp/spike-void/node_modules/.pnpm/@cloudflare+vite-plugin@1.64.0_@types+node@24.19.1_@voidzero-dev+vite-plus-core@1.1.0_@_260b5fea521d93754392906867cab32d/node_modules/@cloudflare/vite-plugin/dist/index.mjs:97164:1
+DEV_EXIT:1

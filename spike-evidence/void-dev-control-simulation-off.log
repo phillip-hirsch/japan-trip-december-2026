@@ -1,0 +1,10 @@
+note: You are running `vp dev` as a Vite+ built-in command. If you meant to run the dev npm script, use `vpr dev` instead.
+Using secrets defined in .env
+
+  VITE+ v1.1.0  
+
+  ➜  Local:   http://localhost:3010/
+  ➜  Network: use --host to expose
+  ➜  Debug:   http://localhost:3010/__debug
+[22:03:40.043] WARN (#1): Access gate refused: no identity
+[22:03:40.065] WARN (#3): Access gate refused: token: JWSInvalid: Invalid Compact JWS

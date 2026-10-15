@@ -1,0 +1,38 @@
+$ git status --short (before)
+ M package.json
+ M pnpm-lock.yaml
+ M pnpm-workspace.yaml
+?? spike-evidence/
+
+$ CI=1 pnpm exec void migrate </dev/null
+
+◇ Migrated project settings to void.config.ts. Commit it and void.lock.json when
+   present.
+
+✓ Configuration migration complete.
+
+MIGRATE_EXIT:0
+
+$ git status --short (after)
+ M .gitignore
+ M package.json
+ M pnpm-lock.yaml
+ M pnpm-workspace.yaml
+ D wrangler.jsonc
+?? .void/
+?? spike-evidence/
+?? void.config.ts
+?? void.lock.json
+
+$ ls -la .void .void/config-migration
+.void:
+total 12
+drwxr-xr-x  3 ubuntu ubuntu 4096 Oct 15 21:54 .
+drwxr-xr-x 12 ubuntu ubuntu 4096 Oct 15 21:54 ..
+drwxr-xr-x  2 ubuntu ubuntu 4096 Oct 15 21:54 config-migration
+
+.void/config-migration:
+total 12
+drwxr-xr-x 2 ubuntu ubuntu 4096 Oct 15 21:54 .
+drwxr-xr-x 3 ubuntu ubuntu 4096 Oct 15 21:54 ..
+-rw-r--r-- 1 ubuntu ubuntu 1275 Oct 15 21:54 wrangler.jsonc

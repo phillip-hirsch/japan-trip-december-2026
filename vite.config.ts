@@ -1,12 +1,15 @@
+import path from 'node:path'
+
 import { recommended as effectRecommended } from '@effect/tsgo/oxlint-presets'
 import { devtools } from '@tanstack/devtools-vite'
 import { defineConfig, lazyPlugins } from 'vite-plus'
+import type { Plugin } from 'vite-plus'
 
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 
-import { cloudflare } from '@cloudflare/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
+import { voidPlugin } from 'void'
 
 import {
   checkPrerenderedHtml,
@@ -48,6 +51,31 @@ const agentToolingIgnores = [
   '.windsurf/**',
   'tools/oxlint/anti-slop/**',
 ]
+
+const voidWrapperImport =
+  'import original from "@tanstack/react-start/server-entry";'
+
+// Void's TanStack Start wrapper imports the stock server entry and re-exports
+// only its default. Without this the Worker skips src/server.ts, so it loses
+// the Access gate and the TripStore export.
+const keepServerEntry = (): Plugin => ({
+  name: 'spike:void-keep-server-entry',
+  enforce: 'pre',
+  transform(code, id) {
+    if (!id.endsWith('/.void/tanstack-start-trigger-wrapper.ts')) return
+
+    if (!code.includes(voidWrapperImport)) {
+      throw new Error(`Void wrapper no longer contains: ${voidWrapperImport}`)
+    }
+
+    const serverEntry = JSON.stringify(path.resolve('src/server.ts'))
+
+    return code.replace(
+      voidWrapperImport,
+      `import original from ${serverEntry};\nexport * from ${serverEntry};`,
+    )
+  },
+})
 
 const config = defineConfig({
   staged: {
@@ -122,7 +150,8 @@ const config = defineConfig({
 
     return [
       devtools(),
-      cloudflare({ viteEnvironment: { name: 'ssr' } }),
+      keepServerEntry(),
+      voidPlugin(),
       tailwindcss(),
       // Prerenders through the local preview, whose Access dev simulation
       // passes the gate as it does for `vp dev`.

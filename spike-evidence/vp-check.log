@@ -1,0 +1,9 @@
+error: Formatting issues found
+.void/dev-triggers.ts (1ms)
+.void/preview-deploy-config.json (0ms)
+.void/tanstack-start-trigger-wrapper.ts (0ms)
+void.config.ts (0ms)
+void.lock.json (0ms)
+
+Found formatting issues in 5 files (1540ms, 4 threads). Run `vp check --fix` to fix them.
+exit=1

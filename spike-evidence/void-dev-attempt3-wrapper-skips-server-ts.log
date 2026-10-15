@@ -1,0 +1,25 @@
+note: You are running `vp dev` as a Vite+ built-in command. If you meant to run the dev npm script, use `vpr dev` instead.
+Using secrets defined in .env
+Using secrets defined in .env
+service core:user:japan-trip-december-2026: Uncaught TypeError: Class extends value undefined is not a constructor or null
+  at __mf_do_wrapper.js:40:6 in createDurableObjectWrapper
+  at __mf_do_wrapper_entry.js:5:26
+error when starting dev server:
+MiniflareCoreError [ERR_RUNTIME_FAILURE]: The Workers runtime failed to start. There was likely a problem with the workerd binary or your configuration.
+Runtime stderr:
+{"timestamp":"1792101519673","level":"error","source":"src/workerd/server/json-logger.c++:127","message":"service core:user:japan-trip-december-2026: Uncaught TypeError: Class extends value undefined is not a constructor or null\n  at __mf_do_wrapper.js:40:6 in createDurableObjectWrapper\n  at __mf_do_wrapper_entry.js:5:26","context_depth":0}
+    at StartupLogBuffer.handleStartupFailure (/tmp/spike-void/node_modules/.pnpm/miniflare@5.20261012.0-beta_@types+node@24.19.1/node_modules/miniflare/dist/src/index.js:117069:13)
+    at Runtime.updateConfig (/tmp/spike-void/node_modules/.pnpm/miniflare@5.20261012.0-beta_@types+node@24.19.1/node_modules/miniflare/dist/src/index.js:117149:24)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async #assembleAndUpdateConfigInternal (/tmp/spike-void/node_modules/.pnpm/miniflare@5.20261012.0-beta_@types+node@24.19.1/node_modules/miniflare/dist/src/index.js:134801:30)
+    at async #assembleAndUpdateConfig (/tmp/spike-void/node_modules/.pnpm/miniflare@5.20261012.0-beta_@types+node@24.19.1/node_modules/miniflare/dist/src/index.js:134728:7)
+    at async #setOptions (/tmp/spike-void/node_modules/.pnpm/miniflare@5.20261012.0-beta_@types+node@24.19.1/node_modules/miniflare/dist/src/index.js:135089:7)
+    at async Mutex.runWith (/tmp/spike-void/node_modules/.pnpm/miniflare@5.20261012.0-beta_@types+node@24.19.1/node_modules/miniflare/dist/src/index.js:80699:16)
+    at async PluginContext.startOrUpdateMiniflare (file:///tmp/spike-void/node_modules/.pnpm/@cloudflare+vite-plugin@1.64.0_@types+node@24.19.1_@voidzero-dev+vite-plus-core@1.1.0_@_9c7871e516a17897fa14866752a7fe98/node_modules/@cloudflare/vite-plugin/dist/index.mjs:56614:4)
+    at async BasicMinimalPluginContext.configureServer (file:///tmp/spike-void/node_modules/.pnpm/@cloudflare+vite-plugin@1.64.0_@types+node@24.19.1_@voidzero-dev+vite-plus-core@1.1.0_@_9c7871e516a17897fa14866752a7fe98/node_modules/@cloudflare/vite-plugin/dist/index.mjs:96068:5)
+    at async _createServer (file:///tmp/spike-void/node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.1.0_@types+node@24.19.1_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/chunks/node.js:30399:84)
+    at async CAC.<anonymous> (file:///tmp/spike-void/node_modules/.pnpm/@voidzero-dev+vite-plus-core@1.1.0_@types+node@24.19.1_esbuild@0.28.1_jiti@2.7.0_tsx@4.23.15_typescript@7.0.2_yaml@2.9.1/node_modules/@voidzero-dev/vite-plus-core/dist/vite/node/cli.js:712:18) {
+  code: 'ERR_RUNTIME_FAILURE',
+  cause: undefined
+}
+DEV_EXIT:1

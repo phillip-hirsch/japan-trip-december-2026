@@ -1,0 +1,14 @@
+chunk: node_modules/.pnpm/void@1.1.11_@tanstack+react-start@1.168.60_@voidzero-dev+vite-plus-core@1.1.0_@types+no_a22b28dfddf90bc6dff77f0c305ed9f9/node_modules/void/dist/cf-build-output-Bc8i3dzE.mjs
+input: dist/server/wrangler.json
+file:///tmp/spike-void/node_modules/.pnpm/void@1.1.11_@tanstack+react-start@1.168.60_@voidzero-dev+vite-plus-core@1.1.0_@types+no_a22b28dfddf90bc6dff77f0c305ed9f9/node_modules/void/dist/cf-build-output-Bc8i3dzE.mjs:120
+		if (!(path === "assets.directory" && item.message.includes("assets directory") || /^d1_databases\.\d+$/.test(path) && /`migrations_(?:dir|table)`/.test(item.message) || /^durable_objects\.bindings\.\d+$/.test(path) || path === "migrations" || path === "containers")) throw new Error(`cf cannot migrate Cloudflare setting ${path}: ${item.message}`);
+		                                                                                                                                                                                                                                                                                 ^
+
+Error: cf cannot migrate Cloudflare setting exports.TripStore: Durable Object exports require manual review after migration.
+    at assertHandledFollowUps (file:///tmp/spike-void/node_modules/.pnpm/void@1.1.11_@tanstack+react-start@1.168.60_@voidzero-dev+vite-plus-core@1.1.0_@types+no_a22b28dfddf90bc6dff77f0c305ed9f9/node_modules/void/dist/cf-build-output-Bc8i3dzE.mjs:120:276)
+    at migrateBuiltWranglerConfig (file:///tmp/spike-void/node_modules/.pnpm/void@1.1.11_@tanstack+react-start@1.168.60_@voidzero-dev+vite-plus-core@1.1.0_@types+no_a22b28dfddf90bc6dff77f0c305ed9f9/node_modules/void/dist/cf-build-output-Bc8i3dzE.mjs:276:3)
+    at prepareCfBuildOutput (file:///tmp/spike-void/node_modules/.pnpm/void@1.1.11_@tanstack+react-start@1.168.60_@voidzero-dev+vite-plus-core@1.1.0_@types+no_a22b28dfddf90bc6dff77f0c305ed9f9/node_modules/void/dist/cf-build-output-Bc8i3dzE.mjs:393:17)
+    at file:///tmp/spike-void/spike-evidence/run-void-deploy-codemod.mjs:30:22
+
+Node.js v22.23.3
+exit=1
