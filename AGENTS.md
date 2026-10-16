@@ -92,7 +92,7 @@ Import from `src/` with the `@/` alias (`@/routes/...` for `src/routes/...`).
 
 ### Cloudflare bindings
 
-`worker-configuration.d.ts` is generated: run `vp run cf-typegen` after every `wrangler.jsonc` change and commit the result. Server code reads the typed environment with `import { env } from 'cloudflare:workers'`.
+Dev and build use `cf dev` and `cf build`, which read `cloudflare.config.ts`. Deploy is `cf build`, then `cf deploy --prebuilt --mode production` ([ADR 0005](docs/adr/0005-use-cf-cli-for-dev-and-build.md)). `wrangler.jsonc` stays for `wrangler tail`, `wrangler secret put`, and `wrangler types`. Keep the two files in step. `worker-configuration.d.ts` is generated: run `vp run cf-typegen` after a `wrangler.jsonc` change and commit the result. Server code reads the typed environment with `import { env } from 'cloudflare:workers'`.
 
 ### Japanese display font
 

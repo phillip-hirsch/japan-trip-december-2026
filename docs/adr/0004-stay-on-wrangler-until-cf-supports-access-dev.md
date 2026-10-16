@@ -1,4 +1,10 @@
+---
+status: superseded by ADR-0005
+---
+
 # Stay on Wrangler until `cf` can simulate Access locally
+
+Superseded by [ADR 0005](0005-use-cf-cli-for-dev-and-build.md).
 
 The Worker keeps `wrangler.jsonc`, `wrangler deploy` and `wrangler types` rather than moving to the `cf` CLI and `cloudflare.config.ts`. A full switch needs the beta `cf` CLI plus the beta `@cloudflare/vite-plugin` 2.0, and neither can express wrangler's `access.dev` block, which local development and the prerender rely on to pass the Access gate (ADR 0002). We chose to wait rather than replace that with a dev-only bypass in the gate, since that trades a working setup for security-relevant code with nothing gained.
 

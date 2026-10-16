@@ -8,7 +8,7 @@ import {
   KeySetTransport,
 } from '@/access/AccessGate'
 
-// The Durable Object class, exported for the Wrangler configuration (ADR 0001).
+// The Durable Object class, exported for the Worker configuration (ADR 0001).
 export { TripStore } from '@/trip/TripStore'
 
 const accessRuntime = ManagedRuntime.make(
