@@ -1,3 +1,12 @@
 {
-  "recommendations": ["VoidZero.vite-plus-extension-pack"]
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "csstools.postcss",
+    "dsznajder.es7-react-js-snippets",
+    "effectful-tech.effect-vscode",
+    "oxc.oxc-vscode",
+    "typescriptteam.native-preview",
+    "vitest.explorer",
+    "VoidZero.vite-plus-extension-pack"
+  ]
 }
