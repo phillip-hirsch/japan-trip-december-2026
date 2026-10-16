@@ -24,8 +24,8 @@ export default defineConfig({
         '4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16',
       ),
       ACCESS_ALLOWED_EMAIL: bindings.text('phillip@350home.com'),
-      // Plugin 2 loads .dev.vars only for declared secrets. Never set this
-      // on the deployed Worker.
+      // Plugin 2 loads .dev.vars only for declared secrets. A declared secret
+      // is required on deploy, so the deployed Worker sets it to `false`.
       ACCESS_DEV_SIMULATION: bindings.secret(),
       TRIP_STORE: bindings.durableObject({
         worker: 'japan-trip-december-2026',

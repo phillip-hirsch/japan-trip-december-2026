@@ -1,6 +1,8 @@
-# Local Access simulation for `cf dev` and `vp preview`. Never deployed.
+# Local Access simulation for `cf dev` and `vp preview`. This file is never deployed.
 # `vp install` copies this to the git-ignored .dev.vars when that is missing.
 # Plugin 2 reads this file only for bindings declared as secrets.
-# ACCESS_DEV_SIMULATION is that secret. Leave it unset on the deployed Worker.
+# ACCESS_DEV_SIMULATION is that secret. The deployed Worker sets it to false.
+# Don't add .dev.vars.production: the build would read it instead of this
+# file, lose the secret, and fail the prerender.
 # Text bindings live in cloudflare.config.ts. This file does not override them.
 ACCESS_DEV_SIMULATION=true
