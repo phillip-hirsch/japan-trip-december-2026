@@ -1,7 +1,7 @@
 import { layers, namedFlavor } from '@protomaps/basemaps'
 import type { StyleSpecification } from 'maplibre-gl'
 
-import { detailTilesPath } from '@/trip/detail-tile-url'
+import { detailTilesMaxZoom, detailTilesPath } from '@/trip/detail-tile-source'
 
 const attribution =
   '<a href="https://github.com/protomaps/basemaps">Protomaps</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -20,7 +20,7 @@ export const protomapsDark = (origin: string): StyleSpecification => ({
     protomaps: {
       type: 'vector',
       tiles: [`${origin}${detailTilesPath}/{z}/{x}/{y}.mvt`],
-      maxzoom: 14,
+      maxzoom: detailTilesMaxZoom,
       attribution,
     },
   },

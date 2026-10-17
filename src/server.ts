@@ -29,8 +29,9 @@ const refusal = (status: 403 | 503) =>
 
 /**
  * The Worker entry: every request that reaches the Worker passes the Access
- * gate before a Detail tile or TanStack Start answers it. Static assets and prerendered HTML are
- * served without running the Worker, behind Cloudflare Access at the edge.
+ * gate before a Detail tile or TanStack Start answers it. Static assets and
+ * prerendered HTML are served without running the Worker, behind Cloudflare
+ * Access at the edge.
  */
 export default {
   async fetch(request, _env, ctx) {

@@ -1,6 +1,6 @@
-import { Effect, Option, Schema } from 'effect'
-import { Compression, PMTiles, ResolvedValueCache } from 'pmtiles'
-import type { DecompressFunc } from 'pmtiles'
+import { Clock, Duration, Effect, Option, Schema } from 'effect'
+import { Compression, EtagMismatch, PMTiles, ResolvedValueCache } from 'pmtiles'
+import type { DecompressFunc, Source } from 'pmtiles'
 
 import { DetailTileArchive } from '@/trip/DetailTileArchive'
 import { DetailTilesUnavailable } from '@/trip/domain'
@@ -36,28 +36,58 @@ const encodings: Record<Compression, DetailTile['encoding']> = {
 /** Tiles leave as stored, so the Worker never spends CPU unzipping one. */
 const keepCompressed: DecompressFunc = (bytes) => Promise.resolve(bytes)
 
+/** How long a warm isolate trusts its cached directories without a check. */
+const recheckEvery = Duration.toMillis(Duration.minutes(1))
+
+/**
+ * Drops the cached header and directories if the archive has been replaced
+ * since they were read: a one-byte read naming their etag fails if so.
+ */
+const recheck = async (
+  archive: PMTiles,
+  source: Source,
+  directories: ResolvedValueCache,
+  signal: AbortSignal,
+) => {
+  const { etag } = await archive.getHeader()
+
+  try {
+    await source.getBytes(0, 1, signal, etag)
+  } catch (cause) {
+    if (!(cause instanceof EtagMismatch)) throw cause
+    await directories.invalidate(source)
+  }
+}
+
 /**
  * Builds the Trip service's Detail tile lookup. Its cache holds the archive's
  * header and directories as plain values, never promises, since a Worker
  * can't share a promise between requests, so later tiles from the same
  * isolate skip those reads.
+ *
+ * A tile the cached directories lack is answered without reading the
+ * archive, so at most once a minute the lookup checks that the archive hasn't
+ * been replaced, such as to cover a new place.
  */
 export const detailTileLookup = Effect.sync(() => {
   const directories = new ResolvedValueCache()
+  let checkedAt: number | undefined
 
   return Effect.fn('Trip.detailTile')(function* (tile: TileCoordinates) {
     if (!isOnTheMap(tile)) return Option.none<DetailTile>()
+    const source = yield* DetailTileArchive
+    const archive = new PMTiles(source, directories, keepCompressed)
+    const now = yield* Clock.currentTimeMillis
+    const due = checkedAt !== undefined && now - checkedAt >= recheckEvery
 
-    const archive = new PMTiles(
-      yield* DetailTileArchive,
-      directories,
-      keepCompressed,
-    )
+    if (checkedAt === undefined || due) checkedAt = now
 
     const found = yield* Effect.tryPromise({
       try: async (signal) => {
-        const { tileCompression } = await archive.getHeader()
+        if (due) await recheck(archive, source, directories, signal)
         const stored = await archive.getZxy(tile.z, tile.x, tile.y, signal)
+        // Read after the tile: a replaced archive's header comes with it.
+        const { tileCompression } = await archive.getHeader()
 
         return stored === undefined
           ? undefined

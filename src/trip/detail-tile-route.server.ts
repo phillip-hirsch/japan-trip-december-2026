@@ -1,7 +1,7 @@
 import { Effect, Option } from 'effect'
 
 import { detailTileArchive } from '@/trip/detail-tile-archive.server'
-import { detailTilesPath } from '@/trip/detail-tile-url'
+import { detailTilesPath } from '@/trip/detail-tile-source'
 import type { DetailTile, TileCoordinates } from '@/trip/domain'
 import { runTrip } from '@/trip/runtime.server'
 import { Trip } from '@/trip/Trip'

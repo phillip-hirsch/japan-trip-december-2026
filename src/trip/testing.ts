@@ -5,8 +5,10 @@ import { deepStrictEqual } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer } from 'effect'
 import { TestClock } from 'effect/testing'
 import { readFileSync } from 'node:fs'
+import { EtagMismatch } from 'pmtiles'
 
 import { DetailTileArchive } from '@/trip/DetailTileArchive'
+import { detailTilesKey } from '@/trip/detail-tile-source'
 
 import type { ItineraryContent } from '@/trip/domain'
 import { OperationId } from '@/trip/domain'
@@ -48,22 +50,46 @@ export const liveTrip = Trip.layer.pipe(
   ]),
 )
 
-const archiveKey = 'detail.pmtiles'
-
-const archiveInMemory = (stored: Uint8Array) =>
-  DetailTileArchive.of({
-    getKey: () => archiveKey,
-    getBytes: (offset, length) =>
-      Promise.resolve({ data: stored.slice(offset, offset + length).buffer }),
-  })
+const fixture = (name: string) =>
+  Uint8Array.from(readFileSync(new URL(name, import.meta.url)))
 
 /** A real Detail tiles archive of two tiles of open ocean. */
-export const openOceanArchive = archiveInMemory(
-  Uint8Array.from(readFileSync(new URL('open-ocean.pmtiles', import.meta.url))),
-)
+export const openOcean = fixture('open-ocean.pmtiles')
+
+/** The same, one tile further east at zoom 10. */
+export const openOceanEast = fixture('open-ocean-east.pmtiles')
+
+/**
+ * An archive in memory that an upload can replace, as in the bucket. Each
+ * upload has its own etag, and a read naming an older one fails as R2's does.
+ */
+export const replaceableArchive = (first: Uint8Array) => {
+  let stored = first
+  let upload = 1
+
+  const archive = DetailTileArchive.of({
+    getKey: () => detailTilesKey,
+    getBytes: (offset, length, _signal, etag) =>
+      etag !== undefined && etag !== `upload-${upload}`
+        ? Promise.reject(new EtagMismatch())
+        : Promise.resolve({
+            data: stored.slice(offset, offset + length).buffer,
+            etag: `upload-${upload}`,
+          }),
+  })
+
+  const replace = (next: Uint8Array) => {
+    stored = next
+    upload += 1
+  }
+
+  return { archive, replace }
+}
+
+export const openOceanArchive = replaceableArchive(openOcean).archive
 
 export const unreadableArchive = DetailTileArchive.of({
-  getKey: () => archiveKey,
+  getKey: () => detailTilesKey,
   getBytes: () => Promise.reject(new Error('The bucket is unreachable')),
 })
 

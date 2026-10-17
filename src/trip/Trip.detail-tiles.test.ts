@@ -1,6 +1,8 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Effect, Option } from 'effect'
+import { TestClock } from 'effect/testing'
 import { gunzipSync } from 'node:zlib'
+import { Compression } from 'pmtiles'
 
 import { DetailTileArchive } from '@/trip/DetailTileArchive'
 import { DetailTilesUnavailable } from '@/trip/domain'
@@ -8,7 +10,10 @@ import type { TileCoordinates } from '@/trip/domain'
 import {
   assertFailedWith,
   liveTrip,
+  openOcean,
   openOceanArchive,
+  openOceanEast,
+  replaceableArchive,
   unreadableArchive,
 } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
@@ -85,6 +90,39 @@ describe('Trip.detailTile', () => {
       ]) {
         assert.isTrue(Option.isNone(yield* detailTile(tile)))
       }
+    }).pipe(Effect.provide(liveTrip)),
+  )
+
+  it.effect("serves a replaced archive's Detail tiles within a minute", () =>
+    Effect.gen(function* () {
+      const { archive, replace } = replaceableArchive(openOcean)
+      const west = { z: 10, x: 938, y: 422 }
+      const east = { z: 10, x: 939, y: 422 }
+
+      assert.isTrue(Option.isNone(yield* detailTile(east, archive)))
+
+      replace(openOceanEast)
+      yield* TestClock.adjust('1 minute')
+
+      assert.isTrue(Option.isSome(yield* detailTile(east, archive)))
+      assert.isTrue(Option.isNone(yield* detailTile(west, archive)))
+    }).pipe(Effect.provide(liveTrip)),
+  )
+
+  it.effect('names the encoding of the archive a Detail tile came from', () =>
+    Effect.gen(function* () {
+      const { archive, replace } = replaceableArchive(openOcean)
+      const tile = { z: 9, x: 469, y: 211 }
+
+      // Byte 98 of a PMTiles v3 header names the tiles' compression.
+      const markedUncompressed = openOceanEast.slice()
+      markedUncompressed[98] = Compression.None
+
+      yield* detailTile(tile, archive)
+      replace(markedUncompressed)
+      const served = Option.getOrThrow(yield* detailTile(tile, archive))
+
+      assert.strictEqual(served.encoding, 'identity')
     }).pipe(Effect.provide(liveTrip)),
   )
 

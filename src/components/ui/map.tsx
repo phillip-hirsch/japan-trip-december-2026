@@ -365,12 +365,12 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       ...viewport,
     })
 
-    // MapLibre reports a style that fails to load, such as while offline, as
-    // an event rather than throwing, and never fires `load`. Until the first
-    // style loads, an error or the timeout fails the map instead, so the
-    // nearest error boundary can replace it. Later errors, such as a missing
-    // tile, leave the map running.
-    let firstStyleLoaded = false
+    // MapLibre reports a resource that fails to load, such as the sprite or a
+    // tile while offline, as an event rather than throwing. Until the map
+    // first finishes loading, an error, or the style not loading in time,
+    // fails the map instead, so the nearest error boundary can replace it.
+    // Later errors, such as one tile failing, leave the map running.
+    let firstLoaded = false
 
     const startupTimeout = setTimeout(
       () => setStartupError(new Error('The map style did not load in time')),
@@ -378,19 +378,21 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     )
 
     const errorHandler = ({ error }: MapLibreGL.ErrorEvent) => {
-      if (firstStyleLoaded) return
+      if (firstLoaded) return
       clearTimeout(startupTimeout)
       setStartupError(new Error(error.message, { cause: error }))
     }
 
     const styleLoadHandler = () => {
-      firstStyleLoaded = true
       clearTimeout(startupTimeout)
       styleSwapInFlightRef.current = false
       setIsStyleLoaded(true)
     }
 
-    const loadHandler = () => setIsLoaded(true)
+    const loadHandler = () => {
+      firstLoaded = true
+      setIsLoaded(true)
+    }
 
     // Viewport change handler - skip if triggered by internal update
     const handleMove = () => {

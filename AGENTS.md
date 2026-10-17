@@ -119,7 +119,7 @@ Tests are colocated with the modules they exercise (`*.test.ts` under `src/`), w
 
 - Drive behaviour only through a public seam: the Trip service or the Access gate. Behaviour the browser lifecycle owns (mount, unmount, query-cache listeners), which neither seam reaches, goes through the exported React hook instead, rendered under `// @vitest-environment happy-dom` and asserting on what the hook returns and on the query cache. A hook test mocks out the server-function transport, `@/trip/trip.functions`, and nothing else.
 - Assert only on returned values, described in glossary terms (`GLOSSARY.md`).
-- Build the module under test for real; substitute only its dependencies (Itinerary catalogue, Clock, SQL client, configuration, key-set transport, link resolver) through layers.
+- Build the module under test for real; substitute only its dependencies (Itinerary catalogue, Clock, SQL client, configuration, key-set transport, link resolver, Detail tiles archive) through layers or `Effect.provideService`.
 - Read state back through the seam; tables, internal helpers and component internals stay uninspected.
 
 ## Agent skills

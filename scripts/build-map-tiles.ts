@@ -5,13 +5,15 @@
 // - tiles/detail-local.pmtiles: a small box around Tokyo Station for local
 //   development, which `vp run seed-local-tiles` puts in the local bucket.
 // Prints each extract's size. Needs Go, which runs go-pmtiles. Pass a build
-// date such as `20261017` to pin the build; the latest is the default.
+// date such as `20261017` to pin the build; the default is the latest on the
+// tile schema the app's style draws.
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 // Relative, not '@/': plain `node` runs this script and can't resolve the alias.
+import { detailTilesMaxZoom } from '../src/trip/detail-tile-source.ts'
 import { places } from '../src/trip/places.ts'
 import type { CatalogueCoordinates } from '../src/trip/places.ts'
 
@@ -24,8 +26,6 @@ const outputs = 'tiles'
 const japan = '129.0,30.9,146.0,45.6'
 
 const overviewMaxZoom = 8
-
-const detailMaxZoom = 14
 
 /** Half the width of the box around each place: its station to an edge. */
 const detailReachKm = 12
@@ -66,16 +66,29 @@ const ring = ([west, south, east, north]: Bbox) => [
   ],
 ]
 
+// The tile schema @protomaps/basemaps 5 draws. A build on a newer schema could
+// render wrongly with the app's pinned style, so it's skipped.
+const schemaMajor = '4.'
+
 const latestBuild = async () => {
   const response = await fetch(builds)
 
   if (!response.ok) throw new Error(`Build list failed: ${response.status}`)
-  const list: ReadonlyArray<{ readonly key: string }> = await response.json()
-  const latest = list.at(-1)?.key
 
-  if (latest === undefined) throw new Error('The build list is empty')
+  const list: ReadonlyArray<{
+    readonly key: string
+    readonly version: string
+  }> = await response.json()
 
-  return latest.replace('.pmtiles', '')
+  const latest = [...list]
+    .reverse()
+    .find(({ version }) => version.startsWith(schemaMajor))
+
+  if (latest === undefined) {
+    throw new Error(`No build on tile schema ${schemaMajor}x`)
+  }
+
+  return latest.key.replace('.pmtiles', '')
 }
 
 const build = process.argv[2] ?? (await latestBuild())
@@ -119,7 +132,7 @@ const detailBoxes = Object.entries(places).map(
 )
 
 for (const [id, box] of detailBoxes) {
-  const size = plannedSize([bboxFlag(box), `--maxzoom=${detailMaxZoom}`])
+  const size = plannedSize([bboxFlag(box), `--maxzoom=${detailTilesMaxZoom}`])
   console.log(`  ${id}: ${size} on its own`)
 }
 
@@ -135,12 +148,12 @@ writeFileSync(
 
 const archives = [
   ['overview', [`--bbox=${japan}`, `--maxzoom=${overviewMaxZoom}`]],
-  ['detail', [`--region=${region}`, `--maxzoom=${detailMaxZoom}`]],
+  ['detail', [`--region=${region}`, `--maxzoom=${detailTilesMaxZoom}`]],
   [
     'detail-local',
     [
       bboxFlag(boxAround(places.tokyo.coordinates, localReachKm)),
-      `--maxzoom=${detailMaxZoom}`,
+      `--maxzoom=${detailTilesMaxZoom}`,
     ],
   ],
 ] as const

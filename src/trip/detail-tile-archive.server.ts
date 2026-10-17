@@ -3,9 +3,7 @@ import { Layer } from 'effect'
 import { EtagMismatch } from 'pmtiles'
 
 import { DetailTileArchive } from '@/trip/DetailTileArchive'
-
-/** The object `vp run seed-local-tiles` and the production upload write. */
-const key = 'detail.pmtiles'
+import { detailTilesKey as key } from '@/trip/detail-tile-source'
 
 /**
  * Reads the Detail tiles archive from the Worker's R2 bucket. A read that
