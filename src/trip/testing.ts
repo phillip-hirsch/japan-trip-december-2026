@@ -86,6 +86,9 @@ export const replaceableArchive = (first: Uint8Array) => {
       hold = undefined
 
       if (holding === undefined) return result
+      // Handled now, so a stale read held back isn't reported as unhandled;
+      // the caller still gets its rejection once released.
+      result.catch(() => undefined)
 
       return new Promise<void>((release) => holding(release)).then(() => result)
     },
