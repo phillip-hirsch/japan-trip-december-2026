@@ -4,9 +4,10 @@ import { CalendarIcon } from 'lucide-react'
 import { useId } from 'react'
 
 import { DateChoice } from '@/components/date-choice'
+import { WithdrawnEdit } from '@/components/editor-frame'
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
 import { answerStayEdit } from '@/components/schedule-rules'
-import { StaySection, WithdrawnStayEdit } from '@/components/stay-section'
+import { StaySection } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
 import {
   formatDay,
@@ -65,11 +66,10 @@ function StayBoundaryForm({
     <StaySection heading="Check-out" stay={stay}>
       {(headingId) =>
         next === undefined ? (
-          <WithdrawnStayEdit
+          <WithdrawnEdit
+            field={field}
             labelledBy={headingId}
-            state={field.state}
             reason="This is now your last Stay, so its check-out can’t move."
-            onDiscard={field.discard}
           />
         ) : (
           <StayBoundaryChoice
