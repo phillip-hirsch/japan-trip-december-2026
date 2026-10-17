@@ -7,7 +7,7 @@ import { useEditorFrame } from '@/components/editor-frame'
 import { useDayNote } from '@/components/notes'
 import { IsoDate, ScheduleId, WriteDayNoteOutcome } from '@/trip/domain'
 import { SaveAnswer, useOfferedSave } from '@/trip/drafts'
-import { deferred, openEditor } from '@/trip/editor-testing'
+import { deferred, openEditor, startSaving } from '@/trip/editor-testing'
 import { writeDayNote } from '@/trip/trip.functions'
 
 vi.mock('@/trip/trip.functions', () => ({ writeDayNote: vi.fn() }))
@@ -89,10 +89,7 @@ describe('the editor frame', () => {
     const editor = await openDayNoteFrame()
 
     await act(async () => editor.field().field.change('Tsukiji at six.'))
-    let finished: Promise<void> = Promise.resolve()
-    await act(async () => {
-      finished = editor.field().field.save()
-    })
+    const { finished } = await startSaving(() => editor.field().field.save())
 
     const { view, submitLabel, busy, autoFocus } = editor.field().frame
     assert.deepStrictEqual(
@@ -118,13 +115,9 @@ describe('the editor frame', () => {
     )
 
     await act(async () => editor.field().field.change('Tsukiji at six.'))
-    let finished: Promise<void> = Promise.resolve()
-    await act(async () => {
-      finished = editor.field().field.save()
-    })
+    const { finished } = await startSaving(() => editor.field().field.save())
     assert.strictEqual(editor.field().frame.view, 'summary')
     assert.isTrue(editor.field().frame.justSaved)
-    assert.isTrue(editor.field().frame.busy)
 
     await act(async () => {
       reread.resolve('schedules, re-read')
@@ -132,7 +125,6 @@ describe('the editor frame', () => {
     })
     assert.strictEqual(editor.field().frame.view, 'summary')
     assert.isTrue(editor.field().frame.justSaved)
-    assert.isFalse(editor.field().frame.busy)
     await editor.close()
   })
 

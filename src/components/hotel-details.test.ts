@@ -6,7 +6,11 @@ import { act } from 'react'
 import { useHotelDetails } from '@/components/hotel-details'
 import { Hotel, ScheduleId, WriteHotelDetailsOutcome } from '@/trip/domain'
 import { SaveState } from '@/trip/drafts'
-import { openEditor } from '@/trip/editor-testing'
+import {
+  answeringOnly,
+  notSavedProblem,
+  openEditor,
+} from '@/trip/editor-testing'
 import { writeHotelDetails } from '@/trip/trip.functions'
 
 vi.mock('@/trip/trip.functions', () => ({ writeHotelDetails: vi.fn() }))
@@ -25,10 +29,6 @@ const openHotelDetails = (hotel: Hotel, read?: () => Promise<string>) =>
     {},
     read,
   )
-
-/** Why a NotSaved value isn't saved; nothing for any other state. */
-const notSavedProblem = <V>(state: SaveState<V>) =>
-  SaveState.$is('NotSaved')(state) ? state.problem : undefined
 
 const confirmation = {
   name: 'Hotel Gion',
@@ -49,20 +49,22 @@ describe('the Hotel details', () => {
     await editor.close()
   })
 
-  it('sends the Hotel details to their Stay of the Schedule shown, and is saved', async () => {
+  it('is saved once it sends the Hotel details to their Stay of the Schedule shown', async () => {
     localStorage.clear()
-    vi.mocked(writeHotelDetails).mockReset()
-    vi.mocked(writeHotelDetails).mockResolvedValue(
-      WriteHotelDetailsOutcome.cases.Written.make({}),
+    vi.mocked(writeHotelDetails).mockImplementation(
+      answeringOnly(
+        { scheduleId, stayId: 'stay-kyoto', details: confirmation },
+        WriteHotelDetailsOutcome.cases.Written.make({}),
+        WriteHotelDetailsOutcome.cases.StayNotFound.make({
+          stayId: 'stay-kyoto',
+        }),
+      ),
     )
     const editor = await openHotelDetails(recorded)
 
     await act(async () => editor.field().change(confirmation))
     await act(() => editor.field().save())
 
-    assert.deepStrictEqual(vi.mocked(writeHotelDetails).mock.calls, [
-      [{ data: { scheduleId, stayId: 'stay-kyoto', details: confirmation } }],
-    ])
     assert.deepStrictEqual(
       editor.field().state,
       SaveState.Clean({ justSaved: true }),

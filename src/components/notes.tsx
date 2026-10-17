@@ -125,6 +125,7 @@ function NoteFrame({
       }
       editLabel={value === '' ? 'Add a note' : 'Edit note'}
       editIcon={PencilIcon}
+      nameForm={false}
       actions={
         nearsTheCap(value) && (
           <p className="ml-auto text-sm text-muted-foreground tabular-nums">
@@ -153,37 +154,36 @@ function NoteFrame({
 
 function DayNoteEditor({
   labelledBy,
-  ...note
+  ...props
 }: Parameters<typeof useDayNote>[0] & { labelledBy: string }) {
-  const field = useDayNote(note)
+  const field = useDayNote(props)
 
   return (
     <NoteFrame field={field} labelledBy={labelledBy} emptyText="No note yet." />
   )
 }
 
-export const DayNote = keyedBy(DayNoteEditor, ({ date }) => dayNoteTarget(date))
+export const DayNote = keyedBy(DayNoteEditor, ({ date }) => date)
 
 function StayNoteEditor({
   labelledBy,
-  ...note
+  ...props
 }: Parameters<typeof useStayNote>[0] & { labelledBy: string }) {
-  const field = useStayNote(note)
+  const field = useStayNote(props)
 
   return (
     <NoteFrame field={field} labelledBy={labelledBy} textClassName="text-sm" />
   )
 }
 
-export const StayNote = keyedBy(StayNoteEditor, ({ stayId }) =>
-  stayNoteTarget(stayId),
-)
+export const StayNote = keyedBy(StayNoteEditor, ({ stayId }) => stayId)
 
-function TripNoteEditor({
+/** There is one Trip note, so its editor never needs keying. */
+export function TripNote({
   labelledBy,
-  ...note
+  ...props
 }: Parameters<typeof useTripNote>[0] & { labelledBy: string }) {
-  const field = useTripNote(note)
+  const field = useTripNote(props)
 
   return (
     <NoteFrame
@@ -193,5 +193,3 @@ function TripNoteEditor({
     />
   )
 }
-
-export const TripNote = keyedBy(TripNoteEditor, () => tripNoteTarget)

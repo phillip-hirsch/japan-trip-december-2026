@@ -12,7 +12,13 @@ import {
   WriteTripNoteOutcome,
 } from '@/trip/domain'
 import { SaveState } from '@/trip/drafts'
-import { deferred, openEditor } from '@/trip/editor-testing'
+import {
+  answeringOnly,
+  deferred,
+  notSavedProblem,
+  openEditor,
+  startSaving,
+} from '@/trip/editor-testing'
 import {
   writeDayNote,
   writeStayNote,
@@ -28,10 +34,6 @@ vi.mock('@/trip/trip.functions', () => ({
 const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
 
 const date = IsoDate.make('2026-12-07')
-
-/** Why a NotSaved value isn't saved; nothing for any other state. */
-const notSavedProblem = <V>(state: SaveState<V>) =>
-  SaveState.$is('NotSaved')(state) ? state.problem : undefined
 
 /** Types `note` into the editor's field and presses Save, awaiting the answer. */
 const typeAndSave = async (
@@ -53,19 +55,19 @@ describe('the Day note', () => {
       read,
     )
 
-  it('sends the note to its Day of the Schedule shown, and is saved', async () => {
+  it('is saved once it sends the note to its Day of the Schedule shown', async () => {
     localStorage.clear()
-    vi.mocked(writeDayNote).mockReset()
-    vi.mocked(writeDayNote).mockResolvedValue(
-      WriteDayNoteOutcome.cases.Written.make({}),
+    vi.mocked(writeDayNote).mockImplementation(
+      answeringOnly(
+        { scheduleId, date, note: 'Tsukiji at dawn.' },
+        WriteDayNoteOutcome.cases.Written.make({}),
+        WriteDayNoteOutcome.cases.DayNotFound.make({ date }),
+      ),
     )
     const editor = await openDayNote()
 
     await typeAndSave(editor.field, 'Tsukiji at dawn.')
 
-    assert.deepStrictEqual(vi.mocked(writeDayNote).mock.calls, [
-      [{ data: { scheduleId, date, note: 'Tsukiji at dawn.' } }],
-    ])
     assert.deepStrictEqual(
       editor.field().state,
       SaveState.Clean({ justSaved: true }),
@@ -123,19 +125,19 @@ describe('the Stay note', () => {
       read,
     )
 
-  it('sends the note to its Stay of the Schedule shown, and is saved', async () => {
+  it('is saved once it sends the note to its Stay of the Schedule shown', async () => {
     localStorage.clear()
-    vi.mocked(writeStayNote).mockReset()
-    vi.mocked(writeStayNote).mockResolvedValue(
-      WriteStayNoteOutcome.cases.Written.make({}),
+    vi.mocked(writeStayNote).mockImplementation(
+      answeringOnly(
+        { scheduleId, stayId: 'stay-kyoto', note: 'Near Gion.' },
+        WriteStayNoteOutcome.cases.Written.make({}),
+        WriteStayNoteOutcome.cases.StayNotFound.make({ stayId: 'stay-kyoto' }),
+      ),
     )
     const editor = await openStayNote()
 
     await typeAndSave(editor.field, 'Near Gion.')
 
-    assert.deepStrictEqual(vi.mocked(writeStayNote).mock.calls, [
-      [{ data: { scheduleId, stayId: 'stay-kyoto', note: 'Near Gion.' } }],
-    ])
     assert.deepStrictEqual(
       editor.field().state,
       SaveState.Clean({ justSaved: true }),
@@ -197,27 +199,27 @@ describe('the Trip note', () => {
     note: string,
   ) => {
     await act(async () => editor.field().change(note))
-    let finished: Promise<void> = Promise.resolve()
-    await act(async () => {
-      finished = editor.field().save()
-    })
 
-    return { finished }
+    return startSaving(() => editor.field().save())
   }
 
-  it('sends the note to the Trip, naming no Schedule', async () => {
+  it('is saved once it sends the note to the Trip, naming no Schedule', async () => {
     localStorage.clear()
-    vi.mocked(writeTripNote).mockReset()
-    vi.mocked(writeTripNote).mockResolvedValue(
-      WriteTripNoteOutcome.cases.Written.make({}),
+    vi.mocked(writeTripNote).mockImplementation(
+      answeringOnly(
+        { note: 'Pack lighter.' },
+        WriteTripNoteOutcome.cases.Written.make({}),
+        WriteTripNoteOutcome.cases.NoteTooLong.make({ maxLength: 10_000 }),
+      ),
     )
     const editor = await openTripNote()
 
     await typeAndSave(editor.field, 'Pack lighter.')
 
-    assert.deepStrictEqual(vi.mocked(writeTripNote).mock.calls, [
-      [{ data: { note: 'Pack lighter.' } }],
-    ])
+    assert.deepStrictEqual(
+      editor.field().state,
+      SaveState.Clean({ justSaved: true }),
+    )
     await editor.close()
   })
 

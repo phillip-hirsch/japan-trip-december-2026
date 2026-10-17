@@ -106,9 +106,9 @@ export const useHotelDetails = ({
 
 function HotelDetailsEditor({
   labelledBy,
-  ...stay
+  ...props
 }: Parameters<typeof useHotelDetails>[0] & { labelledBy: string }) {
-  const field = useHotelDetails(stay)
+  const field = useHotelDetails(props)
   const fieldId = useId()
   const { value } = field
   const details = trimmedHotelDetails(value)

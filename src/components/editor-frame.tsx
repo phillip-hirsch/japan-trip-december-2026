@@ -36,15 +36,14 @@ interface FramedEditor<V> extends FramedField<V> {
  * Which view of an editor shows: its saved summary, its open form, or an
  * open edit the Schedule withdrew.
  */
-export type EditorView = 'summary' | 'form' | 'withdrawn'
+type EditorView = 'summary' | 'form' | 'withdrawn'
 
 /**
  * How the editor frame shows a field from the save hook.
  *
  * - The summary shows a Clean or Saved value, marked just saved after a save.
  * - The form shows a value being edited, on its way, or not saved, with why.
- * - It is busy while the value is on its way or awaiting the read that
- *   confirms it, so it can't change.
+ * - The form is busy while the value is on its way, so it can't change.
  * - Opening the form focuses it; a restored Draft opens unfocused.
  */
 export const useEditorFrame = <V,>(
@@ -68,7 +67,7 @@ export const useEditorFrame = <V,>(
   return {
     view,
     justSaved: saved || (clean && state.justSaved),
-    busy: saving || saved,
+    busy: saving,
     submitLabel: saving ? verb.submitting : notSaved ? 'Retry' : verb.submit,
     discardLabel: notSaved ? 'Discard' : 'Cancel',
     autoFocus: SaveState.$is('Editing')(state),
@@ -151,6 +150,7 @@ export function EditorFrame<V>({
   editIcon: EditIcon,
   withdrawnReason,
   actions,
+  nameForm = true,
   children,
 }: {
   field: FramedEditor<V>
@@ -163,6 +163,11 @@ export function EditorFrame<V>({
   withdrawnReason?: string
   /** Shown after Save and Cancel. */
   actions?: ReactNode
+  /**
+   * Whether the heading names the form. An editor whose one input the heading
+   * names already says false, so the name isn't read twice.
+   */
+  nameForm?: boolean
   children: (frame: EditorFrameView) => ReactNode
 }) {
   const frame = useEditorFrame(field, verb)
@@ -200,7 +205,7 @@ export function EditorFrame<V>({
 
   return (
     <form
-      aria-labelledby={labelledBy}
+      aria-labelledby={nameForm ? labelledBy : undefined}
       className="flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault()

@@ -9,9 +9,11 @@ import {
   createRouter,
   RouterContextProvider,
 } from '@tanstack/react-router'
+import { isDeepStrictEqual } from 'node:util'
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import { SaveState } from '@/trip/drafts'
 import { schedulesQuery } from '@/trip/queries'
 
 Reflect.set(globalThis, 'IS_REACT_ACT_ENVIRONMENT', true)
@@ -25,6 +27,33 @@ export const deferred = <A>() => {
 
   return { promise, resolve }
 }
+
+/** Why a NotSaved value isn't saved; nothing for any other state. */
+export const notSavedProblem = <V>(state: SaveState<V>) =>
+  SaveState.$is('NotSaved')(state) ? state.problem : undefined
+
+/**
+ * Presses Save with `save`, before its answer comes. Await `finished` for
+ * the answer.
+ */
+export const startSaving = async (save: () => Promise<void>) => {
+  let finished: Promise<void> = Promise.resolve()
+  await act(async () => {
+    finished = save()
+  })
+
+  return { finished }
+}
+
+/**
+ * A server function that answers `written` only to a request carrying exactly
+ * `expected`, and `refused` to any other, so a saved value shows what was
+ * sent.
+ */
+export const answeringOnly =
+  <E, W, R>(expected: E, written: W, refused: R) =>
+  async <D>({ data }: { readonly data: D }) =>
+    isDeepStrictEqual(data, expected) ? written : refused
 
 /**
  * A page showing the Schedules, read with `read`, and an editor on it whose

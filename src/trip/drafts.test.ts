@@ -14,7 +14,12 @@ import {
   useOfferedSave,
   useOperationSave,
 } from '@/trip/drafts'
-import { deferred, openEditor } from '@/trip/editor-testing'
+import {
+  deferred,
+  notSavedProblem,
+  openEditor,
+  startSaving,
+} from '@/trip/editor-testing'
 
 // The server functions are the transport the Trip queries read through; the
 // editor here sends with its own `run` and reads with its own `queryFn`.
@@ -106,10 +111,6 @@ const openMergeEditor = async (
   }
 }
 
-/** Why a NotSaved value isn't saved; nothing for any other state. */
-const notSavedProblem = <V>(state: SaveState<V>) =>
-  SaveState.$is('NotSaved')(state) ? state.problem : undefined
-
 const scheduleChanged =
   'Your Schedule changed on another device. This page now shows it as it is; your text is kept here to save again.'
 
@@ -200,10 +201,7 @@ describe('a Stay edit the refreshed Schedule withdraws', () => {
     )
 
     await act(async () => editor.field().change('stay-osaka'))
-    let finished: Promise<void> = Promise.resolve()
-    await act(async () => {
-      finished = editor.field().save()
-    })
+    const { finished } = await startSaving(() => editor.field().save())
     await editor.refresh(undefined)
 
     await act(async () => {
