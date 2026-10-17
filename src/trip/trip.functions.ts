@@ -43,7 +43,6 @@ import {
   TickOwnChecklistItem,
   TickOwnChecklistItemOutcome,
   WriteDayNote,
-  WriteDayNoteOutcome,
   WriteHotelDetails,
   WriteHotelDetailsOutcome,
   WriteStayNote,
@@ -53,13 +52,15 @@ import {
 } from '@/trip/domain'
 import { runTrip } from '@/trip/runtime.server'
 import { Trip } from '@/trip/Trip'
-import { callTripStore } from '@/trip/trip-store.server'
+import { callTripStore, tripWriteHandler } from '@/trip/trip-store.server'
 
 // Server functions are thin adapters around the Trip service: validate the
 // input with Schema (inline, so the client build strips it with the
 // validator), map the service's typed failures, and run it through runTrip.
 // Its storage operations run in the Trip store, reached only through
-// callTripStore.
+// callTripStore. A Trip write in the registry (trip-writes.ts) is just an
+// entry: its input schema and tripWriteHandler naming its operation, whose
+// outcome is derived.
 
 /**
  * Home's state at the moment of the request, in Tokyo. Personal state, so it
@@ -133,9 +134,7 @@ export const restoreSchedule = createServerFn({ method: 'POST' })
 
 export const writeDayNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteDayNote))
-  .handler(({ data }) =>
-    callTripStore(WriteDayNoteOutcome, (store) => store.writeDayNote(data)),
-  )
+  .handler(tripWriteHandler('writeDayNote'))
 
 export const writeStayNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteStayNote))

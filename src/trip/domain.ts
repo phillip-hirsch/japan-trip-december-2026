@@ -870,12 +870,57 @@ export class NoteTooLong extends Schema.TaggedError<NoteTooLong>()(
   { maxLength: Schema.Int },
 ) {}
 
-export const WriteDayNoteOutcome = Schema.TaggedUnion({
-  Written: {},
-  ScheduleChanged: ScheduleChanged.fields,
-  DayNotFound: DayNotFound.fields,
-  NoteTooLong: NoteTooLong.fields,
-})
+/** A typed failure of a Trip write: a `Schema.TaggedError` class. */
+interface WriteFailure {
+  readonly Type: { readonly _tag: string }
+  readonly fields: Schema.Struct.Fields & {
+    readonly _tag: Schema.tag<string>
+  }
+}
+
+type WriteOutcomeCases<
+  Success extends string,
+  Fields extends Schema.Struct.Fields,
+  Failures extends ReadonlyArray<WriteFailure>,
+> = { readonly [K in Success]: Fields } & {
+  readonly [F in Failures[number] as F['Type']['_tag']]: F['fields']
+}
+
+/**
+ * Derives a Trip write's outcome from the write's success value and its
+ * failure classes: the success case, plus one case per typed failure with the
+ * failure's own tag and fields. No case is written by hand.
+ */
+export const writeOutcome = <
+  const Success extends string,
+  const Fields extends Schema.Struct.Fields,
+  const Failures extends ReadonlyArray<WriteFailure>,
+>(
+  success: Success,
+  fields: Fields,
+  failures: Failures,
+) =>
+  Object.assign(
+    Schema.TaggedUnion(
+      // SAFETY: each entry pairs a case's tag with its fields: the success
+      // case's as given, each failure's from its own class, as
+      // WriteOutcomeCases spells out. Object.fromEntries can't keep the keys.
+      Object.fromEntries([
+        [success, fields],
+        ...failures.map((failure) => [
+          failure.fields._tag.ast.literal,
+          failure.fields,
+        ]),
+      ]) as WriteOutcomeCases<Success, Fields, Failures>,
+    ),
+    { success },
+  )
+
+export const WriteDayNoteOutcome = writeOutcome('Written', {}, [
+  ScheduleChanged,
+  DayNotFound,
+  NoteTooLong,
+])
 
 export type WriteDayNoteOutcome = typeof WriteDayNoteOutcome.Type
 

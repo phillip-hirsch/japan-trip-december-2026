@@ -33,7 +33,6 @@ import type {
   RemoveOwnChecklistItem,
   TickChecklistItem,
   TickOwnChecklistItem,
-  WriteDayNote,
   WriteHotelDetails,
   WriteStayNote,
   WriteTripNote,
@@ -52,7 +51,6 @@ import {
   SetPinOutcome,
   TickChecklistItemOutcome,
   TickOwnChecklistItemOutcome,
-  WriteDayNoteOutcome,
   WriteHotelDetailsOutcome,
   WriteStayNoteOutcome,
   WriteTripNoteOutcome,
@@ -60,6 +58,12 @@ import {
 import { migrations } from '@/trip/migrations'
 import { runToPromise } from '@/trip/runtime.server'
 import { Trip } from '@/trip/Trip'
+import { runTripWrite } from '@/trip/trip-writes'
+import type {
+  TripWriteInput,
+  TripWriteName,
+  TripWriteOutcome,
+} from '@/trip/trip-writes'
 
 export const stayEditOutcomeOf = <R>(
   edit: Effect.Effect<
@@ -92,7 +96,8 @@ export const stayEditOutcomeOf = <R>(
  * The one SQLite-backed Durable Object holding all of Phillip's editable data
  * (ADR 0001). Its RPC methods run the Trip service's storage operations over
  * the object's own storage. Only plain encoded data crosses RPC: results are
- * plain structs, and typed failures become outcomes.
+ * plain structs, and typed failures become outcomes. A write moved onto
+ * `write` gets its outcome derived; the rest still map theirs by hand.
  */
 export class TripStore extends DurableObject<Env> {
   readonly #runtime: ManagedRuntime.ManagedRuntime<
@@ -191,28 +196,15 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  writeDayNote(input: WriteDayNote): Promise<WriteDayNoteOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.writeDayNote(input)).pipe(
-        Effect.as<WriteDayNoteOutcome>(
-          WriteDayNoteOutcome.cases.Written.make({}),
-        ),
-        Effect.catchTags({
-          ScheduleChanged: () =>
-            Effect.succeed<WriteDayNoteOutcome>(
-              WriteDayNoteOutcome.cases.ScheduleChanged.make({}),
-            ),
-          DayNotFound: ({ date }) =>
-            Effect.succeed<WriteDayNoteOutcome>(
-              WriteDayNoteOutcome.cases.DayNotFound.make({ date }),
-            ),
-          NoteTooLong: ({ maxLength }) =>
-            Effect.succeed<WriteDayNoteOutcome>(
-              WriteDayNoteOutcome.cases.NoteTooLong.make({ maxLength }),
-            ),
-        }),
-      ),
-    )
+  /**
+   * Runs the Trip write named and answers its outcome: its success or typed
+   * failure, as plain data.
+   */
+  write<K extends TripWriteName>(
+    name: K,
+    input: TripWriteInput<K>,
+  ): Promise<TripWriteOutcome<K>> {
+    return this.#run(runTripWrite(name, input))
   }
 
   writeStayNote(input: WriteStayNote): Promise<WriteStayNoteOutcome> {
