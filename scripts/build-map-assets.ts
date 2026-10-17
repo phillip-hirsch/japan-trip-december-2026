@@ -1,0 +1,43 @@
+// Downloads the glyphs and sprites the map's Protomaps style uses, from a
+// pinned commit of protomaps/basemaps-assets, into public/map so the app
+// serves them itself. MapLibre draws Japanese and Korean text with the
+// device's own font, so only the ranges the tiles' labels otherwise use are
+// kept; a character outside them is drawn with the device's font too.
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+
+const commit = '028c18f713baecad011301ff7a69acc39bcc2ae7'
+
+const source = `https://raw.githubusercontent.com/protomaps/basemaps-assets/${commit}`
+
+const output = 'public/map'
+
+const fontstacks = ['Noto Sans Regular', 'Noto Sans Medium', 'Noto Sans Italic']
+
+// Basic Latin and Latin-1, Latin Extended-A (macrons such as Tōkyō), Greek,
+// Cyrillic, Latin Extended Additional, punctuation, and letterlike symbols
+// such as Roman numerals.
+const glyphRanges = [0, 256, 768, 1024, 7680, 8192, 8448].map(
+  (start) => `${start}-${start + 255}`,
+)
+
+const sprites = ['dark.json', 'dark.png', 'dark@2x.json', 'dark@2x.png']
+
+const files = [
+  'fonts/OFL.txt',
+  ...fontstacks.flatMap((fontstack) =>
+    glyphRanges.map((range) => `fonts/${fontstack}/${range}.pbf`),
+  ),
+  ...sprites.map((sprite) => `sprites/v4/${sprite}`),
+]
+
+for (const file of files) {
+  const response = await fetch(`${source}/${encodeURI(file)}`)
+
+  if (!response.ok) throw new Error(`${file} failed: ${response.status}`)
+  const path = join(output, file.replace('sprites/v4/', 'sprites/'))
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, Buffer.from(await response.arrayBuffer()))
+}
+
+console.log(`${files.length} files in ${output}`)

@@ -1,0 +1,101 @@
+import { assert, describe, it } from '@effect/vitest'
+import { Effect, Option } from 'effect'
+import { gunzipSync } from 'node:zlib'
+
+import { DetailTileArchive } from '@/trip/DetailTileArchive'
+import { DetailTilesUnavailable } from '@/trip/domain'
+import type { TileCoordinates } from '@/trip/domain'
+import {
+  assertFailedWith,
+  liveTrip,
+  openOceanArchive,
+  unreadableArchive,
+} from '@/trip/testing'
+import { Trip } from '@/trip/Trip'
+
+// open-ocean.pmtiles is a real Protomaps extract (build 20261017) of one box of
+// open Pacific Ocean, zoom 9 and 10 only, so it holds one tile at each zoom:
+// go-pmtiles extract https://build.protomaps.com/20261017.pmtiles \
+//   open-ocean.pmtiles --bbox=150.05,30.05,150.1,30.1 --minzoom=9 --maxzoom=10
+const inTheBox = [
+  { z: 9, x: 469, y: 211 },
+  { z: 10, x: 938, y: 422 },
+]
+
+const detailTile = (
+  tile: TileCoordinates,
+  archive: DetailTileArchive['Service'] = openOceanArchive,
+) =>
+  Trip.use((trip) => trip.detailTile(tile)).pipe(
+    Effect.provideService(DetailTileArchive, archive),
+  )
+
+describe('Trip.detailTile', () => {
+  it.effect('serves each Detail tile in the archive as stored, gzipped', () =>
+    Effect.gen(function* () {
+      for (const tile of inTheBox) {
+        const served = Option.getOrThrow(yield* detailTile(tile))
+
+        assert.strictEqual(served.encoding, 'gzip')
+        assert.isAbove(gunzipSync(served.bytes).byteLength, 0)
+      }
+    }).pipe(Effect.provide(liveTrip)),
+  )
+
+  it.effect('serves the same Detail tile again from a warm archive', () =>
+    Effect.gen(function* () {
+      const tile = { z: 10, x: 938, y: 422 }
+      const first = Option.getOrThrow(yield* detailTile(tile))
+      const again = Option.getOrThrow(yield* detailTile(tile))
+
+      assert.deepStrictEqual(again.bytes, first.bytes)
+    }).pipe(Effect.provide(liveTrip)),
+  )
+
+  it.effect("has no Detail tile outside the archive's boxes", () =>
+    Effect.gen(function* () {
+      for (const tile of [
+        { z: 10, x: 939, y: 422 },
+        { z: 9, x: 469, y: 212 },
+      ]) {
+        assert.isTrue(Option.isNone(yield* detailTile(tile)))
+      }
+    }).pipe(Effect.provide(liveTrip)),
+  )
+
+  it.effect("has no Detail tile beyond the archive's zoom levels", () =>
+    Effect.gen(function* () {
+      for (const tile of [
+        { z: 8, x: 234, y: 105 },
+        { z: 11, x: 1876, y: 844 },
+      ]) {
+        assert.isTrue(Option.isNone(yield* detailTile(tile)))
+      }
+    }).pipe(Effect.provide(liveTrip)),
+  )
+
+  it.effect('has no Detail tile at coordinates no map has', () =>
+    Effect.gen(function* () {
+      for (const tile of [
+        { z: 10, x: 1024, y: 422 },
+        { z: 10, x: 938, y: 1024 },
+        { z: 10, x: -1, y: 422 },
+        { z: 10, x: 938.5, y: 422 },
+        { z: 31, x: 0, y: 0 },
+      ]) {
+        assert.isTrue(Option.isNone(yield* detailTile(tile)))
+      }
+    }).pipe(Effect.provide(liveTrip)),
+  )
+
+  it.effect('fails as unavailable when the archive cannot be read', () =>
+    Effect.gen(function* () {
+      assertFailedWith(
+        yield* Effect.flip(
+          detailTile({ z: 10, x: 938, y: 422 }, unreadableArchive),
+        ),
+        new DetailTilesUnavailable(),
+      )
+    }).pipe(Effect.provide(liveTrip)),
+  )
+})

@@ -19,7 +19,7 @@ Four phases, in order. Spec: [issue #1](https://github.com/phillip-hirsch/japan-
 - [TanStack Start](https://tanstack.com/start) and React 19. Routes in `src/routes`.
 - [Tailwind CSS](https://tailwindcss.com/) 4, dark only.
 - [Cloudflare Workers](https://developers.cloudflare.com/workers/). `cf dev`, `cf build`, and `cf deploy --prebuilt` read `cloudflare.config.ts`. Wrangler stays for live logs, single secrets, and types ([ADR 0005](docs/adr/0005-use-cf-cli-for-dev-and-build.md)). Entry is `src/server.ts`.
-- [MapLibre GL](https://maplibre.org/) with [OpenFreeMap](https://openfreemap.org/) dark tiles. The MapLibre worker is bundled.
+- [MapLibre GL](https://maplibre.org/) with [Protomaps](https://protomaps.com/)' dark style. The Worker serves the Detail tiles from R2 behind Access, and the app hosts the glyphs, sprites and MapLibre worker itself.
 - [Effect](https://effect.website/) 4 for the Trip service and the Access gate. Tests use `@effect/vitest`.
 - [Vite+](https://viteplus.dev/) (`vp`).
 - shadcn/ui on Base UI.
@@ -35,6 +35,18 @@ vp run dev
 `vp run dev` runs `cf dev` on port 3000. Open http://localhost:3000.
 
 `.dev.vars` is git-ignored. `vp install` creates it from `.dev.vars.example` when it's missing. `cf` loads `ACCESS_DEV_SIMULATION` from that file because `cloudflare.config.ts` declares it as a secret. The local value is `true`. The deployed Worker sets it to `false`, because `cf deploy` refuses to deploy while a declared secret is missing. `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `ACCESS_ALLOWED_EMAIL` are text bindings in `cloudflare.config.ts`, with the same values in `wrangler.jsonc`. `.dev.vars` does not override them.
+
+### Map tiles
+
+The map's street detail, the Detail tiles, comes from one PMTiles archive in the Worker's R2 bucket (`DETAIL_TILES`, object `detail.pmtiles`). The Worker serves it tile by tile at `/tiles/detail/{z}/{x}/{y}.mvt`, after the Access gate. Glyphs and sprites are static files in `public/map`.
+
+```bash
+vp run build-map-tiles    # extracts into the git-ignored tiles/ (needs Go)
+vp run seed-local-tiles   # puts tiles/detail-local.pmtiles in the local bucket
+vp run build-map-assets   # refreshes public/map
+```
+
+`build-map-tiles` reads the latest Protomaps daily build (or the build date you pass). It writes `overview.pmtiles` (Japan, zoom 0–8), `detail.pmtiles` (zoom 0–14, a 24 km box around every place in `src/trip/places.ts`) and `detail-local.pmtiles` (a 4 km box around Tokyo Station), and prints their sizes. Run it again after adding a place. Locally, the map shows street detail only around Tokyo Station.
 
 ```bash
 vp check           # format, lint, and typecheck

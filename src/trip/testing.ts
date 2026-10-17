@@ -4,6 +4,9 @@ import { SqliteClient, SqliteMigrator } from '@effect/sql-sqlite-node'
 import { deepStrictEqual } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer } from 'effect'
 import { TestClock } from 'effect/testing'
+import { readFileSync } from 'node:fs'
+
+import { DetailTileArchive } from '@/trip/DetailTileArchive'
 
 import type { ItineraryContent } from '@/trip/domain'
 import { OperationId } from '@/trip/domain'
@@ -44,6 +47,25 @@ export const liveTrip = Trip.layer.pipe(
     Layer.succeed(LocationLinkResolver, recordedLinks),
   ]),
 )
+
+const archiveKey = 'detail.pmtiles'
+
+const archiveInMemory = (stored: Uint8Array) =>
+  DetailTileArchive.of({
+    getKey: () => archiveKey,
+    getBytes: (offset, length) =>
+      Promise.resolve({ data: stored.slice(offset, offset + length).buffer }),
+  })
+
+/** A real Detail tiles archive of two tiles of open ocean. */
+export const openOceanArchive = archiveInMemory(
+  Uint8Array.from(readFileSync(new URL('open-ocean.pmtiles', import.meta.url))),
+)
+
+export const unreadableArchive = DetailTileArchive.of({
+  getKey: () => archiveKey,
+  getBytes: () => Promise.reject(new Error('The bucket is unreachable')),
+})
 
 /** Sets the Clock to a moment given as an ISO 8601 UTC string. */
 export const setTime = (instant: string) =>

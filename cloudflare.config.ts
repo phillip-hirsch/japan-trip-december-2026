@@ -27,6 +27,9 @@ export default defineConfig({
       // Plugin 2 loads .dev.vars only for declared secrets. A declared secret
       // is required on deploy, so the deployed Worker sets it to `false`.
       ACCESS_DEV_SIMULATION: bindings.secret(),
+      // The Detail tiles archive, served tile by tile behind the Access gate.
+      // `vp run seed-local-tiles` fills the local bucket.
+      DETAIL_TILES: bindings.r2({ name: 'japan-trip-detail-tiles' }),
       TRIP_STORE: bindings.durableObject({
         worker: 'japan-trip-december-2026',
         exportName: 'TripStore',
