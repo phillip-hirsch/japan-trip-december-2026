@@ -250,7 +250,7 @@ describe('saving to an Activity that no longer exists', () => {
       'This Activity is no longer on this Day, perhaps removed on another device.',
     )
     assert.strictEqual(editor.field().value, 'Tsukiji at dawn')
-    assert.strictEqual(reads, 2)
+    assert.strictEqual(editor.schedulesShown(), 'schedules, read 2')
     await editor.close()
 
     const reopened = await open()

@@ -107,7 +107,7 @@ describe('the Day note', () => {
       'Monday, December 7 is no longer a Day of your Schedule, perhaps changed on another device.',
     )
     assert.strictEqual(editor.field().value, 'Tsukiji at dawn.')
-    assert.strictEqual(reads, 2)
+    assert.strictEqual(editor.schedulesShown(), 'schedules, read 2')
     await editor.close()
 
     const reopened = await openDayNote(read)
@@ -177,7 +177,7 @@ describe('the Stay note', () => {
       'This Stay is no longer part of your Schedule, perhaps changed on another device.',
     )
     assert.strictEqual(editor.field().value, 'Near Gion.')
-    assert.strictEqual(reads, 2)
+    assert.strictEqual(editor.schedulesShown(), 'schedules, read 2')
     await editor.close()
 
     const reopened = await openStayNote(read)

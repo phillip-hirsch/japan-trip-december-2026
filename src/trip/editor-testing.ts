@@ -111,6 +111,10 @@ export const openEditor = async <P extends object, F>(
     show,
     // The leak in #83 is a listener left on the query cache itself.
     listening: () => queryClient.getQueryCache().hasListeners(),
+    /** The Schedules the page shows, as last read. */
+    schedulesShown: () =>
+      // The page reads them with `read`, so as its strings, not as Schedules.
+      queryClient.getQueryData<string>([...schedulesQuery.queryKey]),
     schedulesRefreshDue: () =>
       queryClient.getQueryState(schedulesQuery.queryKey)?.isInvalidated,
     close: () => act(async () => root.unmount()),

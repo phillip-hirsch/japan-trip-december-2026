@@ -127,7 +127,7 @@ describe('the Hotel details', () => {
       'This Stay is no longer part of your Schedule, perhaps changed on another device.',
     )
     assert.deepStrictEqual(editor.field().value, confirmation)
-    assert.strictEqual(reads, 2)
+    assert.strictEqual(editor.schedulesShown(), 'schedules, read 2')
     await editor.close()
 
     const reopened = await openHotelDetails(recorded, read)
