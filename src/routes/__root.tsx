@@ -13,10 +13,9 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/toast'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import displayFont from '@/fonts/shippori-mincho-600-display.woff2?url'
+import { appName, appShortName, ink } from '@/lib/app-identity'
 import type { StyleWithVariables } from '@/lib/utils'
 import appCss from '@/styles.css?url'
-
-const ink = '#0b1015'
 
 const inkStyle: StyleWithVariables = { '--ink': ink }
 
@@ -37,7 +36,11 @@ export const Route = createRootRouteWithContext<{
         content: ink,
       },
       {
-        title: 'Japan · December 2026',
+        name: 'apple-mobile-web-app-title',
+        content: appShortName,
+      },
+      {
+        title: appName,
       },
     ],
     links: [
@@ -51,6 +54,23 @@ export const Route = createRootRouteWithContext<{
       {
         rel: 'stylesheet',
         href: appCss,
+      },
+      // With credentials, so the request carries the Access session; without
+      // them it gets the Access login instead of the manifest.
+      {
+        rel: 'manifest',
+        href: '/manifest.webmanifest',
+        crossOrigin: 'use-credentials',
+      },
+      // iOS takes the Home Screen icon from here, not from the manifest.
+      {
+        rel: 'apple-touch-icon',
+        href: '/apple-touch-icon.png',
+      },
+      {
+        rel: 'icon',
+        href: '/icon.svg',
+        type: 'image/svg+xml',
       },
     ],
   }),
