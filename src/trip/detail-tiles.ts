@@ -33,9 +33,6 @@ const encodings: Record<Compression, DetailTile['encoding']> = {
   [Compression.Zstd]: 'zstd',
 }
 
-/** Tiles leave as stored, so the Worker never spends CPU unzipping one. */
-const keepCompressed: DecompressFunc = (bytes) => Promise.resolve(bytes)
-
 /** How long a warm isolate trusts its cached directories without a check. */
 const recheckEvery = Duration.toMillis(Duration.minutes(1))
 
@@ -76,6 +73,18 @@ export const detailTileLookup = Effect.sync(() => {
   return Effect.fn('Trip.detailTile')(function* (tile: TileCoordinates) {
     if (!isOnTheMap(tile)) return Option.none<DetailTile>()
     const source = yield* DetailTileArchive
+    // PMTiles hands each tile it reads to this callback with the compression
+    // its own archive's header names. The tile leaves as stored, so the
+    // Worker never spends CPU unzipping one, and keeps that compression, even
+    // if another request meanwhile finds the archive replaced.
+    let compression = Compression.Unknown
+
+    const keepCompressed: DecompressFunc = (bytes, stored) => {
+      compression = stored
+
+      return Promise.resolve(bytes)
+    }
+
     const archive = new PMTiles(source, directories, keepCompressed)
     const now = yield* Clock.currentTimeMillis
     const due = checkedAt !== undefined && now - checkedAt >= recheckEvery
@@ -86,14 +95,12 @@ export const detailTileLookup = Effect.sync(() => {
       try: async (signal) => {
         if (due) await recheck(archive, source, directories, signal)
         const stored = await archive.getZxy(tile.z, tile.x, tile.y, signal)
-        // Read after the tile: a replaced archive's header comes with it.
-        const { tileCompression } = await archive.getHeader()
 
         return stored === undefined
           ? undefined
           : {
               bytes: new Uint8Array(stored.data),
-              encoding: encodings[tileCompression],
+              encoding: encodings[compression],
             }
       },
       catch: (cause) => new ArchiveUnreadable({ cause }),

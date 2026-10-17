@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option } from 'effect'
+import { Effect, Fiber, Option } from 'effect'
 import { TestClock } from 'effect/testing'
 import { gunzipSync } from 'node:zlib'
 import { Compression } from 'pmtiles'
@@ -124,6 +124,31 @@ describe('Trip.detailTile', () => {
 
       assert.strictEqual(served.encoding, 'identity')
     }).pipe(Effect.provide(liveTrip)),
+  )
+
+  it.effect(
+    'names the encoding of the tile read, even as another request sees a replaced archive',
+    () =>
+      Effect.gen(function* () {
+        const { archive, replace, holdNextRead } = replaceableArchive(openOcean)
+
+        const tile = { z: 9, x: 469, y: 211 }
+
+        const markedUncompressed = openOceanEast.slice()
+        markedUncompressed[98] = Compression.None
+
+        yield* detailTile(tile, archive)
+        const reached = holdNextRead()
+        const slow = yield* Effect.forkChild(detailTile(tile, archive))
+        const release = yield* Effect.promise(() => reached)
+
+        replace(markedUncompressed)
+        yield* detailTile(tile, archive)
+        release()
+        const served = Option.getOrThrow(yield* Fiber.join(slow))
+
+        assert.strictEqual(served.encoding, 'gzip')
+      }).pipe(Effect.provide(liveTrip)),
   )
 
   it.effect('fails as unavailable when the archive cannot be read', () =>

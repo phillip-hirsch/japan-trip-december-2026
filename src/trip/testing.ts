@@ -62,20 +62,33 @@ export const openOceanEast = fixture('open-ocean-east.pmtiles')
 /**
  * An archive in memory that an upload can replace, as in the bucket. Each
  * upload has its own etag, and a read naming an older one fails as R2's does.
+ * `holdNextRead` lets a test pause one read after it has taken its bytes,
+ * as a slow response would, until `release`.
  */
 export const replaceableArchive = (first: Uint8Array) => {
   let stored = first
   let upload = 1
+  let hold: ((release: () => void) => void) | undefined
+
+  const read = (offset: number, length: number, etag: string | undefined) =>
+    etag !== undefined && etag !== `upload-${upload}`
+      ? Promise.reject(new EtagMismatch())
+      : Promise.resolve({
+          data: stored.slice(offset, offset + length).buffer,
+          etag: `upload-${upload}`,
+        })
 
   const archive = DetailTileArchive.of({
     getKey: () => detailTilesKey,
-    getBytes: (offset, length, _signal, etag) =>
-      etag !== undefined && etag !== `upload-${upload}`
-        ? Promise.reject(new EtagMismatch())
-        : Promise.resolve({
-            data: stored.slice(offset, offset + length).buffer,
-            etag: `upload-${upload}`,
-          }),
+    getBytes: (offset, length, _signal, etag) => {
+      const result = read(offset, length, etag)
+      const holding = hold
+      hold = undefined
+
+      if (holding === undefined) return result
+
+      return new Promise<void>((release) => holding(release)).then(() => result)
+    },
   })
 
   const replace = (next: Uint8Array) => {
@@ -83,7 +96,13 @@ export const replaceableArchive = (first: Uint8Array) => {
     upload += 1
   }
 
-  return { archive, replace }
+  /** Resolves, with its release, once the next read has taken its bytes. */
+  const holdNextRead = () =>
+    new Promise<() => void>((reached) => {
+      hold = reached
+    })
+
+  return { archive, replace, holdNextRead }
 }
 
 export const openOceanArchive = replaceableArchive(openOcean).archive
