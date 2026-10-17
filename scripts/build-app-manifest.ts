@@ -1,8 +1,15 @@
 import { execFileSync } from 'node:child_process'
-import { writeFileSync } from 'node:fs'
+import { mkdtempSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 // Relative, not '@/': plain `node` runs this script and can't resolve the alias.
-import { appName, appShortName, ink } from '../src/lib/app-identity.ts'
+import {
+  appDescription,
+  appName,
+  appShortName,
+  ink,
+} from '../src/lib/app-identity.ts'
 
 // --paper and --vermilion from styles.css in sRGB: resvg can't read oklch().
 const paper = '#eee7d9'
@@ -19,6 +26,8 @@ const python = (code: string, args: ReadonlyArray<string>) =>
       'fonttools[woff]==4.67.0',
       '--with',
       'resvg-py==0.5.0',
+      '--with',
+      'pillow==13.0.0',
       'python',
       '-I',
       '-c',
@@ -49,11 +58,15 @@ print(json.dumps({"unitsPerEm": font["head"].unitsPerEm, "glyphs": [outline(c) f
 `
 
 const renderCode = `
-import sys, resvg_py
+import io, sys, resvg_py
+from PIL import Image
 
+# Three flat colours and their antialiased edges fit in 32, at under half
+# the size of the full-colour PNG.
 for size, output in zip(sys.argv[2::2], sys.argv[3::2]):
     png = resvg_py.svg_to_bytes(svg_path=sys.argv[1], width=int(size), height=int(size))
-    open(output, "wb").write(bytes(png))
+    image = Image.open(io.BytesIO(bytes(png))).convert("RGB")
+    image.quantize(32, method=Image.Quantize.MEDIANCUT).save(output, optimize=True)
 `
 
 interface GlyphOutline {
@@ -108,7 +121,7 @@ const manifest = {
   id: '/',
   name: appName,
   short_name: appShortName,
-  description: "Phillip's trip to Japan, December 6–20, 2026.",
+  description: appDescription,
   lang: 'en',
   start_url: '/',
   scope: '/',
@@ -127,16 +140,22 @@ const manifest = {
   ],
 }
 
-writeFileSync('public/icon.svg', icon)
+const work = mkdtempSync(join(tmpdir(), 'app-icons-'))
 
+const drawing = join(work, 'icon.svg')
+
+writeFileSync(drawing, icon)
+
+// The Apple touch icon lives in src/ because __root.tsx inlines it: Safari
+// fetches link icons without cookies, which Access would answer with its login.
 python(renderCode, [
-  'public/icon.svg',
+  drawing,
   '192',
   'public/icon-192.png',
   '512',
   'public/icon-512.png',
   '180',
-  'public/apple-touch-icon.png',
+  'src/icons/apple-touch-icon.png',
 ])
 
 writeFileSync(

@@ -13,6 +13,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/toast'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import displayFont from '@/fonts/shippori-mincho-600-display.woff2?url'
+import appleTouchIcon from '@/icons/apple-touch-icon.png?inline'
 import { appName, appShortName, ink } from '@/lib/app-identity'
 import type { StyleWithVariables } from '@/lib/utils'
 import appCss from '@/styles.css?url'
@@ -63,14 +64,11 @@ export const Route = createRootRouteWithContext<{
         crossOrigin: 'use-credentials',
       },
       // iOS takes the Home Screen icon from here, not from the manifest.
+      // Inlined (about 1 KB): Safari fetches link icons without cookies, so
+      // a URL would get the Access login instead of the icon.
       {
         rel: 'apple-touch-icon',
-        href: '/apple-touch-icon.png',
-      },
-      {
-        rel: 'icon',
-        href: '/icon.svg',
-        type: 'image/svg+xml',
+        href: appleTouchIcon,
       },
     ],
   }),

@@ -42,7 +42,7 @@ vp run typecheck   # patched tsc, including Effect diagnostics
 vp test            # tests under src/
 ```
 
-The web manifest and its icons in `public/` are generated from `src/lib/app-identity.ts` and the 日本 glyphs in the display font. After changing either, run `vp run build-app-manifest` (needs `uv`) and commit the result.
+The web manifest and its icons in `public/`, and the Apple touch icon in `src/icons/`, are generated from `src/lib/app-identity.ts` and the 日本 glyphs in the display font. The touch icon is inlined into every page, because Safari fetches it without cookies and Access would answer with its login. After changing either, run `vp run build-app-manifest` (needs `uv`) and commit the result.
 
 `vp run build` runs `cf build`. It builds the Worker and prerenders `/options` and every Itinerary page in the catalogue (`scripts/prerender.ts`), fetching them through the preview's Access simulation. The build fails if a listed page's HTML is missing, if any HTML contains an email address, or if a page links to an Itinerary page that isn’t prerendered. `vp preview` serves that build with the same Access simulation.
 

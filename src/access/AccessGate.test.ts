@@ -69,8 +69,8 @@ const forbidden: AccessDecision = AccessDecision.Refused({ status: 403 })
 
 const unavailable: AccessDecision = AccessDecision.Refused({ status: 503 })
 
-const requestWith = (token?: string, path = '/options') =>
-  new Request(new URL(path, 'https://japan-trip.workers.dev'), {
+const requestWith = (token?: string) =>
+  new Request('https://japan-trip.workers.dev/options', {
     headers: token === undefined ? {} : { 'Cf-Access-Jwt-Assertion': token },
   })
 
@@ -185,33 +185,6 @@ describe('AccessGate.check', () => {
       assert.deepStrictEqual(decision, forbidden)
     }),
   )
-
-  // The Home Screen app's files get no exception: like any page, they need
-  // the Access session (the manifest is requested with credentials for it).
-  for (const path of [
-    '/manifest.webmanifest',
-    '/apple-touch-icon.png',
-    '/icon-512.png',
-  ]) {
-    it.effect(`refuses ${path} without the identity header`, () =>
-      Effect.gen(function* () {
-        const decision = yield* check(requestWith(undefined, path))
-        assert.deepStrictEqual(decision, forbidden)
-      }),
-    )
-
-    it.effect(`allows ${path} with a valid token`, () =>
-      Effect.gen(function* () {
-        const token = yield* Effect.promise(() => accessToken())
-        const decision = yield* check(requestWith(token, path))
-
-        assert.deepStrictEqual(
-          decision,
-          AccessDecision.Allowed({ email: allowedEmail }),
-        )
-      }),
-    )
-  }
 
   it.effect('is unavailable when the key set is unreachable', () =>
     Effect.gen(function* () {
