@@ -31,7 +31,7 @@ const dayNote = (date: IsoDate) =>
   )
 
 describe('runTripWrite', () => {
-  it.effect('answers a written Day note with its success case', () =>
+  it.effect('answers a written Day note with Written', () =>
     Effect.gen(function* () {
       const scheduleId = yield* choose(1, 1, null)
 

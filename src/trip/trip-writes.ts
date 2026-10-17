@@ -4,20 +4,22 @@ import { Effect, Schema } from 'effect'
 import type { SqlClient } from 'effect/sql'
 
 import { WriteDayNoteOutcome } from '@/trip/domain'
-import type { WriteDayNote } from '@/trip/domain'
+import type { WriteDayNote, WriteOutcome } from '@/trip/domain'
 import { Trip } from '@/trip/Trip'
 
-/** A write's outcome schema, as `writeOutcome` derives it. */
-type Outcome = Schema.Codec<{ readonly _tag: string }, unknown> & {
-  readonly success: string
-}
-
-type SuccessOf<O extends Outcome> = Omit<
+type SuccessOf<O extends WriteOutcome> = Omit<
   Extract<O['Type'], { readonly _tag: O['success'] }>,
   '_tag'
 >
 
-interface TripWrite<I, O extends Outcome> {
+/**
+ * What the operation may succeed with: the success case's fields, or nothing
+ * when that case has none required.
+ */
+type SuccessValueOf<O extends WriteOutcome> =
+  {} extends SuccessOf<O> ? SuccessOf<O> | void : SuccessOf<O>
+
+interface TripWrite<I, O extends WriteOutcome> {
   readonly outcome: O
   readonly run: (
     input: I,
@@ -30,9 +32,9 @@ interface TripWrite<I, O extends Outcome> {
  * outcome's failure cases, so a failure the outcome lacks fails to compile.
  */
 const defineTripWrite = <
-  O extends Outcome,
+  O extends WriteOutcome,
   I,
-  A extends SuccessOf<O> | void,
+  A extends SuccessValueOf<O>,
   E extends O['Type'],
 >(
   outcome: O,
@@ -68,24 +70,24 @@ export type TripWriteInput<K extends TripWriteName> = Parameters<
 export type TripWriteOutcome<K extends TripWriteName> = OutcomeOf<K>['Encoded']
 
 // Indexing this mapped type with a generic name keeps the input and outcome
-// tied to that name, which indexing the registry itself would not.
-type Writes = {
+// tied to that name, which indexing tripWrites itself would not.
+type WritesByName = {
   readonly [K in TripWriteName]: TripWrite<TripWriteInput<K>, OutcomeOf<K>>
 }
 
-const writes: Writes = tripWrites
+const writesByName: WritesByName = tripWrites
 
 /** The outcome schema of the Trip write named. */
 export const tripWriteOutcome = <K extends TripWriteName>(
   name: K,
-): OutcomeOf<K> => writes[name].outcome
+): OutcomeOf<K> => writesByName[name].outcome
 
 /**
  * Runs the Trip write named. Its success value and each of its typed failures
- * come back as its outcome, encoded to plain data, so nothing else needs
- * mapping before it crosses RPC (ADR 0001).
+ * come back as its outcome, encoded to plain data, so the Trip store can
+ * answer it over RPC as it is.
  */
 export const runTripWrite = <K extends TripWriteName>(
   name: K,
   input: TripWriteInput<K>,
-) => writes[name].run(input)
+) => writesByName[name].run(input)

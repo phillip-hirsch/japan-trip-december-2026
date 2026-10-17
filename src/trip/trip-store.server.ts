@@ -6,6 +6,15 @@ import { tripWriteOutcome } from '@/trip/trip-writes'
 import type { TripWriteInput, TripWriteName } from '@/trip/trip-writes'
 import type { TripStore } from '@/trip/TripStore'
 
+/**
+ * Calls the one Trip store over RPC, by its fixed name. The location hint
+ * only counts when the object is first created, which pins it near Japan for
+ * good (ADR 0001).
+ *
+ * The result is decoded with its schema, which checks it and leaves only its
+ * plain data, without the disposer RPC adds. A failed call or decode is
+ * logged and reaches the browser as a generic error.
+ */
 const callStore = <S extends Schema.Decoder<unknown>, Encoded>(
   Result: S,
   call: (store: DurableObjectStub<TripStore>) => Promise<Encoded>,
@@ -17,24 +26,16 @@ const callStore = <S extends Schema.Decoder<unknown>, Encoded>(
     ).pipe(Effect.flatMap(Schema.decodeUnknownEffect(Result)), Effect.orDie),
   )
 
-/**
- * Calls the one Trip store over RPC, by its fixed name. The location hint
- * only counts when the object is first created, which pins it near Japan for
- * good (ADR 0001).
- *
- * The result is decoded with its schema, which checks it and leaves only its
- * plain data, without the disposer RPC adds. A failed call or decode is
- * logged and reaches the browser as a generic error.
- */
+/** `callStore`, checking that the method answers what the schema decodes. */
 export const callTripStore = <S extends Schema.Decoder<unknown>>(
   Result: S,
   call: (store: DurableObjectStub<TripStore>) => Promise<S['Encoded']>,
 ) => callStore(Result, call)
 
 /**
- * Runs the Trip write named in the Trip store, decoding its outcome like
- * `callTripStore`. RPC types `write` for every name at once, so the outcome
- * schema of this name does the checking.
+ * Runs the Trip write named in the Trip store through `callStore`. RPC types
+ * `write` for every name at once, so the outcome schema of this name does the
+ * checking.
  */
 export const callTripWrite = <K extends TripWriteName>(
   name: K,
@@ -42,6 +43,7 @@ export const callTripWrite = <K extends TripWriteName>(
 ) =>
   callStore(
     tripWriteOutcome(name),
+    // Awaiting turns RPC's union of per-name promises into one promise.
     async (store) => await store.write(name, input),
   )
 

@@ -886,6 +886,15 @@ type WriteOutcomeCases<
   readonly [F in Failures[number] as F['Type']['_tag']]: F['fields']
 }
 
+/** Any Trip write's outcome, as `writeOutcome` derives it. */
+export interface WriteOutcome extends Schema.Codec<
+  { readonly _tag: string },
+  unknown
+> {
+  /** The tag of the success case. */
+  readonly success: string
+}
+
 /**
  * Derives a Trip write's outcome from the write's success value and its
  * failure classes: the success case, plus one case per typed failure with the
