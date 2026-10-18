@@ -4,9 +4,10 @@ import { MergeIcon, SplitIcon } from 'lucide-react'
 import { useId, useState } from 'react'
 
 import { DateChoice } from '@/components/date-choice'
+import { WithdrawnEdit } from '@/components/editor-frame'
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
 import { answerStayEdit } from '@/components/schedule-rules'
-import { StaySection, WithdrawnStayEdit } from '@/components/stay-section'
+import { StaySection } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
 import { formatShortDate, tripDates } from '@/trip/calendar'
 import type { IsoDate, ScheduleDetail, ScheduleStayDetail } from '@/trip/domain'
@@ -166,11 +167,10 @@ function SplitMergeStayForm({
             </SavedStatus>
           </div>
         ) : field.withdrawn ? (
-          <WithdrawnStayEdit
+          <WithdrawnEdit
+            field={field}
             labelledBy={headingId}
-            state={state}
             reason={labels[value.kind].withdrawn}
-            onDiscard={field.discard}
           />
         ) : (
           <ChoiceForm

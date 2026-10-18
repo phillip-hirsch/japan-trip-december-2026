@@ -3,9 +3,8 @@ import { Predicate } from 'effect'
 import { PencilIcon } from 'lucide-react'
 import { useId } from 'react'
 
-import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
+import { EditorFrame } from '@/components/editor-frame'
 import { OpenInGoogleMaps } from '@/components/open-in-google-maps'
-import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type { Hotel, HotelDetails, Pin, ScheduleId } from '@/trip/domain'
@@ -14,7 +13,6 @@ import {
   hotelDetailsTarget,
   keyedBy,
   SaveAnswer,
-  SaveState,
   useSave,
 } from '@/trip/drafts'
 import { trimmedHotelDetails } from '@/trip/hotel-details'
@@ -80,22 +78,19 @@ export function HotelDetailsList({
   )
 }
 
-function HotelDetailsForm({
+/** The Hotel details of a Stay of the Schedule shown, recorded as `hotel`. */
+export const useHotelDetails = ({
   scheduleId,
   stayId,
   hotel,
-  labelledBy,
 }: {
   scheduleId: ScheduleId
   stayId: string
   hotel: Hotel
-  labelledBy: string
-}) {
+}) => {
   const write = useServerFn(writeHotelDetails)
-  const fieldId = useId()
-  const problemId = useId()
 
-  const field = useSave<HotelFields>({
+  return useSave<HotelFields>({
     draft: { target: hotelDetailsTarget(stayId), isValue: isHotelFields },
     equals: sameFields,
     scheduleId,
@@ -107,97 +102,65 @@ function HotelDetailsForm({
         tooLong,
       ),
   })
+}
 
-  const { state, value } = field
+function HotelDetailsEditor({
+  labelledBy,
+  ...props
+}: Parameters<typeof useHotelDetails>[0] & { labelledBy: string }) {
+  const field = useHotelDetails(props)
+  const fieldId = useId()
+  const { value } = field
+  const details = trimmedHotelDetails(value)
+  const recorded = Object.keys(details).length > 0
 
-  if (SaveState.$is('Clean')(state) || SaveState.$is('Saved')(state)) {
-    const justSaved = SaveState.$is('Saved')(state) || state.justSaved
-    const details = trimmedHotelDetails(value)
-    const recorded = Object.keys(details).length > 0
-
-    return (
-      <div className="flex flex-col items-start gap-3">
-        {recorded ? (
+  return (
+    <EditorFrame
+      field={field}
+      labelledBy={labelledBy}
+      summary={
+        recorded ? (
           <HotelDetailsList details={details} />
         ) : (
           <p className="text-sm text-muted-foreground">
             No hotel recorded yet.
           </p>
-        )}
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            aria-describedby={labelledBy}
-            onClick={field.edit}
-          >
-            <PencilIcon data-icon="inline-start" aria-hidden />
-            {recorded ? 'Edit hotel' : 'Add hotel'}
-          </Button>
-          <SavedStatus saved={justSaved}>Saved</SavedStatus>
-        </div>
-      </div>
-    )
-  }
-
-  const notSaved = SaveState.$is('NotSaved')(state)
-  const saving = SaveState.$is('Saving')(state)
-
-  return (
-    <form
-      aria-labelledby={labelledBy}
-      className="flex flex-col gap-3"
-      onSubmit={(event) => {
-        event.preventDefault()
-        void field.save()
-      }}
+        )
+      }
+      editLabel={recorded ? 'Edit hotel' : 'Add hotel'}
+      editIcon={PencilIcon}
     >
-      {notSaved && (
-        <NotSavedAlert problem={state.problem} problemId={problemId} />
-      )}
-      {hotelFields.map(({ key, label, code }, index) => (
-        <div key={key} className="flex flex-col gap-1.5">
-          <label
-            htmlFor={`${fieldId}-${key}`}
-            className="text-sm text-muted-foreground"
-          >
-            {label}
-          </label>
-          <Input
-            id={`${fieldId}-${key}`}
-            aria-describedby={notSaved ? problemId : undefined}
-            // Opening the editor focuses it; a restored draft opens unfocused.
-            autoFocus={index === 0 && SaveState.$is('Editing')(state)}
-            readOnly={saving}
-            value={value[key]}
-            onChange={(event) =>
-              field.change({ ...value, [key]: event.target.value })
-            }
-            maxLength={hotelDetailMaxLength}
-            autoComplete="off"
-            spellCheck={code ? false : undefined}
-            className={cn('h-10', code && 'font-mono')}
-          />
-        </div>
-      ))}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" disabled={saving}>
-          {saving ? 'Saving…' : notSaved ? 'Retry' : 'Save'}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={saving}
-          onClick={field.discard}
-        >
-          {notSaved ? 'Discard' : 'Cancel'}
-        </Button>
-      </div>
-    </form>
+      {(frame) =>
+        hotelFields.map(({ key, label, code }, index) => (
+          <div key={key} className="flex flex-col gap-1.5">
+            <label
+              htmlFor={`${fieldId}-${key}`}
+              className="text-sm text-muted-foreground"
+            >
+              {label}
+            </label>
+            <Input
+              id={`${fieldId}-${key}`}
+              aria-describedby={frame.describedBy}
+              autoFocus={index === 0 && frame.autoFocus}
+              readOnly={frame.busy}
+              value={value[key]}
+              onChange={(event) =>
+                field.change({ ...value, [key]: event.target.value })
+              }
+              maxLength={hotelDetailMaxLength}
+              autoComplete="off"
+              spellCheck={code ? false : undefined}
+              className={cn('h-10', code && 'font-mono')}
+            />
+          </div>
+        ))
+      }
+    </EditorFrame>
   )
 }
 
 export const HotelDetailsField = keyedBy(
-  HotelDetailsForm,
+  HotelDetailsEditor,
   ({ stayId }) => stayId,
 )
