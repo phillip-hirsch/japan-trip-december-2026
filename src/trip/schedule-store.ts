@@ -25,30 +25,12 @@ import {
   VerifyClaim,
   VerifyClaimAttachment,
 } from '@/trip/domain'
-import type { Activity, Day, HotelDetails } from '@/trip/domain'
-
-type Copied<A> = A & { readonly id: string }
-
-export type ScheduleStay = Copied<Stay> & {
-  readonly note?: string
-  readonly hotel: Hotel
-}
-
-export type ScheduleDay = Day & {
-  readonly note?: string
-  readonly activities: ReadonlyArray<Activity>
-}
-
-export interface ScheduleCopy {
-  readonly stays: ReadonlyArray<ScheduleStay>
-  readonly days: ReadonlyArray<ScheduleDay>
-  readonly moves: ReadonlyArray<Copied<Move>>
-  readonly dayTrips: ReadonlyArray<Copied<DayTrip>>
-  readonly verifyClaims: ReadonlyArray<VerifyClaim>
-  readonly anchors: ReadonlyArray<ScheduleAnchor>
-}
-
-export type StayChanges = Pick<ScheduleCopy, 'stays' | 'moves' | 'verifyClaims'>
+import type { Activity, HotelDetails } from '@/trip/domain'
+import type {
+  AppliedStayEdit,
+  ScheduleCopy,
+  StayChanges,
+} from '@/trip/schedule-copy'
 
 const ofSchedule = { scheduleId: ScheduleId }
 
@@ -656,25 +638,18 @@ export const scheduleStore = Effect.gen(function* () {
     )
   })
 
-  const removeOthers = Effect.fnUntraced(function* (
+  const deleteFrom = (
     table: string,
+    column: string,
     scheduleId: ScheduleId,
-    kept: ReadonlyArray<{ readonly id: string }>,
-  ) {
-    const removed = sql`
-      SELECT id FROM ${sql(table)}
-      WHERE scheduleId = ${scheduleId} AND NOT ${sql.in(
-        'id',
-        kept.map(({ id }) => id),
-      )}
-    `
-
-    yield* sql`
-      DELETE FROM checklistTicks
-      WHERE scheduleId = ${scheduleId} AND itemId IN (${removed})
-    `
-    yield* sql`DELETE FROM ${sql(table)} WHERE id IN (${removed})`
-  })
+    ids: ReadonlyArray<string>,
+  ) =>
+    ids.length === 0
+      ? Effect.void
+      : sql`
+          DELETE FROM ${sql(table)}
+          WHERE scheduleId = ${scheduleId} AND ${sql.in(column, ids)}
+        `
 
   const withCopy = <E, R>(
     found: Effect.Effect<Option.Option<ScheduleRecord>, E, R>,
@@ -867,14 +842,19 @@ export const scheduleStore = Effect.gen(function* () {
       )
     }),
 
-    replaceStays: Effect.fnUntraced(function* (
+    /**
+     * Saves an applied Stay edit. It deletes the Stays, Moves, Verify claims
+     * and Ticks the edit drops, then writes the ones it keeps.
+     */
+    saveStayEdit: Effect.fnUntraced(function* (
       scheduleId: ScheduleId,
-      changes: StayChanges,
+      { dropped, ...kept }: AppliedStayEdit,
     ) {
-      yield* removeOthers('stays', scheduleId, changes.stays)
-      yield* removeOthers('moves', scheduleId, changes.moves)
-      yield* removeOthers('verifyClaims', scheduleId, changes.verifyClaims)
-      yield* writeStayChanges(scheduleId, changes, upserting)
+      yield* deleteFrom('checklistTicks', 'itemId', scheduleId, dropped.ticks)
+      yield* deleteFrom('stays', 'id', scheduleId, dropped.stays)
+      yield* deleteFrom('moves', 'id', scheduleId, dropped.moves)
+      yield* deleteFrom('verifyClaims', 'id', scheduleId, dropped.verifyClaims)
+      yield* writeStayChanges(scheduleId, kept, upserting)
     }),
 
     recordedResult: <S extends Schema.Top>(Result: S) =>

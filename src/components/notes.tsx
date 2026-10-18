@@ -1,17 +1,14 @@
 import { useServerFn } from '@tanstack/react-start'
 import { PencilIcon } from 'lucide-react'
-import { useId } from 'react'
 
-import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
+import { EditorFrame } from '@/components/editor-frame'
 import { NoteText } from '@/components/note-text'
-import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import type { IsoDate, ScheduleId } from '@/trip/domain'
 import {
   answerOwn,
   dayNoteTarget,
   keyedBy,
-  SaveState,
   SaveAnswer,
   stayNoteTarget,
   tripNoteTarget,
@@ -33,183 +30,164 @@ const tooLong =
       problem: `A ${noun} can be at most ${maxLength.toLocaleString('en')} characters.`,
     })
 
-function NoteEditor({
+/** The Day note on a Day of the Schedule shown, saved as `note`. */
+export const useDayNote = ({
+  scheduleId,
+  date,
+  note,
+}: {
+  scheduleId: ScheduleId
+  date: IsoDate
+  note: string | undefined
+}) => {
+  const write = useServerFn(writeDayNote)
+
+  return useDraftedField({
+    target: dayNoteTarget(date),
+    scheduleId,
+    saved: note ?? '',
+    write: 'dayNote',
+    run: async (value) =>
+      answerOwn(
+        await write({ data: { scheduleId, date, note: value } }),
+        tooLong('Day note'),
+      ),
+  })
+}
+
+/** The Stay note on a Stay of the Schedule shown, saved as `note`. */
+export const useStayNote = ({
+  scheduleId,
+  stayId,
+  note,
+}: {
+  scheduleId: ScheduleId
+  stayId: string
+  note: string | undefined
+}) => {
+  const write = useServerFn(writeStayNote)
+
+  return useDraftedField({
+    target: stayNoteTarget(stayId),
+    scheduleId,
+    saved: note ?? '',
+    write: 'stayNote',
+    run: async (value) =>
+      answerOwn(
+        await write({ data: { scheduleId, stayId, note: value } }),
+        tooLong('Stay note'),
+      ),
+  })
+}
+
+/**
+ * Phillip's Trip note, saved as `note`. It belongs to the Trip, not a
+ * Schedule, so a Schedule change never marks it.
+ */
+export const useTripNote = ({ note }: { note: string | undefined }) => {
+  const write = useServerFn(writeTripNote)
+
+  return useDraftedField({
+    target: tripNoteTarget,
+    scheduleId: null,
+    saved: note ?? '',
+    write: 'tripNote',
+    run: async (value) =>
+      answerOwn(await write({ data: { note: value } }), tooLong('Trip note')),
+  })
+}
+
+function NoteFrame({
+  field,
   labelledBy,
   emptyText,
   textClassName = 'text-base leading-relaxed',
-  ...options
-}: Parameters<typeof useDraftedField>[0] & {
+}: {
+  field: ReturnType<typeof useDraftedField>
   labelledBy: string
   emptyText?: string
   textClassName?: string
 }) {
-  const field = useDraftedField(options)
-  const problemId = useId()
-  const { state, value } = field
+  const { value } = field
 
-  if (SaveState.$is('Clean')(state) || SaveState.$is('Saved')(state)) {
-    const justSaved = SaveState.$is('Saved')(state) || state.justSaved
-
-    return (
-      <div className="flex flex-col items-start gap-3">
-        {value === '' ? (
+  return (
+    <EditorFrame
+      field={field}
+      labelledBy={labelledBy}
+      summary={
+        value === '' ? (
           emptyText !== undefined && (
             <p className="text-sm text-muted-foreground">{emptyText}</p>
           )
         ) : (
           <NoteText text={value} className={textClassName} />
-        )}
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            aria-describedby={labelledBy}
-            onClick={field.edit}
-          >
-            <PencilIcon data-icon="inline-start" aria-hidden />
-            {value === '' ? 'Add a note' : 'Edit note'}
-          </Button>
-          <SavedStatus saved={justSaved}>Saved</SavedStatus>
-        </div>
-      </div>
-    )
-  }
-
-  const notSaved = SaveState.$is('NotSaved')(state)
-  const saving = SaveState.$is('Saving')(state)
-
-  return (
-    <form
-      className="flex flex-col gap-3"
-      onSubmit={(event) => {
-        event.preventDefault()
-        void field.save()
-      }}
-    >
-      {notSaved && (
-        <NotSavedAlert problem={state.problem} problemId={problemId} />
-      )}
-      <Textarea
-        aria-labelledby={labelledBy}
-        aria-describedby={notSaved ? problemId : undefined}
-        // Opening the editor focuses it; a restored draft opens unfocused.
-        autoFocus={SaveState.$is('Editing')(state)}
-        readOnly={saving}
-        value={value}
-        onChange={(event) => field.change(event.target.value)}
-        maxLength={noteMaxLength}
-        rows={5}
-        className="min-h-32 text-base leading-relaxed md:text-base"
-      />
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" disabled={saving}>
-          {saving ? 'Saving…' : notSaved ? 'Retry' : 'Save'}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={saving}
-          onClick={field.discard}
-        >
-          {notSaved ? 'Discard' : 'Cancel'}
-        </Button>
-        {nearsTheCap(value) && (
+        )
+      }
+      editLabel={value === '' ? 'Add a note' : 'Edit note'}
+      editIcon={PencilIcon}
+      nameForm={false}
+      actions={
+        nearsTheCap(value) && (
           <p className="ml-auto text-sm text-muted-foreground tabular-nums">
             {value.length.toLocaleString('en')} /{' '}
             {noteMaxLength.toLocaleString('en')}
           </p>
-        )}
-      </div>
-    </form>
-  )
-}
-
-const NoteField = keyedBy(NoteEditor, ({ target }) => target)
-
-export function DayNote({
-  scheduleId,
-  date,
-  note,
-  labelledBy,
-}: {
-  scheduleId: ScheduleId
-  date: IsoDate
-  note: string | undefined
-  labelledBy: string
-}) {
-  const write = useServerFn(writeDayNote)
-
-  return (
-    <NoteField
-      target={dayNoteTarget(date)}
-      scheduleId={scheduleId}
-      saved={note ?? ''}
-      write="dayNote"
-      run={async (value) =>
-        answerOwn(
-          await write({ data: { scheduleId, date, note: value } }),
-          tooLong('Day note'),
         )
       }
-      labelledBy={labelledBy}
-      emptyText="No note yet."
-    />
+    >
+      {(frame) => (
+        <Textarea
+          aria-labelledby={labelledBy}
+          aria-describedby={frame.describedBy}
+          autoFocus={frame.autoFocus}
+          readOnly={frame.busy}
+          value={value}
+          onChange={(event) => field.change(event.target.value)}
+          maxLength={noteMaxLength}
+          rows={5}
+          className="min-h-32 text-base leading-relaxed md:text-base"
+        />
+      )}
+    </EditorFrame>
   )
 }
 
-export function StayNote({
-  scheduleId,
-  stayId,
-  note,
+function DayNoteEditor({
   labelledBy,
-}: {
-  scheduleId: ScheduleId
-  stayId: string
-  note: string | undefined
-  labelledBy: string
-}) {
-  const write = useServerFn(writeStayNote)
+  ...props
+}: Parameters<typeof useDayNote>[0] & { labelledBy: string }) {
+  const field = useDayNote(props)
 
   return (
-    <NoteField
-      target={stayNoteTarget(stayId)}
-      scheduleId={scheduleId}
-      saved={note ?? ''}
-      write="stayNote"
-      run={async (value) =>
-        answerOwn(
-          await write({ data: { scheduleId, stayId, note: value } }),
-          tooLong('Stay note'),
-        )
-      }
-      labelledBy={labelledBy}
-      textClassName="text-sm"
-    />
+    <NoteFrame field={field} labelledBy={labelledBy} emptyText="No note yet." />
   )
 }
 
-/**
- * Phillip's Trip note. It belongs to the Trip, not a Schedule, so a Schedule
- * change never marks it.
- */
+export const DayNote = keyedBy(DayNoteEditor, ({ date }) => date)
+
+function StayNoteEditor({
+  labelledBy,
+  ...props
+}: Parameters<typeof useStayNote>[0] & { labelledBy: string }) {
+  const field = useStayNote(props)
+
+  return (
+    <NoteFrame field={field} labelledBy={labelledBy} textClassName="text-sm" />
+  )
+}
+
+export const StayNote = keyedBy(StayNoteEditor, ({ stayId }) => stayId)
+
+/** There is one Trip note, so its editor never needs keying. */
 export function TripNote({
-  note,
   labelledBy,
-}: {
-  note: string | undefined
-  labelledBy: string
-}) {
-  const write = useServerFn(writeTripNote)
+  ...props
+}: Parameters<typeof useTripNote>[0] & { labelledBy: string }) {
+  const field = useTripNote(props)
 
   return (
-    <NoteField
-      target={tripNoteTarget}
-      scheduleId={null}
-      saved={note ?? ''}
-      write="tripNote"
-      run={async (value) =>
-        answerOwn(await write({ data: { note: value } }), tooLong('Trip note'))
-      }
+    <NoteFrame
+      field={field}
       labelledBy={labelledBy}
       emptyText="No Trip note yet. It stays as it is when you choose again."
     />

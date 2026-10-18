@@ -45,6 +45,10 @@ _Avoid_: booking, reservation, hotel info
 Where an Activity or a Stay's hotel is on the map: its coordinates, and the Google Maps link Phillip set it from, when there is one. He sets it by pasting a link, or drops it by hand, then drags it into place. The app saves it only once he confirms it. The hotel's Pin is part of its Hotel details, though each is saved on its own.
 _Avoid_: marker, location, geotag
 
+**Detail tiles**:
+The street-level map, up to zoom 14, in a box around every place in the catalogue, which covers every Base and Day trip destination. The app serves them itself, and only to Phillip. Beyond the boxes, the map has no street detail.
+_Avoid_: city maps, map tiles
+
 **Trip note**:
 Phillip's one plain-text note about the whole Trip, shown on the Schedule page. It belongs to the Trip, not a Schedule, so it stays as it is when he chooses again or restores.
 _Avoid_: general note, global note

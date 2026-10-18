@@ -63,6 +63,7 @@ const config = defineConfig({
       ...agentToolingIgnores,
       '.vite-hooks/**',
       'pnpm-lock.yaml',
+      'public/map/**',
       'src/routeTree.gen.ts',
       'src/trip/rail-geometry.json',
       'worker-configuration.d.ts',

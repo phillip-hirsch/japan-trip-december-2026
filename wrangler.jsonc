@@ -15,6 +15,11 @@
   "durable_objects": {
     "bindings": [{ "name": "TRIP_STORE", "class_name": "TripStore" }],
   },
+  // The Detail tiles archive, which the Worker serves tile by tile behind the
+  // Access gate. `vp run seed-local-tiles` fills the local bucket.
+  "r2_buckets": [
+    { "binding": "DETAIL_TILES", "bucket_name": "japan-trip-detail-tiles" },
+  ],
   "exports": {
     "TripStore": { "type": "durable-object", "storage": "sqlite" },
   },
