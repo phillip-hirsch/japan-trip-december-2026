@@ -27,7 +27,7 @@ const japan = '129.0,30.9,146.0,45.6'
 
 const overviewMaxZoom = 8
 
-/** Half the width of the box around each place: its station to an edge. */
+/** How far each place's box reaches from its station to each edge. */
 const detailReachKm = 12
 
 const localReachKm = 2
@@ -66,8 +66,8 @@ const ring = ([west, south, east, north]: Bbox) => [
   ],
 ]
 
-// The tile schema @protomaps/basemaps 5 draws. A build on a newer schema could
-// render wrongly with the app's pinned style, so it's skipped.
+// The tile schema @protomaps/basemaps 5 draws. The script skips builds on a
+// newer schema, which the app's pinned style might draw wrongly.
 const schemaMajor = '4.'
 
 const latestBuild = async () => {

@@ -37,8 +37,9 @@ const encodings: Record<Compression, DetailTile['encoding']> = {
 const recheckEvery = Duration.toMillis(Duration.minutes(1))
 
 /**
- * Drops the cached header and directories if the archive has been replaced
- * since they were read: a one-byte read naming their etag fails if so.
+ * Drops the cached header and directories if an upload has replaced the
+ * archive since PMTiles read them. A one-byte read naming their etag fails in
+ * that case.
  */
 const recheck = async (
   archive: PMTiles,
@@ -57,14 +58,14 @@ const recheck = async (
 }
 
 /**
- * Builds the Trip service's Detail tile lookup. Its cache holds the archive's
- * header and directories as plain values, never promises, since a Worker
- * can't share a promise between requests, so later tiles from the same
- * isolate skip those reads.
+ * Builds the Trip service's Detail tile lookup. Its cache keeps the
+ * archive's header and directories, so later tiles from the same isolate skip
+ * those reads. It keeps them as plain values, never promises, because a
+ * Worker can't share a promise between requests.
  *
- * A tile the cached directories lack is answered without reading the
- * archive, so at most once a minute the lookup checks that the archive hasn't
- * been replaced, such as to cover a new place.
+ * The lookup answers a tile the cached directories lack without reading the
+ * archive. So at most once a minute it checks that no upload has replaced the
+ * archive, such as one that covers a new place.
  */
 export const detailTileLookup = Effect.sync(() => {
   const directories = new ResolvedValueCache()
@@ -73,10 +74,11 @@ export const detailTileLookup = Effect.sync(() => {
   return Effect.fn('Trip.detailTile')(function* (tile: TileCoordinates) {
     if (!isOnTheMap(tile)) return Option.none<DetailTile>()
     const source = yield* DetailTileArchive
-    // PMTiles hands each tile it reads to this callback with the compression
-    // its own archive's header names. The tile leaves as stored, so the
-    // Worker never spends CPU unzipping one, and keeps that compression, even
-    // if another request meanwhile finds the archive replaced.
+    // PMTiles passes each tile it reads to this callback, with the compression
+    // the header of that archive names. The callback returns the bytes
+    // unchanged, so the Worker never spends CPU unzipping a tile. It records
+    // the compression, so the tile keeps it even if another request finds the
+    // archive replaced in the meantime.
     let compression = Compression.Unknown
 
     const keepCompressed: DecompressFunc = (bytes, stored) => {

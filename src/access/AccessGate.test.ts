@@ -130,7 +130,7 @@ describe('AccessGate.check', () => {
     }),
   )
 
-  it.effect('treats a Detail tile request like any other', () =>
+  it.effect('allows a Detail tile request only with an Access identity', () =>
     Effect.gen(function* () {
       const tile =
         'https://japan-trip.workers.dev/tiles/detail/14/14552/6451.mvt'

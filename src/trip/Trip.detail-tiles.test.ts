@@ -79,7 +79,7 @@ describe('Trip.detailTile', () => {
     }).pipe(Effect.provide(liveTrip)),
   )
 
-  it.effect('has no Detail tile at coordinates no map has', () =>
+  it.effect('has no Detail tile at coordinates off the tile grid', () =>
     Effect.gen(function* () {
       for (const tile of [
         { z: 10, x: 1024, y: 422 },

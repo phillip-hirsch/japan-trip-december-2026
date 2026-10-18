@@ -46,7 +46,7 @@ Where an Activity or a Stay's hotel is on the map: its coordinates, and the Goog
 _Avoid_: marker, location, geotag
 
 **Detail tiles**:
-The street-level map, to zoom 14, in a box around every place in the catalogue: every Base and Day trip destination. The app serves them itself, only to Phillip. Beyond the boxes, the map has no street detail.
+The street-level map, up to zoom 14, in a box around every place in the catalogue, which covers every Base and Day trip destination. The app serves them itself, and only to Phillip. Beyond the boxes, the map has no street detail.
 _Avoid_: city maps, map tiles
 
 **Trip note**:

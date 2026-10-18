@@ -46,7 +46,13 @@ vp run seed-local-tiles   # puts tiles/detail-local.pmtiles in the local bucket
 vp run build-map-assets   # refreshes public/map
 ```
 
-`build-map-tiles` reads the latest Protomaps daily build (or the build date you pass). It writes `overview.pmtiles` (Japan, zoom 0–8), `detail.pmtiles` (zoom 0–14, a 24 km box around every place in `src/trip/places.ts`) and `detail-local.pmtiles` (a 4 km box around Tokyo Station), and prints their sizes. Run it again after adding a place. Locally, the map shows street detail only around Tokyo Station.
+`build-map-tiles` reads the latest Protomaps daily build, or the build date you pass. It writes three extracts and prints their sizes:
+
+- `overview.pmtiles`: Japan, zoom 0–8.
+- `detail.pmtiles`: zoom 0–14, a 24 km box around every place in `src/trip/places.ts`.
+- `detail-local.pmtiles`: a 4 km box around Tokyo Station.
+
+Run it again after adding a place. Locally, the map shows street detail only around Tokyo Station.
 
 ```bash
 vp check           # format, lint, and typecheck

@@ -367,8 +367,8 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
 
     // MapLibre reports a resource that fails to load, such as the sprite or a
     // tile while offline, as an event rather than throwing. Until the map
-    // first finishes loading, an error, or the style not loading in time,
-    // fails the map instead, so the nearest error boundary can replace it.
+    // first finishes loading, an error fails the map, as does a style that
+    // takes too long to load, so the nearest error boundary can replace it.
     // Later errors, such as one tile failing, leave the map running.
     let firstLoaded = false
 

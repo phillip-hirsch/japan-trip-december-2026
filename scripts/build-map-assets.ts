@@ -1,8 +1,8 @@
 // Downloads the glyphs and sprites the map's Protomaps style uses, from a
 // pinned commit of protomaps/basemaps-assets, into public/map so the app
 // serves them itself. MapLibre draws Japanese and Korean text with the
-// device's own font, so only the ranges the tiles' labels otherwise use are
-// kept; a character outside them is drawn with the device's font too.
+// device's own font. The script keeps only the other ranges the tiles' labels
+// use, and MapLibre draws any character outside them with the device's font.
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 
