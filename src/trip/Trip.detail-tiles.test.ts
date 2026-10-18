@@ -109,6 +109,28 @@ describe('Trip.detailTile', () => {
     }).pipe(Effect.provide(liveTrip)),
   )
 
+  it.effect(
+    "serves a replaced archive's Detail tiles to requests that arrive during the check",
+    () =>
+      Effect.gen(function* () {
+        const { archive, replace, holdNextRead } = replaceableArchive(openOcean)
+        const east = { z: 10, x: 939, y: 422 }
+
+        yield* detailTile(east, archive)
+        replace(openOceanEast)
+        yield* TestClock.adjust('1 minute')
+
+        const reached = holdNextRead()
+        const checking = yield* Effect.forkChild(detailTile(east, archive))
+        const release = yield* Effect.promise(() => reached)
+        const meanwhile = yield* detailTile(east, archive)
+        release()
+        yield* Fiber.join(checking)
+
+        assert.isTrue(Option.isSome(meanwhile))
+      }).pipe(Effect.provide(liveTrip)),
+  )
+
   it.effect('names the encoding of the archive a Detail tile came from', () =>
     Effect.gen(function* () {
       const { archive, replace } = replaceableArchive(openOcean)

@@ -18,7 +18,8 @@
     "build-rail-geometry": "node scripts/build-rail-geometry.ts",
     "build-map-assets": "node scripts/build-map-assets.ts",
     "build-map-tiles": "node scripts/build-map-tiles.ts",
-    "seed-local-tiles": "cf r2 objects put detail.pmtiles --bucket-name japan-trip-detail-tiles --file tiles/detail-local.pmtiles --local --persist-to .cloudflare/state"
+    "seed-local-tiles": "cf r2 objects put detail.pmtiles --bucket-name japan-trip-detail-tiles --file tiles/detail-local.pmtiles --local --persist-to .cloudflare/state",
+    "upload-tiles": "cf r2 objects put detail.pmtiles --bucket-name japan-trip-detail-tiles --file tiles/detail.pmtiles"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

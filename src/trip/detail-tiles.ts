@@ -89,13 +89,19 @@ export const detailTileLookup = Effect.sync(() => {
 
     const archive = new PMTiles(source, directories, keepCompressed)
     const now = yield* Clock.currentTimeMillis
-    const due = checkedAt !== undefined && now - checkedAt >= recheckEvery
-
-    if (checkedAt === undefined || due) checkedAt = now
+    // The first request reads the header fresh, so it counts as a check.
+    checkedAt ??= now
+    // Each request that finds a check due makes its own, until one succeeds,
+    // so none answers from directories a replaced archive made stale.
+    const due = now - checkedAt >= recheckEvery
 
     const found = yield* Effect.tryPromise({
       try: async (signal) => {
-        if (due) await recheck(archive, source, directories, signal)
+        if (due) {
+          await recheck(archive, source, directories, signal)
+          checkedAt = Math.max(checkedAt ?? now, now)
+        }
+
         const stored = await archive.getZxy(tile.z, tile.x, tile.y, signal)
 
         return stored === undefined
