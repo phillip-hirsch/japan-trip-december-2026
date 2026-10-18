@@ -31,13 +31,22 @@ const files = [
   ...sprites.map((sprite) => `sprites/v4/${sprite}`),
 ]
 
-for (const file of files) {
-  const response = await fetch(`${source}/${encodeURI(file)}`)
+// Every file downloads before any is written, so a failed fetch leaves
+// public/map as it was, never half refreshed.
+const downloads = await Promise.all(
+  files.map(async (file) => {
+    const response = await fetch(`${source}/${encodeURI(file)}`)
 
-  if (!response.ok) throw new Error(`${file} failed: ${response.status}`)
+    if (!response.ok) throw new Error(`${file} failed: ${response.status}`)
+
+    return [file, Buffer.from(await response.arrayBuffer())] as const
+  }),
+)
+
+for (const [file, bytes] of downloads) {
   const path = join(output, file.replace('sprites/v4/', 'sprites/'))
   mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, Buffer.from(await response.arrayBuffer()))
+  writeFileSync(path, bytes)
 }
 
 console.log(`${files.length} files in ${output}`)

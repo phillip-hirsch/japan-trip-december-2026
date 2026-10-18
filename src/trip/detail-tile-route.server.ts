@@ -24,6 +24,10 @@ export const detailTileOf = (request: Request): TileCoordinates | undefined => {
 // Tiles are Phillip's alone behind Access, so only his browser may keep them.
 const cacheable = 'private, max-age=86400'
 
+// An empty tile turns into street detail once an upload adds a place, so the
+// browser keeps that answer only briefly.
+const brieflyCacheable = 'private, max-age=300'
+
 // A stream, not the bytes, so the response carries no Content-Length. Local
 // dev's proxy unzips the body but would keep the zipped length, cutting the
 // tile short.
@@ -48,7 +52,10 @@ const tileResponse = ({ bytes, encoding }: DetailTile) =>
 
 // MapLibre draws a 204 as an empty tile, without an error.
 const noTile = () =>
-  new Response(null, { status: 204, headers: { 'Cache-Control': cacheable } })
+  new Response(null, {
+    status: 204,
+    headers: { 'Cache-Control': brieflyCacheable },
+  })
 
 const unavailable = () =>
   new Response('Detail tiles unavailable', {

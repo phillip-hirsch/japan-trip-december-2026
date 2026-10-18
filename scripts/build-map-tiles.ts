@@ -8,7 +8,13 @@
 // date such as `20261017` to pin the build; the default is the latest on the
 // tile schema the app's style draws.
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, statSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
@@ -158,8 +164,12 @@ const archives = [
   ],
 ] as const
 
+// Each extract replaces the last good one only once it's complete, so an
+// interrupted run never leaves a broken archive to seed or upload.
 for (const [name, flags] of archives) {
   const output = join(outputs, `${name}.pmtiles`)
-  extract(output, flags)
+  const partial = `${output}.partial`
+  extract(partial, flags)
+  renameSync(partial, output)
   console.log(`${output}: ${megabytes(output)}`)
 }
