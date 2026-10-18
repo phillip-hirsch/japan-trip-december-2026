@@ -57,9 +57,9 @@ export const answeringOnly =
 
 /**
  * A page showing the Schedules, read with `read`, and an editor on it whose
- * field is `useField(props)`. Opening it again after closing it is a reload:
- * Drafts kept on the device are all that carries over. The router is only
- * there for the server functions, which hand it any redirect.
+ * field is `useField(props)`. Opening it again after closing it acts as a
+ * reload, so only Drafts kept on the device carry over. The page has a router
+ * because the server functions hand it any redirect.
  */
 export const openEditor = async <P extends object, F>(
   useField: (props: P) => F,
@@ -113,7 +113,7 @@ export const openEditor = async <P extends object, F>(
     listening: () => queryClient.getQueryCache().hasListeners(),
     /** The Schedules the page shows, as last read. */
     schedulesShown: () =>
-      // The page reads them with `read`, so as its strings, not as Schedules.
+      // `read` returns strings, not Schedules, so the key drops its data type.
       queryClient.getQueryData<string>([...schedulesQuery.queryKey]),
     schedulesRefreshDue: () =>
       queryClient.getQueryState(schedulesQuery.queryKey)?.isInvalidated,

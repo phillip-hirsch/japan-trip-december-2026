@@ -37,7 +37,7 @@ const confirmation = {
 }
 
 describe('the Hotel details', () => {
-  it('shows recorded Hotel details as saved, each missing one empty', async () => {
+  it('starts from the recorded Hotel details, with an empty field for each missing one', async () => {
     localStorage.clear()
     const editor = await openHotelDetails(recorded)
 
@@ -72,7 +72,7 @@ describe('the Hotel details', () => {
     await editor.close()
   })
 
-  it('keeps a Draft that differs only by spaces at the ends from being restored', async () => {
+  it('does not restore a Draft that differs from the saved Hotel details only by spaces at the ends', async () => {
     localStorage.clear()
     const before = await openHotelDetails(recorded)
     await act(async () =>

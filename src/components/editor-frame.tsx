@@ -6,7 +6,7 @@ import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
 import { Button } from '@/components/ui/button'
 import { SaveState } from '@/trip/drafts'
 
-/** The words an editor saves with: its Save, while saving, and once saved. */
+/** An editor's words for Save, for Save while saving, and for once saved. */
 export interface SaveVerb {
   readonly submit: string
   readonly submitting: string
@@ -73,7 +73,7 @@ export const useEditorFrame = <V,>(
     autoFocus: SaveState.$is('Editing')(state),
     problem,
     problemId,
-    /** What an input describes itself by: the "not saved" alert, if shown. */
+    /** The "not saved" alert's id while it shows, for an input's aria-describedby. */
     describedBy: problem === undefined ? undefined : problemId,
   }
 }
@@ -109,9 +109,9 @@ function WithdrawnView({
 }
 
 /**
- * An edit Phillip has open that the refreshed Schedule no longer offers: any
- * refusal of it, why it can't be sent, and the way to dismiss it. For an
- * editor not yet on EditorFrame, which shows this as its withdrawn view.
+ * An edit Phillip has open that the refreshed Schedule no longer offers. It
+ * shows any refusal of the edit, why it can't be sent, and how to dismiss it.
+ * EditorFrame shows the same view; editors not yet on the frame use this.
  */
 export function WithdrawnEdit<V>({
   field,
@@ -135,11 +135,12 @@ export function WithdrawnEdit<V>({
 }
 
 /**
- * One editor of a value saved under the save pattern: its saved summary with
- * the way to edit it, its open form, or its withdrawn view. The editor
- * supplies the summary, the form's inputs, given the frame's view, and its
- * verb; the frame owns the labels, the "not saved" alert and the autofocus
- * rule.
+ * One editor of a value saved under the save pattern. It shows the saved
+ * summary with an Edit button, the open form, or the withdrawn view.
+ *
+ * The editor supplies the summary, its verb, and the form's inputs, which it
+ * renders from the frame's view. The frame owns the labels, the "not saved"
+ * alert and the autofocus rule.
  */
 export function EditorFrame<V>({
   field,
@@ -164,8 +165,8 @@ export function EditorFrame<V>({
   /** Shown after Save and Cancel. */
   actions?: ReactNode
   /**
-   * Whether the heading names the form. An editor whose one input the heading
-   * names already says false, so the name isn't read twice.
+   * Whether the heading names the form. Pass false when the heading already
+   * names the editor's only input, so screen readers don't read it twice.
    */
   nameForm?: boolean
   children: (frame: EditorFrameView) => ReactNode

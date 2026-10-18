@@ -216,7 +216,7 @@ describe('a Stay edit the refreshed Schedule withdraws', () => {
   })
 })
 
-// A gone Day or Stay is covered by the note and Hotel details editors' tests.
+// The note and Hotel details tests cover a gone Day or Stay.
 describe('saving to an Activity that no longer exists', () => {
   const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
 

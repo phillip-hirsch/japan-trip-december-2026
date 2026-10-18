@@ -104,7 +104,7 @@ describe('the editor frame', () => {
     await editor.close()
   })
 
-  it('shows the summary marked just saved once the note is saved, and still once a read confirms it', async () => {
+  it('marks the summary just saved after a save, and still after the read that confirms it', async () => {
     localStorage.clear()
     answerDayNote(written)
     const reread = deferred<string>()
