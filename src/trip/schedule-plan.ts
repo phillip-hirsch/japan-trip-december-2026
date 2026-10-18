@@ -1,0 +1,489 @@
+import { Data, Effect, Struct } from 'effect'
+
+import {
+  birthdayDate,
+  shigeharuEveDate,
+  tripEndDate,
+  tripStartDate,
+} from '@/trip/calendar'
+import {
+  AnchorWarning,
+  HardRule,
+  HardRuleBroken,
+  Hotel,
+  StayDateRuleBreak,
+  StayNotFound,
+  TripRuleBreak,
+  VerifyClaimAttachment,
+} from '@/trip/domain'
+import type {
+  Activity,
+  ChangeStayBase,
+  Day,
+  DayTrip,
+  IsoDate,
+  MergeStays,
+  Move,
+  MoveStayBoundary,
+  ScheduleAnchor,
+  SplitStay,
+  Stay,
+  VerifyClaim,
+} from '@/trip/domain'
+import { isPlaceId } from '@/trip/places'
+
+type Copied<A> = A & { readonly id: string }
+
+export type ScheduleStay = Copied<Stay> & {
+  readonly note?: string
+  readonly hotel: Hotel
+}
+
+export type ScheduleDay = Day & {
+  readonly note?: string
+  readonly activities: ReadonlyArray<Activity>
+}
+
+export type ScheduleMove = Copied<Move>
+
+/** A Schedule's own copy of the Itinerary chosen, as Phillip has edited it. */
+export interface ScheduleCopy {
+  readonly stays: ReadonlyArray<ScheduleStay>
+  readonly days: ReadonlyArray<ScheduleDay>
+  readonly moves: ReadonlyArray<ScheduleMove>
+  readonly dayTrips: ReadonlyArray<Copied<DayTrip>>
+  readonly verifyClaims: ReadonlyArray<VerifyClaim>
+  readonly anchors: ReadonlyArray<ScheduleAnchor>
+}
+
+/** The Stay covering the night a date begins. */
+export const stayForNight = <S extends Pick<Stay, 'checkIn' | 'checkOut'>>(
+  stays: ReadonlyArray<S>,
+  date: IsoDate,
+) => stays.find((stay) => stay.checkIn <= date && date < stay.checkOut)
+
+/** Each Stay boundary between back-to-back Stays, with the Stays it joins. */
+export const stayBoundariesOf = <S extends Stay>(stays: ReadonlyArray<S>) =>
+  stays.slice(1).flatMap((to, index) => {
+    const from = stays[index]
+
+    return from?.checkOut === to.checkIn ? [{ date: to.checkIn, from, to }] : []
+  })
+
+export const attachmentKey = (attachedTo: VerifyClaimAttachment) =>
+  VerifyClaimAttachment.match(attachedTo, {
+    Day: (attachedTo) => `Day ${attachedTo.date}`,
+    Stay: (attachedTo) => `Stay ${attachedTo.checkIn}`,
+    Itinerary: () => 'Itinerary',
+  })
+
+/**
+ * How Stays sorted by check-in break the Hard rules on Stay dates. A Stay
+ * without nights is named by its check-in as `checkInOf` gives it.
+ */
+export const stayDateRuleBreaksOf = <
+  S extends Pick<Stay, 'checkIn' | 'checkOut'>,
+>(
+  stays: ReadonlyArray<S>,
+  checkInOf: (stay: S) => IsoDate = (stay) => stay.checkIn,
+): Array<StayDateRuleBreak> => {
+  const first = stays[0]
+  const last = stays.at(-1)
+
+  if (first === undefined || last === undefined)
+    return [StayDateRuleBreak.cases.NoStays.make({})]
+
+  const breaks: Array<StayDateRuleBreak> = []
+
+  if (first.checkIn !== tripStartDate || last.checkOut !== tripEndDate) {
+    breaks.push(
+      StayDateRuleBreak.cases.NotTheTripDates.make({
+        checkIn: first.checkIn,
+        checkOut: last.checkOut,
+      }),
+    )
+  }
+
+  for (const stay of stays) {
+    if (stay.checkOut <= stay.checkIn) {
+      breaks.push(
+        StayDateRuleBreak.cases.StayWithoutNights.make({
+          checkIn: checkInOf(stay),
+        }),
+      )
+    }
+  }
+
+  stays.slice(1).forEach((next, index) => {
+    const previous = stays[index]
+
+    if (previous === undefined) return
+
+    if (previous.checkOut < next.checkIn) {
+      breaks.push(
+        StayDateRuleBreak.cases.Gap.make({
+          from: previous.checkOut,
+          to: next.checkIn,
+        }),
+      )
+    } else if (next.checkIn < previous.checkOut) {
+      breaks.push(
+        StayDateRuleBreak.cases.Overlap.make({
+          from: next.checkIn,
+          to: previous.checkOut,
+        }),
+      )
+    }
+  })
+
+  return breaks
+}
+
+/**
+ * How Moves and Verify claims fail to fit their Stays and Days: a Move off a
+ * Stay boundary, two Moves on one date, a Stay boundary without a Move, or a
+ * Verify claim attached to nothing there.
+ */
+export const fitBreaksOf = ({
+  stays,
+  days,
+  moves,
+  verifyClaims,
+}: {
+  readonly stays: ReadonlyArray<Stay>
+  readonly days: ReadonlyArray<Pick<Day, 'date'>>
+  readonly moves: ReadonlyArray<Move>
+  readonly verifyClaims: ReadonlyArray<VerifyClaim>
+}): Array<TripRuleBreak> => {
+  const breaks: Array<TripRuleBreak> = []
+  const boundaryDates = new Set(stayBoundariesOf(stays).map(({ date }) => date))
+  const moveDates = new Set(moves.map((move) => move.date))
+
+  for (const date of moveDates) {
+    if (!boundaryDates.has(date)) {
+      breaks.push(TripRuleBreak.cases.MoveWithoutStayBoundary.make({ date }))
+    }
+
+    if (moves.filter((move) => move.date === date).length > 1) {
+      breaks.push(TripRuleBreak.cases.MovesOnOneDate.make({ date }))
+    }
+  }
+
+  for (const date of boundaryDates) {
+    if (!moveDates.has(date)) {
+      breaks.push(TripRuleBreak.cases.StayBoundaryWithoutMove.make({ date }))
+    }
+  }
+
+  const attachments = new Set(
+    [
+      VerifyClaimAttachment.cases.Itinerary.make({}),
+      ...days.map(({ date }) => VerifyClaimAttachment.cases.Day.make({ date })),
+      ...stays.map(({ checkIn }) =>
+        VerifyClaimAttachment.cases.Stay.make({ checkIn }),
+      ),
+    ].map(attachmentKey),
+  )
+
+  for (const { id, attachedTo } of verifyClaims) {
+    if (!attachments.has(attachmentKey(attachedTo))) {
+      breaks.push(TripRuleBreak.cases.UnattachedVerifyClaim.make({ id }))
+    }
+  }
+
+  return breaks
+}
+
+/** The Anchors Stays and Moves break, in Trip order. */
+export const anchorWarningsOf = ({
+  stays,
+  moves,
+}: {
+  readonly stays: ReadonlyArray<Stay>
+  readonly moves: ReadonlyArray<Move>
+}): Array<AnchorWarning> => {
+  const warnings: Array<AnchorWarning> = []
+  const shigeharuEve = stayForNight(stays, shigeharuEveDate)
+
+  if (shigeharuEve?.base !== 'kyoto') {
+    warnings.push(
+      AnchorWarning.cases.NotWakingUpInKyoto.make({
+        ...(shigeharuEve && { base: shigeharuEve.base }),
+      }),
+    )
+  }
+
+  if (moves.some((move) => move.date === birthdayDate)) {
+    warnings.push(AnchorWarning.cases.MoveOnBirthday.make({}))
+  }
+
+  const last = stays.at(-1)
+
+  if (last !== undefined && last.base !== 'tokyo') {
+    warnings.push(
+      AnchorWarning.cases.EndsOutsideTokyo.make({ base: last.base }),
+    )
+  }
+
+  return warnings
+}
+
+/** A Stay edit, as the Trip service's Stay edit operations name it. */
+export type StayEdit = Data.TaggedEnum<{
+  Split: Pick<SplitStay, 'stayId' | 'date'>
+  Merge: Pick<MergeStays, 'stayIds'>
+  MoveBoundary: Pick<MoveStayBoundary, 'stayId' | 'checkOut'>
+  ChangeBase: Pick<ChangeStayBase, 'stayId' | 'place'>
+}>
+
+export const StayEdit = Data.taggedEnum<StayEdit>()
+
+/**
+ * A Stay edit as applied: the Stays, Moves and Verify claims the Schedule
+ * keeps, each with the id it had if it had one, and the ids it drops. A Tick
+ * belongs to the Checklist item a Stay, Move or Verify claim derives, under
+ * that one's id, so the Ticks dropped are those ids.
+ */
+export interface StayEditPlan {
+  readonly stays: ReadonlyArray<ScheduleStay>
+  readonly moves: ReadonlyArray<ScheduleMove>
+  readonly verifyClaims: ReadonlyArray<VerifyClaim>
+  readonly dropped: {
+    readonly stays: ReadonlyArray<string>
+    readonly moves: ReadonlyArray<string>
+    readonly verifyClaims: ReadonlyArray<string>
+    readonly ticks: ReadonlyArray<string>
+  }
+}
+
+type Edited = Pick<ScheduleCopy, 'stays' | 'moves'>
+
+const refuse = (rule: HardRule) => Effect.fail(new HardRuleBroken({ rule }))
+
+const findStay = (copy: ScheduleCopy, stayId: string) => {
+  const stay = copy.stays.find(({ id }) => id === stayId)
+
+  return stay === undefined
+    ? Effect.fail(new StayNotFound({ stayId }))
+    : Effect.succeed(stay)
+}
+
+const split = (
+  copy: ScheduleCopy,
+  { stayId, date }: Data.TaggedEnum.Value<StayEdit, 'Split'>,
+): Effect.Effect<Edited, StayNotFound> =>
+  Effect.map(findStay(copy, stayId), (stay) => {
+    const later: ScheduleStay = {
+      id: crypto.randomUUID(),
+      base: stay.base,
+      checkIn: date,
+      checkOut: stay.checkOut,
+      accommodation: stay.accommodation,
+      highlights: [],
+      hotel: Hotel.cases.NotRecorded.make({}),
+    }
+
+    return {
+      stays: copy.stays.flatMap((each) =>
+        each.id === stayId ? [{ ...each, checkOut: date }, later] : [each],
+      ),
+      moves: [
+        ...copy.moves,
+        { id: crypto.randomUUID(), date, mode: 'local', sections: [] },
+      ],
+    }
+  })
+
+const merge = Effect.fnUntraced(function* (
+  copy: ScheduleCopy,
+  { stayIds }: Data.TaggedEnum.Value<StayEdit, 'Merge'>,
+): Effect.fn.Return<Edited, StayNotFound | HardRuleBroken> {
+  const a = yield* findStay(copy, stayIds[0])
+  const b = yield* findStay(copy, stayIds[1])
+  const [earlier, later] = a.checkIn <= b.checkIn ? [a, b] : [b, a]
+
+  if (earlier.checkOut !== later.checkIn) {
+    return yield* refuse(HardRule.cases.StaysNotAdjacent.make({}))
+  }
+
+  if (earlier.base !== later.base) {
+    return yield* refuse(HardRule.cases.StaysInDifferentBases.make({}))
+  }
+
+  const merged: ScheduleStay = {
+    ...earlier,
+    checkOut: later.checkOut,
+    highlights: [...new Set([...earlier.highlights, ...later.highlights])],
+  }
+
+  return {
+    stays: copy.stays.flatMap((stay) =>
+      stay.id === later.id ? [] : [stay.id === earlier.id ? merged : stay],
+    ),
+    moves: copy.moves.filter((move) => move.date !== later.checkIn),
+  }
+})
+
+const moveBoundary = (
+  copy: ScheduleCopy,
+  { stayId, checkOut }: Data.TaggedEnum.Value<StayEdit, 'MoveBoundary'>,
+): Effect.Effect<Edited, StayNotFound> =>
+  Effect.map(findStay(copy, stayId), (stay) => {
+    const from = stay.checkOut
+    const next = copy.stays.find(({ checkIn }) => checkIn === from)
+
+    return {
+      stays: copy.stays.map((each) =>
+        each.id === stayId
+          ? { ...each, checkOut }
+          : each === next
+            ? { ...each, checkIn: checkOut }
+            : each,
+      ),
+      moves: copy.moves.map((move) =>
+        move.date === from ? { ...move, date: checkOut } : move,
+      ),
+    }
+  })
+
+const changeBase = Effect.fnUntraced(function* (
+  copy: ScheduleCopy,
+  { stayId, place }: Data.TaggedEnum.Value<StayEdit, 'ChangeBase'>,
+): Effect.fn.Return<Edited, StayNotFound | HardRuleBroken> {
+  const stay = yield* findStay(copy, stayId)
+
+  if (!isPlaceId(place)) {
+    return yield* refuse(HardRule.cases.PlaceNotInCatalogue.make({ place }))
+  }
+
+  if (stay.base === place) return copy
+
+  const adjoining = new Set([stay.checkIn, stay.checkOut])
+
+  return {
+    stays: copy.stays.map((each) =>
+      each.id === stayId ? { ...each, base: place, highlights: [] } : each,
+    ),
+    moves: copy.moves.map((move) =>
+      adjoining.has(move.date)
+        ? { ...Struct.omit(move, ['duration']), sections: [] }
+        : move,
+    ),
+  }
+})
+
+const byCheckIn = (a: Stay, b: Stay) => a.checkIn.localeCompare(b.checkIn)
+
+/**
+ * The first Hard rule on Stay dates the edited Stays break: a Stay without
+ * nights, named by the check-in it has now if it isn't new, before any other.
+ */
+const stayDateRuleBroken = (
+  copy: ScheduleCopy,
+  stays: ReadonlyArray<ScheduleStay>,
+) => {
+  const checkInNow = new Map(copy.stays.map((stay) => [stay.id, stay.checkIn]))
+
+  const breaks = stayDateRuleBreaksOf(
+    stays,
+    (stay) => checkInNow.get(stay.id) ?? stay.checkIn,
+  )
+
+  return breaks.find(StayDateRuleBreak.guards.StayWithoutNights) ?? breaks.at(0)
+}
+
+/**
+ * Verify claims follow their Stays: a claim on a Stay the edit keeps moves to
+ * its new check-in, and one on a Stay it drops moves to the Stay now covering
+ * that Stay's first night.
+ */
+const claimsFollowingStays = (
+  copy: ScheduleCopy,
+  stays: ReadonlyArray<ScheduleStay>,
+) => {
+  const stayIdOn = new Map(copy.stays.map((stay) => [stay.checkIn, stay.id]))
+  const edited = new Map(stays.map((stay) => [stay.id, stay]))
+
+  const sameStayEdited = (checkIn: IsoDate) => {
+    const id = stayIdOn.get(checkIn)
+
+    return id === undefined ? undefined : edited.get(id)
+  }
+
+  return copy.verifyClaims.map((claim) => {
+    if (!VerifyClaimAttachment.guards.Stay(claim.attachedTo)) return claim
+    const { checkIn } = claim.attachedTo
+
+    const stay = sameStayEdited(checkIn) ?? stayForNight(stays, checkIn)
+
+    return stay === undefined
+      ? claim
+      : {
+          ...claim,
+          attachedTo: VerifyClaimAttachment.cases.Stay.make({
+            checkIn: stay.checkIn,
+          }),
+        }
+  })
+}
+
+const droppedIds = (
+  before: ReadonlyArray<{ readonly id: string }>,
+  after: ReadonlyArray<{ readonly id: string }>,
+) => {
+  const kept = new Set(after.map(({ id }) => id))
+
+  return before.flatMap(({ id }) => (kept.has(id) ? [] : [id]))
+}
+
+/**
+ * Applies a Stay edit to a Schedule's copy, checking the Hard rules in one
+ * order: the Stay named exists (StayNotFound), the edit can apply (Stays
+ * adjacent and in one Base for a merge, a place in the catalogue for a
+ * Base), then the Hard rules on Stay dates, a Stay without nights first.
+ * Moves left off the edited Stays' boundaries are a defect.
+ */
+export const applyStayEdit = Effect.fnUntraced(function* (
+  copy: ScheduleCopy,
+  edit: StayEdit,
+): Effect.fn.Return<StayEditPlan, StayNotFound | HardRuleBroken> {
+  const edited = yield* StayEdit.$match(edit, {
+    Split: (edit) => split(copy, edit),
+    Merge: (edit) => merge(copy, edit),
+    MoveBoundary: (edit) => moveBoundary(copy, edit),
+    ChangeBase: (edit) => changeBase(copy, edit),
+  })
+
+  const stays = [...edited.stays].sort(byCheckIn)
+  const broken = stayDateRuleBroken(copy, stays)
+
+  if (broken !== undefined) return yield* refuse(broken)
+
+  const { moves } = edited
+  const verifyClaims = claimsFollowingStays(copy, stays)
+  const misfits = fitBreaksOf({ stays, moves, verifyClaims, days: copy.days })
+
+  if (misfits.length > 0) {
+    return yield* Effect.die(
+      new Error(
+        `A ${edit._tag} Stay edit left the Schedule not fitting together: ${JSON.stringify(misfits)}`,
+      ),
+    )
+  }
+
+  const dropped = {
+    stays: droppedIds(copy.stays, stays),
+    moves: droppedIds(copy.moves, moves),
+    verifyClaims: droppedIds(copy.verifyClaims, verifyClaims),
+  }
+
+  return {
+    stays,
+    moves,
+    verifyClaims,
+    dropped: {
+      ...dropped,
+      ticks: [...dropped.stays, ...dropped.moves, ...dropped.verifyClaims],
+    },
+  }
+})

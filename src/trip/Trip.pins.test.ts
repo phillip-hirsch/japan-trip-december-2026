@@ -478,24 +478,12 @@ describe('Trip.setPin', () => {
           trip.writeHotelDetails({ scheduleId, stayId, details: ryokan }),
         )
 
-        const at = (date: IsoDate) =>
-          date === december(13) ? december(14) : date
+        yield* Trip.use((trip) =>
+          trip.changeStayBase({ scheduleId, stayId, place: 'osaka' }),
+        )
 
         const { schedule } = yield* Trip.use((trip) =>
-          trip.editStays({ scheduleId }, (copy) =>
-            Effect.succeed({
-              stays: copy.stays.map((stay) => ({
-                ...stay,
-                ...(stay.id === stayId && { base: 'osaka' as const }),
-                checkIn: at(stay.checkIn),
-                checkOut: at(stay.checkOut),
-              })),
-              moves: copy.moves.map((move) => ({
-                ...move,
-                date: at(move.date),
-              })),
-            }),
-          ),
+          trip.moveStayBoundary({ scheduleId, stayId, checkOut: december(14) }),
         )
 
         assert.deepStrictEqual(
