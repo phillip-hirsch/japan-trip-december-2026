@@ -78,8 +78,8 @@ export const attachmentKey = (attachedTo: VerifyClaimAttachment) =>
   })
 
 /**
- * How Stays sorted by check-in break the Hard rules on Stay dates. A Stay
- * without nights is named by its check-in as `checkInOf` gives it.
+ * How Stays sorted by check-in break the Hard rules on Stay dates.
+ * `checkInOf` gives the check-in that names a Stay without nights.
  */
 export const stayDateRuleBreaksOf = <
   S extends Pick<Stay, 'checkIn' | 'checkOut'>,
@@ -194,7 +194,7 @@ export const fitBreaksOf = ({
   return breaks
 }
 
-/** The Anchors Stays and Moves break, in Trip order. */
+/** The Anchor warnings for Stays and Moves, in Trip order. */
 export const anchorWarningsOf = ({
   stays,
   moves,
@@ -242,10 +242,10 @@ export const StayEdit = Data.taggedEnum<StayEdit>()
 export type StayChanges = Pick<ScheduleCopy, 'stays' | 'moves' | 'verifyClaims'>
 
 /**
- * A Stay edit as applied: the Stays, Moves and Verify claims the Schedule
- * keeps, each with the id it had if it had one, and the ids it drops. A Tick
- * belongs to the Checklist item a Stay, Move or Verify claim derives, under
- * that one's id, so the Ticks dropped are those ids.
+ * A Stay edit as applied. It holds the Stays, Moves and Verify claims the
+ * Schedule keeps, each under the id it already had, and the ids it drops. A
+ * Tick is stored under the id of the Stay, Move or Verify claim whose
+ * Checklist item it marks, so the dropped Ticks are the dropped ids.
  */
 export interface AppliedStayEdit extends StayChanges {
   readonly dropped: {
@@ -375,8 +375,9 @@ const changeBase = Effect.fnUntraced(function* (
 const byCheckIn = (a: Stay, b: Stay) => a.checkIn.localeCompare(b.checkIn)
 
 /**
- * The first Hard rule on Stay dates the edited Stays break: a Stay without
- * nights, named by the check-in it has now if it isn't new, before any other.
+ * The first Hard rule on Stay dates that the edited Stays break. A Stay
+ * without nights comes first. It is named by its check-in before the edit,
+ * or by its new check-in if the edit created it.
  */
 const stayDateRuleBroken = (
   copy: ScheduleCopy,
@@ -393,9 +394,9 @@ const stayDateRuleBroken = (
 }
 
 /**
- * Verify claims follow their Stays: a claim on a Stay the edit keeps moves to
- * its new check-in, and one on a Stay it drops moves to the Stay now covering
- * that Stay's first night.
+ * Moves each Verify claim with its Stay. A claim on a Stay the edit keeps
+ * moves to that Stay's new check-in. A claim on a Stay the edit drops moves
+ * to the Stay that now covers the dropped Stay's first night.
  */
 const claimsFollowingStays = (
   copy: ScheduleCopy,
@@ -437,11 +438,15 @@ const droppedIds = (
 }
 
 /**
- * Applies a Stay edit to a Schedule's copy, checking the Hard rules in one
- * order: the Stay named exists (StayNotFound), the edit can apply (Stays
- * adjacent and in one Base for a merge, a place in the catalogue for a
- * Base), then the Hard rules on Stay dates, a Stay without nights first.
- * Moves left off the edited Stays' boundaries are a defect.
+ * Applies a Stay edit to a Schedule's copy and checks the Hard rules in this
+ * order:
+ *
+ * 1. The Stay named exists, or it fails with StayNotFound.
+ * 2. The edit can apply. A merge needs adjacent Stays in one Base, and a new
+ *    Base must be a place in the catalogue.
+ * 3. The Hard rules on Stay dates, with a Stay without nights first.
+ *
+ * A Move left off a Stay boundary is a bug in the edit, so it dies.
  */
 export const applyStayEdit = Effect.fnUntraced(function* (
   copy: ScheduleCopy,

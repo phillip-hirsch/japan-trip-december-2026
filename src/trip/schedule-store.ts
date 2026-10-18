@@ -843,8 +843,8 @@ export const scheduleStore = Effect.gen(function* () {
     }),
 
     /**
-     * Saves an applied Stay edit: deletes the Stays, Moves, Verify claims and
-     * Ticks it drops, then writes the ones it keeps.
+     * Saves an applied Stay edit. It deletes the Stays, Moves, Verify claims
+     * and Ticks the edit drops, then writes the ones it keeps.
      */
     saveStayEdit: Effect.fnUntraced(function* (
       scheduleId: ScheduleId,

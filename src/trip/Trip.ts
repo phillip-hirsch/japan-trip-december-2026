@@ -1233,14 +1233,14 @@ export class Trip extends Context.Service<
      * Otherwise fails as every Stay edit does. The operation id makes a retry
      * return the first result.
      *
-     * Every Stay edit runs as one transaction on the Schedule named. A Stay
-     * or Move it keeps keeps its id, and with it its Hotel details, Stay note
-     * and ticks; one it drops loses its Checklist item and tick. Verify claims
-     * follow their Stays. It returns the Schedule as edited, with its Anchor
-     * warnings, which never block the edit. It fails with ScheduleChanged
-     * when the Schedule named isn't current, archived ones included, and
-     * with HardRuleBroken for the first Hard rule it would break. A refused
-     * edit writes nothing.
+     * Every Stay edit runs as one transaction on the Schedule named. Each
+     * Stay or Move the edit doesn't remove keeps its id, Hotel details, Stay
+     * note and ticks. Each one it removes loses its Checklist item and tick.
+     * Verify claims follow their Stays. It returns the Schedule as edited,
+     * with its Anchor warnings, which never block the edit. It fails with
+     * ScheduleChanged when the Schedule named isn't current, archived ones
+     * included, and with HardRuleBroken for the first Hard rule it would
+     * break. A refused edit writes nothing.
      */
     splitStay(
       input: SplitStay,
@@ -1258,7 +1258,8 @@ export class Trip extends Context.Service<
      *
      * Fails with StayNotFound when the Schedule has no Stay with either id,
      * and with HardRuleBroken when the Stays aren't adjacent or are in
-     * different Bases. Otherwise fails as every Stay edit does (splitStay).
+     * different Bases. Otherwise it fails like every Stay edit, which
+     * splitStay describes.
      * The operation id makes a retry return the first result.
      */
     mergeStays(
@@ -1271,8 +1272,8 @@ export class Trip extends Context.Service<
     /**
      * Moves the date a Stay of the Schedule named checks out, as a Stay edit.
      * The next Stay's check-in and the Move between them move to the same
-     * date. Both Stays keep their ids, and with them everything a Stay edit
-     * keeps (splitStay).
+     * date. Both Stays keep their ids, and with them everything else that
+     * splitStay says a Stay edit keeps.
      *
      * Fails with ScheduleChanged when the Schedule named isn't current,
      * archived ones included, and with StayNotFound when it has no Stay with
@@ -1290,8 +1291,8 @@ export class Trip extends Context.Service<
     >
     /**
      * Changes the Base of a Stay of the Schedule named to a place in the
-     * catalogue, as a Stay edit (splitStay). The Stay keeps its id, and with
-     * it its Hotel details, Stay note and ticks, but loses its highlights,
+     * catalogue, as a Stay edit, which splitStay describes. The Stay keeps
+     * its id, Hotel details, Stay note and ticks, but loses its highlights,
      * which described the old Base. The Moves on either side keep their mode
      * and lose their rail sections and duration, so their travel time is
      * unknown. Changing a Base to the place it already is changes nothing.
