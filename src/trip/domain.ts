@@ -1453,3 +1453,23 @@ export const RemoveOwnChecklistItemOutcome = Schema.TaggedUnion({
 
 export type RemoveOwnChecklistItemOutcome =
   typeof RemoveOwnChecklistItemOutcome.Type
+
+/** A tile of the web map: its zoom, then its column and row at that zoom. */
+export interface TileCoordinates {
+  readonly z: number
+  readonly x: number
+  readonly y: number
+}
+
+/** A Detail tile as its archive stores it: a vector tile, still compressed. */
+export interface DetailTile {
+  readonly bytes: Uint8Array<ArrayBuffer>
+  /** The HTTP content coding the bytes are in. */
+  readonly encoding: 'gzip' | 'br' | 'zstd' | 'identity'
+}
+
+/** The Detail tiles can't be read, such as while their archive is missing. */
+export class DetailTilesUnavailable extends Schema.TaggedError<DetailTilesUnavailable>()(
+  'DetailTilesUnavailable',
+  {},
+) {}

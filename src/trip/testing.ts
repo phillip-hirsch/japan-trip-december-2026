@@ -4,6 +4,11 @@ import { SqliteClient, SqliteMigrator } from '@effect/sql-sqlite-node'
 import { deepStrictEqual } from '@effect/vitest/utils'
 import { DateTime, Effect, Layer } from 'effect'
 import { TestClock } from 'effect/testing'
+import { readFileSync } from 'node:fs'
+import { EtagMismatch } from 'pmtiles'
+
+import { DetailTileArchive } from '@/trip/DetailTileArchive'
+import { detailTilesKey } from '@/trip/detail-tile-source'
 
 import type { ItineraryContent } from '@/trip/domain'
 import { OperationId } from '@/trip/domain'
@@ -44,6 +49,71 @@ export const liveTrip = Trip.layer.pipe(
     Layer.succeed(LocationLinkResolver, recordedLinks),
   ]),
 )
+
+const fixture = (name: string) =>
+  Uint8Array.from(readFileSync(new URL(name, import.meta.url)))
+
+/** A real Detail tiles archive of two tiles of open ocean. */
+export const openOcean = fixture('open-ocean.pmtiles')
+
+/** The same, one tile further east at zoom 10. */
+export const openOceanEast = fixture('open-ocean-east.pmtiles')
+
+/**
+ * An archive in memory that an upload can replace, as in the bucket. Each
+ * upload has its own etag, and a read naming an older one fails as R2's does.
+ * `holdNextRead` lets a test pause one read after it has taken its bytes,
+ * as a slow response would, until `release`.
+ */
+export const replaceableArchive = (first: Uint8Array) => {
+  let stored = first
+  let upload = 1
+  let hold: ((release: () => void) => void) | undefined
+
+  const read = (offset: number, length: number, etag: string | undefined) =>
+    etag !== undefined && etag !== `upload-${upload}`
+      ? Promise.reject(new EtagMismatch())
+      : Promise.resolve({
+          data: stored.slice(offset, offset + length).buffer,
+          etag: `upload-${upload}`,
+        })
+
+  const archive = DetailTileArchive.of({
+    getKey: () => detailTilesKey,
+    getBytes: (offset, length, _signal, etag) => {
+      const result = read(offset, length, etag)
+      const holding = hold
+      hold = undefined
+
+      if (holding === undefined) return result
+      // Handled now, so a stale read held back isn't reported as unhandled;
+      // the caller still gets its rejection once released.
+      result.catch(() => undefined)
+
+      return new Promise<void>((release) => holding(release)).then(() => result)
+    },
+  })
+
+  const replace = (next: Uint8Array) => {
+    stored = next
+    upload += 1
+  }
+
+  /** Resolves, with its release, once the next read has taken its bytes. */
+  const holdNextRead = () =>
+    new Promise<() => void>((reached) => {
+      hold = reached
+    })
+
+  return { archive, replace, holdNextRead }
+}
+
+export const openOceanArchive = replaceableArchive(openOcean).archive
+
+export const unreadableArchive = DetailTileArchive.of({
+  getKey: () => detailTilesKey,
+  getBytes: () => Promise.reject(new Error('The bucket is unreachable')),
+})
 
 /** Sets the Clock to a moment given as an ISO 8601 UTC string. */
 export const setTime = (instant: string) =>

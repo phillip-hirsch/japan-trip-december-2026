@@ -24,3 +24,6 @@ todos.json
 .dev.vars
 .dev.vars.*
 !.dev.vars.example
+
+# Map tile extracts; scripts/build-map-tiles.ts rebuilds them
+/tiles

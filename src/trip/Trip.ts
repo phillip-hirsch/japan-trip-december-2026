@@ -72,6 +72,8 @@ import type {
   DayPage,
   DayTrip,
   DayTripDetail,
+  DetailTile,
+  DetailTilesUnavailable,
   EditActivity,
   HotelDetails,
   Itinerary,
@@ -108,6 +110,7 @@ import type {
   StayEditTarget,
   TickChecklistItem,
   TickOwnChecklistItem,
+  TileCoordinates,
   TimeOfDay,
   VerifyClaim,
   VerifyClaimDetail,
@@ -116,6 +119,8 @@ import type {
   WriteStayNote,
   WriteTripNote,
 } from '@/trip/domain'
+import type { DetailTileArchive } from '@/trip/DetailTileArchive'
+import { detailTileLookup } from '@/trip/detail-tiles'
 import { Itineraries } from '@/trip/Itineraries'
 import { LocationLinkResolver } from '@/trip/LocationLinkResolver'
 import type { PlaceId, StationId } from '@/trip/catalogue-ids'
@@ -1106,6 +1111,19 @@ export class Trip extends Context.Service<
     ): Effect.Effect<Option.Option<DayPage>, DayNotFound, SqlClient.SqlClient>
     readonly itineraries: Effect.Effect<ReadonlyArray<ItineraryComparison>>
     readonly comparisonMap: Effect.Effect<ComparisonMap>
+    /**
+     * The Detail tile at the coordinates, as its archive stores it, still
+     * compressed; none outside the archive's boxes, beyond its zoom levels,
+     * or at coordinates no map has. DetailTilesUnavailable when the archive
+     * can't be read.
+     */
+    detailTile(
+      tile: TileCoordinates,
+    ): Effect.Effect<
+      Option.Option<DetailTile>,
+      DetailTilesUnavailable,
+      DetailTileArchive
+    >
     itinerary(
       optionNumber: number,
     ): Effect.Effect<ItineraryDetail, ItineraryNotFound>
@@ -1457,6 +1475,7 @@ export class Trip extends Context.Service<
     Effect.gen(function* () {
       const { all } = yield* Itineraries
       const resolver = yield* LocationLinkResolver
+      const detailTile = yield* detailTileLookup
       const summaries = all.map(summaryOf)
       const comparisons = all.map(comparisonOf)
       const railSections = railSectionsOf(all)
@@ -2051,6 +2070,7 @@ export class Trip extends Context.Service<
         day,
         itineraries: Effect.succeed(comparisons),
         comparisonMap: Effect.succeed(comparisonMap),
+        detailTile,
         itinerary: (optionNumber) => find(details, optionNumber),
         tripRuleBreaks: (optionNumber) =>
           find(byOptionNumber, optionNumber).pipe(Effect.map(tripRuleBreaksOf)),

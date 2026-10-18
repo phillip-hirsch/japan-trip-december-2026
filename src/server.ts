@@ -7,6 +7,7 @@ import {
   AccessGate,
   KeySetTransport,
 } from '@/access/AccessGate'
+import { detailTileOf, serveDetailTile } from '@/trip/detail-tile-route.server'
 
 // The Durable Object class, exported for the Worker configuration (ADR 0001).
 export { TripStore } from '@/trip/TripStore'
@@ -28,8 +29,9 @@ const refusal = (status: 403 | 503) =>
 
 /**
  * The Worker entry: every request that reaches the Worker passes the Access
- * gate before TanStack Start sees it. Static assets and prerendered HTML are
- * served without running the Worker, behind Cloudflare Access at the edge.
+ * gate before a Detail tile or TanStack Start answers it. Static assets and
+ * prerendered HTML are served without running the Worker, behind Cloudflare
+ * Access at the edge.
  */
 export default {
   async fetch(request, _env, ctx) {
@@ -43,6 +45,10 @@ export default {
     const decision = exit.value
 
     if (AccessDecision.$is('Refused')(decision)) return refusal(decision.status)
+
+    const tile = detailTileOf(request)
+
+    if (tile !== undefined) return serveDetailTile(tile)
 
     return handler.fetch(request, { context: { email: decision.email } })
   },

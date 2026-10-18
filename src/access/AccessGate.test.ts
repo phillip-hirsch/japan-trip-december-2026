@@ -130,6 +130,23 @@ describe('AccessGate.check', () => {
     }),
   )
 
+  it.effect('allows a Detail tile request only with an Access identity', () =>
+    Effect.gen(function* () {
+      const tile =
+        'https://japan-trip.workers.dev/tiles/detail/14/14552/6451.mvt'
+
+      const token = yield* Effect.promise(() => accessToken())
+
+      assert.deepStrictEqual(
+        yield* check(
+          new Request(tile, { headers: { 'Cf-Access-Jwt-Assertion': token } }),
+        ),
+        AccessDecision.Allowed({ email: allowedEmail }),
+      )
+      assert.deepStrictEqual(yield* check(new Request(tile)), forbidden)
+    }),
+  )
+
   it.effect('refuses a token for another email', () =>
     Effect.gen(function* () {
       const decision = yield* checkToken({ email: 'someone@example.com' })
