@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 
 // Relative, not '@/': plain `node` runs this script and can't resolve the alias.
 import { generatedFiles } from './generated-files.ts'
+import { supportsAttributeSource } from './git-features.ts'
 
 const maxTokens = 5_000
 
@@ -21,6 +22,9 @@ const git = (args: ReadonlyArray<string>, input = '') =>
     input: Buffer.from(input),
     maxBuffer: 256 * 1024 * 1024,
   })
+
+const gitText = (args: ReadonlyArray<string>) =>
+  git(args).toString('utf8').trim()
 
 // Every staged path that isn't a deletion. With --no-renames a rename counts
 // as an add; T catches a symlink replaced by a file.
@@ -73,11 +77,9 @@ const overLimit = stagedFiles.flatMap(({ path }, index) =>
 const binaryPaths = (paths: ReadonlyArray<string>) => {
   if (paths.length === 0) return new Set<string>()
 
-  const emptyTree = git(['hash-object', '-t', 'tree', '--stdin'])
-    .toString('utf8')
-    .trim()
+  const emptyTree = gitText(['hash-object', '-t', 'tree', '--stdin'])
 
-  const numstat = git([
+  const diffArgs = [
     'diff',
     '--cached',
     '--numstat',
@@ -86,7 +88,14 @@ const binaryPaths = (paths: ReadonlyArray<string>) => {
     emptyTree,
     '--',
     ...paths.map((path) => `:(top,literal)${path}`),
-  ])
+  ]
+
+  // Reads .gitattributes as staged (the index written as a tree), so an
+  // unstaged attribute edit can't change which files count as binary. Older
+  // git has no --attr-source and reads the working tree's copy.
+  const numstat = supportsAttributeSource(gitText(['version']))
+    ? git([`--attr-source=${gitText(['write-tree'])}`, ...diffArgs])
+    : git(diffArgs)
 
   return new Set(
     numstat

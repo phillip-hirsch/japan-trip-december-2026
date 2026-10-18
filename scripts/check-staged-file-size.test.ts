@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url'
 
 import { assert, describe, it, onTestFinished } from '@effect/vitest'
 
+import { supportsAttributeSource } from './git-features.ts'
+
 const checker = fileURLToPath(
   new URL('./check-staged-file-size.ts', import.meta.url),
 )
@@ -15,6 +17,10 @@ const limitBytes = 20_000
 const text = (bytes: number) => 'a'.repeat(bytes)
 
 const binary = (bytes: number) => `\0${text(bytes - 1)}`
+
+const attributeSource = supportsAttributeSource(
+  execFileSync('git', ['version'], { encoding: 'utf8' }),
+)
 
 const missingCommit = '1234567890123456789012345678901234567890'
 
@@ -168,6 +174,21 @@ describe('check-staged-file-size', () => {
 
     assert.deepStrictEqual(repo.check().blocked, ['was-binary.dat'])
   })
+
+  // Older git reads the working tree's .gitattributes; see git-features.ts.
+  it.skipIf(!attributeSource)(
+    'reads .gitattributes from the index, not the working tree',
+    () => {
+      const repo = makeRepo()
+
+      repo.stage('.gitattributes', '*.svg binary')
+      repo.write('.gitattributes', '*.ts binary')
+      repo.stage('icon.svg', text(limitBytes * 2))
+      repo.stage('big.ts', text(limitBytes * 2))
+
+      assert.deepStrictEqual(repo.check().blocked, ['big.ts'])
+    },
+  )
 
   it('skips symlinks, submodules and deletions, but checks a symlink replaced by a file', () => {
     const repo = makeRepo()
