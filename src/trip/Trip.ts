@@ -17,6 +17,7 @@ import {
   birthdayDate,
   isTripDate,
   shigeharuDate,
+  shigeharuEveDate,
   timeOfDayOf,
   tripDates,
   tripEndDate,
@@ -28,7 +29,6 @@ import {
   ActivityNotFound,
   ActivityTitleInvalid,
   Anchor,
-  AnchorWarning,
   ChecklistItem,
   ChecklistItemNotFound,
   ChecklistTextInvalid,
@@ -52,7 +52,6 @@ import {
   ScheduleNotFound,
   ScheduleRestored,
   StaysEdited,
-  StayDateRuleBreak,
   StayNotFound,
   TokyoDateTime,
   TripRuleBreak,
@@ -142,28 +141,19 @@ import {
   undirectedRailSectionKey,
 } from '@/trip/rail'
 import { railGeometryAttribution, railGeometryOf } from '@/trip/rail-geometry'
-import { scheduleStore } from '@/trip/schedule-store'
 import {
-  changeBaseEdit,
-  mergeEdit,
-  splitEdit,
-  stayBoundaryMove,
-} from '@/trip/stay-edits'
-import type {
-  OwnChecklistItem,
-  ScheduleCopy,
-  ScheduleStay,
-  ScheduleStore,
-} from '@/trip/schedule-store'
-
-export type { ScheduleCopy, ScheduleStay } from '@/trip/schedule-store'
-
-/**
- * What a Stay edit returns: the Schedule's Stays and Moves as edited. Each
- * one it keeps has its old id. Verify claims aren't part of it, because
- * editStays moves them with their Stays.
- */
-export type StayEdit = Pick<ScheduleCopy, 'stays' | 'moves'>
+  anchorWarningsOf,
+  applyStayEdit,
+  attachmentKey,
+  fitBreaksOf,
+  StayEdit,
+  stayBoundariesOf,
+  stayDateRuleBreaksOf,
+  stayForNight,
+} from '@/trip/schedule-copy'
+import type { ScheduleCopy } from '@/trip/schedule-copy'
+import { scheduleStore } from '@/trip/schedule-store'
+import type { OwnChecklistItem, ScheduleStore } from '@/trip/schedule-store'
 
 const isoInstantOf = (now: DateTime.DateTime) =>
   IsoInstant.make(DateTime.formatIso(now))
@@ -182,11 +172,6 @@ const daysBetween = (from: IsoDate, to: IsoDate) =>
     ),
   )
 
-const addDays = (date: IsoDate, days: number) =>
-  IsoDate.make(
-    DateTime.formatIsoDate(DateTime.add(DateTime.makeUnsafe(date), { days })),
-  )
-
 const monthBefore = (date: IsoDate) =>
   IsoDate.make(
     DateTime.formatIsoDate(
@@ -195,8 +180,6 @@ const monthBefore = (date: IsoDate) =>
   )
 
 const nightsOf = (stay: Stay) => daysBetween(stay.checkIn, stay.checkOut)
-
-const thursdayBeforeShigeharu = addDays(shigeharuDate, -1)
 
 const placeOf = (id: PlaceId): Place => ({
   id,
@@ -210,18 +193,6 @@ const staySummaryOf = (stay: Stay): StaySummary => ({
   checkOut: stay.checkOut,
   nights: nightsOf(stay),
 })
-
-const stayForNight = <S extends Pick<Stay, 'checkIn' | 'checkOut'>>(
-  stays: ReadonlyArray<S>,
-  date: IsoDate,
-) => stays.find((stay) => stay.checkIn <= date && date < stay.checkOut)
-
-const stayBoundariesOf = (stays: ReadonlyArray<Stay>) =>
-  stays.slice(1).flatMap((to, index) => {
-    const from = stays[index]
-
-    return from?.checkOut === to.checkIn ? [{ date: to.checkIn, from, to }] : []
-  })
 
 const stationOf = (id: StationId): Station => ({ id, ...stations[id] })
 
@@ -263,8 +234,7 @@ const coversWholeDay = (stay: Stay, date: IsoDate) =>
 
 const hasThursdayBackup = (stays: ReadonlyArray<Stay>) =>
   stays.some(
-    (stay) =>
-      stay.base === 'kyoto' && coversWholeDay(stay, thursdayBeforeShigeharu),
+    (stay) => stay.base === 'kyoto' && coversWholeDay(stay, shigeharuEveDate),
   )
 
 const anchorsOf = ({ stays, shigeharuVisit }: Itinerary): Array<Anchor> => [
@@ -281,13 +251,6 @@ const anchorsOf = ({ stays, shigeharuVisit }: Itinerary): Array<Anchor> => [
   Anchor.cases.Birthday.make({ date: birthdayDate }),
   Anchor.cases.Departure.make({ date: tripEndDate }),
 ]
-
-const attachmentKey = (attachedTo: VerifyClaimAttachment) =>
-  VerifyClaimAttachment.match(attachedTo, {
-    Day: (attachedTo) => `Day ${attachedTo.date}`,
-    Stay: (attachedTo) => `Stay ${attachedTo.checkIn}`,
-    Itinerary: () => 'Itinerary',
-  })
 
 const claimsAttachedTo = (
   { verifyClaims }: { readonly verifyClaims: ReadonlyArray<VerifyClaim> },
@@ -760,41 +723,6 @@ const homeStateOf = (
   })
 }
 
-const byCheckIn = (a: Stay, b: Stay) => a.checkIn.localeCompare(b.checkIn)
-
-const claimsFollowingStays = (
-  copy: ScheduleCopy,
-  stays: ReadonlyArray<ScheduleStay>,
-) => {
-  const stayIdOn = new Map(copy.stays.map((stay) => [stay.checkIn, stay.id]))
-  const edited = new Map(stays.map((stay) => [stay.id, stay]))
-
-  const sameStayEdited = (checkIn: IsoDate) => {
-    const id = stayIdOn.get(checkIn)
-
-    return id === undefined ? undefined : edited.get(id)
-  }
-
-  const stayNowCoveringNightOf = (checkIn: IsoDate) =>
-    stayForNight(stays, checkIn)
-
-  return copy.verifyClaims.map((claim) => {
-    if (!VerifyClaimAttachment.guards.Stay(claim.attachedTo)) return claim
-    const { checkIn } = claim.attachedTo
-
-    const stay = sameStayEdited(checkIn) ?? stayNowCoveringNightOf(checkIn)
-
-    return stay === undefined
-      ? claim
-      : {
-          ...claim,
-          attachedTo: VerifyClaimAttachment.cases.Stay.make({
-            checkIn: stay.checkIn,
-          }),
-        }
-  })
-}
-
 const requireCurrent = Effect.fnUntraced(function* (
   store: ScheduleStore,
   believedCurrent: ScheduleId | null,
@@ -1110,145 +1038,6 @@ const requirePin = Effect.fnUntraced(function* (pin: Pin) {
   return pin
 })
 
-const stayWithoutNightsFirst = (breaks: ReadonlyArray<StayDateRuleBreak>) =>
-  breaks.find(StayDateRuleBreak.guards.StayWithoutNights) ?? breaks.at(0)
-
-const stayDateRuleBreaksOf = (
-  stays: ReadonlyArray<Pick<Stay, 'checkIn' | 'checkOut'>>,
-): Array<StayDateRuleBreak> => {
-  const first = stays[0]
-  const last = stays.at(-1)
-
-  if (first === undefined || last === undefined)
-    return [StayDateRuleBreak.cases.NoStays.make({})]
-
-  const breaks: Array<StayDateRuleBreak> = []
-
-  if (first.checkIn !== tripStartDate || last.checkOut !== tripEndDate) {
-    breaks.push(
-      StayDateRuleBreak.cases.NotTheTripDates.make({
-        checkIn: first.checkIn,
-        checkOut: last.checkOut,
-      }),
-    )
-  }
-
-  for (const stay of stays) {
-    if (stay.checkOut <= stay.checkIn) {
-      breaks.push(
-        StayDateRuleBreak.cases.StayWithoutNights.make({
-          checkIn: stay.checkIn,
-        }),
-      )
-    }
-  }
-
-  stays.slice(1).forEach((next, index) => {
-    const previous = stays[index]
-
-    if (previous === undefined) return
-
-    if (previous.checkOut < next.checkIn) {
-      breaks.push(
-        StayDateRuleBreak.cases.Gap.make({
-          from: previous.checkOut,
-          to: next.checkIn,
-        }),
-      )
-    } else if (next.checkIn < previous.checkOut) {
-      breaks.push(
-        StayDateRuleBreak.cases.Overlap.make({
-          from: next.checkIn,
-          to: previous.checkOut,
-        }),
-      )
-    }
-  })
-
-  return breaks
-}
-
-const fitBreaksOf = ({
-  stays,
-  days,
-  moves,
-  verifyClaims,
-}: Pick<
-  Plan<Stay, Day, Move, DayTrip, Anchor>,
-  'stays' | 'days' | 'moves' | 'verifyClaims'
->): Array<TripRuleBreak> => {
-  const breaks: Array<TripRuleBreak> = []
-  const boundaryDates = new Set(stayBoundariesOf(stays).map(({ date }) => date))
-  const moveDates = new Set(moves.map((move) => move.date))
-
-  for (const date of moveDates) {
-    if (!boundaryDates.has(date)) {
-      breaks.push(TripRuleBreak.cases.MoveWithoutStayBoundary.make({ date }))
-    }
-
-    if (moves.filter((move) => move.date === date).length > 1) {
-      breaks.push(TripRuleBreak.cases.MovesOnOneDate.make({ date }))
-    }
-  }
-
-  for (const date of boundaryDates) {
-    if (!moveDates.has(date)) {
-      breaks.push(TripRuleBreak.cases.StayBoundaryWithoutMove.make({ date }))
-    }
-  }
-
-  const attachments = new Set(
-    [
-      VerifyClaimAttachment.cases.Itinerary.make({}),
-      ...days.map(({ date }) => VerifyClaimAttachment.cases.Day.make({ date })),
-      ...stays.map(({ checkIn }) =>
-        VerifyClaimAttachment.cases.Stay.make({ checkIn }),
-      ),
-    ].map(attachmentKey),
-  )
-
-  for (const { id, attachedTo } of verifyClaims) {
-    if (!attachments.has(attachmentKey(attachedTo))) {
-      breaks.push(TripRuleBreak.cases.UnattachedVerifyClaim.make({ id }))
-    }
-  }
-
-  return breaks
-}
-
-const anchorWarningsOf = ({
-  stays,
-  moves,
-}: {
-  readonly stays: ReadonlyArray<Stay>
-  readonly moves: ReadonlyArray<Move>
-}): Array<AnchorWarning> => {
-  const warnings: Array<AnchorWarning> = []
-  const shigeharuEve = stayForNight(stays, thursdayBeforeShigeharu)
-
-  if (shigeharuEve?.base !== 'kyoto') {
-    warnings.push(
-      AnchorWarning.cases.NotWakingUpInKyoto.make({
-        ...(shigeharuEve && { base: shigeharuEve.base }),
-      }),
-    )
-  }
-
-  if (moves.some((move) => move.date === birthdayDate)) {
-    warnings.push(AnchorWarning.cases.MoveOnBirthday.make({}))
-  }
-
-  const last = stays.at(-1)
-
-  if (last !== undefined && last.base !== 'tokyo') {
-    warnings.push(
-      AnchorWarning.cases.EndsOutsideTokyo.make({ base: last.base }),
-    )
-  }
-
-  return warnings
-}
-
 const anchorWarningsAsBreaks = (itinerary: Itinerary): Array<TripRuleBreak> =>
   anchorWarningsOf(itinerary)
 
@@ -1433,34 +1222,6 @@ export class Trip extends Context.Service<
       SqlClient.SqlClient
     >
     /**
-     * Runs a Stay edit on the Schedule named, as one transaction. Each Stay
-     * edit supplies only its own edit, which gets the Schedule's copy and
-     * returns its Stays and Moves as edited. A Stay or Move the edit keeps
-     * keeps its id, and with it its Hotel details, Stay note and Checklist
-     * ticks. One it drops loses its ticks. Verify claims follow their Stays.
-     * Returns the Schedule as edited, with its Anchor warnings, which never
-     * block the edit.
-     *
-     * Fails with ScheduleChanged when the Schedule named isn't current,
-     * archived ones included. Fails with HardRuleBroken for a Stay without
-     * nights if the edited Stays leave one, and otherwise for the first Hard
-     * rule on Stay dates they break. Also fails with
-     * whatever the edit fails with, such as StayNotFound, or HardRuleBroken
-     * when the edit can't apply. A refused edit writes nothing. Moves that
-     * don't meet the edited Stays' boundaries are a defect.
-     *
-     * With an operation id, the same transaction records the result. A
-     * repeat of the id returns that result and writes nothing.
-     */
-    editStays<E>(
-      target: StayEditTarget,
-      edit: (copy: ScheduleCopy) => Effect.Effect<StayEdit, E>,
-    ): Effect.Effect<
-      StaysEdited,
-      E | ScheduleChanged | HardRuleBroken,
-      SqlClient.SqlClient
-    >
-    /**
      * Splits a Stay of the Schedule named at a date after its check-in and
      * before its check-out, as a Stay edit. The Stay keeps its id, Hotel
      * details, Stay note, highlights and ticks for the nights before the
@@ -1469,8 +1230,17 @@ export class Trip extends Context.Service<
      *
      * Fails with StayNotFound when the Schedule has no Stay with the id, and
      * with HardRuleBroken naming a Stay without nights for a date outside it.
-     * Otherwise fails as editStays does. The operation id makes a retry
+     * Otherwise fails as every Stay edit does. The operation id makes a retry
      * return the first result.
+     *
+     * Every Stay edit runs as one transaction on the Schedule named. Each
+     * Stay or Move the edit doesn't remove keeps its id, Hotel details, Stay
+     * note and ticks. Each one it removes loses its Checklist item and tick.
+     * Verify claims follow their Stays. It returns the Schedule as edited,
+     * with its Anchor warnings, which never block the edit. It fails with
+     * ScheduleChanged when the Schedule named isn't current, archived ones
+     * included, and with HardRuleBroken for the first Hard rule it would
+     * break. A refused edit writes nothing.
      */
     splitStay(
       input: SplitStay,
@@ -1488,8 +1258,9 @@ export class Trip extends Context.Service<
      *
      * Fails with StayNotFound when the Schedule has no Stay with either id,
      * and with HardRuleBroken when the Stays aren't adjacent or are in
-     * different Bases. Otherwise fails as editStays does. The operation id
-     * makes a retry return the first result.
+     * different Bases. Otherwise it fails like every Stay edit, which
+     * splitStay describes.
+     * The operation id makes a retry return the first result.
      */
     mergeStays(
       input: MergeStays,
@@ -1501,8 +1272,8 @@ export class Trip extends Context.Service<
     /**
      * Moves the date a Stay of the Schedule named checks out, as a Stay edit.
      * The next Stay's check-in and the Move between them move to the same
-     * date. Both Stays keep their ids, and with them everything editStays
-     * keeps.
+     * date. Both Stays keep their ids, and with them everything else that
+     * splitStay says a Stay edit keeps.
      *
      * Fails with ScheduleChanged when the Schedule named isn't current,
      * archived ones included, and with StayNotFound when it has no Stay with
@@ -1520,15 +1291,15 @@ export class Trip extends Context.Service<
     >
     /**
      * Changes the Base of a Stay of the Schedule named to a place in the
-     * catalogue, as a Stay edit (editStays). The Stay keeps its id, and with
-     * it its Hotel details, Stay note and ticks, but loses its highlights,
+     * catalogue, as a Stay edit, which splitStay describes. The Stay keeps
+     * its id, Hotel details, Stay note and ticks, but loses its highlights,
      * which described the old Base. The Moves on either side keep their mode
      * and lose their rail sections and duration, so their travel time is
      * unknown. Changing a Base to the place it already is changes nothing.
      *
      * Fails with StayNotFound when the Schedule has no Stay with the id, and
      * with HardRuleBroken (PlaceNotInCatalogue) for a place outside the
-     * catalogue. It also fails as editStays does.
+     * catalogue. It also fails as every Stay edit does.
      */
     changeStayBase(
       input: ChangeStayBase,
@@ -1931,9 +1702,9 @@ export class Trip extends Context.Service<
       })
 
       const editStays = Effect.fn('Trip.editStays')(
-        function* <E>(
+        function* (
           { scheduleId, operationId }: StayEditTarget,
-          edit: (copy: ScheduleCopy) => Effect.Effect<StayEdit, E>,
+          edit: StayEdit,
         ) {
           const store = yield* scheduleStore
 
@@ -1948,31 +1719,10 @@ export class Trip extends Context.Service<
 
               yield* requireCurrent(store, scheduleId)
               const { copy } = yield* requireSchedule(store, scheduleId)
-              const changes = yield* edit(copy)
-              const stays = [...changes.stays].sort(byCheckIn)
-              const broken = stayWithoutNightsFirst(stayDateRuleBreaksOf(stays))
-
-              if (broken !== undefined) {
-                return yield* new HardRuleBroken({ rule: broken })
-              }
-
-              const edited = {
-                stays,
-                moves: changes.moves,
-                verifyClaims: claimsFollowingStays(copy, stays),
-              }
-
-              const fitBreaks = fitBreaksOf({ ...edited, days: copy.days })
-
-              if (fitBreaks.length > 0) {
-                return yield* Effect.die(
-                  new Error(
-                    `A Stay edit left the Schedule not fitting together: ${JSON.stringify(fitBreaks)}`,
-                  ),
-                )
-              }
-
-              yield* store.replaceStays(scheduleId, edited)
+              yield* store.saveStayEdit(
+                scheduleId,
+                yield* applyStayEdit(copy, edit),
+              )
 
               const result = {
                 schedule: scheduleDetail(
@@ -1995,28 +1745,23 @@ export class Trip extends Context.Service<
       )
 
       const splitStay = ({ scheduleId, operationId, ...split }: SplitStay) =>
-        editStays({ scheduleId, operationId }, splitEdit(split)).pipe(
+        editStays({ scheduleId, operationId }, StayEdit.Split(split)).pipe(
           Effect.withSpan('Trip.splitStay'),
         )
 
       const mergeStays = ({ scheduleId, operationId, stayIds }: MergeStays) =>
-        editStays({ scheduleId, operationId }, mergeEdit({ stayIds })).pipe(
-          Effect.withSpan('Trip.mergeStays'),
-        )
+        editStays(
+          { scheduleId, operationId },
+          StayEdit.Merge({ stayIds }),
+        ).pipe(Effect.withSpan('Trip.mergeStays'))
 
-      const moveStayBoundary = Effect.fn('Trip.moveStayBoundary')(function* ({
-        scheduleId,
-        stayId,
-        checkOut,
-      }: MoveStayBoundary) {
-        return yield* editStays(
-          { scheduleId },
-          stayBoundaryMove(stayId, checkOut),
+      const moveStayBoundary = ({ scheduleId, ...move }: MoveStayBoundary) =>
+        editStays({ scheduleId }, StayEdit.MoveBoundary(move)).pipe(
+          Effect.withSpan('Trip.moveStayBoundary'),
         )
-      })
 
       const changeStayBase = ({ scheduleId, ...change }: ChangeStayBase) =>
-        editStays({ scheduleId }, changeBaseEdit(change)).pipe(
+        editStays({ scheduleId }, StayEdit.ChangeBase(change)).pipe(
           Effect.withSpan('Trip.changeStayBase'),
         )
 
@@ -2319,7 +2064,6 @@ export class Trip extends Context.Service<
         writeDayNote,
         writeStayNote,
         writeHotelDetails,
-        editStays,
         splitStay,
         mergeStays,
         moveStayBoundary,

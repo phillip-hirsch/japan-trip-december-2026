@@ -40,6 +40,13 @@ const dayInMilliseconds = 24 * 60 * 60 * 1000
 
 const midnightUtc = (isoDate: IsoDate) => Date.parse(`${isoDate}T00:00:00Z`)
 
+/** The Thursday before the Shigeharu visit, whose night ends with it. */
+export const shigeharuEveDate = calendarDate(
+  new Date(midnightUtc(shigeharuDate) - dayInMilliseconds)
+    .toISOString()
+    .slice(0, 10),
+)
+
 export const tripDates: ReadonlyArray<IsoDate> = Array.from(
   {
     length:

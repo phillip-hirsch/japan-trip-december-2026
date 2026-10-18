@@ -12,7 +12,7 @@ import {
 } from '@/trip/domain'
 import type { ScheduleDetail, ScheduleId } from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
-import { operation, storage, tripWith } from '@/trip/testing'
+import { assertFailedWith, operation, storage, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
 
 const trip = tripWith([option1])
@@ -261,7 +261,7 @@ describe('Trip.changeStayBase', () => {
             changeBase(scheduleId, stayId(before, 2), place),
           )
 
-          assert.deepStrictEqual(
+          assertFailedWith(
             error,
             new HardRuleBroken({
               rule: HardRule.cases.PlaceNotInCatalogue.make({ place }),

@@ -517,6 +517,11 @@ describe('Trip.mergeStays', () => {
       [0, 3],
       HardRule.cases.StaysNotAdjacent.make({}),
     ],
+    [
+      'Stays neither adjacent nor in one Base, as not adjacent',
+      [0, 2],
+      HardRule.cases.StaysNotAdjacent.make({}),
+    ],
     ['one Stay with itself', [1, 1], HardRule.cases.StaysNotAdjacent.make({})],
     [
       'adjacent Stays in different Bases',
@@ -535,7 +540,7 @@ describe('Trip.mergeStays', () => {
           mergeStays(scheduleId, [stayIdAt(before, a), stayIdAt(before, b)]),
         )
 
-        assert.deepStrictEqual(error, new HardRuleBroken({ rule }))
+        assertFailedWith(error, new HardRuleBroken({ rule }))
         assert.deepStrictEqual(yield* currentSchedule, before)
       }).pipe(Effect.provide([trip, storage])),
     )
