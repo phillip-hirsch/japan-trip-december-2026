@@ -33,8 +33,8 @@ for (const name of Object.keys(inheritedEnv))
   if (name.toUpperCase().startsWith('GIT_')) delete inheritedEnv[name]
 
 // A throwaway repository that ignores the machine's global and system Git
-// config (signing, hooks, line endings). The checker runs in it as the
-// pre-commit hook would: as its own process.
+// config (signing, hooks, line endings). The checker runs in it as its own
+// process, the way the pre-commit hook runs it.
 const makeRepo = () => {
   const sandbox = mkdtempSync(join(tmpdir(), 'staged-size-'))
 
@@ -84,8 +84,8 @@ const makeRepo = () => {
 
   const commit = () => git(['commit', '-q', '-m', 'base'])
 
-  // Runs the checker; blocked lists every path it reports, in its order,
-  // whatever the token count reads (a bad count still shows up as blocked).
+  // Runs the checker. blocked lists every path it reports, in order, whatever
+  // the token count says, so a malformed count still shows up.
   const check = () => {
     const run = spawnSync(process.execPath, [checker], {
       cwd: root,
