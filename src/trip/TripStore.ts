@@ -197,8 +197,8 @@ export class TripStore extends DurableObject<Env> {
   }
 
   /**
-   * Runs the Trip write named and answers its outcome: its success or typed
-   * failure, as plain data.
+   * Runs the Trip write named and returns its success or typed failure as
+   * plain data.
    */
   write<K extends TripWriteName>(
     name: K,

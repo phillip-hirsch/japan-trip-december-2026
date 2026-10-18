@@ -870,7 +870,7 @@ export class NoteTooLong extends Schema.TaggedError<NoteTooLong>()(
   { maxLength: Schema.Int },
 ) {}
 
-/** A typed failure of a Trip write: a `Schema.TaggedError` class. */
+/** The `Schema.TaggedError` class of a Trip write's typed failure. */
 interface WriteFailure {
   readonly Type: { readonly _tag: string }
   readonly fields: Schema.Struct.Fields & {
@@ -897,8 +897,9 @@ export interface WriteOutcome extends Schema.Codec<
 
 /**
  * Derives a Trip write's outcome from the write's success value and its
- * failure classes: the success case, plus one case per typed failure with the
- * failure's own tag and fields. No case is written by hand.
+ * failure classes. The outcome has the success case, plus one case per typed
+ * failure with the failure's own tag and fields, so no case is written by
+ * hand.
  */
 export const writeOutcome = <
   const Success extends string,
@@ -911,9 +912,9 @@ export const writeOutcome = <
 ) =>
   Object.assign(
     Schema.TaggedUnion(
-      // SAFETY: each entry pairs a case's tag with its fields: the success
-      // case's as given, each failure's from its own class, as
-      // WriteOutcomeCases spells out. Object.fromEntries can't keep the keys.
+      // SAFETY: each entry pairs a case's tag with its fields, the success
+      // case's as given and each failure's from its own class, which is what
+      // WriteOutcomeCases spells out. Object.fromEntries loses the key types.
       Object.fromEntries([
         [success, fields],
         ...failures.map((failure) => [

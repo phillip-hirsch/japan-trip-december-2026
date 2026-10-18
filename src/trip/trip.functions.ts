@@ -58,9 +58,9 @@ import { callTripStore, tripWriteHandler } from '@/trip/trip-store.server'
 // input with Schema (inline, so the client build strips it with the
 // validator), map the service's typed failures, and run it through runTrip.
 // Its storage operations run in the Trip store, reached only through
-// callTripStore. A Trip write in the registry (trip-writes.ts) is just an
-// entry: its input schema and tripWriteHandler naming its operation, whose
-// outcome is derived.
+// callTripStore. A Trip write in the registry (trip-writes.ts) needs only its
+// input schema and tripWriteHandler with its operation's name, and the
+// registry derives its outcome.
 
 /**
  * Home's state at the moment of the request, in Tokyo. Personal state, so it

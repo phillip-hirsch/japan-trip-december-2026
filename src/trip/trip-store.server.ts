@@ -34,8 +34,8 @@ export const callTripStore = <S extends Schema.Decoder<unknown>>(
 
 /**
  * Runs the Trip write named in the Trip store through `callStore`. RPC types
- * `write` for every name at once, so the outcome schema of this name does the
- * checking.
+ * `write` for every name at once, so `callStore` checks the result against
+ * this name's outcome schema instead.
  */
 export const callTripWrite = <K extends TripWriteName>(
   name: K,
