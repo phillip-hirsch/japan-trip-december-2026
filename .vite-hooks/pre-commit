@@ -1,1 +1,3 @@
+set -e
 vp staged
+node scripts/check-staged-file-size.ts
