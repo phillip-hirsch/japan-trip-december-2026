@@ -13,6 +13,8 @@ import {
   readPrerenderedPaths,
 } from './scripts/prerender.ts'
 
+import { generatedFiles } from './scripts/generated-files.ts'
+
 import effectTsconfig from './tsconfig.effect.json' with { type: 'json' }
 
 // tsconfig.effect.json is the single Effect diagnostics policy. The patched tsc
@@ -62,11 +64,7 @@ const config = defineConfig({
     ignorePatterns: [
       ...agentToolingIgnores,
       '.vite-hooks/**',
-      'pnpm-lock.yaml',
-      'public/map/**',
-      'src/routeTree.gen.ts',
-      'src/trip/rail-geometry.json',
-      'worker-configuration.d.ts',
+      ...generatedFiles,
     ],
   },
   lint: {
