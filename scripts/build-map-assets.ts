@@ -3,7 +3,14 @@
 // serves them itself. MapLibre draws Japanese and Korean text with the
 // device's own font. The script keeps only the other ranges the tiles' labels
 // use, and MapLibre draws any character outside them with the device's font.
-import { mkdirSync, writeFileSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, join } from 'node:path'
 
 const commit = '028c18f713baecad011301ff7a69acc39bcc2ae7'
@@ -31,8 +38,9 @@ const files = [
   ...sprites.map((sprite) => `sprites/v4/${sprite}`),
 ]
 
-// Every file downloads before any is written, so a failed fetch leaves
-// public/map as it was, never half refreshed.
+// Every file downloads, then lands in a staging directory beside public/map,
+// which replaces public/map only once every write succeeds. A failed fetch or
+// write leaves public/map as it was, never half refreshed.
 const downloads = await Promise.all(
   files.map(async (file) => {
     const response = await fetch(`${source}/${encodeURI(file)}`)
@@ -43,10 +51,25 @@ const downloads = await Promise.all(
   }),
 )
 
-for (const [file, bytes] of downloads) {
-  const path = join(output, file.replace('sprites/v4/', 'sprites/'))
-  mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(path, bytes)
+const staging = mkdtempSync(join(dirname(output), '.map-staging-'))
+
+try {
+  for (const [file, bytes] of downloads) {
+    const path = join(staging, file.replace('sprites/v4/', 'sprites/'))
+    mkdirSync(dirname(path), { recursive: true })
+    writeFileSync(path, bytes)
+  }
+} catch (cause) {
+  rmSync(staging, { recursive: true, force: true })
+  throw cause
 }
+
+const previous = `${staging}-previous`
+
+if (existsSync(output)) renameSync(output, previous)
+
+renameSync(staging, output)
+
+rmSync(previous, { recursive: true, force: true })
 
 console.log(`${files.length} files in ${output}`)
