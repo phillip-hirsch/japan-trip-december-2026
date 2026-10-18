@@ -25,6 +25,7 @@ import type { ScheduleDetail } from '@/trip/domain'
 import { scheduleByIdQuery, useScheduleSummary } from '@/trip/queries'
 import { parseScheduleId } from '@/trip/params'
 import { restoreSchedule } from '@/trip/trip.functions'
+import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/schedule/archived/$scheduleId')({
   params: {
@@ -50,7 +51,7 @@ export const Route = createFileRoute('/schedule/archived/$scheduleId')({
     staleReloadMode: 'blocking',
   },
   head: () => ({
-    meta: [{ title: 'Archived Schedule · Japan · December 2026' }],
+    meta: [{ title: pageTitle('Archived Schedule') }],
   }),
   component: ArchivedSchedulePage,
 })

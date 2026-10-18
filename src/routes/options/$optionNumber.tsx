@@ -9,6 +9,7 @@ import { StayList } from '@/components/stay-list'
 import { VerifyClaims } from '@/components/verify-claims'
 import { parseOptionNumber } from '@/trip/params'
 import { getItinerary } from '@/trip/trip.functions'
+import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/options/$optionNumber')({
   params: {
@@ -25,7 +26,7 @@ export const Route = createFileRoute('/options/$optionNumber')({
     getItinerary({ data: { optionNumber } }),
   head: ({ loaderData }) => ({
     meta: loaderData
-      ? [{ title: `Option ${loaderData.optionNumber} · Japan · December 2026` }]
+      ? [{ title: pageTitle(`Option ${loaderData.optionNumber}`) }]
       : [],
   }),
   component: ItineraryPage,

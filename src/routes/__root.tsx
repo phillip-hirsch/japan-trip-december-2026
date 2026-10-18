@@ -13,10 +13,10 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar'
 import { Toaster } from '@/components/ui/toast'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import displayFont from '@/fonts/shippori-mincho-600-display.woff2?url'
+import appleTouchIcon from '@/icons/apple-touch-icon.png?inline'
+import { appName, appShortName, ink } from '@/lib/app-identity'
 import type { StyleWithVariables } from '@/lib/utils'
 import appCss from '@/styles.css?url'
-
-const ink = '#0b1015'
 
 const inkStyle: StyleWithVariables = { '--ink': ink }
 
@@ -37,7 +37,11 @@ export const Route = createRootRouteWithContext<{
         content: ink,
       },
       {
-        title: 'Japan · December 2026',
+        name: 'apple-mobile-web-app-title',
+        content: appShortName,
+      },
+      {
+        title: appName,
       },
     ],
     links: [
@@ -51,6 +55,20 @@ export const Route = createRootRouteWithContext<{
       {
         rel: 'stylesheet',
         href: appCss,
+      },
+      // Send credentials so the request carries the Access session. Without
+      // them, Access answers with its login page instead of the manifest.
+      {
+        rel: 'manifest',
+        href: '/manifest.webmanifest',
+        crossOrigin: 'use-credentials',
+      },
+      // iOS takes the Home Screen icon from here, not from the manifest.
+      // The icon is a data URL of about 1 KB. Safari fetches link icons
+      // without cookies, so Access would answer a URL with its login page.
+      {
+        rel: 'apple-touch-icon',
+        href: appleTouchIcon,
       },
     ],
   }),

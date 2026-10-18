@@ -12,13 +12,14 @@ import {
 import { VerifyClaims } from '@/components/verify-claims'
 import { formatMoment } from '@/trip/calendar'
 import { schedulesQuery } from '@/trip/queries'
+import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/schedule/')({
   loader: {
     handler: ({ context }) => context.queryClient.fetchQuery(schedulesQuery),
     staleReloadMode: 'blocking',
   },
-  head: () => ({ meta: [{ title: 'Schedule · Japan · December 2026' }] }),
+  head: () => ({ meta: [{ title: pageTitle('Schedule') }] }),
   component: SchedulePage,
 })
 

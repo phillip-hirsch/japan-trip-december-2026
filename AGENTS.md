@@ -96,7 +96,7 @@ Dev and build use `cf dev` and `cf build`, which read `cloudflare.config.ts`. De
 
 ### Japanese display font
 
-Shippori Mincho is subset to the curated strings in `src/fonts/display-strings.ts` plus ASCII. Render those strings with `DisplayJa`; any other Japanese text stays in the system font. After changing the list, run `vp run subset-display-font` (needs `uv`) and commit the regenerated woff2.
+Shippori Mincho is subset to the curated strings in `src/fonts/display-strings.ts` plus ASCII. Render those strings with `DisplayJa`; any other Japanese text stays in the system font. After changing the list, run `vp run subset-display-font` (needs `uv`) and commit the regenerated woff2. The Home Screen icons draw 日本 from that font, so keep it in the list, and after re-subsetting also run `vp run build-app-manifest` and commit its output.
 
 ### UI components
 

@@ -7,13 +7,14 @@ import {
   ChooseItineraryPrompt,
 } from '@/components/checklist'
 import { checklistQuery } from '@/trip/queries'
+import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/checklist')({
   loader: {
     handler: ({ context }) => context.queryClient.fetchQuery(checklistQuery),
     staleReloadMode: 'blocking',
   },
-  head: () => ({ meta: [{ title: 'Checklist · Japan · December 2026' }] }),
+  head: () => ({ meta: [{ title: pageTitle('Checklist') }] }),
   component: ChecklistPage,
 })
 

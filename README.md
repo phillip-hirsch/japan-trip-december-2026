@@ -12,7 +12,7 @@ Four phases, in order. Spec: [issue #1](https://github.com/phillip-hirsch/japan-
 
 **Phase 3, bookings.** Not built. Activities, hotel details, stay edits, pins from map links, and a full-screen map.
 
-**Phase 4, offline.** Not built. iPhone Home Screen app that reads the schedule, Today, checklist, notes, and a Japan map with no connection.
+**Phase 4, offline.** In progress. The app installs to the iPhone Home Screen with its own name and icon. Pages link `public/manifest.webmanifest` with credentials, so the request carries the Access session. Reading the schedule, Today, checklist, notes, and a Japan map with no connection is not built yet.
 
 ## Stack
 
@@ -59,6 +59,8 @@ vp check           # format, lint, and typecheck
 vp run typecheck   # patched tsc, including Effect diagnostics
 vp test            # tests under src/
 ```
+
+`vp run build-app-manifest` writes the web manifest and its icons to `public/` and the Apple touch icon to `src/icons/`. It reads the name and colours from `src/lib/app-identity.ts` and draws 日本 from the display font. It needs `uv`. Run it after changing either, and commit the result. Every page inlines the touch icon, because Safari fetches link icons without cookies and Access would answer a URL with its login page.
 
 `vp run build` runs `cf build`. It builds the Worker and prerenders `/options` and every Itinerary page in the catalogue (`scripts/prerender.ts`), fetching them through the preview's Access simulation. The build fails if a listed page's HTML is missing, if any HTML contains an email address, or if a page links to an Itinerary page that isn’t prerendered. `vp preview` serves that build with the same Access simulation.
 

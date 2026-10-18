@@ -6,6 +6,7 @@ import { ScheduleDayView } from '@/components/schedule-day'
 import { formatDay, isTripDate } from '@/trip/calendar'
 import { parseTripDate } from '@/trip/params'
 import { dayQuery } from '@/trip/queries'
+import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/schedule/$date')({
   params: {
@@ -27,7 +28,7 @@ export const Route = createFileRoute('/schedule/$date')({
   // not-found page keeps the app's title.
   head: ({ params }) => ({
     meta: isTripDate(params.date)
-      ? [{ title: `${formatDay(params.date)} · Japan · December 2026` }]
+      ? [{ title: pageTitle(formatDay(params.date)) }]
       : [],
   }),
   component: DayPage,

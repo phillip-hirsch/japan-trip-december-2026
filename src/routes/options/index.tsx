@@ -3,10 +3,11 @@ import { createFileRoute } from '@tanstack/react-router'
 import { ComparisonMap } from '@/components/comparison-map'
 import { ComparisonRows } from '@/components/itinerary-comparison'
 import { getItineraries } from '@/trip/trip.functions'
+import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/options/')({
   loader: () => getItineraries(),
-  head: () => ({ meta: [{ title: 'Options · Japan · December 2026' }] }),
+  head: () => ({ meta: [{ title: pageTitle('Options') }] }),
   component: Options,
 })
 
