@@ -122,6 +122,8 @@ Tests are colocated with the modules they exercise (`*.test.ts` under `src/`), w
 - Build the module under test for real; substitute only its dependencies (Itinerary catalogue, Clock, SQL client, configuration, key-set transport, link resolver, Detail tiles archive) through layers or `Effect.provideService`.
 - Read state back through the seam; tables, internal helpers and component internals stay uninspected.
 
+Scripts under `scripts/` are the exception. Their tests run the script as its own process against temporary inputs (for the pre-commit size check, a throwaway Git repository) and assert only on its exit status and output.
+
 ## Agent skills
 
 ### Issue tracker
