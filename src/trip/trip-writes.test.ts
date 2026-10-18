@@ -103,10 +103,13 @@ describe('runTripWrite', () => {
       })
 
       assert.deepStrictEqual(
-        outcome,
-        WriteDayNoteOutcome.cases.NoteTooLong.make({
-          maxLength: noteMaxLength,
-        }),
+        { outcome, note: yield* dayNote(december(14)) },
+        {
+          outcome: WriteDayNoteOutcome.cases.NoteTooLong.make({
+            maxLength: noteMaxLength,
+          }),
+          note: undefined,
+        },
       )
     }).pipe(Effect.provide([trip, storage])),
   )
