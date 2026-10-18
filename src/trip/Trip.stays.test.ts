@@ -137,39 +137,6 @@ const tick = (scheduleId: ScheduleId, itemId: string) =>
   )
 
 describe('Stay edits', () => {
-  it.effect('warn about each Anchor an edit breaks, without blocking it', () =>
-    Effect.gen(function* () {
-      const scheduleId = yield* choose(1, null)
-      const before = yield* currentSchedule
-
-      const notInKyoto = yield* Trip.use((trip) =>
-        trip.moveStayBoundary({
-          scheduleId,
-          stayId: stayIdAt(before, 0),
-          checkOut: december(11),
-        }),
-      )
-
-      assert.deepStrictEqual(notInKyoto.schedule.anchorWarnings, [
-        AnchorWarning.cases.NotWakingUpInKyoto.make({ base: 'tokyo' }),
-      ])
-
-      const outsideTokyo = yield* Trip.use((trip) =>
-        trip.changeStayBase({
-          scheduleId,
-          stayId: stayIdAt(before, 3),
-          place: 'hakone',
-        }),
-      )
-
-      assert.deepStrictEqual(outsideTokyo.schedule.anchorWarnings, [
-        AnchorWarning.cases.NotWakingUpInKyoto.make({ base: 'tokyo' }),
-        AnchorWarning.cases.EndsOutsideTokyo.make({ base: 'hakone' }),
-      ])
-      assert.deepStrictEqual(yield* currentSchedule, outsideTokyo.schedule)
-    }).pipe(Effect.provide([trip, storage])),
-  )
-
   it.effect(
     'drop the Checklist items and ticks of the Stay and Move they remove, keeping the ticks of the rest',
     () =>

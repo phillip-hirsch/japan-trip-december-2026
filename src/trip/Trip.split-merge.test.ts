@@ -540,7 +540,7 @@ describe('Trip.mergeStays', () => {
           mergeStays(scheduleId, [stayIdAt(before, a), stayIdAt(before, b)]),
         )
 
-        assert.deepStrictEqual(error, new HardRuleBroken({ rule }))
+        assertFailedWith(error, new HardRuleBroken({ rule }))
         assert.deepStrictEqual(yield* currentSchedule, before)
       }).pipe(Effect.provide([trip, storage])),
     )

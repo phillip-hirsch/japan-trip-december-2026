@@ -150,8 +150,8 @@ import {
   stayBoundariesOf,
   stayDateRuleBreaksOf,
   stayForNight,
-} from '@/trip/schedule-plan'
-import type { ScheduleCopy } from '@/trip/schedule-plan'
+} from '@/trip/schedule-copy'
+import type { ScheduleCopy } from '@/trip/schedule-copy'
 import { scheduleStore } from '@/trip/schedule-store'
 import type { OwnChecklistItem, ScheduleStore } from '@/trip/schedule-store'
 
@@ -1700,7 +1700,7 @@ export class Trip extends Context.Service<
         return found.value
       })
 
-      const editStays = Effect.fnUntraced(
+      const editStays = Effect.fn('Trip.editStays')(
         function* (
           { scheduleId, operationId }: StayEditTarget,
           edit: StayEdit,

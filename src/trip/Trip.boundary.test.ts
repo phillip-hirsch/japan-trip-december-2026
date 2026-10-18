@@ -13,7 +13,7 @@ import {
 } from '@/trip/domain'
 import type { IsoDate, ScheduleDetail, ScheduleId } from '@/trip/domain'
 import { option1 } from '@/trip/itineraries/option-1'
-import { operation, storage, tripWith } from '@/trip/testing'
+import { assertFailedWith, operation, storage, tripWith } from '@/trip/testing'
 import { Trip } from '@/trip/Trip'
 
 const trip = tripWith([option1])
@@ -268,7 +268,7 @@ describe('Trip.moveStayBoundary', () => {
           moveCheckOut(index, december(checkOut)),
         )
 
-        assert.deepStrictEqual(error, new HardRuleBroken({ rule }))
+        assertFailedWith(error, new HardRuleBroken({ rule }))
         assert.deepStrictEqual(yield* currentSchedule, before)
       }).pipe(Effect.provide([trip, storage])),
     )

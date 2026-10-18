@@ -34,14 +34,18 @@ export const tripEndDate = calendarDate('2026-12-20')
 
 export const shigeharuDate = calendarDate('2026-12-11')
 
-/** The Thursday before the Shigeharu visit, whose night ends with it. */
-export const shigeharuEveDate = calendarDate('2026-12-10')
-
 export const birthdayDate = calendarDate('2026-12-15')
 
 const dayInMilliseconds = 24 * 60 * 60 * 1000
 
 const midnightUtc = (isoDate: IsoDate) => Date.parse(`${isoDate}T00:00:00Z`)
+
+/** The Thursday before the Shigeharu visit, whose night ends with it. */
+export const shigeharuEveDate = calendarDate(
+  new Date(midnightUtc(shigeharuDate) - dayInMilliseconds)
+    .toISOString()
+    .slice(0, 10),
+)
 
 export const tripDates: ReadonlyArray<IsoDate> = Array.from(
   {

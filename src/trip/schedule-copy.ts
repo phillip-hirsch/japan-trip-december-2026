@@ -238,16 +238,16 @@ export type StayEdit = Data.TaggedEnum<{
 
 export const StayEdit = Data.taggedEnum<StayEdit>()
 
+/** What a Stay edit can change in a Schedule's copy. */
+export type StayChanges = Pick<ScheduleCopy, 'stays' | 'moves' | 'verifyClaims'>
+
 /**
  * A Stay edit as applied: the Stays, Moves and Verify claims the Schedule
  * keeps, each with the id it had if it had one, and the ids it drops. A Tick
  * belongs to the Checklist item a Stay, Move or Verify claim derives, under
  * that one's id, so the Ticks dropped are those ids.
  */
-export interface StayEditPlan {
-  readonly stays: ReadonlyArray<ScheduleStay>
-  readonly moves: ReadonlyArray<ScheduleMove>
-  readonly verifyClaims: ReadonlyArray<VerifyClaim>
+export interface AppliedStayEdit extends StayChanges {
   readonly dropped: {
     readonly stays: ReadonlyArray<string>
     readonly moves: ReadonlyArray<string>
@@ -256,7 +256,7 @@ export interface StayEditPlan {
   }
 }
 
-type Edited = Pick<ScheduleCopy, 'stays' | 'moves'>
+type EditedStays = Pick<ScheduleCopy, 'stays' | 'moves'>
 
 const refuse = (rule: HardRule) => Effect.fail(new HardRuleBroken({ rule }))
 
@@ -271,7 +271,7 @@ const findStay = (copy: ScheduleCopy, stayId: string) => {
 const split = (
   copy: ScheduleCopy,
   { stayId, date }: Data.TaggedEnum.Value<StayEdit, 'Split'>,
-): Effect.Effect<Edited, StayNotFound> =>
+): Effect.Effect<EditedStays, StayNotFound> =>
   Effect.map(findStay(copy, stayId), (stay) => {
     const later: ScheduleStay = {
       id: crypto.randomUUID(),
@@ -297,7 +297,7 @@ const split = (
 const merge = Effect.fnUntraced(function* (
   copy: ScheduleCopy,
   { stayIds }: Data.TaggedEnum.Value<StayEdit, 'Merge'>,
-): Effect.fn.Return<Edited, StayNotFound | HardRuleBroken> {
+): Effect.fn.Return<EditedStays, StayNotFound | HardRuleBroken> {
   const a = yield* findStay(copy, stayIds[0])
   const b = yield* findStay(copy, stayIds[1])
   const [earlier, later] = a.checkIn <= b.checkIn ? [a, b] : [b, a]
@@ -327,7 +327,7 @@ const merge = Effect.fnUntraced(function* (
 const moveBoundary = (
   copy: ScheduleCopy,
   { stayId, checkOut }: Data.TaggedEnum.Value<StayEdit, 'MoveBoundary'>,
-): Effect.Effect<Edited, StayNotFound> =>
+): Effect.Effect<EditedStays, StayNotFound> =>
   Effect.map(findStay(copy, stayId), (stay) => {
     const from = stay.checkOut
     const next = copy.stays.find(({ checkIn }) => checkIn === from)
@@ -349,7 +349,7 @@ const moveBoundary = (
 const changeBase = Effect.fnUntraced(function* (
   copy: ScheduleCopy,
   { stayId, place }: Data.TaggedEnum.Value<StayEdit, 'ChangeBase'>,
-): Effect.fn.Return<Edited, StayNotFound | HardRuleBroken> {
+): Effect.fn.Return<EditedStays, StayNotFound | HardRuleBroken> {
   const stay = yield* findStay(copy, stayId)
 
   if (!isPlaceId(place)) {
@@ -446,7 +446,7 @@ const droppedIds = (
 export const applyStayEdit = Effect.fnUntraced(function* (
   copy: ScheduleCopy,
   edit: StayEdit,
-): Effect.fn.Return<StayEditPlan, StayNotFound | HardRuleBroken> {
+): Effect.fn.Return<AppliedStayEdit, StayNotFound | HardRuleBroken> {
   const edited = yield* StayEdit.$match(edit, {
     Split: (edit) => split(copy, edit),
     Merge: (edit) => merge(copy, edit),

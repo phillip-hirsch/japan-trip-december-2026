@@ -26,9 +26,11 @@ import {
   VerifyClaimAttachment,
 } from '@/trip/domain'
 import type { Activity, HotelDetails } from '@/trip/domain'
-import type { ScheduleCopy, StayEditPlan } from '@/trip/schedule-plan'
-
-type StayChanges = Pick<ScheduleCopy, 'stays' | 'moves' | 'verifyClaims'>
+import type {
+  AppliedStayEdit,
+  ScheduleCopy,
+  StayChanges,
+} from '@/trip/schedule-copy'
 
 const ofSchedule = { scheduleId: ScheduleId }
 
@@ -846,7 +848,7 @@ export const scheduleStore = Effect.gen(function* () {
      */
     saveStayEdit: Effect.fnUntraced(function* (
       scheduleId: ScheduleId,
-      { dropped, ...kept }: StayEditPlan,
+      { dropped, ...kept }: AppliedStayEdit,
     ) {
       yield* deleteFrom('checklistTicks', 'itemId', scheduleId, dropped.ticks)
       yield* deleteFrom('stays', 'id', scheduleId, dropped.stays)
