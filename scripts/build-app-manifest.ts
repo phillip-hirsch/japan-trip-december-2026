@@ -11,7 +11,8 @@ import {
   ink,
 } from '../src/lib/app-identity.ts'
 
-// --paper and --vermilion from styles.css in sRGB: resvg can't read oklch().
+// --paper and --vermilion from styles.css, converted to sRGB because resvg
+// can't read oklch().
 const paper = '#eee7d9'
 
 const vermilion = '#e85336'
@@ -61,8 +62,8 @@ const renderCode = `
 import io, sys, resvg_py
 from PIL import Image
 
-# Three flat colours and their antialiased edges fit in 32, at under half
-# the size of the full-colour PNG.
+# Three flat colours and their antialiased edges fit in a 32-colour palette,
+# which makes each PNG less than half its full-colour size.
 for size, output in zip(sys.argv[2::2], sys.argv[3::2]):
     png = resvg_py.svg_to_bytes(svg_path=sys.argv[1], width=int(size), height=int(size))
     image = Image.open(io.BytesIO(bytes(png))).convert("RGB")
@@ -82,9 +83,9 @@ const outlines: {
 
 const round = (value: number) => Math.round(value * 100) / 100
 
-// The icon on a 512 square: the sidebar's 日本 in paper white under a
+// The icon is a 512 square with the sidebar's 日本 in paper white under a
 // vermilion sun, on ink. Everything sits inside the maskable safe zone, the
-// central circle of radius 0.4, so one drawing serves every purpose.
+// central circle of radius 0.4, so one PNG works as both any and maskable.
 const glyphSize = 144
 
 const sunRadius = 38
@@ -146,8 +147,8 @@ const drawing = join(work, 'icon.svg')
 
 writeFileSync(drawing, icon)
 
-// The Apple touch icon lives in src/ because __root.tsx inlines it: Safari
-// fetches link icons without cookies, which Access would answer with its login.
+// The Apple touch icon goes in src/ because __root.tsx inlines it. Safari
+// fetches link icons without cookies, and Access would answer with its login page.
 python(renderCode, [
   drawing,
   '192',

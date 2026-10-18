@@ -10,8 +10,8 @@ export const appShortName = 'Japan 2026'
 
 export const appDescription = "Phillip's trip to Japan, December 6–20, 2026."
 
-/** The page background (`--ink`), theme colour and manifest colours. */
+/** `--ink`, the page background, theme colour and manifest colours. */
 export const ink = '#0b1015'
 
-/** A page's document title: the page, then the app's name. */
+/** A page's document title, the page name followed by the app's name. */
 export const pageTitle = (page: string) => `${page} · ${appName}`

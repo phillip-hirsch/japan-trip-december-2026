@@ -56,16 +56,16 @@ export const Route = createRootRouteWithContext<{
         rel: 'stylesheet',
         href: appCss,
       },
-      // With credentials, so the request carries the Access session; without
-      // them it gets the Access login instead of the manifest.
+      // Send credentials so the request carries the Access session. Without
+      // them, Access answers with its login page instead of the manifest.
       {
         rel: 'manifest',
         href: '/manifest.webmanifest',
         crossOrigin: 'use-credentials',
       },
       // iOS takes the Home Screen icon from here, not from the manifest.
-      // Inlined (about 1 KB): Safari fetches link icons without cookies, so
-      // a URL would get the Access login instead of the icon.
+      // The icon is a data URL of about 1 KB. Safari fetches link icons
+      // without cookies, so Access would answer a URL with its login page.
       {
         rel: 'apple-touch-icon',
         href: appleTouchIcon,
