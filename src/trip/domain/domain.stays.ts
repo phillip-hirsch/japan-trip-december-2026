@@ -7,7 +7,11 @@ import {
   ScheduleDetail,
   ScheduleId,
 } from '@/trip/domain/domain.schedule'
-import { OperationId, ScheduleChanged } from '@/trip/domain/domain.writes'
+import {
+  OperationId,
+  ScheduleChanged,
+  writeOutcome,
+} from '@/trip/domain/domain.writes'
 
 export class StayNotFound extends Schema.TaggedError<StayNotFound>()(
   'StayNotFound',
@@ -135,11 +139,10 @@ export const ChangeStayBase = Schema.Struct({
 
 export type ChangeStayBase = typeof ChangeStayBase.Type
 
-export const WriteHotelDetailsOutcome = Schema.TaggedUnion({
-  Written: {},
-  ScheduleChanged: ScheduleChanged.fields,
-  StayNotFound: StayNotFound.fields,
-  HotelDetailTooLong: HotelDetailTooLong.fields,
-})
+export const WriteHotelDetailsOutcome = writeOutcome('Written', {}, [
+  ScheduleChanged,
+  StayNotFound,
+  HotelDetailTooLong,
+])
 
 export type WriteHotelDetailsOutcome = typeof WriteHotelDetailsOutcome.Type

@@ -6,17 +6,13 @@ import { Effect, Exit, Layer, ManagedRuntime, Option } from 'effect'
 import type { SqlClient } from 'effect/sql'
 
 import type {
-  AddActivity,
-  AddOwnChecklistItem,
   ChangeStayBase,
   Checklist,
   ChooseItinerary,
-  EditActivity,
   HardRuleBroken,
   HomeState,
   IsoDate,
   MergeStays,
-  MoveActivity,
   MoveStayBoundary,
   RestoreSchedule,
   ScheduleChanged,
@@ -28,32 +24,12 @@ import type {
   SplitStay,
   StayNotFound,
   StaysEdited,
-  SetPin,
-  RemoveActivity,
-  RemoveOwnChecklistItem,
-  TickChecklistItem,
-  TickOwnChecklistItem,
-  WriteHotelDetails,
-  WriteStayNote,
-  WriteTripNote,
 } from '@/trip/domain/domain'
 import {
-  AddActivityOutcome,
-  AddOwnChecklistItemOutcome,
   ChooseOutcome,
   DayOutcome,
-  EditActivityOutcome,
-  MoveActivityOutcome,
-  RemoveActivityOutcome,
-  RemoveOwnChecklistItemOutcome,
   RestoreOutcome,
   StayEditOutcome,
-  SetPinOutcome,
-  TickChecklistItemOutcome,
-  TickOwnChecklistItemOutcome,
-  WriteHotelDetailsOutcome,
-  WriteStayNoteOutcome,
-  WriteTripNoteOutcome,
 } from '@/trip/domain/domain'
 import { migrations } from '@/trip/schedule-store/migrations'
 import { runToPromise } from '@/trip/trip/runtime.server'
@@ -207,58 +183,6 @@ export class TripStore extends DurableObject<Env> {
     return this.#run(runTripWrite(name, input))
   }
 
-  writeStayNote(input: WriteStayNote): Promise<WriteStayNoteOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.writeStayNote(input)).pipe(
-        Effect.as<WriteStayNoteOutcome>(
-          WriteStayNoteOutcome.cases.Written.make({}),
-        ),
-        Effect.catchTags({
-          ScheduleChanged: () =>
-            Effect.succeed<WriteStayNoteOutcome>(
-              WriteStayNoteOutcome.cases.ScheduleChanged.make({}),
-            ),
-          StayNotFound: ({ stayId }) =>
-            Effect.succeed<WriteStayNoteOutcome>(
-              WriteStayNoteOutcome.cases.StayNotFound.make({ stayId }),
-            ),
-          NoteTooLong: ({ maxLength }) =>
-            Effect.succeed<WriteStayNoteOutcome>(
-              WriteStayNoteOutcome.cases.NoteTooLong.make({ maxLength }),
-            ),
-        }),
-      ),
-    )
-  }
-
-  writeHotelDetails(
-    input: WriteHotelDetails,
-  ): Promise<WriteHotelDetailsOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.writeHotelDetails(input)).pipe(
-        Effect.as<WriteHotelDetailsOutcome>(
-          WriteHotelDetailsOutcome.cases.Written.make({}),
-        ),
-        Effect.catchTags({
-          ScheduleChanged: () =>
-            Effect.succeed<WriteHotelDetailsOutcome>(
-              WriteHotelDetailsOutcome.cases.ScheduleChanged.make({}),
-            ),
-          StayNotFound: ({ stayId }) =>
-            Effect.succeed<WriteHotelDetailsOutcome>(
-              WriteHotelDetailsOutcome.cases.StayNotFound.make({ stayId }),
-            ),
-          HotelDetailTooLong: ({ maxLength }) =>
-            Effect.succeed<WriteHotelDetailsOutcome>(
-              WriteHotelDetailsOutcome.cases.HotelDetailTooLong.make({
-                maxLength,
-              }),
-            ),
-        }),
-      ),
-    )
-  }
-
   splitStay(input: SplitStay): Promise<StayEditOutcome> {
     return this.#run(
       stayEditOutcomeOf(Trip.use((trip) => trip.splitStay(input))),
@@ -287,227 +211,8 @@ export class TripStore extends DurableObject<Env> {
     )
   }
 
-  setPin(input: SetPin): Promise<SetPinOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.setPin(input)).pipe(
-        Effect.as<SetPinOutcome>(SetPinOutcome.cases.Set.make({})),
-        Effect.catchTags({
-          ScheduleChanged: () =>
-            Effect.succeed<SetPinOutcome>(
-              SetPinOutcome.cases.ScheduleChanged.make({}),
-            ),
-          ActivityNotFound: ({ activityId }) =>
-            Effect.succeed<SetPinOutcome>(
-              SetPinOutcome.cases.ActivityNotFound.make({ activityId }),
-            ),
-          StayNotFound: ({ stayId }) =>
-            Effect.succeed<SetPinOutcome>(
-              SetPinOutcome.cases.StayNotFound.make({ stayId }),
-            ),
-          LocationLinkRefused: ({ reason }) =>
-            Effect.succeed<SetPinOutcome>(
-              SetPinOutcome.cases.LocationLinkRefused.make({ reason }),
-            ),
-          CoordinatesOutsideJapan: ({ coordinates }) =>
-            Effect.succeed<SetPinOutcome>(
-              SetPinOutcome.cases.CoordinatesOutsideJapan.make({
-                coordinates,
-              }),
-            ),
-        }),
-      ),
-    )
-  }
-
-  writeTripNote(input: WriteTripNote): Promise<WriteTripNoteOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.writeTripNote(input)).pipe(
-        Effect.as<WriteTripNoteOutcome>(
-          WriteTripNoteOutcome.cases.Written.make({}),
-        ),
-        Effect.catchTag('NoteTooLong', ({ maxLength }) =>
-          Effect.succeed<WriteTripNoteOutcome>(
-            WriteTripNoteOutcome.cases.NoteTooLong.make({ maxLength }),
-          ),
-        ),
-      ),
-    )
-  }
-
   checklist(): Promise<Checklist> {
     return this.#run(Trip.use((trip) => trip.checklist))
-  }
-
-  tickChecklistItem(
-    input: TickChecklistItem,
-  ): Promise<TickChecklistItemOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.tickChecklistItem(input)).pipe(
-        Effect.as<TickChecklistItemOutcome>(
-          TickChecklistItemOutcome.cases.Ticked.make({}),
-        ),
-        Effect.catchTags({
-          ScheduleChanged: () =>
-            Effect.succeed<TickChecklistItemOutcome>(
-              TickChecklistItemOutcome.cases.ScheduleChanged.make({}),
-            ),
-          ChecklistItemNotFound: ({ itemId }) =>
-            Effect.succeed<TickChecklistItemOutcome>(
-              TickChecklistItemOutcome.cases.ChecklistItemNotFound.make({
-                itemId,
-              }),
-            ),
-        }),
-      ),
-    )
-  }
-
-  addOwnChecklistItem(
-    input: AddOwnChecklistItem,
-  ): Promise<AddOwnChecklistItemOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.addOwnChecklistItem(input)).pipe(
-        Effect.map((added): AddOwnChecklistItemOutcome =>
-          AddOwnChecklistItemOutcome.cases.Added.make(added),
-        ),
-        Effect.catchTag('ChecklistTextInvalid', ({ maxLength }) =>
-          Effect.succeed<AddOwnChecklistItemOutcome>(
-            AddOwnChecklistItemOutcome.cases.ChecklistTextInvalid.make({
-              maxLength,
-            }),
-          ),
-        ),
-      ),
-    )
-  }
-
-  tickOwnChecklistItem(
-    input: TickOwnChecklistItem,
-  ): Promise<TickOwnChecklistItemOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.tickOwnChecklistItem(input)).pipe(
-        Effect.as<TickOwnChecklistItemOutcome>(
-          TickOwnChecklistItemOutcome.cases.Ticked.make({}),
-        ),
-        Effect.catchTag('ChecklistItemNotFound', ({ itemId }) =>
-          Effect.succeed<TickOwnChecklistItemOutcome>(
-            TickOwnChecklistItemOutcome.cases.ChecklistItemNotFound.make({
-              itemId,
-            }),
-          ),
-        ),
-      ),
-    )
-  }
-
-  removeOwnChecklistItem(
-    input: RemoveOwnChecklistItem,
-  ): Promise<RemoveOwnChecklistItemOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.removeOwnChecklistItem(input)).pipe(
-        Effect.as<RemoveOwnChecklistItemOutcome>(
-          RemoveOwnChecklistItemOutcome.cases.Removed.make({}),
-        ),
-      ),
-    )
-  }
-
-  addActivity(input: AddActivity): Promise<AddActivityOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.addActivity(input)).pipe(
-        Effect.map((added): AddActivityOutcome =>
-          AddActivityOutcome.cases.Added.make(added),
-        ),
-        Effect.catchTags({
-          ScheduleChanged: () =>
-            Effect.succeed<AddActivityOutcome>(
-              AddActivityOutcome.cases.ScheduleChanged.make({}),
-            ),
-          DayNotFound: ({ date }) =>
-            Effect.succeed<AddActivityOutcome>(
-              AddActivityOutcome.cases.DayNotFound.make({ date }),
-            ),
-          ActivityTitleInvalid: ({ maxLength }) =>
-            Effect.succeed<AddActivityOutcome>(
-              AddActivityOutcome.cases.ActivityTitleInvalid.make({ maxLength }),
-            ),
-          NoteTooLong: ({ maxLength }) =>
-            Effect.succeed<AddActivityOutcome>(
-              AddActivityOutcome.cases.NoteTooLong.make({ maxLength }),
-            ),
-        }),
-      ),
-    )
-  }
-
-  editActivity(input: EditActivity): Promise<EditActivityOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.editActivity(input)).pipe(
-        Effect.as<EditActivityOutcome>(
-          EditActivityOutcome.cases.Edited.make({}),
-        ),
-        Effect.catchTags({
-          ScheduleChanged: () =>
-            Effect.succeed<EditActivityOutcome>(
-              EditActivityOutcome.cases.ScheduleChanged.make({}),
-            ),
-          ActivityNotFound: ({ activityId }) =>
-            Effect.succeed<EditActivityOutcome>(
-              EditActivityOutcome.cases.ActivityNotFound.make({ activityId }),
-            ),
-          ActivityTitleInvalid: ({ maxLength }) =>
-            Effect.succeed<EditActivityOutcome>(
-              EditActivityOutcome.cases.ActivityTitleInvalid.make({
-                maxLength,
-              }),
-            ),
-          NoteTooLong: ({ maxLength }) =>
-            Effect.succeed<EditActivityOutcome>(
-              EditActivityOutcome.cases.NoteTooLong.make({ maxLength }),
-            ),
-        }),
-      ),
-    )
-  }
-
-  removeActivity(input: RemoveActivity): Promise<RemoveActivityOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.removeActivity(input)).pipe(
-        Effect.as<RemoveActivityOutcome>(
-          RemoveActivityOutcome.cases.Removed.make({}),
-        ),
-        Effect.catchTags({
-          ScheduleChanged: () =>
-            Effect.succeed<RemoveActivityOutcome>(
-              RemoveActivityOutcome.cases.ScheduleChanged.make({}),
-            ),
-          ActivityNotFound: ({ activityId }) =>
-            Effect.succeed<RemoveActivityOutcome>(
-              RemoveActivityOutcome.cases.ActivityNotFound.make({ activityId }),
-            ),
-        }),
-      ),
-    )
-  }
-
-  moveActivity(input: MoveActivity): Promise<MoveActivityOutcome> {
-    return this.#run(
-      Trip.use((trip) => trip.moveActivity(input)).pipe(
-        Effect.as<MoveActivityOutcome>(
-          MoveActivityOutcome.cases.Moved.make({}),
-        ),
-        Effect.catchTags({
-          ScheduleChanged: () =>
-            Effect.succeed<MoveActivityOutcome>(
-              MoveActivityOutcome.cases.ScheduleChanged.make({}),
-            ),
-          ActivityNotFound: ({ activityId }) =>
-            Effect.succeed<MoveActivityOutcome>(
-              MoveActivityOutcome.cases.ActivityNotFound.make({ activityId }),
-            ),
-        }),
-      ),
-    )
   }
 
   schedule(scheduleId: ScheduleId): Promise<ScheduleDetail | null> {

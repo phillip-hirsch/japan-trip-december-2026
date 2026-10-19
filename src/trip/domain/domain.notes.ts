@@ -43,12 +43,11 @@ export const WriteStayNote = Schema.Struct({
 
 export type WriteStayNote = typeof WriteStayNote.Type
 
-export const WriteStayNoteOutcome = Schema.TaggedUnion({
-  Written: {},
-  ScheduleChanged: ScheduleChanged.fields,
-  StayNotFound: StayNotFound.fields,
-  NoteTooLong: NoteTooLong.fields,
-})
+export const WriteStayNoteOutcome = writeOutcome('Written', {}, [
+  ScheduleChanged,
+  StayNotFound,
+  NoteTooLong,
+])
 
 export type WriteStayNoteOutcome = typeof WriteStayNoteOutcome.Type
 
@@ -60,9 +59,6 @@ export const WriteTripNote = Schema.Struct({ note: Schema.String })
 
 export type WriteTripNote = typeof WriteTripNote.Type
 
-export const WriteTripNoteOutcome = Schema.TaggedUnion({
-  Written: {},
-  NoteTooLong: NoteTooLong.fields,
-})
+export const WriteTripNoteOutcome = writeOutcome('Written', {}, [NoteTooLong])
 
 export type WriteTripNoteOutcome = typeof WriteTripNoteOutcome.Type

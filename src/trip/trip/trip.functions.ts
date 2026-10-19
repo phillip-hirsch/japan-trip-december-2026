@@ -4,27 +4,21 @@ import { Effect, Schema } from 'effect'
 
 import {
   AddActivity,
-  AddActivityOutcome,
   AddOwnChecklistItem,
-  AddOwnChecklistItemOutcome,
   ChangeStayBase,
   Checklist,
   ChooseItinerary,
   ChooseOutcome,
   DayOutcome,
   EditActivity,
-  EditActivityOutcome,
   HomeState,
   IsoDate,
   MergeStays,
   MoveActivity,
-  MoveActivityOutcome,
   MoveStayBoundary,
   OptionNumber,
   RemoveActivity,
-  RemoveActivityOutcome,
   RemoveOwnChecklistItem,
-  RemoveOwnChecklistItemOutcome,
   ResolveLocationLink,
   ResolveLocationLinkOutcome,
   RestoreOutcome,
@@ -37,18 +31,12 @@ import {
   SplitStay,
   StayEditOutcome,
   SetPin,
-  SetPinOutcome,
   TickChecklistItem,
-  TickChecklistItemOutcome,
   TickOwnChecklistItem,
-  TickOwnChecklistItemOutcome,
   WriteDayNote,
   WriteHotelDetails,
-  WriteHotelDetailsOutcome,
   WriteStayNote,
-  WriteStayNoteOutcome,
   WriteTripNote,
-  WriteTripNoteOutcome,
 } from '@/trip/domain/domain'
 import { runTrip } from '@/trip/trip/runtime.server'
 import { Trip } from '@/trip/trip/Trip'
@@ -56,6 +44,7 @@ import {
   callTripStore,
   tripWriteHandler,
 } from '@/trip/trip-store/trip-store.server'
+import { outcomeOf } from '@/trip/trip-store/trip-writes'
 
 // Server functions are thin adapters around the Trip service: validate the
 // input with Schema (inline, so the client build strips it with the
@@ -63,7 +52,8 @@ import {
 // Its storage operations run in the Trip store, reached only through
 // callTripStore. A Trip write in the registry (trip-writes.ts) needs only its
 // input schema and tripWriteHandler with its operation's name, and the
-// registry derives its outcome.
+// registry derives its outcome. An operation run outside the Trip store gets
+// its outcome the same way, through outcomeOf.
 
 /**
  * Home's state at the moment of the request, in Tokyo. Personal state, so it
@@ -141,17 +131,11 @@ export const writeDayNote = createServerFn({ method: 'POST' })
 
 export const writeStayNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteStayNote))
-  .handler(({ data }) =>
-    callTripStore(WriteStayNoteOutcome, (store) => store.writeStayNote(data)),
-  )
+  .handler(tripWriteHandler('writeStayNote'))
 
 export const writeHotelDetails = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteHotelDetails))
-  .handler(({ data }) =>
-    callTripStore(WriteHotelDetailsOutcome, (store) =>
-      store.writeHotelDetails(data),
-    ),
-  )
+  .handler(tripWriteHandler('writeHotelDetails'))
 
 export const splitStay = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(SplitStay))
@@ -181,43 +165,22 @@ export const resolveLocationLink = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(ResolveLocationLink))
   .handler(({ data }) =>
     runTrip(
-      Trip.use((trip) => trip.resolveLocationLink(data)).pipe(
-        Effect.map((coordinates): ResolveLocationLinkOutcome =>
-          ResolveLocationLinkOutcome.cases.Resolved.make({ coordinates }),
+      outcomeOf(
+        ResolveLocationLinkOutcome,
+        Trip.use((trip) => trip.resolveLocationLink(data)).pipe(
+          Effect.map((coordinates) => ({ coordinates })),
         ),
-        Effect.catchTags({
-          LocationLinkRefused: ({ reason }) =>
-            Effect.succeed<ResolveLocationLinkOutcome>(
-              ResolveLocationLinkOutcome.cases.LocationLinkRefused.make({
-                reason,
-              }),
-            ),
-          NoCoordinatesInLink: () =>
-            Effect.succeed<ResolveLocationLinkOutcome>(
-              ResolveLocationLinkOutcome.cases.NoCoordinatesInLink.make({}),
-            ),
-          CoordinatesOutsideJapan: ({ coordinates }) =>
-            Effect.succeed<ResolveLocationLinkOutcome>(
-              ResolveLocationLinkOutcome.cases.CoordinatesOutsideJapan.make({
-                coordinates,
-              }),
-            ),
-        }),
       ),
     ),
   )
 
 export const setPin = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(SetPin))
-  .handler(({ data }) =>
-    callTripStore(SetPinOutcome, (store) => store.setPin(data)),
-  )
+  .handler(tripWriteHandler('setPin'))
 
 export const writeTripNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteTripNote))
-  .handler(({ data }) =>
-    callTripStore(WriteTripNoteOutcome, (store) => store.writeTripNote(data)),
-  )
+  .handler(tripWriteHandler('writeTripNote'))
 
 export const getScheduleById = createServerFn({ method: 'GET' })
   .validator(
@@ -255,11 +218,7 @@ export const getChecklist = createServerFn({ method: 'GET' }).handler(() =>
 
 export const tickChecklistItem = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(TickChecklistItem))
-  .handler(({ data }) =>
-    callTripStore(TickChecklistItemOutcome, (store) =>
-      store.tickChecklistItem(data),
-    ),
-  )
+  .handler(tripWriteHandler('tickChecklistItem'))
 
 /**
  * Adds one of Phillip's own Checklist items. Repeating the operation id
@@ -267,27 +226,15 @@ export const tickChecklistItem = createServerFn({ method: 'POST' })
  */
 export const addOwnChecklistItem = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(AddOwnChecklistItem))
-  .handler(({ data }) =>
-    callTripStore(AddOwnChecklistItemOutcome, (store) =>
-      store.addOwnChecklistItem(data),
-    ),
-  )
+  .handler(tripWriteHandler('addOwnChecklistItem'))
 
 export const tickOwnChecklistItem = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(TickOwnChecklistItem))
-  .handler(({ data }) =>
-    callTripStore(TickOwnChecklistItemOutcome, (store) =>
-      store.tickOwnChecklistItem(data),
-    ),
-  )
+  .handler(tripWriteHandler('tickOwnChecklistItem'))
 
 export const removeOwnChecklistItem = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(RemoveOwnChecklistItem))
-  .handler(({ data }) =>
-    callTripStore(RemoveOwnChecklistItemOutcome, (store) =>
-      store.removeOwnChecklistItem(data),
-    ),
-  )
+  .handler(tripWriteHandler('removeOwnChecklistItem'))
 
 /**
  * Adds an Activity on a Day of the Schedule named. Repeating the operation id
@@ -295,15 +242,11 @@ export const removeOwnChecklistItem = createServerFn({ method: 'POST' })
  */
 export const addActivity = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(AddActivity))
-  .handler(({ data }) =>
-    callTripStore(AddActivityOutcome, (store) => store.addActivity(data)),
-  )
+  .handler(tripWriteHandler('addActivity'))
 
 export const editActivity = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(EditActivity))
-  .handler(({ data }) =>
-    callTripStore(EditActivityOutcome, (store) => store.editActivity(data)),
-  )
+  .handler(tripWriteHandler('editActivity'))
 
 /**
  * Removes an Activity of the Schedule named. A retry after it landed finds
@@ -311,9 +254,7 @@ export const editActivity = createServerFn({ method: 'POST' })
  */
 export const removeActivity = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(RemoveActivity))
-  .handler(({ data }) =>
-    callTripStore(RemoveActivityOutcome, (store) => store.removeActivity(data)),
-  )
+  .handler(tripWriteHandler('removeActivity'))
 
 /**
  * Moves an Activity of the Schedule named before another on its Day, or
@@ -322,6 +263,4 @@ export const removeActivity = createServerFn({ method: 'POST' })
  */
 export const moveActivity = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(MoveActivity))
-  .handler(({ data }) =>
-    callTripStore(MoveActivityOutcome, (store) => store.moveActivity(data)),
-  )
+  .handler(tripWriteHandler('moveActivity'))
