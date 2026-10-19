@@ -87,7 +87,7 @@ function StayBoundaryEditor(props: StayEditorProps) {
             { label: 'Change date', icon: CalendarIcon, onClick: field.edit },
           ]}
           withdrawnReason="This is now your last Stay, so its check-out can’t move."
-          canSave={chosen !== undefined}
+          ready={chosen !== undefined}
           buttonSize="sm"
         >
           {(frame) =>

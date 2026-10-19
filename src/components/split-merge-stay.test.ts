@@ -57,7 +57,7 @@ const openSplitMerge = (shown: Shown, read?: () => Promise<string>) =>
         anchorWarnings: [],
       })
 
-      return { field, frame: useEditorFrame(field, field.verb) }
+      return { field, frame: useEditorFrame(field, { verb: field.verb }) }
     },
     shown,
     read,

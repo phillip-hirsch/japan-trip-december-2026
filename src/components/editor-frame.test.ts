@@ -3,13 +3,32 @@ import { assert, describe, it } from '@effect/vitest'
 import { vi } from 'vite-plus/test'
 import { act } from 'react'
 
-import { useEditorFrame } from '@/components/editor-frame'
+import { useNewActivity } from '@/components/activities'
+import { useNewChecklistItem, useTick } from '@/components/checklist'
+import { addVerb, useEditorFrame } from '@/components/editor-frame'
 import { useDayNote } from '@/components/notes'
-import { IsoDate, ScheduleId, WriteDayNoteOutcome } from '@/trip/domain/domain'
+import {
+  AddActivityOutcome,
+  ChecklistItem,
+  IsoDate,
+  ScheduleId,
+  TickOwnChecklistItemOutcome,
+  WriteDayNoteOutcome,
+} from '@/trip/domain/domain'
 import { deferred, openEditor, startSaving } from '@/trip/client/editor-testing'
-import { writeDayNote } from '@/trip/trip/trip.functions'
+import {
+  addActivity,
+  tickOwnChecklistItem,
+  writeDayNote,
+} from '@/trip/trip/trip.functions'
 
-vi.mock('@/trip/trip/trip.functions', () => ({ writeDayNote: vi.fn() }))
+vi.mock('@/trip/trip/trip.functions', () => ({
+  addActivity: vi.fn(),
+  addOwnChecklistItem: vi.fn(),
+  tickChecklistItem: vi.fn(),
+  tickOwnChecklistItem: vi.fn(),
+  writeDayNote: vi.fn(),
+}))
 
 const scheduleA = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
 
@@ -127,6 +146,28 @@ describe('the editor frame', () => {
     await editor.close()
   })
 
+  it('lets a saved note be edited again even when the read that would confirm it fails', async () => {
+    localStorage.clear()
+    answerDayNote(written)
+    let reads = 0
+
+    const editor = await openDayNoteFrame(() =>
+      reads++ === 0
+        ? Promise.resolve('schedules')
+        : Promise.reject(new Error('offline')),
+    )
+
+    await act(async () => editor.field().field.change('Tsukiji at six.'))
+    await act(() => editor.field().field.save())
+
+    const { view, justSaved, busy } = editor.field().frame
+    assert.deepStrictEqual(
+      { view, justSaved, busy },
+      { view: 'summary', justSaved: true, busy: false },
+    )
+    await editor.close()
+  })
+
   it('keeps a refused note in the form marked "not saved", offering Retry and Discard', async () => {
     localStorage.clear()
     answerDayNote(async () =>
@@ -190,6 +231,135 @@ describe('the editor frame', () => {
         problem: scheduleChanged,
         submitLabel: 'Retry',
         discardLabel: 'Discard',
+      },
+    )
+    await editor.close()
+  })
+})
+
+describe('the editor frame of a new Activity', () => {
+  it('holds the form open and busy until the read shows the Activity added, then marks it added', async () => {
+    localStorage.clear()
+    vi.mocked(addActivity).mockResolvedValue(
+      AddActivityOutcome.cases.Added.make({ activityId: 'activity-tsukiji' }),
+    )
+    const reread = deferred<string>()
+    let reads = 0
+
+    const editor = await openEditor(
+      () => {
+        const field = useNewActivity({ scheduleId: scheduleA, date })
+
+        return {
+          field,
+          frame: useEditorFrame(field, { verb: addVerb, form: 'untilShown' }),
+        }
+      },
+      {},
+      () => (reads++ === 0 ? Promise.resolve('schedules') : reread.promise),
+    )
+
+    await act(async () => editor.field().field.edit())
+    await act(async () =>
+      editor
+        .field()
+        .field.change({ ...editor.field().field.value, title: 'Tsukiji' }),
+    )
+    const { finished } = await startSaving(() => editor.field().field.save())
+
+    const { view, busy, submitLabel } = editor.field().frame
+    assert.deepStrictEqual(
+      { view, busy, submitLabel },
+      { view: 'form', busy: true, submitLabel: 'Add' },
+    )
+
+    await act(async () => {
+      reread.resolve('schedules, re-read')
+      await finished
+    })
+    const shown = editor.field().frame
+    assert.deepStrictEqual(
+      { view: shown.view, busy: shown.busy, justSaved: shown.justSaved },
+      { view: 'summary', busy: false, justSaved: true },
+    )
+    await editor.close()
+  })
+})
+
+describe('the editor frame of a new own Checklist item', () => {
+  const openNewItemFrame = () =>
+    openEditor(() => {
+      const field = useNewChecklistItem()
+
+      return {
+        field,
+        frame: useEditorFrame(field, { verb: addVerb, form: 'always' }),
+      }
+    }, {})
+
+  it('keeps the form open, unfocused, with nothing to discard until something is typed', async () => {
+    localStorage.clear()
+    const editor = await openNewItemFrame()
+
+    const { view, submitLabel, discardLabel, autoFocus } = editor.field().frame
+    assert.deepStrictEqual(
+      { view, submitLabel, discardLabel, autoFocus },
+      {
+        view: 'form',
+        submitLabel: 'Add',
+        discardLabel: undefined,
+        autoFocus: false,
+      },
+    )
+
+    await act(async () =>
+      editor
+        .field()
+        .field.change({ ...editor.field().field.value, text: 'Buy a JR Pass' }),
+    )
+    assert.strictEqual(editor.field().frame.discardLabel, 'Cancel')
+    await editor.close()
+  })
+})
+
+describe('the editor frame of a Tick', () => {
+  const item = ChecklistItem.cases.Own.make({
+    id: 'item-jr-pass',
+    ticked: false,
+    text: 'Buy a JR Pass',
+  })
+
+  it('holds the Tick busy while it is on its way, then says why it wasn’t saved', async () => {
+    const answer = deferred<TickOwnChecklistItemOutcome>()
+    vi.mocked(tickOwnChecklistItem).mockReturnValue(answer.promise)
+
+    const editor = await openEditor(() => {
+      const field = useTick({ item, scheduleId: null })
+
+      return { field, frame: useEditorFrame(field) }
+    }, {})
+
+    const { finished } = await startSaving(() =>
+      editor.field().field.send(true),
+    )
+
+    assert.isTrue(editor.field().frame.busy)
+
+    await act(async () => {
+      answer.resolve(
+        TickOwnChecklistItemOutcome.cases.ChecklistItemNotFound.make({
+          itemId: 'item-jr-pass',
+        }),
+      )
+      await finished
+    })
+    const { busy, problem } = editor.field().frame
+    assert.deepStrictEqual(
+      { busy, problem },
+      {
+        busy: false,
+        problem:
+          'This item is no longer on your Checklist, perhaps removed on another device.',
       },
     )
     await editor.close()

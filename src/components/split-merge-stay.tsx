@@ -175,7 +175,7 @@ function SplitMergeStayEditor(props: StayEditorProps) {
           edits={edits}
           withdrawnReason={field.withdrawnReason}
           hintId={hintId}
-          canSave={value?.kind !== 'split' || splitDate !== undefined}
+          ready={value?.kind !== 'split' || splitDate !== undefined}
           buttonSize="sm"
         >
           {(frame) =>

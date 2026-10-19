@@ -59,7 +59,7 @@ function StayBaseEditor(props: Omit<StayEditorProps, 'next'>) {
           edits={[
             { label: 'Change Base', icon: PencilIcon, onClick: field.edit },
           ]}
-          canSave={field.value !== stay.base.id}
+          ready={field.value !== stay.base.id}
           buttonSize="sm"
         >
           {(frame) => (

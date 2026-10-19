@@ -131,7 +131,7 @@ function NoteFrame({
         },
       ]}
       nameForm={false}
-      actions={
+      actions={() =>
         nearsTheCap(value) && (
           <p className="ml-auto text-sm text-muted-foreground tabular-nums">
             {value.length.toLocaleString('en')} /{' '}
