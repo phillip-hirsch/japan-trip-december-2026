@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { Data } from 'effect'
+import { Data, Predicate } from 'effect'
 import { useEffect, useRef, useState } from 'react'
 
 import { ConnectionStatus, currentConnection } from '@/access/connection-status'
@@ -7,8 +7,6 @@ import { toast } from '@/components/ui/toast'
 import type { ScheduleId } from '@/trip/domain/domain'
 import { answerOf, SaveAnswer } from '@/trip/client/drafts.answers'
 import type { SaveReply } from '@/trip/client/drafts.answers'
-import { clearDraft, readDraft, writeDraft } from '@/trip/client/drafts.targets'
-import type { Draft } from '@/trip/client/drafts.targets'
 import { operationFor } from '@/trip/client/operations'
 import type { Operation } from '@/trip/client/operations'
 import {
@@ -17,6 +15,98 @@ import {
   subscribeToReadsAfter,
 } from '@/trip/client/queries'
 import type { TripWrite } from '@/trip/client/queries'
+
+interface Draft<V> {
+  readonly value: V
+  /** The Schedule shown when it was typed, kept until it is edited. */
+  readonly scheduleId: string | null
+  readonly writeId: string
+  /** The operation it was last sent under, kept for its retry. */
+  readonly operation: Operation | undefined
+}
+
+const storageKey = (target: string) => `draft:${target}`
+
+const isOperation = (value: unknown): value is Operation =>
+  Predicate.isObject(value) &&
+  Predicate.isString(value.id) &&
+  (Predicate.isString(value.subject) || Predicate.isNull(value.subject))
+
+// Storage can be unavailable or full; the field still holds the value then.
+const readDraft = <V>(
+  target: string,
+  isValue: (value: unknown) => value is V,
+): Draft<V> | undefined => {
+  try {
+    const stored = localStorage.getItem(storageKey(target))
+
+    if (stored === null) return undefined
+
+    const draft: unknown = JSON.parse(stored)
+
+    if (
+      !Predicate.isObject(draft) ||
+      !(
+        Predicate.isString(draft.scheduleId) ||
+        Predicate.isNull(draft.scheduleId)
+      ) ||
+      !Predicate.isString(draft.id)
+    ) {
+      return undefined
+    }
+
+    // A Draft kept before operations were stored on their own holds its
+    // operation in its value, for the Schedule it names or else the Draft's.
+    // Taking it out keeps a retry of a send that landed from adding it
+    // again, and keeps an edit from reviving it.
+    let value = draft.value
+    let operation = isOperation(draft.operation) ? draft.operation : undefined
+
+    if (Predicate.isObject(value) && Predicate.isString(value.operationId)) {
+      const { operationId: id, operationScheduleId, ...rest } = value
+      value = rest
+
+      const subject =
+        Predicate.isString(operationScheduleId) && operationScheduleId !== ''
+          ? operationScheduleId
+          : draft.scheduleId
+
+      if (operation === undefined && id !== '') operation = { id, subject }
+    }
+
+    return isValue(value)
+      ? { value, scheduleId: draft.scheduleId, writeId: draft.id, operation }
+      : undefined
+  } catch {
+    return undefined
+  }
+}
+
+const writeDraft = <V>(
+  target: string,
+  { value, scheduleId, operation }: Omit<Draft<V>, 'writeId'>,
+) => {
+  const writeId = crypto.randomUUID()
+
+  try {
+    localStorage.setItem(
+      storageKey(target),
+      JSON.stringify({ value, scheduleId, id: writeId, operation }),
+    )
+  } catch {
+    // Nothing else can keep it; the field still holds it.
+  }
+
+  return writeId
+}
+
+const clearDraft = (target: string) => {
+  try {
+    localStorage.removeItem(storageKey(target))
+  } catch {
+    // A draft left behind is restored and compared with the saved value.
+  }
+}
 
 /**
  * A value saved under the save pattern, by what it shows.
@@ -44,6 +134,12 @@ interface SaveStateDefinition extends Data.TaggedEnum.WithGenerics<1> {
 export const SaveState = Data.taggedEnum<SaveStateDefinition>()
 
 const clean = SaveState.Clean({ justSaved: false })
+
+/** A value Phillip has open: being edited, or not saved. */
+const isOpen = <V>(
+  state: SaveState<V>,
+): state is Extract<SaveState<V>, { readonly _tag: 'Editing' | 'NotSaved' }> =>
+  SaveState.$is('Editing')(state) || SaveState.$is('NotSaved')(state)
 
 const restoredProblem =
   'This is what you typed here last time. Save it, or discard it.'
@@ -186,6 +282,9 @@ export function useSave<V>({
   const drafted = isDraft !== undefined
   const ownDraftWriteId = useRef<string>(undefined)
   const operation = useRef<Operation>(undefined)
+  // Counts visits to a target, so the answer to a save from an earlier
+  // visit never marks a later one.
+  const visit = useRef(0)
 
   /**
    * Updates the state of this render's target, unless the target changed
@@ -207,14 +306,8 @@ export function useSave<V>({
 
   const storedDraft = () => (isDraft ? readDraft(target, isDraft) : undefined)
 
-  const keepDraft = (
-    next: V,
-    typedFor: string | null,
-    operationId: string | undefined,
-  ) => {
-    ownDraftWriteId.current = isDraft
-      ? writeDraft(target, next, typedFor, operationId)
-      : undefined
+  const keepDraft = (draft: Omit<Draft<V>, 'writeId'>) => {
+    ownDraftWriteId.current = isDraft ? writeDraft(target, draft) : undefined
 
     return ownDraftWriteId.current
   }
@@ -238,8 +331,7 @@ export function useSave<V>({
     !typedForAnotherSchedule(draft) && isSaved(draft.value)
 
   const markedForChangedSchedule = (current: SaveState<V>) =>
-    (SaveState.$is('Editing')(current) || SaveState.$is('NotSaved')(current)) &&
-    !isSaved(current.value)
+    isOpen(current) && !isSaved(current.value)
       ? SaveState.NotSaved({
           value: current.value,
           problem: scheduleChangedProblem(drafted),
@@ -263,9 +355,8 @@ export function useSave<V>({
   }, [])
 
   const cleanOnNextRead = () => {
-    // A save answered after its editor closed, or moved to another target,
-    // has no field left to mark.
-    if (!editorOpen.current || targetRef.current !== target) return
+    // A save answered after its editor closed has no field left to mark.
+    if (!editorOpen.current) return
 
     stopAwaitingRead.current?.()
 
@@ -282,6 +373,7 @@ export function useSave<V>({
   }
 
   useEffect(() => {
+    visit.current += 1
     stopAwaitingRead.current?.()
     stopAwaitingRead.current = undefined
     ownDraftWriteId.current = undefined
@@ -294,10 +386,7 @@ export function useSave<V>({
     if (savedAlready(draft)) clearStoredDraft()
     else {
       ownDraftWriteId.current = draft.writeId
-      operation.current =
-        draft.operationId === undefined
-          ? undefined
-          : { id: draft.operationId, for: draft.scheduleId }
+      operation.current = draft.operation
       setState(
         SaveState.NotSaved({
           value: draft.value,
@@ -331,8 +420,7 @@ export function useSave<V>({
 
   const value = SaveState.$is('Clean')(state) ? saved : state.value
 
-  const open =
-    SaveState.$is('Editing')(state) || SaveState.$is('NotSaved')(state)
+  const open = isOpen(state)
 
   const stillOffered = offered(value)
   const withdrawn = open && !stillOffered
@@ -350,7 +438,14 @@ export function useSave<V>({
     operation.current = undefined
 
     if (isSaved(next)) clearOwnDraft()
-    else keepDraft(next, scheduleIdRef.current, undefined)
+    else {
+      keepDraft({
+        value: next,
+        scheduleId: scheduleIdRef.current,
+        operation: undefined,
+      })
+    }
+
     setState(
       SaveState.$is('NotSaved')(state)
         ? { ...state, value: next }
@@ -365,10 +460,24 @@ export function useSave<V>({
   }
 
   const saveValue = async (sending: V) => {
+    const sentOnVisit = visit.current
     const sentTo = scheduleIdRef.current
     const sentUnder = operationFor(operation.current, sentTo)
     operation.current = sentUnder
-    const sentDraftWriteId = keepDraft(sending, sentTo, sentUnder.id)
+    const ownDraft = storedDraft()
+
+    // A Draft typed for another Schedule stays marked for it until edited.
+    const typedFor =
+      ownDraft !== undefined && ownDraft.writeId === ownDraftWriteId.current
+        ? ownDraft.scheduleId
+        : sentTo
+
+    const sentDraftWriteId = keepDraft({
+      value: sending,
+      scheduleId: typedFor,
+      operation: sentUnder,
+    })
+
     setState(SaveState.Saving({ value: sending }))
     let reply: SaveReply
 
@@ -392,25 +501,32 @@ export function useSave<V>({
         ? answered.answer
         : SaveAnswer.ScheduleChanged()
 
+    const stillOnVisit = visit.current === sentOnVisit
+
     if (SaveAnswer.$is('Saved')(answer)) {
       clearDraftIfStill(sentDraftWriteId)
 
-      if (targetRef.current === target) operation.current = undefined
-      cleanOnNextRead()
-      setState(SaveState.Saved({ value: sending }))
+      if (stillOnVisit) {
+        operation.current = undefined
+        cleanOnNextRead()
+        setState(SaveState.Saved({ value: sending }))
+      }
+
       await invalidateAfter(queryClient, write)
 
       return
     }
 
-    setState(
-      SaveState.NotSaved({
-        value: sending,
-        problem: SaveAnswer.$is('ScheduleChanged')(answer)
-          ? scheduleChangedProblem(drafted)
-          : answer.problem,
-      }),
-    )
+    if (stillOnVisit) {
+      setState(
+        SaveState.NotSaved({
+          value: sending,
+          problem: SaveAnswer.$is('ScheduleChanged')(answer)
+            ? scheduleChangedProblem(drafted)
+            : answer.problem,
+        }),
+      )
+    }
 
     if (SaveAnswer.$is('ScheduleChanged')(answer)) {
       await invalidateAfterScheduleChanged(queryClient)
@@ -422,9 +538,7 @@ export function useSave<V>({
   const save = async () => {
     if (withdrawn) return
 
-    if (SaveState.$is('Editing')(state) || SaveState.$is('NotSaved')(state)) {
-      await saveValue(state.value)
-    }
+    if (isOpen(state)) await saveValue(state.value)
   }
 
   const send = async (next: V) => {
@@ -449,8 +563,8 @@ export function useSave<V>({
 
 /**
  * A one-shot send, such as a Tick or moving an Activity: no saved value
- * stands for it, so `sending` is what is on its way, saved but not yet
- * shown, or not saved. Retry it with `save`.
+ * stands for it, so `sent` is what is on its way, saved but not yet shown,
+ * or not saved. Retry it with `save`.
  */
 export const useSend = <V>({
   moot = () => false,
@@ -467,11 +581,11 @@ export const useSend = <V>({
   readonly moot?: (value: V) => boolean
 }) => {
   const { state, value, save, send, discard } = useSave<V>(options)
-  const settled = SaveState.$is('NotSaved')(state) && moot(state.value)
+  const mooted = SaveState.$is('NotSaved')(state) && moot(state.value)
 
   useEffect(() => {
-    if (settled) discard()
-  }, [settled])
+    if (mooted) discard()
+  }, [mooted])
 
-  return { state, sending: value, save, send, discard }
+  return { state, sent: value, save, send, discard }
 }

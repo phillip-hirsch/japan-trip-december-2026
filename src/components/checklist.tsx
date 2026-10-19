@@ -179,7 +179,7 @@ function ChecklistRow({
   const tickFrame = frameOf(tick)
   const removalFrame = frameOf(removal)
 
-  const ticked = tick.sending ?? item.ticked
+  const ticked = tick.sent ?? item.ticked
   const removing = !SaveState.$is('Clean')(removal.state)
   const { title, about } = wordingOf(item)
   const verifyNote = verifyNoteOf(item)

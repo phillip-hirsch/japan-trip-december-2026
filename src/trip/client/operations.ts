@@ -8,7 +8,7 @@ export interface Operation {
    * What the attempt is for, such as the Schedule shown when it was sent, or
    * the Itinerary a replace-Schedule dialog chooses.
    */
-  readonly for: string | null
+  readonly subject: string | null
 }
 
 /**
@@ -20,6 +20,6 @@ export const operationFor = (
   kept: Operation | undefined,
   subject: string | null,
 ): Operation =>
-  kept !== undefined && kept.for === subject
+  kept !== undefined && kept.subject === subject
     ? kept
-    : { id: crypto.randomUUID(), for: subject }
+    : { id: crypto.randomUUID(), subject }

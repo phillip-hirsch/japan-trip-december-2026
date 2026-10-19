@@ -149,6 +149,91 @@ describe('adding an Activity', () => {
     await after.close()
   })
 
+  it('keeps a Draft typed, never sent, for a replaced Schedule marked "Schedule changed" across a reload', async () => {
+    localStorage.clear()
+    vi.mocked(addActivity).mockImplementation(
+      answeringOnlyUnderAnyOperation(
+        { scheduleId: scheduleB, date, title: 'Tsukiji' },
+        tsukijiAdded,
+        addedAgain,
+      ),
+    )
+    const before = await openNewActivity(scheduleA)
+    await typeTsukiji(before.field)
+    await before.show({ scheduleId: scheduleB })
+    await before.close()
+
+    const after = await openNewActivity(scheduleB)
+    assert.strictEqual(notSavedProblem(after.field().state), scheduleChanged)
+
+    await act(() => after.field().save())
+    assert.deepStrictEqual(after.field().state, added)
+    await after.close()
+  })
+
+  it('keeps a Draft from a replaced Schedule marked "Schedule changed" across a reload after its Retry got no answer, and retries it as the same operation', async () => {
+    localStorage.clear()
+    vi.mocked(addActivity).mockImplementation(
+      losingFirstAnswer(
+        (retry, first) =>
+          retry.operationId === first.operationId &&
+          retry.scheduleId === scheduleB,
+        tsukijiAdded,
+        addedAgain,
+      ),
+    )
+    const before = await openNewActivity(scheduleA)
+    await typeTsukiji(before.field)
+    await before.show({ scheduleId: scheduleB })
+    await act(() => before.field().save())
+    await before.close()
+
+    const after = await openNewActivity(scheduleB)
+    assert.strictEqual(notSavedProblem(after.field().state), scheduleChanged)
+
+    await act(() => after.field().save())
+    assert.deepStrictEqual(after.field().state, added)
+    await after.close()
+  })
+
+  it('retries a Draft kept by an earlier version of the app as the operation it was sent under', async () => {
+    localStorage.clear()
+    // How the app kept a new Activity's Draft before operations were stored
+    // on their own.
+    localStorage.setItem(
+      'draft:activity:new:2026-12-07',
+      JSON.stringify({
+        value: {
+          title: 'Tsukiji',
+          time: '',
+          note: '',
+          operationId: 'operation-sent-before',
+          operationScheduleId: scheduleA,
+        },
+        scheduleId: scheduleA,
+        id: 'kept-before',
+      }),
+    )
+    vi.mocked(addActivity).mockImplementation(
+      answeringOnly(
+        {
+          operationId: 'operation-sent-before',
+          scheduleId: scheduleA,
+          date,
+          title: 'Tsukiji',
+        },
+        tsukijiAdded,
+        addedAgain,
+      ),
+    )
+    const editor = await openNewActivity(scheduleA)
+
+    await act(() => editor.field().save())
+
+    assert.deepStrictEqual(editor.field().state, added)
+    await editor.close()
+  })
+
   it('keeps a title that is too long marked "not saved", saying how long it can be', async () => {
     localStorage.clear()
     vi.mocked(addActivity).mockResolvedValue(
@@ -427,7 +512,7 @@ describe('removing an Activity', () => {
     assert.deepStrictEqual(
       {
         notSaved: SaveState.$is('NotSaved')(editor.field().state),
-        removing: editor.field().sending,
+        removing: editor.field().sent,
       },
       { notSaved: true, removing: 'activity-tsukiji' },
     )

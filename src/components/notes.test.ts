@@ -179,6 +179,32 @@ describe('the Day note', () => {
       )
       await editor.close()
     })
+
+    it('keeps what was typed after returning to a Day when the save from the earlier visit is answered', async () => {
+      localStorage.clear()
+      const answer = deferred<WriteDayNoteOutcome>()
+      vi.mocked(writeDayNote).mockReturnValue(answer.promise)
+      const editor = await openOnDecember7()
+      await act(async () => editor.field().change('Tsukiji at dawn.'))
+      const { finished } = await startSaving(() => editor.field().save())
+
+      await editor.show({ date: december8, note: undefined })
+      await editor.show(december7)
+      await act(async () => editor.field().change('Toyosu at dawn.'))
+      await act(async () => {
+        answer.resolve(WriteDayNoteOutcome.cases.Written.make({}))
+        await finished
+      })
+
+      assert.deepStrictEqual(
+        {
+          notSaved: SaveState.$is('NotSaved')(editor.field().state),
+          value: editor.field().value,
+        },
+        { notSaved: true, value: 'Toyosu at dawn.' },
+      )
+      await editor.close()
+    })
   })
 })
 

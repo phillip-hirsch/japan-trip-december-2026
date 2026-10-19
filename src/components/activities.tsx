@@ -564,8 +564,8 @@ export function Activities({
     !SaveState.$is('Clean')(moving.state) ||
     !SaveState.$is('Clean')(removal.state)
 
-  const movingId = moving.sending?.activityId
-  const removingId = removal.sending
+  const movingId = moving.sent?.activityId
+  const removingId = removal.sent
 
   return (
     <div className="flex flex-col gap-4">
