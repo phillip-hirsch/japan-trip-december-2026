@@ -1,4 +1,4 @@
-import { DateTime, Option, Schema, Struct } from 'effect'
+import { DateTime, Effect, Option, Schema, Struct } from 'effect'
 
 import { tripTimeZone } from '@/trip/domain/calendar'
 import {
@@ -76,11 +76,38 @@ export const Hotel = Schema.TaggedUnion({
 
 export type Hotel = typeof Hotel.Type
 
+/**
+ * The Stay edits a Stay offers, which are the ones the Hard rules accept.
+ * Changing its Base is always offered, so it isn't listed.
+ */
+export const StayEditOffers = Schema.Struct({
+  /** The dates it can split on, in Trip order. */
+  splitDates: Schema.Array(IsoDate),
+  /** The next Stay, while the two can merge. */
+  mergeWith: Schema.optionalKey(CopyId),
+  /**
+   * The next Stay and the dates the Stay boundary between them can move to,
+   * in Trip order. Absent for the last Stay.
+   */
+  boundary: Schema.optionalKey(
+    Schema.Struct({ next: CopyId, checkOuts: Schema.Array(IsoDate) }),
+  ),
+})
+
+export type StayEditOffers = typeof StayEditOffers.Type
+
 export const ScheduleStayDetail = Schema.Struct({
   id: CopyId,
   ...StayDetail.fields,
   note: Schema.optionalKey(Schema.String),
   hotel: Hotel,
+  /**
+   * Empty when decoding a Stay edit recorded before the Schedule had
+   * Offered Stay edits. A retry of that edit returns the recorded result.
+   */
+  offers: StayEditOffers.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed({ splitDates: [] })),
+  ),
 })
 
 export type ScheduleStayDetail = typeof ScheduleStayDetail.Type

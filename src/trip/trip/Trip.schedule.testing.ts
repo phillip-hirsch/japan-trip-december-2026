@@ -10,6 +10,7 @@ import {
 import type {
   DayDetail,
   ItineraryContent,
+  ScheduleStayDetail,
   StayDetail,
 } from '@/trip/domain/domain'
 import { option1 } from '@/trip/itineraries/option-1'
@@ -73,6 +74,10 @@ export const withoutActivities = (days: ReadonlyArray<DayDetail>) =>
 
 export const withoutHotels = (stays: ReadonlyArray<StayDetail>) =>
   stays.map((stay) => ({ ...stay, hotel: Hotel.cases.NotRecorded.make({}) }))
+
+/** A Schedule's Stays as copied, leaving out the Stay edits they offer. */
+export const withoutOffers = (stays: ReadonlyArray<ScheduleStayDetail>) =>
+  stays.map((stay) => Struct.omit(stay, ['offers']))
 
 export const revisedOption1: ItineraryContent = {
   ...option1WithEveryAttachment,

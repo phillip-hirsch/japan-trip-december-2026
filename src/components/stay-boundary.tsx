@@ -6,14 +6,13 @@ import { useId } from 'react'
 import { DateChoice } from '@/components/date-choice'
 import { EditorFrame } from '@/components/editor-frame'
 import { answerStayEdit } from '@/components/schedule-rules'
-import { StaySection } from '@/components/stay-section'
+import { StaySection, stayNamed } from '@/components/stay-section'
 import type { StayEditorProps } from '@/components/stay-section'
 import {
   formatDay,
   formatNights,
   isTripDate,
   nightsBetween,
-  tripDates,
 } from '@/trip/domain/calendar'
 import type { IsoDate } from '@/trip/domain/domain'
 import { stayBoundaryTarget, useSave } from '@/trip/client/drafts'
@@ -23,18 +22,20 @@ const isDate = (value: unknown): value is IsoDate =>
   Predicate.isString(value) && isTripDate(value)
 
 /**
- * The check-out of a Stay of the Schedule shown, which moves while `next`,
- * another Stay, follows it.
+ * The check-out of a Stay of the Schedule shown, which moves to the dates
+ * its Stay boundary offers while a next Stay follows it.
  */
 export const useStayBoundary = ({
   scheduleId,
   stay,
-  next,
+  stays,
   anchorWarnings,
 }: StayEditorProps) => {
   const move = useServerFn(moveStayBoundary)
+  const { boundary } = stay.offers
+  const next = stayNamed(stays, boundary?.next)
 
-  return useSave<IsoDate>({
+  const field = useSave<IsoDate>({
     target: stayBoundaryTarget(stay.id),
     draft: isDate,
     offered: () => next !== undefined,
@@ -47,23 +48,19 @@ export const useStayBoundary = ({
         anchorWarnings,
       )(await move({ data: { scheduleId, stayId: stay.id, checkOut } })),
   })
+
+  return { ...field, next, checkOuts: boundary?.checkOuts ?? [] }
 }
 
 export function StayBoundaryField(props: StayEditorProps) {
-  const { stay, next } = props
+  const { stay } = props
   const field = useStayBoundary(props)
   const hintId = useId()
 
   if (!field.shown) return null
 
-  const { value } = field
-
-  const dates =
-    next === undefined
-      ? []
-      : tripDates.filter((date) => date > stay.checkIn && date < next.checkOut)
-
-  const chosen = dates.find((date) => date === value)
+  const { value, next, checkOuts } = field
+  const chosen = checkOuts.find((date) => date === value)
 
   // The summary and form show only while another Stay follows this one.
   return (
@@ -95,7 +92,7 @@ export function StayBoundaryField(props: StayEditorProps) {
               >
                 <legend className="mb-2 text-sm">Check out on</legend>
                 <DateChoice
-                  dates={dates}
+                  dates={checkOuts}
                   value={chosen}
                   disabled={frame.busy}
                   onChange={field.change}

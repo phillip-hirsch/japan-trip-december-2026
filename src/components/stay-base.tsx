@@ -28,7 +28,7 @@ export const useStayBase = ({
   scheduleId,
   stay,
   anchorWarnings,
-}: Omit<StayEditorProps, 'next'>) => {
+}: Omit<StayEditorProps, 'stays'>) => {
   const change = useServerFn(changeStayBase)
 
   return useSave<PlaceId>({
@@ -45,7 +45,7 @@ export const useStayBase = ({
   })
 }
 
-export function StayBaseField(props: Omit<StayEditorProps, 'next'>) {
+export function StayBaseField(props: Omit<StayEditorProps, 'stays'>) {
   const { stay } = props
   const field = useStayBase(props)
   const hintId = useId()

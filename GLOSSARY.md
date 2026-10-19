@@ -101,6 +101,10 @@ _Avoid_: reschedule, re-plan
 A rule every Schedule keeps: the Trip dates, back-to-back Stays covering every night, and at least one night per Stay. The app refuses a Stay edit that would break one, or that can't apply, such as a merge of Stays in different Bases. It names the rule and changes nothing.
 _Avoid_: constraint, validation error
 
+**Offered Stay edit**:
+A Stay edit the Schedule offers on a Stay because the Hard rules accept it: a split on one of its nights after the first, a merge with the next Stay in the same Base, a new date for the Stay boundary after it, or a new Base. When the Schedule stops offering one Phillip has open, it is withdrawn, and he can only cancel or discard it.
+_Avoid_: allowed edit, available edit, option
+
 **Anchor warning**:
 What the Schedule page shows while the Schedule breaks an Anchor or its last Stay is outside Tokyo. Not waking up in Kyoto on December 11 is one, and a Move on December 15 is another. It never blocks a Stay edit.
 _Avoid_: violation, alert, error

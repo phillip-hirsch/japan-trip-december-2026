@@ -25,6 +25,7 @@ import {
   withoutIds,
   withoutActivities,
   withoutHotels,
+  withoutOffers,
 } from '@/trip/trip/Trip.schedule.testing'
 
 describe('Trip.schedules', () => {
@@ -87,7 +88,7 @@ describe('Trip.choose', () => {
       )
       assert.deepStrictEqual(
         withoutIds({
-          stays: schedule.stays,
+          stays: withoutOffers(schedule.stays),
           days: schedule.days,
           verifyClaims: schedule.verifyClaims,
         }),
@@ -272,7 +273,10 @@ describe('Trip.choose again', () => {
         {
           sourceOptionNumber: schedule.sourceOptionNumber,
           birthdayOutline: schedule.birthdayOutline,
-          copy: withoutIds({ stays: schedule.stays, days: schedule.days }),
+          copy: withoutIds({
+            stays: withoutOffers(schedule.stays),
+            days: schedule.days,
+          }),
           archived: (yield* archivedSchedules).map(({ id }) => id),
         },
         {

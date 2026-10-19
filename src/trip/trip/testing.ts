@@ -16,7 +16,7 @@ import type {
   ScheduleDetail,
   ScheduleId,
 } from '@/trip/domain/domain'
-import { OperationId } from '@/trip/domain/domain'
+import { december, OperationId } from '@/trip/domain/domain'
 import { Itineraries } from '@/trip/itineraries/Itineraries'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
@@ -59,6 +59,23 @@ export const liveTrip = Trip.layer.pipe(
 
 /** A Trip whose only Itinerary is Option 1. */
 export const tripWithOption1 = tripWith([option1])
+
+/** Option 1 with its Kyoto Stay split on December 11, both parts in Kyoto. */
+export const option1WithTwoKyotoStays: ItineraryContent = {
+  ...option1,
+  stays: option1.stays.flatMap((stay) =>
+    stay.base === 'kyoto'
+      ? [
+          { ...stay, checkOut: december(11), highlights: ['Fushimi Inari'] },
+          { ...stay, checkIn: december(11), highlights: ['Kiyomizu-dera'] },
+        ]
+      : [stay],
+  ),
+  moves: [
+    ...option1.moves,
+    { date: december(11), mode: 'local' as const, sections: [] },
+  ].sort((a, b) => a.date.localeCompare(b.date)),
+}
 
 /** A Trip offering Option 1 and Option 2. */
 export const tripWithOptions1And2 = tripWith([option1, option2])

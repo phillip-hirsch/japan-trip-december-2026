@@ -9,19 +9,14 @@ import {
   Hotel,
   StayNotFound,
 } from '@/trip/domain/domain'
-import type {
-  ItineraryContent,
-  IsoDate,
-  ScheduleDetail,
-  ScheduleId,
-} from '@/trip/domain/domain'
-import { option1 } from '@/trip/itineraries/option-1'
+import type { IsoDate, ScheduleDetail, ScheduleId } from '@/trip/domain/domain'
 import {
   assertFailedWith,
   checklistItems,
   chooseOption1,
   currentSchedule,
   operation,
+  option1WithTwoKyotoStays,
   scheduleById,
   stayIdAt,
   storage,
@@ -55,22 +50,6 @@ const staySpans = ({ stays }: ScheduleDetail) =>
 
 const movesOf = ({ days }: ScheduleDetail) =>
   days.flatMap(({ date, move }) => (move ? [{ date, ...move }] : []))
-
-const option1WithTwoKyotoStays: ItineraryContent = {
-  ...option1,
-  stays: option1.stays.flatMap((stay) =>
-    stay.base === 'kyoto'
-      ? [
-          { ...stay, checkOut: december(11), highlights: ['Fushimi Inari'] },
-          { ...stay, checkIn: december(11), highlights: ['Kiyomizu-dera'] },
-        ]
-      : [stay],
-  ),
-  moves: [
-    ...option1.moves,
-    { date: december(11), mode: 'local' as const, sections: [] },
-  ].sort((a, b) => a.date.localeCompare(b.date)),
-}
 
 describe('Trip.splitStay', () => {
   it.effect(

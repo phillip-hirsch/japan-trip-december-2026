@@ -39,10 +39,32 @@ const inDifferentBases = StayEditOutcome.cases.HardRuleBroken.make({
   rule: HardRule.cases.StaysInDifferentBases.make({}),
 })
 
-const kyoto = scheduleStay('stay-kyoto', 'kyoto', 9, 12)
+const kyotoSplitDates = [december(10), december(11)]
 
-/** The Kyoto Stay with one night, December 11 to 12, so it can't be split. */
+/** The Kyoto Stay, December 9 to 12, offering its splits and no merge. */
+const kyoto = scheduleStay('stay-kyoto', 'kyoto', 9, 12, {
+  splitDates: kyotoSplitDates,
+})
+
+/** The same Kyoto Stay, offering to merge with the Stay named too. */
+const kyotoMergingWith = (stayId: string) =>
+  scheduleStay('stay-kyoto', 'kyoto', 9, 12, {
+    splitDates: kyotoSplitDates,
+    mergeWith: stayId,
+  })
+
+/**
+ * The Kyoto Stay with one night, December 11 to 12, offering no split and
+ * no merge.
+ */
 const oneNightKyoto = scheduleStay('stay-kyoto', 'kyoto', 11, 12)
+
+/** The same one-night Stay, offering to merge with the Stay named. */
+const oneNightKyotoMergingWith = (stayId: string) =>
+  scheduleStay('stay-kyoto', 'kyoto', 11, 12, {
+    splitDates: [],
+    mergeWith: stayId,
+  })
 
 interface Shown {
   readonly stay: ScheduleStayDetail
@@ -61,7 +83,7 @@ const openSplitMerge = (shown: Shown, read?: () => Promise<string>) =>
       const field = useSplitMergeStay({
         scheduleId: scheduleShown,
         stay,
-        next,
+        stays: next === undefined ? [stay] : [stay, next],
         anchorWarnings: [],
       })
 
@@ -132,7 +154,10 @@ describe('merging a Stay with the next', () => {
     'Only Stays in the same Base can be merged. Nothing changed. Your Stays may have changed on another device.'
 
   it('is merged once it sends both Stays of the Schedule shown', async () => {
-    const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
+    const editor = await openSplitMerge({
+      stay: kyotoMergingWith('stay-kyoto-2'),
+      next: kyotoAgain,
+    })
 
     await act(async () =>
       editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
@@ -166,7 +191,11 @@ describe('merging a Stay with the next', () => {
         stayGone,
       ),
     )
-    const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
+
+    const editor = await openSplitMerge({
+      stay: kyotoMergingWith('stay-kyoto-2'),
+      next: kyotoAgain,
+    })
 
     await act(async () =>
       editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
@@ -192,14 +221,18 @@ describe('merging a Stay with the next', () => {
         stayGone,
       ),
     )
-    const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
+
+    const editor = await openSplitMerge({
+      stay: kyotoMergingWith('stay-kyoto-2'),
+      next: kyotoAgain,
+    })
 
     await act(async () =>
       editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
     )
     await act(() => editor.field().field.save())
     await editor.show({
-      stay: kyoto,
+      stay: kyotoMergingWith('stay-kyoto-2'),
       next: kyotoAgain,
       scheduleShown: replacement,
     })
@@ -218,7 +251,7 @@ describe('merging a Stay with the next', () => {
     let reads = 0
 
     const editor = await openSplitMerge(
-      { stay: kyoto, next: kyotoAgain },
+      { stay: kyotoMergingWith('stay-kyoto-2'), next: kyotoAgain },
       () => (reads++ === 0 ? Promise.resolve('schedules') : reread.promise),
     )
 
@@ -241,15 +274,37 @@ describe('merging a Stay with the next', () => {
     await editor.close()
   })
 
-  it('is not offered while the next Stay is in another Base', async () => {
-    const editor = await openSplitMerge({ stay: kyoto, next: osaka })
+  it('shows only the split dates and merge the Schedule offers', async () => {
+    // Dec 10 is a night of the Stay, but the Schedule doesn't offer it.
+    const editor = await openSplitMerge({
+      stay: scheduleStay('stay-kyoto', 'kyoto', 9, 12, {
+        splitDates: [december(11)],
+        mergeWith: 'stay-kyoto-2',
+      }),
+      next: kyotoAgain,
+    })
+
+    const { splitDates, mergeable } = editor.field().field
+    assert.deepStrictEqual(
+      { splitDates, mergeable: mergeable?.id },
+      { splitDates: [december(11)], mergeable: 'stay-kyoto-2' },
+    )
+    await editor.close()
+  })
+
+  it('is not offered while the Schedule offers no merge, even with the next Stay in the same Base', async () => {
+    const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
 
     assert.isUndefined(editor.field().field.mergeable)
     await editor.close()
   })
 
   it('shows an open merge as withdrawn once the next Stay moves to another Base, offering Cancel', async () => {
-    const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
+    const editor = await openSplitMerge({
+      stay: kyotoMergingWith('stay-kyoto-2'),
+      next: kyotoAgain,
+    })
+
     await act(async () =>
       editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
     )
@@ -280,7 +335,7 @@ describe('merging a Stay with the next', () => {
       .mockResolvedValue(staysEdited())
 
     const editor = await openSplitMerge({
-      stay: oneNightKyoto,
+      stay: oneNightKyotoMergingWith('stay-kyoto-2'),
       next: kyotoAgain,
     })
 
@@ -316,7 +371,7 @@ describe('merging a Stay with the next', () => {
     vi.mocked(mergeStays).mockResolvedValue(staysEdited())
 
     const editor = await openSplitMerge({
-      stay: oneNightKyoto,
+      stay: oneNightKyotoMergingWith('stay-kyoto-2'),
       next: kyotoAgain,
     })
 
@@ -325,7 +380,10 @@ describe('merging a Stay with the next', () => {
     )
 
     const newKyoto = scheduleStay('stay-kyoto-3', 'kyoto', 12, 14)
-    await editor.show({ stay: oneNightKyoto, next: newKyoto })
+    await editor.show({
+      stay: oneNightKyotoMergingWith('stay-kyoto-3'),
+      next: newKyoto,
+    })
     assert.isTrue(editor.field().field.withdrawn)
     await act(() => editor.field().field.save())
     assert.isTrue(SaveState.$is('Editing')(editor.field().field.state))
@@ -341,7 +399,7 @@ describe('merging a Stay with the next', () => {
     vi.mocked(mergeStays).mockImplementation(() => answer.promise)
 
     const editor = await openSplitMerge({
-      stay: oneNightKyoto,
+      stay: oneNightKyotoMergingWith('stay-kyoto-2'),
       next: kyotoAgain,
     })
 
