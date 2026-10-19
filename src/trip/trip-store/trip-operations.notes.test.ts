@@ -14,20 +14,20 @@ import {
   tripWithOption1,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
-import { runTripWrite } from '@/trip/trip-store/trip-writes'
+import { runTripOperation } from '@/trip/trip-store/trip-operations'
 
 const tripNote = Effect.map(
   Trip.use((trip) => trip.schedules),
   ({ tripNote }) => tripNote,
 )
 
-describe('runTripWrite for the Stay note', () => {
+describe('runTripOperation for the Stay note', () => {
   it.effect('answers a written Stay note with Written', () =>
     Effect.gen(function* () {
       const scheduleId = yield* choose(1, 1, null)
       const stayId = yield* kyotoStayId(scheduleId)
 
-      const outcome = yield* runTripWrite('writeStayNote', {
+      const outcome = yield* runTripOperation('writeStayNote', {
         scheduleId,
         stayId,
         note: 'Ask about the late check-in.',
@@ -49,7 +49,7 @@ describe('runTripWrite for the Stay note', () => {
       Effect.gen(function* () {
         const scheduleId = yield* choose(1, 1, null)
 
-        const outcome = yield* runTripWrite('writeStayNote', {
+        const outcome = yield* runTripOperation('writeStayNote', {
           scheduleId,
           stayId: 'no-such-stay',
           note: 'Nowhere.',
@@ -65,10 +65,10 @@ describe('runTripWrite for the Stay note', () => {
   )
 })
 
-describe('runTripWrite for the Trip note', () => {
+describe('runTripOperation for the Trip note', () => {
   it.effect('answers a written Trip note with Written', () =>
     Effect.gen(function* () {
-      const outcome = yield* runTripWrite('writeTripNote', {
+      const outcome = yield* runTripOperation('writeTripNote', {
         note: 'Pack the rail pass.',
       })
 
@@ -84,7 +84,7 @@ describe('runTripWrite for the Trip note', () => {
 
   it.effect('answers a Trip note too long with NoteTooLong and the limit', () =>
     Effect.gen(function* () {
-      const outcome = yield* runTripWrite('writeTripNote', {
+      const outcome = yield* runTripOperation('writeTripNote', {
         note: 'あ'.repeat(noteMaxLength + 1),
       })
 

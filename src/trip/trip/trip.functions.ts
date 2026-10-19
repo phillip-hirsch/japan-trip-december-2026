@@ -6,13 +6,11 @@ import {
   AddActivity,
   AddOwnChecklistItem,
   ChangeStayBase,
-  Checklist,
   ChooseItinerary,
-  ChooseOutcome,
   DayOutcome,
   EditActivity,
-  HomeState,
   IsoDate,
+  ItineraryOutcome,
   MergeStays,
   MoveActivity,
   MoveStayBoundary,
@@ -22,15 +20,10 @@ import {
   RemoveOwnChecklistItem,
   ResolveLocationLink,
   ResolveLocationLinkOutcome,
-  RestoreOutcome,
   RestoreSchedule,
-  ScheduleDetail,
   ScheduleId,
-  ScheduleMap,
-  Schedules,
-  ScheduleSummary,
+  ScheduleOutcome,
   SplitStay,
-  StayEditOutcome,
   SetPin,
   TickChecklistItem,
   TickOwnChecklistItem,
@@ -42,37 +35,37 @@ import {
 import { runTrip } from '@/trip/trip/runtime.server'
 import { Trip } from '@/trip/trip/Trip'
 import {
-  callTripStore,
-  tripWriteHandler,
+  callTripOperation,
+  tripOperationHandler,
 } from '@/trip/trip-store/trip-store.server'
 
 // Server functions are thin adapters around the Trip service: validate the
 // input with Schema (inline, so the client build strips it with the
-// validator), map the service's typed failures, and run it through runTrip.
-// Its storage operations run in the Trip store, reached only through
-// callTripStore. A Trip write in the registry (trip-writes.ts) needs only its
-// input schema and tripWriteHandler with its operation's name, and the
-// registry derives its outcome. An operation run outside the Trip store gets
-// its outcome the same way, through outcomeOf.
+// validator) and run the operation. No server function maps a typed failure
+// by hand. Storage operations run in the Trip store, each named in its
+// registry (trip-operations.ts). The registry derives an operation's outcome
+// from its success value and failure classes. A read that can't fail names
+// its result schema instead. A server function for a registered operation is
+// its input schema plus tripOperationHandler with the operation's name. An
+// operation run outside the Trip store derives its outcome with outcomeOf. A
+// page read turns its not-found case into the router's notFound, or null.
 
 /**
  * Home's state at the moment of the request, in Tokyo. Personal state, so it
  * comes from the Trip store and is never prerendered.
  */
-export const getHome = createServerFn({ method: 'GET' }).handler(() =>
-  callTripStore(HomeState, (store) => store.home()),
+export const getHome = createServerFn({ method: 'GET' }).handler(
+  tripOperationHandler('home'),
 )
 
+/** A Day's page, or null before Phillip chooses a Schedule. */
 export const getDay = createServerFn({ method: 'GET' })
   .validator(Schema.toStandardSchemaV1(Schema.Struct({ date: IsoDate })))
   .handler(async ({ data }) => {
-    const outcome = await callTripStore(DayOutcome, (store) =>
-      store.day(data.date),
-    )
+    const outcome = await callTripOperation('day', data)
 
     return DayOutcome.match(outcome, {
-      Day: (outcome) => outcome.page,
-      NoSchedule: () => null,
+      Day: ({ page }) => page,
       DayNotFound: () => {
         throw notFound()
       },
@@ -92,15 +85,24 @@ export const getItinerary = createServerFn({ method: 'GET' })
     Schema.toStandardSchemaV1(Schema.Struct({ optionNumber: OptionNumber })),
   )
   .handler(async ({ data }) => {
-    const itinerary = await runTrip(
-      Trip.use((trip) => trip.itinerary(data.optionNumber)).pipe(
-        Effect.catchTag('ItineraryNotFound', () => Effect.succeed(null)),
+    const outcome = await runTrip(
+      outcomeOf(
+        ItineraryOutcome,
+        Trip.use((trip) => trip.itinerary(data.optionNumber)).pipe(
+          Effect.map((itinerary) => ({ itinerary })),
+        ),
+      ).pipe(
+        Effect.flatMap(Schema.decodeEffect(ItineraryOutcome)),
+        Effect.orDie,
       ),
     )
 
-    if (itinerary === null) throw notFound()
-
-    return itinerary
+    return ItineraryOutcome.match(outcome, {
+      Itinerary: ({ itinerary }) => itinerary,
+      ItineraryNotFound: () => {
+        throw notFound()
+      },
+    })
   })
 
 /**
@@ -110,9 +112,7 @@ export const getItinerary = createServerFn({ method: 'GET' })
  */
 export const chooseItinerary = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(ChooseItinerary))
-  .handler(({ data }) =>
-    callTripStore(ChooseOutcome, (store) => store.choose(data)),
-  )
+  .handler(tripOperationHandler('choose'))
 
 /**
  * Makes an archived Schedule current again, archiving the current one.
@@ -121,45 +121,35 @@ export const chooseItinerary = createServerFn({ method: 'POST' })
  */
 export const restoreSchedule = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(RestoreSchedule))
-  .handler(({ data }) =>
-    callTripStore(RestoreOutcome, (store) => store.restore(data)),
-  )
+  .handler(tripOperationHandler('restore'))
 
 export const writeDayNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteDayNote))
-  .handler(tripWriteHandler('writeDayNote'))
+  .handler(tripOperationHandler('writeDayNote'))
 
 export const writeStayNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteStayNote))
-  .handler(tripWriteHandler('writeStayNote'))
+  .handler(tripOperationHandler('writeStayNote'))
 
 export const writeHotelDetails = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteHotelDetails))
-  .handler(tripWriteHandler('writeHotelDetails'))
+  .handler(tripOperationHandler('writeHotelDetails'))
 
 export const splitStay = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(SplitStay))
-  .handler(({ data }) =>
-    callTripStore(StayEditOutcome, (store) => store.splitStay(data)),
-  )
+  .handler(tripOperationHandler('splitStay'))
 
 export const mergeStays = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(MergeStays))
-  .handler(({ data }) =>
-    callTripStore(StayEditOutcome, (store) => store.mergeStays(data)),
-  )
+  .handler(tripOperationHandler('mergeStays'))
 
 export const moveStayBoundary = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(MoveStayBoundary))
-  .handler(({ data }) =>
-    callTripStore(StayEditOutcome, (store) => store.moveStayBoundary(data)),
-  )
+  .handler(tripOperationHandler('moveStayBoundary'))
 
 export const changeStayBase = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(ChangeStayBase))
-  .handler(({ data }) =>
-    callTripStore(StayEditOutcome, (store) => store.changeStayBase(data)),
-  )
+  .handler(tripOperationHandler('changeStayBase'))
 
 export const resolveLocationLink = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(ResolveLocationLink))
@@ -176,28 +166,31 @@ export const resolveLocationLink = createServerFn({ method: 'POST' })
 
 export const setPin = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(SetPin))
-  .handler(tripWriteHandler('setPin'))
+  .handler(tripOperationHandler('setPin'))
 
 export const writeTripNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteTripNote))
-  .handler(tripWriteHandler('writeTripNote'))
+  .handler(tripOperationHandler('writeTripNote'))
 
 export const getScheduleById = createServerFn({ method: 'GET' })
   .validator(
     Schema.toStandardSchemaV1(Schema.Struct({ scheduleId: ScheduleId })),
   )
-  .handler(({ data }) =>
-    callTripStore(Schema.NullOr(ScheduleDetail), (store) =>
-      store.schedule(data.scheduleId),
-    ),
-  )
+  .handler(async ({ data }) => {
+    const outcome = await callTripOperation('schedule', data)
 
-export const getSchedules = createServerFn({ method: 'GET' }).handler(() =>
-  callTripStore(Schedules, (store) => store.schedules()),
+    return ScheduleOutcome.match(outcome, {
+      Schedule: ({ schedule }) => schedule,
+      ScheduleNotFound: () => null,
+    })
+  })
+
+export const getSchedules = createServerFn({ method: 'GET' }).handler(
+  tripOperationHandler('schedules'),
 )
 
-export const getScheduleMap = createServerFn({ method: 'GET' }).handler(() =>
-  callTripStore(Schema.NullOr(ScheduleMap), (store) => store.scheduleMap()),
+export const getScheduleMap = createServerFn({ method: 'GET' }).handler(
+  tripOperationHandler('scheduleMap'),
 )
 
 /**
@@ -206,19 +199,16 @@ export const getScheduleMap = createServerFn({ method: 'GET' }).handler(() =>
  * contain it.
  */
 export const getScheduleSummary = createServerFn({ method: 'GET' }).handler(
-  () =>
-    callTripStore(Schema.NullOr(ScheduleSummary), (store) =>
-      store.scheduleSummary(),
-    ),
+  tripOperationHandler('scheduleSummary'),
 )
 
-export const getChecklist = createServerFn({ method: 'GET' }).handler(() =>
-  callTripStore(Checklist, (store) => store.checklist()),
+export const getChecklist = createServerFn({ method: 'GET' }).handler(
+  tripOperationHandler('checklist'),
 )
 
 export const tickChecklistItem = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(TickChecklistItem))
-  .handler(tripWriteHandler('tickChecklistItem'))
+  .handler(tripOperationHandler('tickChecklistItem'))
 
 /**
  * Adds one of Phillip's own Checklist items. Repeating the operation id
@@ -226,15 +216,15 @@ export const tickChecklistItem = createServerFn({ method: 'POST' })
  */
 export const addOwnChecklistItem = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(AddOwnChecklistItem))
-  .handler(tripWriteHandler('addOwnChecklistItem'))
+  .handler(tripOperationHandler('addOwnChecklistItem'))
 
 export const tickOwnChecklistItem = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(TickOwnChecklistItem))
-  .handler(tripWriteHandler('tickOwnChecklistItem'))
+  .handler(tripOperationHandler('tickOwnChecklistItem'))
 
 export const removeOwnChecklistItem = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(RemoveOwnChecklistItem))
-  .handler(tripWriteHandler('removeOwnChecklistItem'))
+  .handler(tripOperationHandler('removeOwnChecklistItem'))
 
 /**
  * Adds an Activity on a Day of the Schedule named. Repeating the operation id
@@ -242,11 +232,11 @@ export const removeOwnChecklistItem = createServerFn({ method: 'POST' })
  */
 export const addActivity = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(AddActivity))
-  .handler(tripWriteHandler('addActivity'))
+  .handler(tripOperationHandler('addActivity'))
 
 export const editActivity = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(EditActivity))
-  .handler(tripWriteHandler('editActivity'))
+  .handler(tripOperationHandler('editActivity'))
 
 /**
  * Removes an Activity of the Schedule named. A retry after it landed finds
@@ -254,7 +244,7 @@ export const editActivity = createServerFn({ method: 'POST' })
  */
 export const removeActivity = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(RemoveActivity))
-  .handler(tripWriteHandler('removeActivity'))
+  .handler(tripOperationHandler('removeActivity'))
 
 /**
  * Moves an Activity of the Schedule named before another on its Day, or
@@ -263,4 +253,4 @@ export const removeActivity = createServerFn({ method: 'POST' })
  */
 export const moveActivity = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(MoveActivity))
-  .handler(tripWriteHandler('moveActivity'))
+  .handler(tripOperationHandler('moveActivity'))

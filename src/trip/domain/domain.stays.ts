@@ -61,12 +61,11 @@ export const StaysEdited = Schema.Struct({ schedule: ScheduleDetail })
 
 export type StaysEdited = typeof StaysEdited.Type
 
-export const StayEditOutcome = Schema.TaggedUnion({
-  Edited: StaysEdited.fields,
-  ScheduleChanged: ScheduleChanged.fields,
-  StayNotFound: StayNotFound.fields,
-  HardRuleBroken: HardRuleBroken.fields,
-})
+export const StayEditOutcome = writeOutcome('Edited', StaysEdited.fields, [
+  ScheduleChanged,
+  StayNotFound,
+  HardRuleBroken,
+])
 
 export type StayEditOutcome = typeof StayEditOutcome.Type
 
