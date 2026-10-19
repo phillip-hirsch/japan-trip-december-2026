@@ -83,17 +83,26 @@ describe('moving the date between two Stays', () => {
     await editor.close()
   })
 
-  it('shows the offered check-out dates and the next Stay', async () => {
+  it('shows only the check-out dates the Schedule offers, and the next Stay', async () => {
     localStorage.clear()
-    const editor = await openStayBoundary(kyotoBeforeOsaka)
+
+    // The Stays' dates allow Dec 11 and 12 too, but the Schedule doesn't
+    // offer them.
+    const editor = await openStayBoundary({
+      stay: kyotoOffering({
+        splitDates: [],
+        boundary: {
+          next: 'stay-osaka',
+          checkOuts: [december(10), december(13)],
+        },
+      }),
+      stays: [osaka],
+    })
 
     const { checkOuts, next } = editor.field().field
     assert.deepStrictEqual(
       { checkOuts, next: next?.id },
-      {
-        checkOuts: [december(10), december(11), december(12), december(13)],
-        next: 'stay-osaka',
-      },
+      { checkOuts: [december(10), december(13)], next: 'stay-osaka' },
     )
     await editor.close()
   })

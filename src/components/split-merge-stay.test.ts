@@ -274,22 +274,26 @@ describe('merging a Stay with the next', () => {
     await editor.close()
   })
 
-  it('shows the offered split dates and merge', async () => {
+  it('shows only the split dates and merge the Schedule offers', async () => {
+    // Dec 10 is a night of the Stay, but the Schedule doesn't offer it.
     const editor = await openSplitMerge({
-      stay: kyotoMergingWith('stay-kyoto-2'),
+      stay: scheduleStay('stay-kyoto', 'kyoto', 9, 12, {
+        splitDates: [december(11)],
+        mergeWith: 'stay-kyoto-2',
+      }),
       next: kyotoAgain,
     })
 
     const { splitDates, mergeable } = editor.field().field
     assert.deepStrictEqual(
       { splitDates, mergeable: mergeable?.id },
-      { splitDates: kyotoSplitDates, mergeable: 'stay-kyoto-2' },
+      { splitDates: [december(11)], mergeable: 'stay-kyoto-2' },
     )
     await editor.close()
   })
 
-  it('is not offered while the Schedule offers no merge', async () => {
-    const editor = await openSplitMerge({ stay: kyoto, next: osaka })
+  it('is not offered while the Schedule offers no merge, even with the next Stay in the same Base', async () => {
+    const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
 
     assert.isUndefined(editor.field().field.mergeable)
     await editor.close()
