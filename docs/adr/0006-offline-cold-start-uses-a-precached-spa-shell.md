@@ -4,7 +4,7 @@ status: accepted
 
 # Offline cold start uses a precached SPA shell
 
-With no signal, the installed Home Screen app loads every page from a service worker. The worker answers with TanStack Start's SPA shell (`/_shell.html`), which the build precaches. The shell holds the root route only and no loader data. The page then renders from data stored on the device. We chose this over a complete SSR navigation fallback, which caches each server-rendered page, for three reasons. Any page, including a Day not opened recently, can render offline as long as its data is stored. The device keeps one copy of the Schedule instead of one inside every cached page. And the shell never points at assets an earlier deploy removed. Both approaches passed the cold-start test on Phillip's iPhone, so these three properties decided it (#32).
+With no signal, the installed Home Screen app loads every page from a service worker. The worker answers with TanStack Start's SPA shell (`/_shell.html`), which the build precaches. The shell holds the root route only and no loader data. The page then renders from data stored on the device. We chose this over a complete SSR navigation fallback, which caches each server-rendered page, for three reasons. Any page, including a Day not opened recently, can render offline as long as its data is stored. The Schedule's data lives only in #33's store, not also inside every cached page. And the shell never points at assets an earlier deploy removed. Both approaches passed the cold-start test on Phillip's iPhone, so these three properties decided it (#32).
 
 ## Evidence
 
@@ -18,7 +18,7 @@ The `prototype/offline-cold-start` branch keeps the prototype of each candidate.
 
 ## Considered Options
 
-- **Complete SSR navigation fallback**: cache each server-rendered page and serve its last copy offline. Only pages opened online work, the cached HTML is a second copy of the Schedule, and each deploy has to drop the cached pages because they point at removed assets.
+- **Complete SSR navigation fallback**: cache each server-rendered page and serve its last copy offline. Only pages opened online work, the cached HTML holds its own copy of the Schedule's data, and each deploy has to drop the cached pages because they point at removed assets.
 - **vite-plugin-pwa or @serwist/vite**: neither emits a service worker on TanStack Start with Cloudflare, because both skip generation when `build.ssr` is set, and every environment sets it. The upstream fixes are still open (`docs/research/offline-sync.md`).
 
 ## Consequences
@@ -31,5 +31,6 @@ What #33 builds:
 - **The service worker is our own.** It is a custom script on the Serwist runtime (about 12 KB gzip). A `buildApp` post hook builds it after Start's prerender, so the shell exists by then. The hook bundles the script with vite-plus `build()` as an IIFE, defining `process.env.NODE_ENV`, without which the worker fails to start. Serwist's `injectManifest` then precaches the hashed assets, the icons, the manifest and the shell.
 - **Data on the device.** The prototype cached server-function reads in the service worker as a stand-in. #33 stores the data instead, and `docs/research/offline-sync.md` recommends TanStack Query persistence in IndexedDB. The first page load is server-rendered before the worker takes control, so its data arrives inside the HTML. The store must keep that hydrated data too; the prototype needed a one-time reload to have Home ready after install.
 - **Loaders need an offline path.** The loaders of the Schedule-backed pages (Home, Schedules, each Day, an archived Schedule, the Checklist and the Map) call `fetchQuery` with a zero stale time and set `staleReloadMode: 'blocking'`, so they always wait for fresh data (`src/trip/client/queries.ts`). The Itinerary pages are not part of this: they call their server functions directly and are prerendered. Restoring stored data is not enough on its own: offline, a loader must return the stored data instead of waiting for the network. The prototype hid this because the service worker answered those reads from its cache.
+- **Stored data must last and stay current.** TanStack Query's defaults drop inactive data after 5 minutes and a persisted cache after 24 hours, so the store must keep data for the whole trip. After a write, `invalidateAfter` refetches only the queries on screen and leaves the rest stale. Offline, the stored copy of a stale query can predate an edit made on this device. #33 must either derive each page's offline data from one snapshot or refresh every affected stored query after a write.
 - **Connection status stays out of the worker.** A cached response makes the server-function transport report Connected while offline, and a cache hit after a network timeout hides a late 401. The prototype never cached anything but a 200.
 - **One extra round trip online.** A page load through the worker fetches its data after the shell instead of inside the HTML.
