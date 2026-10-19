@@ -8,7 +8,7 @@ import {
   ItemDescription,
   ItemTitle,
 } from '@/components/ui/item'
-import type { ItinerarySummary } from '@/trip/domain'
+import type { ItinerarySummary } from '@/trip/domain/domain'
 
 export function ItineraryList({
   itineraries,

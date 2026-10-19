@@ -12,8 +12,8 @@ import {
   ItemTitle,
 } from '@/components/ui/item'
 import { VerifyClaims } from '@/components/verify-claims'
-import { formatNights, formatShortDate } from '@/trip/calendar'
-import type { AccommodationKind, StayDetail } from '@/trip/domain'
+import { formatNights, formatShortDate } from '@/trip/domain/calendar'
+import type { AccommodationKind, StayDetail } from '@/trip/domain/domain'
 
 const accommodationLabels: Record<AccommodationKind, string> = {
   hotel: 'Hotel',

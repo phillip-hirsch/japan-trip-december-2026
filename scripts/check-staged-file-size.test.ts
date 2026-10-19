@@ -152,7 +152,7 @@ describe('check-staged-file-size', () => {
     for (const path of [
       'pnpm-lock.yaml',
       'src/routeTree.gen.ts',
-      'src/trip/rail-geometry.json',
+      'src/trip/catalogue/rail-geometry.json',
       'worker-configuration.d.ts',
       'tools/oxlint/anti-slop/rules/rule.ts',
       'src/components/ui/map.tsx',
@@ -160,6 +160,16 @@ describe('check-staged-file-size', () => {
       repo.stage(path, text(limitBytes * 2))
 
     assert.deepStrictEqual(repo.check().blocked, [])
+  })
+
+  it('skips research notes, but checks other docs', () => {
+    const repo = makeRepo()
+
+    repo.stage('docs/research/notes.md', text(limitBytes * 2))
+    repo.stage('docs/research/deep/notes.md', text(limitBytes * 2))
+    repo.stage('docs/guide.md', text(limitBytes + 1))
+
+    assert.deepStrictEqual(repo.check().blocked, ['docs/guide.md'])
   })
 
   it('skips binary files, but checks a binary file replaced by text', () => {

@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { cn } from '@/lib/utils'
-import { timeOfDayOf, timeOfDayPattern } from '@/trip/calendar'
+import { timeOfDayOf, timeOfDayPattern } from '@/trip/domain/calendar'
 import type {
   Activity,
   Coordinates,
@@ -30,7 +30,7 @@ import type {
   MoveActivityOutcome,
   RemoveActivityOutcome,
   ScheduleId,
-} from '@/trip/domain'
+} from '@/trip/domain/domain'
 import {
   activityTarget,
   answerOwn,
@@ -41,15 +41,19 @@ import {
   useOperationSave,
   useSave,
   warned,
-} from '@/trip/drafts'
-import type { DraftKeeping, OwnOutcome, SaveWarning } from '@/trip/drafts'
-import { activityTitleMaxLength, noteMaxLength } from '@/trip/limits'
+} from '@/trip/client/drafts'
+import type {
+  DraftKeeping,
+  OwnOutcome,
+  SaveWarning,
+} from '@/trip/client/drafts'
+import { activityTitleMaxLength, noteMaxLength } from '@/trip/domain/limits'
 import {
   addActivity,
   editActivity,
   moveActivity,
   removeActivity,
-} from '@/trip/trip.functions'
+} from '@/trip/trip/trip.functions'
 
 interface ActivityFields {
   readonly title: string

@@ -10,9 +10,9 @@ Phillip hands over gpt-6-astra markdown. It is either a **Revision** of an exist
    - A new Itinerary takes the next number: the highest existing Option number plus one.
    - Never renumber. If an Itinerary is dropped, its number stays unused.
    - Exactly one Itinerary is `recommended`: the one gpt-6-astra recommends in the latest markdown.
-3. **Convert** the section into `src/trip/itineraries/option-N.ts`, exporting `optionN: ItineraryContent`. Follow the [conversion rules](#conversion-rules). Wherever the conversion takes a judgement call, add a one-line comment quoting the source. Add a new module to `Itineraries.layer` in `src/trip/Itineraries.ts`.
+3. **Convert** the section into `src/trip/itineraries/option-N.ts`, exporting `optionN: ItineraryContent`. Follow the [conversion rules](#conversion-rules). Wherever the conversion takes a judgement call, add a one-line comment quoting the source. Add a new module to `Itineraries.layer` in `src/trip/itineraries/Itineraries.ts`.
 4. **Add places** that the catalogue lacks (see [Places, stations and lines](#places-stations-and-lines)).
-5. **Write the expectations** for the Option in `src/trip/itineraries/itineraries.test.ts`. Write them from the markdown, not by copying the module. They are the independent check that the conversion says what the source says. A Revision updates its existing entry.
+5. **Write the expectations** for the Option in `src/trip/itineraries/option-N.expected.ts`, exporting `expectedOptionN: ExpectedItinerary`, and add it to `expectedItineraries` in `src/trip/itineraries/itineraries.test.ts`. Write them from the markdown, not by copying the module. They are the independent check that the conversion says what the source says. A Revision updates its existing entry.
 6. **Run the checks** (see [Checks](#checks)). The work is done when every gate passes and `/options/N` shows every Stay and all 15 Days at phone and desktop widths.
 
 ## Conversion rules
@@ -84,17 +84,17 @@ Copy each part verbatim from its labelled paragraph, and leave out any part the 
 
 Every Base and Day trip destination must be in the place catalogue. To add a place:
 
-- Add its lowercase id to `placeIds` in `src/trip/catalogue-ids.ts`. The Stay editor lists the Base chips in that order.
-- Add its entry to `places` in `src/trip/places.ts`, with its romaji name and its kanji name.
+- Add its lowercase id to `placeIds` in `src/trip/catalogue/catalogue-ids.ts`. The Stay editor lists the Base chips in that order.
+- Add its entry to `places` in `src/trip/catalogue/places.ts`, with its romaji name and its kanji name.
 - Give it the coordinates of the town's main station, in decimal degrees to four places, taken from a reliable source.
 - Add its kanji to `src/fonts/display-strings.ts`. The `kanji` field's type requires it.
 - Run `vp run subset-display-font` (needs `uv`), and commit the regenerated woff2.
 
 A new place is a New place automatically. `visitedPlaceIds` changes only when Phillip says he has been somewhere.
 
-Rail sections use station ids and line ids, which `src/trip/catalogue-ids.ts` declares in `stationIds` and `railLineIds`. Add any that are missing. A new station id also needs its entry in `stations` in `src/trip/rail.ts`. Give a new station its coordinates in decimal degrees to four places, taken from a reliable source: the Itinerary's map draws train Moves through them.
+Rail sections use station ids and line ids, which `src/trip/catalogue/catalogue-ids.ts` declares in `stationIds` and `railLineIds`. Add any that are missing. A new station id also needs its entry in `stations` in `src/trip/catalogue/rail.ts`. Give a new station its coordinates in decimal degrees to four places, taken from a reliable source: the Itinerary's map draws train Moves through them.
 
-The map draws each rail section along its real line, from the rail geometry in `src/trip/rail-geometry.json`. When the catalogue gains a rail section that it doesn't have yet, in either direction, run `vp run build-rail-geometry` (it needs network access and `unzip`) and commit the regenerated GeoJSON. A new line also needs its MLIT line names in `mlitLines` in `scripts/build-rail-geometry.ts`. The build fails if a station is more than 1 km from its line, or if the GeoJSON goes over its 15 KB gzipped budget. A section the build can't cover is drawn straight between its stations. Add it, as "mode line from → to", to the expected list of the "follows the rail line on every rail section" test in `src/trip/Trip.test.ts`, or that test fails.
+The map draws each rail section along its real line, from the rail geometry in `src/trip/catalogue/rail-geometry.json`. When the catalogue gains a rail section that it doesn't have yet, in either direction, run `vp run build-rail-geometry` (it needs network access and `unzip`) and commit the regenerated GeoJSON. A new line also needs its MLIT line names in `mlitLines` in `scripts/build-rail-geometry.ts`. The build fails if a station is more than 1 km from its line, or if the GeoJSON goes over its 15 KB gzipped budget. A section the build can't cover is drawn straight between its stations. Add it, as "mode line from → to", to the expected list of the "follows the rail line on every rail section" test in `src/trip/trip/Trip.test.ts`, or that test fails.
 
 ## Checks
 
@@ -104,4 +104,4 @@ Run each of these until it passes:
 - `vp run typecheck`
 - `vp test`
 
-The tests check the conversion in two ways. "satisfies every Trip rule" covers the whole catalogue: 14 nights, back-to-back Stays, Kyoto on the night of December 10, no Move on December 15, ending in Tokyo, a Move on every Stay boundary, and every Verify claim attached. The Itinerary's entry in `itineraries.test.ts` checks the rest against the source. Then open `/options` and `/options/N` at phone and desktop widths.
+The tests check the conversion in two ways. "satisfies every Trip rule" covers the whole catalogue: 14 nights, back-to-back Stays, Kyoto on the night of December 10, no Move on December 15, ending in Tokyo, a Move on every Stay boundary, and every Verify claim attached. The Itinerary's `option-N.expected.ts` checks the rest against the source. Then open `/options` and `/options/N` at phone and desktop widths.

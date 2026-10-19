@@ -26,8 +26,8 @@ import {
   formatDayOfMonth,
   formatNights,
   formatWeekday,
-} from '@/trip/calendar'
-import type { DayDetail, StayDetail } from '@/trip/domain'
+} from '@/trip/domain/calendar'
+import type { DayDetail, StayDetail } from '@/trip/domain/domain'
 
 function DayItem({
   day,

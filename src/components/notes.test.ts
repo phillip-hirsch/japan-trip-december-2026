@@ -10,22 +10,22 @@ import {
   WriteDayNoteOutcome,
   WriteStayNoteOutcome,
   WriteTripNoteOutcome,
-} from '@/trip/domain'
-import { SaveState } from '@/trip/drafts'
+} from '@/trip/domain/domain'
+import { SaveState } from '@/trip/client/drafts'
 import {
   answeringOnly,
   deferred,
   notSavedProblem,
   openEditor,
   startSaving,
-} from '@/trip/editor-testing'
+} from '@/trip/client/editor-testing'
 import {
   writeDayNote,
   writeStayNote,
   writeTripNote,
-} from '@/trip/trip.functions'
+} from '@/trip/trip/trip.functions'
 
-vi.mock('@/trip/trip.functions', () => ({
+vi.mock('@/trip/trip/trip.functions', () => ({
   writeDayNote: vi.fn(),
   writeStayNote: vi.fn(),
   writeTripNote: vi.fn(),

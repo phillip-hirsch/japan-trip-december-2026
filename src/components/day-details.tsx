@@ -14,8 +14,13 @@ import { OptionalBadge } from '@/components/optional-badge'
 import { PlaceName } from '@/components/place-name'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { formatDurationRange } from '@/trip/calendar'
-import type { Anchor, DayTripDetail, MoveDetail, MoveMode } from '@/trip/domain'
+import { formatDurationRange } from '@/trip/domain/calendar'
+import type {
+  Anchor,
+  DayTripDetail,
+  MoveDetail,
+  MoveMode,
+} from '@/trip/domain/domain'
 
 const anchorBadges: Record<
   Anchor['_tag'],

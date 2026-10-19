@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { ComparisonMap } from '@/components/comparison-map'
 import { ComparisonRows } from '@/components/itinerary-comparison'
-import { getItineraries } from '@/trip/trip.functions'
+import { getItineraries } from '@/trip/trip/trip.functions'
 import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/options/')({

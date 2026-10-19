@@ -6,7 +6,7 @@ import {
   ChecklistItems,
   ChooseItineraryPrompt,
 } from '@/components/checklist'
-import { checklistQuery } from '@/trip/queries'
+import { checklistQuery } from '@/trip/client/queries'
 import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/checklist')({

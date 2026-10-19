@@ -9,8 +9,13 @@ import { stayElementId } from '@/components/stay-list'
 import { FitToPoints, TripMapView } from '@/components/trip-map-view'
 import { MapMarker, MarkerContent, MarkerPopup } from '@/components/ui/map'
 import { cn } from '@/lib/utils'
-import { formatDay, formatShortDate, timeOfDayOf } from '@/trip/calendar'
-import type { MapActivity, MapHotel, Pin, ScheduleMap } from '@/trip/domain'
+import { formatDay, formatShortDate, timeOfDayOf } from '@/trip/domain/calendar'
+import type {
+  MapActivity,
+  MapHotel,
+  Pin,
+  ScheduleMap,
+} from '@/trip/domain/domain'
 
 const popupLinkClassName =
   'text-sm font-medium text-foreground underline underline-offset-3'

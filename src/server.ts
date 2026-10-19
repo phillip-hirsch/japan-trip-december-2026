@@ -7,10 +7,13 @@ import {
   AccessGate,
   KeySetTransport,
 } from '@/access/AccessGate'
-import { detailTileOf, serveDetailTile } from '@/trip/detail-tile-route.server'
+import {
+  detailTileOf,
+  serveDetailTile,
+} from '@/trip/detail-tiles/detail-tile-route.server'
 
 // The Durable Object class, exported for the Worker configuration (ADR 0001).
-export { TripStore } from '@/trip/TripStore'
+export { TripStore } from '@/trip/trip-store/TripStore'
 
 const accessRuntime = ManagedRuntime.make(
   AccessGate.layer.pipe(

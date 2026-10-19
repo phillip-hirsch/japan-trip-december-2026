@@ -38,9 +38,14 @@ import {
   nextTripDate,
   previousTripDate,
   tripDates,
-} from '@/trip/calendar'
-import type { DayPage, IsoDate, NextMove, TonightsHotel } from '@/trip/domain'
-import { places } from '@/trip/places'
+} from '@/trip/domain/calendar'
+import type {
+  DayPage,
+  IsoDate,
+  NextMove,
+  TonightsHotel,
+} from '@/trip/domain/domain'
+import { places } from '@/trip/catalogue/places'
 
 function DayStep({
   date,

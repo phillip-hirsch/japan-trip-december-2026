@@ -1,8 +1,8 @@
 import { ExternalLinkIcon, MapPinIcon } from 'lucide-react'
 
 import { cn } from '@/lib/utils'
-import type { Pin } from '@/trip/domain'
-import { openInGoogleMapsUrlOf } from '@/trip/pins'
+import type { Pin } from '@/trip/domain/domain'
+import { openInGoogleMapsUrlOf } from '@/trip/location-links/pins'
 
 export function OpenInGoogleMaps({
   pin,

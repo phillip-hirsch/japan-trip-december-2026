@@ -19,9 +19,9 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 // Relative, not '@/': plain `node` runs this script and can't resolve the alias.
-import { detailTilesMaxZoom } from '../src/trip/detail-tile-source.ts'
-import { places } from '../src/trip/places.ts'
-import type { CatalogueCoordinates } from '../src/trip/places.ts'
+import { detailTilesMaxZoom } from '../src/trip/detail-tiles/detail-tile-source.ts'
+import { places } from '../src/trip/catalogue/places.ts'
+import type { CatalogueCoordinates } from '../src/trip/catalogue/places.ts'
 
 const goPmtiles = 'github.com/protomaps/go-pmtiles@v1.31.2'
 

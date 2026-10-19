@@ -4,16 +4,20 @@ import { vi } from 'vite-plus/test'
 import { act } from 'react'
 
 import { useHotelDetails } from '@/components/hotel-details'
-import { Hotel, ScheduleId, WriteHotelDetailsOutcome } from '@/trip/domain'
-import { SaveState } from '@/trip/drafts'
+import {
+  Hotel,
+  ScheduleId,
+  WriteHotelDetailsOutcome,
+} from '@/trip/domain/domain'
+import { SaveState } from '@/trip/client/drafts'
 import {
   answeringOnly,
   notSavedProblem,
   openEditor,
-} from '@/trip/editor-testing'
-import { writeHotelDetails } from '@/trip/trip.functions'
+} from '@/trip/client/editor-testing'
+import { writeHotelDetails } from '@/trip/trip/trip.functions'
 
-vi.mock('@/trip/trip.functions', () => ({ writeHotelDetails: vi.fn() }))
+vi.mock('@/trip/trip/trip.functions', () => ({ writeHotelDetails: vi.fn() }))
 
 const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
 

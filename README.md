@@ -49,7 +49,7 @@ vp run build-map-assets   # refreshes public/map
 `build-map-tiles` reads the latest Protomaps daily build, or the build date you pass. It writes three extracts and prints their sizes:
 
 - `overview.pmtiles`: Japan, zoom 0–8.
-- `detail.pmtiles`: zoom 0–14, a 24 km box around every place in `src/trip/places.ts`.
+- `detail.pmtiles`: zoom 0–14, a 24 km box around every place in `src/trip/catalogue/places.ts`.
 - `detail-local.pmtiles`: a 4 km box around Tokyo Station.
 
 Run it again after adding a place. Locally, the map shows street detail only around Tokyo Station.
@@ -77,7 +77,15 @@ The repo is public. Itineraries and these docs are in git. The schedule, checkli
 ## Where to look
 
 - `src/routes`: `/`, `/options`, `/options/$optionNumber`, `/schedule`, `/schedule/$date`, `/schedule/archived/$scheduleId`, `/checklist`
-- `src/trip`: domain, Options 1–4, rail geometry
+- `src/trip`: one folder per service, plus what they share
+  - `domain`: types, calendar, limits and Schedule rules shared by browser and server
+  - `catalogue`: places, stations, rail lines and rail geometry
+  - `itineraries`: the Itineraries service and Options 1–4
+  - `trip`: the Trip service, its runtime, server functions and tests
+  - `trip-store`: the Trip store Durable Object and Trip writes
+  - `schedule-store`: SQL queries and migrations
+  - `detail-tiles`, `location-links`: the Detail tiles archive and the location link resolver
+  - `client`: React Query, Drafts and route params
 - `src/access`: Access gate
 - `src/components`: UI, maps, tab bar, and sidebar
 - [`GLOSSARY.md`](GLOSSARY.md): glossary

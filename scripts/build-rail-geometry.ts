@@ -14,10 +14,13 @@ import type {
   Coordinates,
   RailSectionDetail,
   Station,
-} from '../src/trip/domain.ts'
+} from '../src/trip/domain/domain.ts'
 // Relative, not '@/': plain `node` runs this script and can't resolve the alias.
-import { railSectionIdsOf, undirectedRailSectionKey } from '../src/trip/rail.ts'
-import type { RailLineId } from '../src/trip/catalogue-ids.ts'
+import {
+  railSectionIdsOf,
+  undirectedRailSectionKey,
+} from '../src/trip/catalogue/rail.ts'
+import type { RailLineId } from '../src/trip/catalogue/catalogue-ids.ts'
 
 import { readTrip } from './trip.ts'
 
@@ -25,7 +28,7 @@ const source = 'https://nlftp.mlit.go.jp/ksj/gml/data/N02/N02-25/N02-25_GML.zip'
 
 const sourceEntry = 'N02-25_GML/UTF-8/N02-25_RailroadSection.geojson'
 
-const output = 'src/trip/rail-geometry.json'
+const output = 'src/trip/catalogue/rail-geometry.json'
 
 const itineraryPageGzipBudgetBytes = 15 * 1024
 

@@ -10,8 +10,8 @@ import {
   ScheduleSections,
 } from '@/components/schedule-sections'
 import { VerifyClaims } from '@/components/verify-claims'
-import { formatMoment } from '@/trip/calendar'
-import { schedulesQuery } from '@/trip/queries'
+import { formatMoment } from '@/trip/domain/calendar'
+import { schedulesQuery } from '@/trip/client/queries'
 import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/schedule/')({

@@ -1,5 +1,5 @@
-import { december, VerifyClaimAttachment } from '@/trip/domain'
-import type { VerifyClaim } from '@/trip/domain'
+import { december, VerifyClaimAttachment } from '@/trip/domain/domain'
+import type { VerifyClaim } from '@/trip/domain/domain'
 
 export const shigeharuOpeningDays: VerifyClaim = {
   id: 'shigeharu-opening-days',

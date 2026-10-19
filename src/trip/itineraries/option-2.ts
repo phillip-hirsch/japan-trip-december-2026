@@ -1,5 +1,5 @@
-import { december } from '@/trip/domain'
-import type { ItineraryContent } from '@/trip/domain'
+import { december } from '@/trip/domain/domain'
+import type { ItineraryContent } from '@/trip/domain/domain'
 import { tokyoKyotoDuration } from '@/trip/itineraries/option-1'
 import { shigeharuOpeningDays } from '@/trip/itineraries/shigeharu'
 

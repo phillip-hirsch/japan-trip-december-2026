@@ -7,9 +7,9 @@ import {
 } from '@/components/replace-schedule-dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import type { ScheduleSummary } from '@/trip/domain'
-import { useScheduleSummary } from '@/trip/queries'
-import { chooseItinerary } from '@/trip/trip.functions'
+import type { ScheduleSummary } from '@/trip/domain/domain'
+import { useScheduleSummary } from '@/trip/client/queries'
+import { chooseItinerary } from '@/trip/trip/trip.functions'
 
 export function ChooseItinerary({ optionNumber }: { optionNumber: number }) {
   const summary = useScheduleSummary()

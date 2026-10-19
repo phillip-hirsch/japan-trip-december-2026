@@ -7,8 +7,8 @@ import { ItineraryReasoning } from '@/components/itinerary-reasoning'
 import { ItinerarySummaryHeader } from '@/components/itinerary-summary'
 import { StayList } from '@/components/stay-list'
 import { VerifyClaims } from '@/components/verify-claims'
-import { parseOptionNumber } from '@/trip/params'
-import { getItinerary } from '@/trip/trip.functions'
+import { parseOptionNumber } from '@/trip/client/params'
+import { getItinerary } from '@/trip/trip/trip.functions'
 import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/options/$optionNumber')({

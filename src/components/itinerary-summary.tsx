@@ -4,8 +4,8 @@ import type { ReactNode } from 'react'
 import { DisplayJa } from '@/components/display-ja'
 import { PlaceName } from '@/components/place-name'
 import { cn } from '@/lib/utils'
-import { formatNights } from '@/trip/calendar'
-import type { BaseNights, ItinerarySummary, Place } from '@/trip/domain'
+import { formatNights } from '@/trip/domain/calendar'
+import type { BaseNights, ItinerarySummary, Place } from '@/trip/domain/domain'
 
 export function RecommendationStar({ className }: { className?: string }) {
   return (
