@@ -1,4 +1,4 @@
-import { Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 
 /**
  * The client-generated id of a write, recorded with its result so that a
@@ -20,7 +20,7 @@ export class ScheduleChanged extends Schema.TaggedError<ScheduleChanged>()(
   {},
 ) {}
 
-/** The `Schema.TaggedError` class of a Trip write's typed failure. */
+/** The `Schema.TaggedError` class of a Trip operation's typed failure. */
 interface WriteFailure {
   readonly Type: { readonly _tag: string }
   readonly fields: Schema.Struct.Fields & {
@@ -36,7 +36,7 @@ type WriteOutcomeCases<
   readonly [F in Failures[number] as F['Type']['_tag']]: F['fields']
 }
 
-/** Any Trip write's outcome, as `writeOutcome` derives it. */
+/** Any Trip operation's outcome, as `writeOutcome` derives it. */
 export interface WriteOutcome extends Schema.Codec<
   { readonly _tag: string },
   unknown
@@ -49,7 +49,8 @@ export interface WriteOutcome extends Schema.Codec<
  * Derives a Trip write's outcome from the write's success value and its
  * failure classes. The outcome has the success case, plus one case per typed
  * failure with the failure's own tag and fields, so no case is written by
- * hand.
+ * hand. A Trip operation that writes nothing, such as resolving a location
+ * link, derives its outcome the same way.
  */
 export const writeOutcome = <
   const Success extends string,
@@ -74,4 +75,39 @@ export const writeOutcome = <
       ]) as WriteOutcomeCases<Success, Fields, Failures>,
     ),
     { success },
+  )
+
+type SuccessOf<O extends WriteOutcome> = Omit<
+  Extract<O['Type'], { readonly _tag: O['success'] }>,
+  '_tag'
+>
+
+/**
+ * What the operation may succeed with: the success case's fields, or nothing
+ * when that case has none required.
+ */
+export type SuccessValueOf<O extends WriteOutcome> =
+  {} extends SuccessOf<O> ? SuccessOf<O> | void : SuccessOf<O>
+
+/**
+ * Answers a Trip operation's success value or typed failure as its outcome,
+ * encoded to plain data. The success value must fill the success case, and
+ * each typed failure must be one of the outcome's failure cases, so a failure
+ * the outcome lacks fails to compile. Server-only, like the rest of this
+ * module's values.
+ */
+export const outcomeOf = <
+  O extends WriteOutcome,
+  A extends SuccessValueOf<O>,
+  E extends O['Type'],
+  R,
+>(
+  outcome: O,
+  operation: Effect.Effect<A, E, R>,
+): Effect.Effect<O['Encoded'], never, R> =>
+  operation.pipe(
+    Effect.map((value) => ({ ...value, _tag: outcome.success })),
+    Effect.catch(Effect.succeed),
+    Effect.flatMap(Schema.encodeUnknownEffect(outcome)),
+    Effect.orDie,
   )

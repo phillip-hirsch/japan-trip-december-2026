@@ -17,6 +17,7 @@ import {
   MoveActivity,
   MoveStayBoundary,
   OptionNumber,
+  outcomeOf,
   RemoveActivity,
   RemoveOwnChecklistItem,
   ResolveLocationLink,
@@ -44,7 +45,6 @@ import {
   callTripStore,
   tripWriteHandler,
 } from '@/trip/trip-store/trip-store.server'
-import { outcomeOf } from '@/trip/trip-store/trip-writes'
 
 // Server functions are thin adapters around the Trip service: validate the
 // input with Schema (inline, so the client build strips it with the

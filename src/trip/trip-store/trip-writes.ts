@@ -1,6 +1,6 @@
 // effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
 // @effect-diagnostics unstableApiUsage:off
-import { Effect, Schema } from 'effect'
+import type { Effect } from 'effect'
 import type { SqlClient } from 'effect/sql'
 
 import {
@@ -17,6 +17,7 @@ import {
   WriteHotelDetailsOutcome,
   WriteStayNoteOutcome,
   WriteTripNoteOutcome,
+  outcomeOf,
 } from '@/trip/domain/domain'
 import type {
   AddActivity,
@@ -26,6 +27,7 @@ import type {
   RemoveActivity,
   RemoveOwnChecklistItem,
   SetPin,
+  SuccessValueOf,
   TickChecklistItem,
   TickOwnChecklistItem,
   WriteDayNote,
@@ -36,46 +38,12 @@ import type {
 } from '@/trip/domain/domain'
 import { Trip } from '@/trip/trip/Trip'
 
-type SuccessOf<O extends WriteOutcome> = Omit<
-  Extract<O['Type'], { readonly _tag: O['success'] }>,
-  '_tag'
->
-
-/**
- * What the operation may succeed with: the success case's fields, or nothing
- * when that case has none required.
- */
-type SuccessValueOf<O extends WriteOutcome> =
-  {} extends SuccessOf<O> ? SuccessOf<O> | void : SuccessOf<O>
-
 interface TripWrite<I, O extends WriteOutcome> {
   readonly outcome: O
   readonly run: (
     input: I,
   ) => Effect.Effect<O['Encoded'], never, Trip | SqlClient.SqlClient>
 }
-
-/**
- * Answers a Trip operation's success value or typed failure as its outcome,
- * encoded to plain data. The success value must fill the success case, and
- * each typed failure must be one of the outcome's failure cases, so a failure
- * the outcome lacks fails to compile.
- */
-export const outcomeOf = <
-  O extends WriteOutcome,
-  A extends SuccessValueOf<O>,
-  E extends O['Type'],
-  R,
->(
-  outcome: O,
-  operation: Effect.Effect<A, E, R>,
-): Effect.Effect<O['Encoded'], never, R> =>
-  operation.pipe(
-    Effect.map((value) => ({ ...value, _tag: outcome.success })),
-    Effect.catch(Effect.succeed),
-    Effect.flatMap(Schema.encodeUnknownEffect(outcome)),
-    Effect.orDie,
-  )
 
 /** Pairs a Trip operation with its outcome, answered through `outcomeOf`. */
 const defineTripWrite = <

@@ -26,8 +26,6 @@ import {
 } from '@/trip/trip/Trip.pins.testing'
 import { runTripWrite } from '@/trip/trip-store/trip-writes'
 
-const run = Effect.provide([tripWithOption1, storage])
-
 describe('runTripWrite for an Activity', () => {
   it.effect('answers an added Activity with Added and its id', () =>
     Effect.gen(function* () {
@@ -46,7 +44,7 @@ describe('runTripWrite for an Activity', () => {
         outcome,
         AddActivityOutcome.cases.Added.make({ activityId: added?.id ?? '' }),
       )
-    }).pipe(run),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
@@ -71,7 +69,7 @@ describe('runTripWrite for an Activity', () => {
             activities: [],
           },
         )
-      }).pipe(run),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect('answers an edited Activity with Edited', () =>
@@ -95,7 +93,7 @@ describe('runTripWrite for an Activity', () => {
           ],
         },
       )
-    }).pipe(run),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
@@ -116,7 +114,7 @@ describe('runTripWrite for an Activity', () => {
             activityId: 'no-such-activity',
           }),
         )
-      }).pipe(run),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect('answers a moved Activity with Moved', () =>
@@ -140,7 +138,7 @@ describe('runTripWrite for an Activity', () => {
           ],
         },
       )
-    }).pipe(run),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect('answers a removed Activity with Removed', () =>
@@ -159,7 +157,7 @@ describe('runTripWrite for an Activity', () => {
           activities: ['09:00 Kiyomizu-dera', '19:00 Birthday dinner'],
         },
       )
-    }).pipe(run),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })
 
@@ -180,7 +178,7 @@ describe('runTripWrite for a Pin', () => {
         { outcome, pin: pinned?.pin },
         { outcome: SetPinOutcome.cases.Set.make({}), pin: fushimiInari },
       )
-    }).pipe(run),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
@@ -203,6 +201,6 @@ describe('runTripWrite for a Pin', () => {
             coordinates: london,
           }),
         )
-      }).pipe(run),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })
