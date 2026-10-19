@@ -1,11 +1,11 @@
 // effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
 // @effect-diagnostics unstableApiUsage:off
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Result } from 'effect'
+import { Effect, Result, Schema, Struct } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { tripDates } from '@/trip/domain/calendar'
-import { december } from '@/trip/domain/domain'
+import { december, StaysEdited } from '@/trip/domain/domain'
 import type {
   IsoDate,
   OperationId,
@@ -227,20 +227,24 @@ describe('the Stay edits each Stay offers', () => {
           date: december(10),
         })
 
-        const { schedule } = yield* split
+        const first = yield* split
+        const { schedule } = first
 
         // The SQL client stands in for storage written by an earlier
-        // version, whose recorded result had no offers on its Stays.
+        // version: it holds the same result, recorded without offers.
+        const encoded = yield* Schema.encodeEffect(StaysEdited)(first)
+
+        const earlier = {
+          schedule: {
+            ...encoded.schedule,
+            stays: encoded.schedule.stays.map((stay) =>
+              Struct.omit(stay, ['offers']),
+            ),
+          },
+        }
+
         const sql = yield* SqlClient.SqlClient
-
-        const rows = yield* sql<{
-          readonly result: string
-        }>`SELECT result FROM operations WHERE id = ${operation(2)}`
-
-        const recorded = JSON.parse(rows[0]?.result ?? '{}')
-
-        for (const stay of recorded.schedule.stays) delete stay.offers
-        yield* sql`UPDATE operations SET result = ${JSON.stringify(recorded)} WHERE id = ${operation(2)}`
+        yield* sql`UPDATE operations SET result = ${JSON.stringify(earlier)} WHERE id = ${operation(2)}`
 
         const retried = yield* split
 
