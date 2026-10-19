@@ -11,6 +11,7 @@ import { SaveState } from '@/trip/client/drafts'
 import {
   answeringOnly,
   deferred,
+  notSavedProblem,
   openEditor,
   scheduleId,
   scheduleStay,
@@ -28,34 +29,43 @@ const stayGone = StayEditOutcome.cases.StayNotFound.make({
   stayId: 'stay-kyoto',
 })
 
+const inDifferentBases = StayEditOutcome.cases.HardRuleBroken.make({
+  rule: HardRule.cases.StaysInDifferentBases.make({}),
+})
+
 const kyoto = scheduleStay('stay-kyoto', 'kyoto', 9, 12)
 
+/** The Kyoto Stay with one night, December 11 to 12, so it can't be split. */
+const oneNightKyoto = scheduleStay('stay-kyoto', 'kyoto', 11, 12)
+
+interface Shown {
+  readonly stay: ScheduleStayDetail
+  readonly next: ScheduleStayDetail | undefined
+}
+
 /**
- * Split and merge of the Kyoto Stay, December 9 to 12, while the Stay after
- * it is `next`, and its frame.
+ * Split and merge of `stay`, the Kyoto Stay, while the Stay after it is
+ * `next`, and its frame. Show it again to refresh the Schedule shown.
  */
-const openSplitMerge = (
-  next: ScheduleStayDetail | undefined,
-  read?: () => Promise<string>,
-) =>
+const openSplitMerge = (shown: Shown, read?: () => Promise<string>) =>
   openEditor(
-    ({ next }: { next: ScheduleStayDetail | undefined }) => {
+    ({ stay, next }: Shown) => {
       const field = useSplitMergeStay({
         scheduleId,
-        stay: kyoto,
+        stay,
         next,
         anchorWarnings: [],
       })
 
       return { field, frame: useEditorFrame(field, field.verb) }
     },
-    { next },
+    shown,
     read,
   )
 
 describe('splitting a Stay', () => {
   it('is split once it sends the date chosen to the Stay of the Schedule shown', async () => {
-    const editor = await openSplitMerge(undefined)
+    const editor = await openSplitMerge({ stay: kyoto, next: undefined })
 
     await act(async () =>
       editor.field().field.change({ kind: 'split', date: december(10) }),
@@ -84,25 +94,15 @@ describe('splitting a Stay', () => {
   })
 
   it('shows an open split as withdrawn once the Stay has only one night, offering Cancel', async () => {
-    const editor = await openEditor(
-      ({ stay }: { stay: ScheduleStayDetail }) => {
-        const field = useSplitMergeStay({
-          scheduleId,
-          stay,
-          next: undefined,
-          anchorWarnings: [],
-        })
-
-        return { field, frame: useEditorFrame(field, field.verb) }
-      },
-      { stay: kyoto },
-    )
-
+    const editor = await openSplitMerge({ stay: kyoto, next: undefined })
     await act(async () =>
       editor.field().field.change({ kind: 'split', date: december(10) }),
     )
 
-    await editor.show({ stay: scheduleStay('stay-kyoto', 'kyoto', 9, 10) })
+    await editor.show({
+      stay: scheduleStay('stay-kyoto', 'kyoto', 9, 10),
+      next: undefined,
+    })
 
     const { view, discardLabel } = editor.field().frame
     assert.deepStrictEqual(
@@ -122,8 +122,23 @@ describe('merging a Stay with the next', () => {
 
   const osaka = scheduleStay('stay-kyoto-2', 'osaka', 12, 14)
 
+  const refusal =
+    'Only Stays in the same Base can be merged. Nothing changed. Your Stays may have changed on another device.'
+
+  /** Answers every merge with `answer`, recording the Stays it was sent. */
+  const answerMerges = (answer: () => Promise<StayEditOutcome>) => {
+    const sent: Array<ReadonlyArray<string>> = []
+    vi.mocked(mergeStays).mockImplementation(async ({ data }) => {
+      sent.push(data.stayIds)
+
+      return answer()
+    })
+
+    return sent
+  }
+
   it('is merged once it sends both Stays of the Schedule shown', async () => {
-    const editor = await openSplitMerge(kyotoAgain)
+    const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
 
     await act(async () =>
       editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
@@ -151,12 +166,13 @@ describe('merging a Stay with the next', () => {
   })
 
   it('offers no other split or merge until the refreshed Schedule shows the merge', async () => {
-    vi.mocked(mergeStays).mockResolvedValue(staysEdited())
+    answerMerges(async () => staysEdited())
     const reread = deferred<string>()
     let reads = 0
 
-    const editor = await openSplitMerge(kyotoAgain, () =>
-      reads++ === 0 ? Promise.resolve('schedules') : reread.promise,
+    const editor = await openSplitMerge(
+      { stay: kyoto, next: kyotoAgain },
+      () => (reads++ === 0 ? Promise.resolve('schedules') : reread.promise),
     )
 
     await act(async () =>
@@ -179,19 +195,19 @@ describe('merging a Stay with the next', () => {
   })
 
   it('is not offered while the next Stay is in another Base', async () => {
-    const editor = await openSplitMerge(osaka)
+    const editor = await openSplitMerge({ stay: kyoto, next: osaka })
 
     assert.isUndefined(editor.field().field.mergeable)
     await editor.close()
   })
 
   it('shows an open merge as withdrawn once the next Stay moves to another Base, offering Cancel', async () => {
-    const editor = await openSplitMerge(kyotoAgain)
+    const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
     await act(async () =>
       editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
     )
 
-    await editor.show({ next: osaka })
+    await editor.show({ stay: kyoto, next: osaka })
 
     const { view, discardLabel, problem } = editor.field().frame
     assert.deepStrictEqual(
@@ -205,29 +221,85 @@ describe('merging a Stay with the next', () => {
     await editor.close()
   })
 
-  it('keeps a merge the Hard rules refused visible as withdrawn, with the refusal, offering Discard', async () => {
-    vi.mocked(mergeStays).mockResolvedValue(
-      StayEditOutcome.cases.HardRuleBroken.make({
-        rule: HardRule.cases.StaysInDifferentBases.make({}),
-      }),
-    )
-    const editor = await openSplitMerge(kyotoAgain)
+  it('keeps a merge the Hard rules refused shown as withdrawn until discarded, and sends nothing on retry', async () => {
+    const sent = answerMerges(async () => inDifferentBases)
+
+    const editor = await openSplitMerge({
+      stay: oneNightKyoto,
+      next: kyotoAgain,
+    })
+
     await act(async () =>
       editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
     )
     await act(() => editor.field().field.save())
+    assert.deepStrictEqual(sent, [['stay-kyoto', 'stay-kyoto-2']])
 
-    await editor.show({ next: osaka })
+    await editor.show({ stay: oneNightKyoto, next: osaka })
 
     const { view, discardLabel, problem } = editor.field().frame
     assert.deepStrictEqual(
       { view, discardLabel, problem },
-      {
-        view: 'withdrawn',
-        discardLabel: 'Discard',
-        problem:
-          'Only Stays in the same Base can be merged. Nothing changed. Your Stays may have changed on another device.',
-      },
+      { view: 'withdrawn', discardLabel: 'Discard', problem: refusal },
+    )
+
+    await act(() => editor.field().field.save())
+    assert.deepStrictEqual(sent, [['stay-kyoto', 'stay-kyoto-2']])
+    assert.strictEqual(notSavedProblem(editor.field().field.state), refusal)
+
+    await act(async () => editor.field().field.discard())
+    assert.isFalse(editor.field().field.shown)
+    await editor.close()
+  })
+
+  it('withdraws a merge with a next Stay the Schedule no longer has, and offers the merge with the new one', async () => {
+    const sent = answerMerges(async () => staysEdited())
+
+    const editor = await openSplitMerge({
+      stay: oneNightKyoto,
+      next: kyotoAgain,
+    })
+
+    await act(async () =>
+      editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
+    )
+
+    const newKyoto = scheduleStay('stay-kyoto-3', 'kyoto', 12, 14)
+    await editor.show({ stay: oneNightKyoto, next: newKyoto })
+    assert.isTrue(editor.field().field.withdrawn)
+    await act(() => editor.field().field.save())
+    assert.deepStrictEqual(sent, [])
+
+    await act(async () => editor.field().field.discard())
+    assert.isFalse(editor.field().field.withdrawn)
+    assert.strictEqual(editor.field().field.mergeable?.id, 'stay-kyoto-3')
+    await editor.close()
+  })
+
+  it('shows the refusal of a merge the Schedule withdrew while it was on its way', async () => {
+    const answer = deferred<StayEditOutcome>()
+    answerMerges(() => answer.promise)
+
+    const editor = await openSplitMerge({
+      stay: oneNightKyoto,
+      next: kyotoAgain,
+    })
+
+    await act(async () =>
+      editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
+    )
+    const { finished } = await startSaving(() => editor.field().field.save())
+
+    await editor.show({ stay: oneNightKyoto, next: osaka })
+    await act(async () => {
+      answer.resolve(inDifferentBases)
+      await finished
+    })
+
+    const { view, problem } = editor.field().frame
+    assert.deepStrictEqual(
+      { view, problem },
+      { view: 'withdrawn', problem: refusal },
     )
     await editor.close()
   })
