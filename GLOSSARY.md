@@ -140,3 +140,7 @@ _Avoid_: checkmark, completion
 **Draft**:
 What Phillip has typed but not yet saved, kept on his device until its save succeeds, and restored marked "not saved" if it never did. Only his Save or Retry sends it.
 _Avoid_: autosave, unsaved changes
+
+**Operation**:
+One attempt at a save that must happen once, such as adding an Activity, splitting a Stay or choosing an Itinerary. A Retry of the same Operation never saves twice, even when the first answer was lost. An edit, or a send for another Schedule or Itinerary, starts a new one.
+_Avoid_: request, idempotency key
