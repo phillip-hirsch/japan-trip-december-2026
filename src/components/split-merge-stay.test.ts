@@ -191,7 +191,11 @@ describe('merging a Stay with the next', () => {
         stayGone,
       ),
     )
-    const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
+
+    const editor = await openSplitMerge({
+      stay: kyotoMergingWith('stay-kyoto-2'),
+      next: kyotoAgain,
+    })
 
     await act(async () =>
       editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
@@ -217,14 +221,18 @@ describe('merging a Stay with the next', () => {
         stayGone,
       ),
     )
-    const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
+
+    const editor = await openSplitMerge({
+      stay: kyotoMergingWith('stay-kyoto-2'),
+      next: kyotoAgain,
+    })
 
     await act(async () =>
       editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
     )
     await act(() => editor.field().field.save())
     await editor.show({
-      stay: kyoto,
+      stay: kyotoMergingWith('stay-kyoto-2'),
       next: kyotoAgain,
       scheduleShown: replacement,
     })
