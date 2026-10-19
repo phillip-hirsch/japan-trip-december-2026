@@ -53,18 +53,6 @@ export class HardRuleBroken extends Schema.TaggedError<HardRuleBroken>()(
   { rule: HardRule },
 ) {}
 
-/**
- * What every Stay edit names. The Schedule must be current. A Stay edit that
- * creates something carries a client-generated operation id, so a retry
- * returns the first result instead of editing again.
- */
-export const StayEditTarget = Schema.Struct({
-  scheduleId: ScheduleId,
-  operationId: Schema.optionalKey(OperationId),
-})
-
-export type StayEditTarget = typeof StayEditTarget.Type
-
 export const StaysEdited = Schema.Struct({ schedule: ScheduleDetail })
 
 export type StaysEdited = typeof StaysEdited.Type

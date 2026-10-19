@@ -1,4 +1,7 @@
+// effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
+// @effect-diagnostics unstableApiUsage:off
 import { Effect, Option } from 'effect'
+import type { Schema } from 'effect'
 
 import {
   ActivityTitleInvalid,
@@ -7,15 +10,27 @@ import {
   ScheduleChanged,
   StayNotFound,
 } from '@/trip/domain/domain'
-import type { IsoInstant, ScheduleId } from '@/trip/domain/domain'
+import type { OperationId, ScheduleId } from '@/trip/domain/domain'
 import {
   activityTitleMaxLength,
   checklistTextMaxLength,
   noteMaxLength,
 } from '@/trip/domain/limits'
+import { scheduleStore } from '@/trip/schedule-store/schedule-store'
 import type { ScheduleStore } from '@/trip/schedule-store/schedule-store'
 
-export const requireCurrent = Effect.fnUntraced(function* (
+/**
+ * How a write that takes an operation id records its result: under that id,
+ * stored with the result's schema. Each such write declares it once.
+ */
+interface Recorded<A> {
+  readonly operationId: OperationId
+  readonly result: Schema.Codec<A, unknown>
+}
+
+type Write<A, E, R> = (store: ScheduleStore) => Effect.Effect<A, E, R>
+
+const requireCurrent = Effect.fnUntraced(function* (
   store: ScheduleStore,
   believedCurrent: ScheduleId | null,
 ) {
@@ -23,31 +38,96 @@ export const requireCurrent = Effect.fnUntraced(function* (
   const currentId = Option.getOrNull(Option.map(current, ({ id }) => id))
 
   if (currentId !== believedCurrent) return yield* new ScheduleChanged()
-
-  return current
 })
+
+const storeWrite = Effect.fnUntraced(
+  function* <A, E, R, C, RC>(
+    recorded: Recorded<A> | undefined,
+    check: Write<void, C, RC>,
+    write: Write<A, E, R>,
+  ) {
+    const store = yield* scheduleStore
+
+    return yield* store.transaction(
+      Effect.gen(function* () {
+        if (recorded !== undefined) {
+          const replayed = yield* store.recordedResult(recorded.result)(
+            recorded.operationId,
+          )
+
+          if (Option.isSome(replayed)) return replayed.value.result
+        }
+
+        yield* check(store)
+        const result = yield* write(store)
+
+        if (recorded !== undefined) {
+          yield* store.recordResult(recorded.result)({
+            id: recorded.operationId,
+            result,
+          })
+        }
+
+        return result
+      }),
+    )
+  },
+  Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+)
+
+/**
+ * The one way the Trip service writes to a Schedule. In order, it:
+ *
+ * 1. returns the recorded result when the operation id repeats,
+ * 2. refuses with ScheduleChanged when the Schedule named isn't current,
+ *    archived Schedules included,
+ * 3. runs the write in one transaction, and
+ * 4. records the result with its operation id in that transaction.
+ *
+ * `naming` is the Schedule the write believes current, or null for none.
+ * `recorded` is there only for a write that takes an operation id. Storage
+ * failures become defects. A write checks its input before calling this, so
+ * input is refused as such even from an out-of-date screen.
+ */
+export const scheduleWrite = <A, E, R>(
+  {
+    naming,
+    recorded,
+  }: {
+    readonly naming: ScheduleId | null
+    readonly recorded?: Recorded<A>
+  },
+  write: Write<A, E, R>,
+) => storeWrite(recorded, (store) => requireCurrent(store, naming), write)
+
+/**
+ * The same for a write to the Trip itself, such as the Trip note or an own
+ * Checklist item: it names no Schedule, so it skips step 2.
+ */
+export const tripWrite = <A, E, R>(
+  { recorded }: { readonly recorded?: Recorded<A> },
+  write: Write<A, E, R>,
+) => storeWrite(recorded, () => Effect.void, write)
+
+/**
+ * The Schedule a write names, with its copy. The Schedule-write unit has
+ * already found it current, so it is always there.
+ */
+export const namedSchedule = (store: ScheduleStore, scheduleId: ScheduleId) =>
+  Effect.flatMap(store.scheduleById(scheduleId), (found) =>
+    Option.match(found, {
+      onNone: () => Effect.die(new Error(`Schedule ${scheduleId} is missing`)),
+      onSome: Effect.succeed,
+    }),
+  )
 
 export const requireStay = Effect.fnUntraced(function* (
   store: ScheduleStore,
   scheduleId: ScheduleId,
   stayId: string,
 ) {
-  yield* requireCurrent(store, scheduleId)
-
   if (!(yield* store.hasStay(scheduleId, stayId))) {
     return yield* new StayNotFound({ stayId })
-  }
-})
-
-export const archiveReplaced = Effect.fnUntraced(function* (
-  store: ScheduleStore,
-  replacing: ScheduleId | null,
-  archivedAt: IsoInstant,
-) {
-  const current = yield* requireCurrent(store, replacing)
-
-  if (Option.isSome(current)) {
-    yield* store.archive(current.value.id, archivedAt)
   }
 })
 

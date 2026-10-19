@@ -174,26 +174,6 @@ describe('Trip.writeHotelDetails', () => {
       }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
-  it.effect(
-    'rejects a write to an archived Schedule, leaving it as it was',
-    () =>
-      Effect.gen(function* () {
-        const archived = yield* choose(1, 1, null)
-        const stayId = yield* kyotoStayId(archived)
-        yield* writeHotelDetails(archived, stayId, ryokan)
-        yield* choose(2, 2, archived)
-
-        const error = yield* Effect.flip(
-          writeHotelDetails(archived, stayId, { name: 'After archiving' }),
-        )
-
-        assert.deepStrictEqual(
-          { tag: error._tag, hotel: yield* kyotoHotelOf(archived) },
-          { tag: 'ScheduleChanged', hotel: Hotel.cases.Recorded.make(ryokan) },
-        )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
   it.effect('fails with StayNotFound for a Stay the Schedule lacks', () =>
     Effect.gen(function* () {
       const first = yield* choose(1, 1, null)

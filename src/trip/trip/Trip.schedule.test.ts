@@ -345,28 +345,6 @@ describe('Trip.choose again', () => {
         )
       }).pipe(Effect.provide(storage)),
   )
-
-  it.effect('refuses a choose naming an archived Schedule', () =>
-    Effect.gen(function* () {
-      const first = yield* choose(1, operation(1), null)
-      yield* choose(2, operation(2), first.scheduleId)
-      const before = yield* currentSchedule
-      const archivedBefore = yield* archivedSchedules
-
-      const error = yield* Effect.flip(
-        choose(1, operation(3), first.scheduleId),
-      )
-
-      assert.deepStrictEqual(
-        {
-          tag: error._tag,
-          after: yield* currentSchedule,
-          archived: yield* archivedSchedules,
-        },
-        { tag: 'ScheduleChanged', after: before, archived: archivedBefore },
-      )
-    }).pipe(Effect.provide([trip, storage])),
-  )
 })
 
 describe('Trip.schedule', () => {

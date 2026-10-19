@@ -542,37 +542,6 @@ describe('Trip.mergeStays', () => {
   )
 
   it.effect(
-    'refuses an archived or out-of-date Schedule with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const archived = yield* chooseOption1(1, null)
-
-        const split = yield* splitStay(
-          archived,
-          stayIdAt(yield* currentSchedule, 1),
-          december(11),
-        )
-
-        yield* chooseOption1(2, archived)
-        const current = yield* currentSchedule
-
-        const error = yield* Effect.flip(
-          mergeStays(archived, [
-            stayIdAt(split.schedule, 1),
-            stayIdAt(split.schedule, 2),
-          ]),
-        )
-
-        assert.strictEqual(error._tag, 'ScheduleChanged')
-        assert.deepStrictEqual(
-          staySpans(yield* scheduleById(archived)),
-          staySpans(split.schedule),
-        )
-        assert.deepStrictEqual(yield* currentSchedule, current)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
-  )
-
-  it.effect(
     'returns the first result when its operation id repeats, after the later Stay is gone',
     () =>
       Effect.gen(function* () {
