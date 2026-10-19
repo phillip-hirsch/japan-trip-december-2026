@@ -183,12 +183,11 @@ export const scheduleMethods = Effect.gen(function* () {
     optionNumber,
     replacing,
   }: ChooseItinerary) {
-    const itinerary = yield* find(byOptionNumber, optionNumber)
-
     return yield* scheduleWrite(
       { naming: replacing, recorded: { operationId, result: ScheduleChosen } },
       (store) =>
         Effect.gen(function* () {
+          const itinerary = yield* find(byOptionNumber, optionNumber)
           const now = isoInstantOf(yield* DateTime.now)
           yield* archiveReplaced(store, replacing, now)
           const scheduleId = ScheduleId.make(crypto.randomUUID())

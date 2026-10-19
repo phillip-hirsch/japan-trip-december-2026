@@ -86,8 +86,10 @@ const storeWrite = Effect.fnUntraced(
  *
  * `naming` is the Schedule the write believes current, or null for none.
  * `recorded` is there only for a write that takes an operation id. Storage
- * failures become defects. A write checks its input before calling this, so
- * input is refused as such even from an out-of-date screen.
+ * failures become defects. A write checks its request on its own before
+ * calling this, so bad input is refused as such even from an out-of-date
+ * screen. A lookup in the store or the Itinerary catalogue belongs to the
+ * write, after replay, so a retry still returns its first result.
  */
 export const scheduleWrite = <A, E, R>(
   {

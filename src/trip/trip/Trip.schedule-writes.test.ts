@@ -11,6 +11,7 @@ import {
   scheduleById,
   stayIdAt,
   storage,
+  tripWithOption1,
   tripWithOptions1And2,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
@@ -383,13 +384,6 @@ describe('Schedule writes', () => {
                 pin: outsideJapan,
               }),
             ),
-            choose: Effect.flip(
-              trip.choose({
-                operationId: operation(6),
-                optionNumber: 9,
-                replacing: scheduleId,
-              }),
-            ),
           }),
         )
 
@@ -400,35 +394,68 @@ describe('Schedule writes', () => {
           addActivity: 'ActivityTitleInvalid',
           editActivity: 'NoteTooLong',
           setPin: 'CoordinatesOutsideJapan',
-          choose: 'ItineraryNotFound',
         })
       }).pipe(provided),
   )
 
   it.effect(
-    'refuse a restore of an unknown Schedule from an out-of-date screen with ScheduleChanged',
+    'refuse a choose of an unknown Itinerary or a restore of an unknown Schedule from an out-of-date screen with ScheduleChanged',
     () =>
       Effect.gen(function* () {
         const { archived } = yield* currentAndArchived
         const before = yield* shown
 
-        const error = yield* Effect.flip(
-          Trip.use((trip) =>
-            trip.restore({
-              operationId: operation(3),
-              scheduleId: ScheduleId.make(
-                '9f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f',
-              ),
-              replacing: archived,
-            }),
-          ),
+        const errors = yield* Trip.use((trip) =>
+          Effect.all({
+            choose: Effect.flip(
+              trip.choose({
+                operationId: operation(3),
+                optionNumber: 9,
+                replacing: archived,
+              }),
+            ),
+            restore: Effect.flip(
+              trip.restore({
+                operationId: operation(4),
+                scheduleId: ScheduleId.make(
+                  '9f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f',
+                ),
+                replacing: archived,
+              }),
+            ),
+          }),
         )
 
         assert.deepStrictEqual(
-          { tag: error._tag, shown: yield* shown },
-          { tag: 'ScheduleChanged', shown: before },
+          { errors: tagsOf(errors), shown: yield* shown },
+          {
+            errors: { choose: 'ScheduleChanged', restore: 'ScheduleChanged' },
+            shown: before,
+          },
         )
       }).pipe(provided),
+  )
+
+  it.effect(
+    'return the recorded result for a choose retried after its Itinerary left the catalogue',
+    () =>
+      Effect.gen(function* () {
+        const chooseOption2 = Trip.use((trip) =>
+          trip.choose({
+            operationId: operation(1),
+            optionNumber: 2,
+            replacing: null,
+          }),
+        )
+
+        const first = yield* chooseOption2.pipe(
+          Effect.provide(tripWithOptions1And2),
+        )
+
+        const retry = yield* chooseOption2.pipe(Effect.provide(tripWithOption1))
+
+        assert.deepStrictEqual(retry, first)
+      }).pipe(Effect.provide(storage)),
   )
 
   it.effect('refuse a write naming a Schedule while none is current', () =>
