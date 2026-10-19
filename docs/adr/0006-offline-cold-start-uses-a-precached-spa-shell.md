@@ -12,5 +12,5 @@ With no signal, the installed Home Screen app loads every page from a service wo
 - The app does not switch to full SPA mode. The Worker still server-renders every request the service worker doesn't answer, such as the very first visit. Only the service worker treats the app as an SPA.
 - Until TanStack fixes Router #7740, the Worker build defines `process.env.TSS_PRERENDERING` but deliberately not `process.env.TSS_SHELL`, which would turn every page into the shell. The build fails if the shell carries loader data.
 - The service worker is our own script on the Serwist runtime, built by a hook after Start's prerender.
-- Each online page load takes one extra round trip, because data now arrives after the shell instead of inside the HTML.
+- An online page load the service worker answers with the shell takes one extra round trip, because its data arrives after the shell instead of inside the HTML. The first visit and the prerendered Itinerary pages still arrive with their data.
 - The Schedule-backed page loaders always wait for fresh data, so #33 has to give them an offline path. #33's implementation notes are in its issue.
