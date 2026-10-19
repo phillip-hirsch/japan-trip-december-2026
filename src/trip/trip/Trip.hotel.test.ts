@@ -2,25 +2,19 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect, Option, Predicate } from 'effect'
 
 import { december, Hotel } from '@/trip/domain/domain'
-import type { IsoDate, ScheduleId } from '@/trip/domain/domain'
-import { option1 } from '@/trip/itineraries/option-1'
-import { option2 } from '@/trip/itineraries/option-2'
-import { operation, setTime, storage, tripWith } from '@/trip/trip/testing'
+import type { ScheduleId } from '@/trip/domain/domain'
+import {
+  choose,
+  kyotoHotelOf,
+  kyotoStayId,
+  operation,
+  setTime,
+  staysOf,
+  storage,
+  tonightsHotel,
+  tripWithOptions1And2,
+} from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
-
-const trip = tripWith([option1, option2])
-
-const choose = (
-  optionNumber: number,
-  n: number,
-  replacing: ScheduleId | null,
-) =>
-  Effect.map(
-    Trip.use((trip) =>
-      trip.choose({ operationId: operation(n), optionNumber, replacing }),
-    ),
-    ({ scheduleId }) => scheduleId,
-  )
 
 const writeHotelDetails = (
   scheduleId: ScheduleId,
@@ -32,29 +26,11 @@ const writeHotelDetails = (
   },
 ) => Trip.use((trip) => trip.writeHotelDetails({ scheduleId, stayId, details }))
 
-const staysOf = (scheduleId: ScheduleId) =>
-  Effect.map(
-    Trip.use((trip) => trip.schedule(scheduleId)),
-    ({ stays }) => stays,
-  )
-
-const kyotoStayId = (scheduleId: ScheduleId) =>
-  Effect.map(staysOf(scheduleId), (stays) => stays[1]?.id ?? '')
-
-const kyotoHotelOf = (scheduleId: ScheduleId) =>
-  Effect.map(staysOf(scheduleId), (stays) => stays[1]?.hotel)
-
 const recordedHotelsOf = (scheduleId: ScheduleId) =>
   Effect.map(staysOf(scheduleId), (stays) =>
     stays.flatMap(({ hotel }) =>
       Predicate.isTagged('Recorded')(hotel) ? [hotel] : [],
     ),
-  )
-
-const tonightsHotel = (date: IsoDate) =>
-  Effect.map(
-    Trip.use((trip) => trip.day(date)),
-    (page) => Option.getOrThrow(page).tonight?.hotel,
   )
 
 const ryokan = {
@@ -83,7 +59,7 @@ describe('Trip.writeHotelDetails', () => {
           ),
           [notRecorded, recorded, recorded, notRecorded],
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect("shows the same tonight's hotel on Today on Home", () =>
@@ -103,7 +79,7 @@ describe('Trip.writeHotelDetails', () => {
         Option.getOrThrow(yield* Trip.use((trip) => trip.day(december(10))))
           .tonight,
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -115,7 +91,7 @@ describe('Trip.writeHotelDetails', () => {
           yield* Effect.forEach([december(10), december(20)], tonightsHotel),
           [Hotel.cases.NotRecorded.make({}), undefined],
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -137,7 +113,7 @@ describe('Trip.writeHotelDetails', () => {
             confirmationNumber: 'GV-88123',
           }),
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -163,7 +139,7 @@ describe('Trip.writeHotelDetails', () => {
             Hotel.cases.NotRecorded.make({}),
           ],
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('keeps the Stay its id', () =>
@@ -172,7 +148,7 @@ describe('Trip.writeHotelDetails', () => {
       const stayId = yield* kyotoStayId(scheduleId)
       yield* writeHotelDetails(scheduleId, stayId, ryokan)
       assert.strictEqual(yield* kyotoStayId(scheduleId), stayId)
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -195,7 +171,7 @@ describe('Trip.writeHotelDetails', () => {
           },
           { tag: 'ScheduleChanged', stale: [], current: [] },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -215,7 +191,7 @@ describe('Trip.writeHotelDetails', () => {
           { tag: error._tag, hotel: yield* kyotoHotelOf(archived) },
           { tag: 'ScheduleChanged', hotel: Hotel.cases.Recorded.make(ryokan) },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('fails with StayNotFound for a Stay the Schedule lacks', () =>
@@ -238,7 +214,7 @@ describe('Trip.writeHotelDetails', () => {
         },
         { tag: 'StayNotFound', stayId: goneStayId, hotels: [] },
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('accepts 500 characters in a field and rejects one more', () =>
@@ -269,7 +245,7 @@ describe('Trip.writeHotelDetails', () => {
           hotel: Hotel.cases.Recorded.make({ address: longest }),
         },
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('leaves Hotel details behind when choosing again', () =>
@@ -284,7 +260,7 @@ describe('Trip.writeHotelDetails', () => {
         },
         { schedule: [], tonight: Hotel.cases.NotRecorded.make({}) },
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -307,6 +283,6 @@ describe('Trip.writeHotelDetails', () => {
           [archived, yield* tonightsHotel(december(10))],
           [recorded, recorded],
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 })

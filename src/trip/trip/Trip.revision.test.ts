@@ -3,13 +3,12 @@ import { Effect, Struct } from 'effect'
 
 import type { ItineraryContent } from '@/trip/domain/domain'
 import { option2 } from '@/trip/itineraries/option-2'
-import { storage, tripWith } from '@/trip/trip/testing'
+import { currentSchedule, storage, tripWith } from '@/trip/trip/testing'
 import {
   option1WithEveryAttachment,
   trip,
   firstChoose,
   chooseOption1,
-  currentSchedule,
   revisedOption1,
 } from '@/trip/trip/Trip.schedule.testing'
 

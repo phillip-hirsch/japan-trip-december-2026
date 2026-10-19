@@ -2,19 +2,22 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 
 import { december, Hotel } from '@/trip/domain/domain'
-import { operation, storage } from '@/trip/trip/testing'
+import {
+  activitiesOn,
+  choose,
+  kyotoHotelOf,
+  kyotoStayId,
+  operation,
+  storage,
+  tonightsHotel,
+  tripWithOptions1And2,
+} from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import {
-  trip,
-  choose,
   setPin,
   addActivity,
   activityTarget,
   hotelTarget,
-  activitiesOn,
-  kyotoStayId,
-  kyotoHotelOf,
-  tonightsHotel,
   fushimiInari,
   droppedByHand,
 } from '@/trip/trip/Trip.pins.testing'
@@ -38,7 +41,7 @@ describe('Trip.setPin', () => {
             { title: 'Dinner', pin: undefined },
           ],
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -61,7 +64,7 @@ describe('Trip.setPin', () => {
           [afterKept, (yield* activitiesOn(december(10)))[0]?.pin],
           [kept, droppedByHand],
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect("removes an Activity's Pin when given none", () =>
@@ -74,7 +77,7 @@ describe('Trip.setPin', () => {
         (yield* activitiesOn(december(10))).map(({ pin }) => pin),
         [undefined],
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect("keeps an Activity's Pin through an edit of its other fields", () =>
@@ -97,7 +100,7 @@ describe('Trip.setPin', () => {
         })),
         [{ title: 'Fushimi Inari at dawn', pin: fushimiInari }],
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -133,7 +136,7 @@ describe('Trip.setPin', () => {
             hotel: Hotel.cases.NotRecorded.make({}),
           },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -169,7 +172,7 @@ describe('Trip.setPin', () => {
             hotel: Hotel.cases.NotRecorded.make({}),
           },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -193,7 +196,7 @@ describe('Trip.setPin', () => {
         )
 
         assert.deepStrictEqual(errors, ['ActivityNotFound', 'StayNotFound'])
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('archives Pins and restores them with their Schedule', () =>
@@ -236,6 +239,6 @@ describe('Trip.setPin', () => {
           },
         },
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 })

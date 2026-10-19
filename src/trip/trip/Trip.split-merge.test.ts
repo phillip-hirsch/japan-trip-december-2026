@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option } from 'effect'
+import { Effect } from 'effect'
 
 import {
   AnchorWarning,
@@ -18,34 +18,18 @@ import type {
 import { option1 } from '@/trip/itineraries/option-1'
 import {
   assertFailedWith,
+  checklistItems,
+  chooseOption1,
+  currentSchedule,
   operation,
+  scheduleById,
+  stayIdAt,
   storage,
+  tick,
   tripWith,
+  tripWithOption1,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
-
-const trip = tripWith([option1])
-
-const choose = (n: number, replacing: ScheduleId | null) =>
-  Effect.map(
-    Trip.use((trip) =>
-      trip.choose({ operationId: operation(n), optionNumber: 1, replacing }),
-    ),
-    ({ scheduleId }) => scheduleId,
-  )
-
-const currentSchedule = Effect.map(
-  Trip.use((trip) => trip.schedules),
-  ({ current }) => Option.getOrThrow(current),
-)
-
-const scheduleById = (scheduleId: ScheduleId) =>
-  Trip.use((trip) => trip.schedule(scheduleId))
-
-const checklistItems = Effect.map(
-  Trip.use((trip) => trip.checklist),
-  ({ items }) => items,
-)
 
 const splitStay = (
   scheduleId: ScheduleId,
@@ -66,16 +50,8 @@ const mergeStays = (
     trip.mergeStays({ scheduleId, operationId: operation(n), stayIds }),
   )
 
-const tick = (scheduleId: ScheduleId, itemId: string) =>
-  Trip.use((trip) =>
-    trip.tickChecklistItem({ scheduleId, itemId, ticked: true }),
-  )
-
 const staySpans = ({ stays }: ScheduleDetail) =>
   stays.map(({ base, checkIn, checkOut }) => [base.id, checkIn, checkOut])
-
-const stayIdAt = (schedule: ScheduleDetail, index: number) =>
-  schedule.stays[index]?.id ?? ''
 
 const movesOf = ({ days }: ScheduleDetail) =>
   days.flatMap(({ date, move }) => (move ? [{ date, ...move }] : []))
@@ -101,7 +77,7 @@ describe('Trip.splitStay', () => {
     'keeps the Stay, its Hotel details, Stay note, highlights and Verify claims on the earlier part',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
         const kanazawaId = stayIdAt(before, 2)
         const details = { name: 'Hotel Kanazawa', confirmationNumber: 'K-1' }
@@ -175,14 +151,14 @@ describe('Trip.splitStay', () => {
             nights: 1,
           },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     'joins the parts with a new local Move on the date, without rail sections or a duration',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
 
         const { schedule } = yield* splitStay(
@@ -215,14 +191,14 @@ describe('Trip.splitStay', () => {
           movesOf(before).some(({ id }) => id === local?.id) ||
             local?.id === undefined,
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     "keeps the earlier part's Book hotel tick, and adds an unticked Book hotel item for the later part, but none for the local Move",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
         const kyotoId = stayIdAt(before, 1)
         yield* tick(scheduleId, kyotoId)
@@ -245,14 +221,14 @@ describe('Trip.splitStay', () => {
           items.find(({ id }) => id === kyotoId)?.ticked,
           true,
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     'returns the Anchor warning for a Move on December 15, splitting anyway',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
 
         const { schedule } = yield* splitStay(
@@ -266,7 +242,7 @@ describe('Trip.splitStay', () => {
         ])
         assert.strictEqual(schedule.stays.length, 5)
         assert.deepStrictEqual(yield* currentSchedule, schedule)
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   const refusals: ReadonlyArray<
@@ -299,7 +275,7 @@ describe('Trip.splitStay', () => {
       `refuses a split ${reason}, as a Stay with no nights, changing nothing`,
       () =>
         Effect.gen(function* () {
-          const scheduleId = yield* choose(1, null)
+          const scheduleId = yield* chooseOption1(1, null)
           const before = yield* currentSchedule
           const itemsBefore = yield* checklistItems
 
@@ -310,7 +286,7 @@ describe('Trip.splitStay', () => {
           assertFailedWith(error, new HardRuleBroken({ rule }))
           assert.deepStrictEqual(yield* currentSchedule, before)
           assert.deepStrictEqual(yield* checklistItems, itemsBefore)
-        }).pipe(Effect.provide([trip, storage])),
+        }).pipe(Effect.provide([tripWithOption1, storage])),
     )
   }
 
@@ -318,7 +294,7 @@ describe('Trip.splitStay', () => {
     'refuses a split before the Trip as a Stay with no nights, not as the Trip dates',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
 
         const error = yield* Effect.flip(
@@ -334,12 +310,12 @@ describe('Trip.splitStay', () => {
           }),
         )
         assert.deepStrictEqual(yield* currentSchedule, before)
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect("refuses a Stay the Schedule doesn't have, changing nothing", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, null)
+      const scheduleId = yield* chooseOption1(1, null)
       const before = yield* currentSchedule
 
       const error = yield* Effect.flip(
@@ -348,16 +324,16 @@ describe('Trip.splitStay', () => {
 
       assert.deepStrictEqual(error, new StayNotFound({ stayId: 'gone' }))
       assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     'refuses an archived or out-of-date Schedule with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const archived = yield* choose(1, null)
+        const archived = yield* chooseOption1(1, null)
         const stayId = stayIdAt(yield* scheduleById(archived), 1)
-        yield* choose(2, archived)
+        yield* chooseOption1(2, archived)
         const before = yield* scheduleById(archived)
         const current = yield* currentSchedule
 
@@ -368,27 +344,27 @@ describe('Trip.splitStay', () => {
         assert.strictEqual(error._tag, 'ScheduleChanged')
         assert.deepStrictEqual(yield* scheduleById(archived), before)
         assert.deepStrictEqual(yield* currentSchedule, current)
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     'returns the first result without splitting again when its operation id repeats',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const kyotoId = stayIdAt(yield* currentSchedule, 1)
         const first = yield* splitStay(scheduleId, kyotoId, december(11), 2)
         const repeat = yield* splitStay(scheduleId, kyotoId, december(11), 2)
         assert.deepStrictEqual(repeat, first)
         assert.deepStrictEqual(yield* currentSchedule, first.schedule)
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })
 
 describe('Trip.mergeStays', () => {
   it.effect('undoes a split, restoring the Stays and Moves', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, null)
+      const scheduleId = yield* chooseOption1(1, null)
       const before = yield* currentSchedule
       const kanazawaId = stayIdAt(before, 2)
       const split = yield* splitStay(scheduleId, kanazawaId, december(15))
@@ -398,14 +374,14 @@ describe('Trip.mergeStays', () => {
 
       assert.deepStrictEqual(schedule, before)
       assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     "keeps the earlier Stay's id and details whichever is named first, spanning both Stays' nights, without the Move between them",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
         const [earlierId, laterId] = [stayIdAt(before, 1), stayIdAt(before, 2)]
 
@@ -465,7 +441,7 @@ describe('Trip.mergeStays', () => {
     "removes the later Stay's Book hotel item and its tick, keeping the earlier one's",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
         const [earlierId, laterId] = [stayIdAt(before, 1), stayIdAt(before, 2)]
         yield* tick(scheduleId, earlierId)
@@ -499,7 +475,7 @@ describe('Trip.mergeStays', () => {
 
   it.effect('returns the Anchor warnings the merged Schedule breaks', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, null)
+      const scheduleId = yield* chooseOption1(1, null)
       const before = yield* currentSchedule
       const kanazawaId = stayIdAt(before, 2)
       const split = yield* splitStay(scheduleId, kanazawaId, december(15))
@@ -511,7 +487,7 @@ describe('Trip.mergeStays', () => {
       ])
 
       assert.deepStrictEqual(schedule.anchorWarnings, [])
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   const refusals: ReadonlyArray<
@@ -538,7 +514,7 @@ describe('Trip.mergeStays', () => {
   for (const [reason, [a, b], rule] of refusals) {
     it.effect(`refuses a merge of ${reason}, changing nothing`, () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
 
         const error = yield* Effect.flip(
@@ -547,13 +523,13 @@ describe('Trip.mergeStays', () => {
 
         assertFailedWith(error, new HardRuleBroken({ rule }))
         assert.deepStrictEqual(yield* currentSchedule, before)
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
     )
   }
 
   it.effect("refuses a Stay the Schedule doesn't have, changing nothing", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, null)
+      const scheduleId = yield* chooseOption1(1, null)
       const before = yield* currentSchedule
 
       const error = yield* Effect.flip(
@@ -562,14 +538,14 @@ describe('Trip.mergeStays', () => {
 
       assert.deepStrictEqual(error, new StayNotFound({ stayId: 'gone' }))
       assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     'refuses an archived or out-of-date Schedule with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const archived = yield* choose(1, null)
+        const archived = yield* chooseOption1(1, null)
 
         const split = yield* splitStay(
           archived,
@@ -577,7 +553,7 @@ describe('Trip.mergeStays', () => {
           december(11),
         )
 
-        yield* choose(2, archived)
+        yield* chooseOption1(2, archived)
         const current = yield* currentSchedule
 
         const error = yield* Effect.flip(
@@ -593,14 +569,14 @@ describe('Trip.mergeStays', () => {
           staySpans(split.schedule),
         )
         assert.deepStrictEqual(yield* currentSchedule, current)
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     'returns the first result when its operation id repeats, after the later Stay is gone',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
         const stayIds = [stayIdAt(before, 1), stayIdAt(before, 2)] as const
         const first = yield* mergeStays(scheduleId, stayIds, 2)

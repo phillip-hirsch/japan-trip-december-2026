@@ -2,17 +2,20 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect, Predicate } from 'effect'
 
 import { december, IsoDate, TokyoDateTime } from '@/trip/domain/domain'
-import { setTime, storage } from '@/trip/trip/testing'
-import { Trip } from '@/trip/trip/Trip'
 import {
-  trip,
+  activitiesOn,
   choose,
   restore,
+  setTime,
+  storage,
+  tripWithOptions1And2,
+} from '@/trip/trip/testing'
+import { Trip } from '@/trip/trip/Trip'
+import {
   add,
   edit,
   remove,
   move,
-  activitiesOn,
   described,
   describedOn,
   dayWithThree,
@@ -33,7 +36,7 @@ describe('Trip.addActivity', () => {
           '18:00 Onsen (Bring a towel.)',
           '--:-- Pack for the Alps',
         ])
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -52,7 +55,7 @@ describe('Trip.addActivity', () => {
             TokyoDateTime.make('2026-12-15T23:59:00.000+09:00[Asia/Tokyo]'),
           ],
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -82,7 +85,7 @@ describe('Trip.addActivity', () => {
             ],
           },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('trims the title and refuses a blank or overlong one', () =>
@@ -112,7 +115,7 @@ describe('Trip.addActivity', () => {
           titles: [5, 200],
         },
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('refuses a note past 10,000 characters with NoteTooLong', () =>
@@ -129,7 +132,7 @@ describe('Trip.addActivity', () => {
         { tag: error._tag, activities: yield* activitiesOn(december(14)) },
         { tag: 'NoteTooLong', activities: [] },
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -143,7 +146,7 @@ describe('Trip.addActivity', () => {
           { repeated, activities: yield* describedOn(december(14)) },
           { repeated: first, activities: ['--:-- Onsen'] },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('adds an untimed Activity after the rest', () =>
@@ -156,7 +159,7 @@ describe('Trip.addActivity', () => {
         '19:00 Birthday dinner',
         '--:-- Buy souvenirs',
       ])
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -177,7 +180,7 @@ describe('Trip.addActivity', () => {
           '19:00 Cake',
           '22:00 Night walk',
         ])
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -191,7 +194,7 @@ describe('Trip.addActivity', () => {
           { tag: error._tag, activities: yield* activitiesOn(december(14)) },
           { tag: 'ScheduleChanged', activities: [] },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('fails with DayNotFound for a Day the Schedule lacks', () =>
@@ -208,7 +211,7 @@ describe('Trip.addActivity', () => {
           : error._tag,
         'DayNotFound 2026-12-21',
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 })
 
@@ -235,7 +238,7 @@ describe('Activity writes to a missing, stale or archived target', () => {
         ),
         [true, true, true, true],
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -257,7 +260,7 @@ describe('Activity writes to a missing, stale or archived target', () => {
           errors.map(({ _tag }) => _tag),
           ['ScheduleChanged', 'ScheduleChanged', 'ScheduleChanged'],
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -301,7 +304,7 @@ describe('Activity writes to a missing, stale or archived target', () => {
             ],
           },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 })
 
@@ -311,7 +314,7 @@ describe('Activities and the Schedule', () => {
       const { scheduleId } = yield* dayWithThree
       yield* choose(2, 5, scheduleId)
       assert.deepStrictEqual(yield* activitiesOn(december(15)), [])
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -327,7 +330,7 @@ describe('Activities and the Schedule', () => {
           '09:00 Kiyomizu-dera',
           '--:-- Walk Gion',
         ])
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -353,6 +356,6 @@ describe('Activities and the Schedule', () => {
             ],
           },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 })

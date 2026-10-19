@@ -1,4 +1,4 @@
-import { Effect, Option, Predicate, Schema, Struct } from 'effect'
+import { Effect, Predicate, Schema, Struct } from 'effect'
 
 import {
   december,
@@ -55,10 +55,6 @@ export const schedules = Trip.use((trip) => trip.schedules)
 export const archivedSchedules = Effect.map(
   schedules,
   ({ archived }) => archived,
-)
-
-export const currentSchedule = Effect.map(schedules, ({ current }) =>
-  Option.getOrThrow(current),
 )
 
 export const withoutIds = (value: Schema.Json): Schema.Json =>

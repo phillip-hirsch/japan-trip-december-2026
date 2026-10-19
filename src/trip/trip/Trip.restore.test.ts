@@ -4,13 +4,18 @@ import { Effect, Struct } from 'effect'
 import { ScheduleId, ScheduleNotFound } from '@/trip/domain/domain'
 import type { ScheduleDetail } from '@/trip/domain/domain'
 import { option2 } from '@/trip/itineraries/option-2'
-import { operation, setTime, storage, tripWith } from '@/trip/trip/testing'
+import {
+  currentSchedule,
+  operation,
+  setTime,
+  storage,
+  tripWith,
+} from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import {
   trip,
   choose,
   archivedSchedules,
-  currentSchedule,
   revisedOption1,
 } from '@/trip/trip/Trip.schedule.testing'
 
