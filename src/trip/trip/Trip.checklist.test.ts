@@ -7,9 +7,16 @@ import {
   IsoDate,
   VerifyClaimAttachment,
 } from '@/trip/domain/domain'
-import type { ItineraryContent, ScheduleId } from '@/trip/domain/domain'
+import type { ItineraryContent } from '@/trip/domain/domain'
 import { option1 } from '@/trip/itineraries/option-1'
-import { operation, storage, tripWith } from '@/trip/trip/testing'
+import {
+  choose,
+  operation,
+  restore,
+  storage,
+  tick,
+  tripWith,
+} from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
 const withEveryKindOfItem: ItineraryContent = {
@@ -50,23 +57,6 @@ const option1AsOption2: ItineraryContent = { ...option1, optionNumber: 2 }
 
 const trip = tripWith([withEveryKindOfItem, option1AsOption2])
 
-const choose = (
-  optionNumber: number,
-  n: number,
-  replacing: ScheduleId | null,
-) =>
-  Effect.map(
-    Trip.use((trip) =>
-      trip.choose({ operationId: operation(n), optionNumber, replacing }),
-    ),
-    ({ scheduleId }) => scheduleId,
-  )
-
-const restore = (scheduleId: ScheduleId, n: number, replacing: ScheduleId) =>
-  Trip.use((trip) =>
-    trip.restore({ operationId: operation(n), scheduleId, replacing }),
-  )
-
 const checklist = Trip.use((trip) => trip.checklist)
 
 const described = (item: ChecklistItem) => {
@@ -102,9 +92,6 @@ const describedChecklist = Effect.map(checklist, ({ items }) =>
 
 const idOf = (matches: (item: ChecklistItem) => boolean) =>
   Effect.map(checklist, ({ items }) => items.find(matches)?.id ?? '')
-
-const tick = (scheduleId: ScheduleId, itemId: string, ticked: boolean) =>
-  Trip.use((trip) => trip.tickChecklistItem({ scheduleId, itemId, ticked }))
 
 const addOwn = (n: number, text: string, reminderDate?: IsoDate) =>
   Trip.use((trip) =>

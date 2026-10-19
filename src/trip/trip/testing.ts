@@ -2,7 +2,7 @@
 // @effect-diagnostics unstableApiUsage:off
 import { SqliteClient, SqliteMigrator } from '@effect/sql-sqlite-node'
 import { deepStrictEqual } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer } from 'effect'
+import { DateTime, Effect, Layer, Option } from 'effect'
 import { TestClock } from 'effect/testing'
 import { readFileSync } from 'node:fs'
 import { EtagMismatch } from 'pmtiles'
@@ -10,9 +10,16 @@ import { EtagMismatch } from 'pmtiles'
 import { DetailTileArchive } from '@/trip/detail-tiles/DetailTileArchive'
 import { detailTilesKey } from '@/trip/detail-tiles/detail-tile-source'
 
-import type { ItineraryContent } from '@/trip/domain/domain'
+import type {
+  IsoDate,
+  ItineraryContent,
+  ScheduleDetail,
+  ScheduleId,
+} from '@/trip/domain/domain'
 import { OperationId } from '@/trip/domain/domain'
 import { Itineraries } from '@/trip/itineraries/Itineraries'
+import { option1 } from '@/trip/itineraries/option-1'
+import { option2 } from '@/trip/itineraries/option-2'
 import { LocationLinkResolver } from '@/trip/location-links/LocationLinkResolver'
 import { migrations } from '@/trip/schedule-store/migrations'
 import { recordedResponses } from '@/trip/location-links/recorded-location-links'
@@ -49,6 +56,12 @@ export const liveTrip = Trip.layer.pipe(
     Layer.succeed(LocationLinkResolver, recordedLinks),
   ]),
 )
+
+/** A Trip whose only Itinerary is Option 1. */
+export const tripWithOption1 = tripWith([option1])
+
+/** A Trip offering Option 1 and Option 2. */
+export const tripWithOptions1And2 = tripWith([option1, option2])
 
 const fixture = (name: string) =>
   Uint8Array.from(readFileSync(new URL(name, import.meta.url)))
@@ -129,3 +142,71 @@ export const operation = (n: number) =>
  */
 export const assertFailedWith = <E extends Error>(actual: E, expected: E) =>
   deepStrictEqual(actual, expected)
+
+/** Chooses the Itinerary with this Option number, as operation `n`. */
+export const choose = (
+  optionNumber: number,
+  n: number,
+  replacing: ScheduleId | null,
+) =>
+  Effect.map(
+    Trip.use((trip) =>
+      trip.choose({ operationId: operation(n), optionNumber, replacing }),
+    ),
+    ({ scheduleId }) => scheduleId,
+  )
+
+/** Chooses Option 1, as operation `n`. */
+export const chooseOption1 = (n: number, replacing: ScheduleId | null) =>
+  choose(1, n, replacing)
+
+/** Restores an archived Schedule, as operation `n`. */
+export const restore = (
+  scheduleId: ScheduleId,
+  n: number,
+  replacing: ScheduleId,
+) =>
+  Trip.use((trip) =>
+    trip.restore({ operationId: operation(n), scheduleId, replacing }),
+  )
+
+export const currentSchedule = Effect.map(
+  Trip.use((trip) => trip.schedules),
+  ({ current }) => Option.getOrThrow(current),
+)
+
+export const scheduleById = (scheduleId: ScheduleId) =>
+  Trip.use((trip) => trip.schedule(scheduleId))
+
+export const staysOf = (scheduleId: ScheduleId) =>
+  Effect.map(scheduleById(scheduleId), ({ stays }) => stays)
+
+export const stayIdAt = (schedule: ScheduleDetail, index: number) =>
+  schedule.stays[index]?.id ?? ''
+
+/** The Kyoto Stay, second in Option 1 and Option 2. */
+export const kyotoStayId = (scheduleId: ScheduleId) =>
+  Effect.map(staysOf(scheduleId), (stays) => stays[1]?.id ?? '')
+
+export const kyotoHotelOf = (scheduleId: ScheduleId) =>
+  Effect.map(staysOf(scheduleId), (stays) => stays[1]?.hotel)
+
+export const activitiesOn = (date: IsoDate) =>
+  Effect.map(
+    Trip.use((trip) => trip.day(date)),
+    (page) => Option.getOrThrow(page).day.activities,
+  )
+
+export const tonightsHotel = (date: IsoDate) =>
+  Effect.map(
+    Trip.use((trip) => trip.day(date)),
+    (page) => Option.getOrThrow(page).tonight?.hotel,
+  )
+
+export const checklistItems = Effect.map(
+  Trip.use((trip) => trip.checklist),
+  ({ items }) => items,
+)
+
+export const tick = (scheduleId: ScheduleId, itemId: string, ticked = true) =>
+  Trip.use((trip) => trip.tickChecklistItem({ scheduleId, itemId, ticked }))

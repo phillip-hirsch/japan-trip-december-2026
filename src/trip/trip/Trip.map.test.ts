@@ -4,20 +4,8 @@ import { Effect, Option } from 'effect'
 import { december } from '@/trip/domain/domain'
 import type { IsoDate, Pin, ScheduleId } from '@/trip/domain/domain'
 import { places } from '@/trip/catalogue/places'
-import { liveTrip, operation, storage } from '@/trip/trip/testing'
+import { choose, liveTrip, operation, storage } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
-
-const choose = (
-  optionNumber: number,
-  n: number,
-  replacing: ScheduleId | null,
-) =>
-  Effect.map(
-    Trip.use((trip) =>
-      trip.choose({ operationId: operation(n), optionNumber, replacing }),
-    ),
-    ({ scheduleId }) => scheduleId,
-  )
 
 const scheduleMap = Trip.use((trip) => trip.scheduleMap)
 

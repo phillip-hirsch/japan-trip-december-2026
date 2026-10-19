@@ -1,40 +1,27 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option } from 'effect'
+import { Effect } from 'effect'
 
 import { AnchorWarning, december } from '@/trip/domain/domain'
 import type {
   ItineraryContent,
   IsoDate,
   ScheduleDetail,
-  ScheduleId,
   Stay,
 } from '@/trip/domain/domain'
 import { option1 } from '@/trip/itineraries/option-1'
-import { operation, storage, tripWith } from '@/trip/trip/testing'
+import {
+  checklistItems,
+  chooseOption1,
+  currentSchedule,
+  operation,
+  scheduleById,
+  stayIdAt,
+  storage,
+  tick,
+  tripWith,
+  tripWithOption1,
+} from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
-
-const trip = tripWith([option1])
-
-const choose = (n: number, replacing: ScheduleId | null) =>
-  Effect.map(
-    Trip.use((trip) =>
-      trip.choose({ operationId: operation(n), optionNumber: 1, replacing }),
-    ),
-    ({ scheduleId }) => scheduleId,
-  )
-
-const currentSchedule = Effect.map(
-  Trip.use((trip) => trip.schedules),
-  ({ current }) => Option.getOrThrow(current),
-)
-
-const scheduleById = (scheduleId: ScheduleId) =>
-  Trip.use((trip) => trip.schedule(scheduleId))
-
-const checklistItems = Effect.map(
-  Trip.use((trip) => trip.checklist),
-  ({ items }) => items,
-)
 
 const option1With = (
   ...ranges: ReadonlyArray<readonly [base: Stay['base'], number, number]>
@@ -58,9 +45,9 @@ const option1With = (
 describe('Anchor warnings', () => {
   it.effect('are none for a Schedule keeping every Anchor', () =>
     Effect.gen(function* () {
-      yield* choose(1, null)
+      yield* chooseOption1(1, null)
       assert.deepStrictEqual((yield* currentSchedule).anchorWarnings, [])
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   const cases: ReadonlyArray<
@@ -111,7 +98,7 @@ describe('Anchor warnings', () => {
       `are derived for a Schedule with ${reason} each time it's read`,
       () =>
         Effect.gen(function* () {
-          const scheduleId = yield* choose(1, null)
+          const scheduleId = yield* chooseOption1(1, null)
           assert.deepStrictEqual(
             (yield* currentSchedule).anchorWarnings,
             warnings,
@@ -125,23 +112,15 @@ describe('Anchor warnings', () => {
   }
 })
 
-const stayIdAt = (schedule: ScheduleDetail, index: number) =>
-  schedule.stays[index]?.id ?? ''
-
 const moveIdOn = (schedule: ScheduleDetail, date: IsoDate) =>
   schedule.days.find((day) => day.date === date)?.move?.id ?? ''
-
-const tick = (scheduleId: ScheduleId, itemId: string) =>
-  Trip.use((trip) =>
-    trip.tickChecklistItem({ scheduleId, itemId, ticked: true }),
-  )
 
 describe('Stay edits', () => {
   it.effect(
     'drop the Checklist items and ticks of the Stay and Move they remove, keeping the ticks of the rest',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
         const [kyotoId, kanazawaId] = [stayIdAt(before, 1), stayIdAt(before, 2)]
         const into = moveIdOn(before, december(13))
@@ -189,6 +168,6 @@ describe('Stay edits', () => {
           .map((item) => item.id)
 
         assert.sameMembers(ticked, [kyotoId, outOf])
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })

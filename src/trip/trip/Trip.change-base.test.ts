@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option } from 'effect'
+import { Effect } from 'effect'
 
 import {
   AnchorWarning,
@@ -11,35 +11,18 @@ import {
   StayNotFound,
 } from '@/trip/domain/domain'
 import type { ScheduleDetail, ScheduleId } from '@/trip/domain/domain'
-import { option1 } from '@/trip/itineraries/option-1'
 import {
   assertFailedWith,
-  operation,
+  chooseOption1,
+  currentSchedule,
+  stayIdAt,
   storage,
-  tripWith,
+  tripWithOption1,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
-const trip = tripWith([option1])
-
-const choose = (n: number, replacing: ScheduleId | null) =>
-  Effect.map(
-    Trip.use((trip) =>
-      trip.choose({ operationId: operation(n), optionNumber: 1, replacing }),
-    ),
-    ({ scheduleId }) => scheduleId,
-  )
-
-const currentSchedule = Effect.map(
-  Trip.use((trip) => trip.schedules),
-  ({ current }) => Option.getOrThrow(current),
-)
-
 const changeBase = (scheduleId: ScheduleId, stayId: string, place: string) =>
   Trip.use((trip) => trip.changeStayBase({ scheduleId, stayId, place }))
-
-const stayId = (schedule: ScheduleDetail, index: number) =>
-  schedule.stays[index]?.id ?? ''
 
 const movesOf = (schedule: ScheduleDetail) =>
   schedule.days.flatMap(({ date, move }) =>
@@ -60,9 +43,9 @@ describe('Trip.changeStayBase', () => {
     "changes the Base to a catalogue place, keeping the Stay's id and dates",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
-        const kanazawaId = stayId(before, 2)
+        const kanazawaId = stayIdAt(before, 2)
 
         const { schedule } = yield* changeBase(scheduleId, kanazawaId, 'osaka')
 
@@ -74,42 +57,42 @@ describe('Trip.changeStayBase', () => {
             checkOut,
           ]),
           [
-            [stayId(before, 0), 'tokyo', december(6), december(9)],
-            [stayId(before, 1), 'kyoto', december(9), december(13)],
+            [stayIdAt(before, 0), 'tokyo', december(6), december(9)],
+            [stayIdAt(before, 1), 'kyoto', december(9), december(13)],
             [kanazawaId, 'osaka', december(13), december(17)],
-            [stayId(before, 3), 'tokyo', december(17), december(20)],
+            [stayIdAt(before, 3), 'tokyo', december(17), december(20)],
           ],
         )
         assert.deepStrictEqual(yield* currentSchedule, schedule)
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect("clears the Stay's copied highlights", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, null)
+      const scheduleId = yield* chooseOption1(1, null)
       const before = yield* currentSchedule
       assert.isNotEmpty(before.stays[2]?.highlights)
 
       const { schedule } = yield* changeBase(
         scheduleId,
-        stayId(before, 2),
+        stayIdAt(before, 2),
         'osaka',
       )
 
       assert.deepStrictEqual(schedule.stays[2]?.highlights, [])
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     'leaves the adjoining Moves their mode, without rail sections or a duration, and the other Moves as they were',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
 
         const { schedule } = yield* changeBase(
           scheduleId,
-          stayId(before, 2),
+          stayIdAt(before, 2),
           'osaka',
         )
 
@@ -137,17 +120,17 @@ describe('Trip.changeStayBase', () => {
           schedule.days.map(({ move }) => move?.id),
           before.days.map(({ move }) => move?.id),
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect('strips only the one Move next to the first Stay', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, null)
+      const scheduleId = yield* chooseOption1(1, null)
       const before = yield* currentSchedule
 
       const { schedule } = yield* changeBase(
         scheduleId,
-        stayId(before, 0),
+        stayIdAt(before, 0),
         'kamakura',
       )
 
@@ -159,14 +142,14 @@ describe('Trip.changeStayBase', () => {
           [december(17), 1],
         ],
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect("keeps the Stay's Hotel details, Stay note and ticks", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, null)
+      const scheduleId = yield* chooseOption1(1, null)
       const before = yield* currentSchedule
-      const kanazawaId = stayId(before, 2)
+      const kanazawaId = stayIdAt(before, 2)
       const moveId = before.days[7]?.move?.id ?? ''
       const details = { name: 'Hotel Kanazawa', confirmationNumber: 'K-1' }
 
@@ -219,19 +202,19 @@ describe('Trip.changeStayBase', () => {
           ['ReserveSeats', moveId, undefined],
         ],
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     'returns the Anchor warnings a change breaks, without blocking it',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, null)
+        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
 
         const notInKyoto = yield* changeBase(
           scheduleId,
-          stayId(before, 1),
+          stayIdAt(before, 1),
           'osaka',
         )
 
@@ -242,7 +225,7 @@ describe('Trip.changeStayBase', () => {
 
         const outsideTokyo = yield* changeBase(
           scheduleId,
-          stayId(before, 3),
+          stayIdAt(before, 3),
           'hakone',
         )
 
@@ -251,7 +234,7 @@ describe('Trip.changeStayBase', () => {
           AnchorWarning.cases.EndsOutsideTokyo.make({ base: 'hakone' }),
         ])
         assert.deepStrictEqual(yield* currentSchedule, outsideTokyo.schedule)
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   for (const place of ['atlantis', 'Osaka', 'constructor', '']) {
@@ -259,11 +242,11 @@ describe('Trip.changeStayBase', () => {
       `refuses "${place}", a place outside the catalogue, changing nothing`,
       () =>
         Effect.gen(function* () {
-          const scheduleId = yield* choose(1, null)
+          const scheduleId = yield* chooseOption1(1, null)
           const before = yield* currentSchedule
 
           const error = yield* Effect.flip(
-            changeBase(scheduleId, stayId(before, 2), place),
+            changeBase(scheduleId, stayIdAt(before, 2), place),
           )
 
           assertFailedWith(
@@ -273,54 +256,54 @@ describe('Trip.changeStayBase', () => {
             }),
           )
           assert.deepStrictEqual(yield* currentSchedule, before)
-        }).pipe(Effect.provide([trip, storage])),
+        }).pipe(Effect.provide([tripWithOption1, storage])),
     )
   }
 
   it.effect('changes nothing when the Base is already that place', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, null)
+      const scheduleId = yield* chooseOption1(1, null)
       const before = yield* currentSchedule
 
       const { schedule } = yield* changeBase(
         scheduleId,
-        stayId(before, 2),
+        stayIdAt(before, 2),
         'kanazawa',
       )
 
       assert.deepStrictEqual(schedule, before)
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect("refuses a Stay the Schedule doesn't have, changing nothing", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, null)
+      const scheduleId = yield* chooseOption1(1, null)
       const before = yield* currentSchedule
 
       const error = yield* Effect.flip(changeBase(scheduleId, 'gone', 'osaka'))
 
       assert.deepStrictEqual(error, new StayNotFound({ stayId: 'gone' }))
       assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     'refuses an archived or out-of-date Schedule with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const archived = yield* choose(1, null)
-        yield* choose(2, archived)
+        const archived = yield* chooseOption1(1, null)
+        yield* chooseOption1(2, archived)
         const scheduleById = Trip.use((trip) => trip.schedule(archived))
         const before = yield* scheduleById
         const current = yield* currentSchedule
 
         const error = yield* Effect.flip(
-          changeBase(archived, stayId(before, 2), 'osaka'),
+          changeBase(archived, stayIdAt(before, 2), 'osaka'),
         )
 
         assert.strictEqual(error._tag, 'ScheduleChanged')
         assert.deepStrictEqual(yield* scheduleById, before)
         assert.deepStrictEqual(yield* currentSchedule, current)
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })

@@ -2,15 +2,17 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect, Predicate } from 'effect'
 
 import { december, TimeOfDay, TokyoDateTime } from '@/trip/domain/domain'
-import { storage } from '@/trip/trip/testing'
 import {
-  trip,
+  activitiesOn,
   choose,
+  storage,
+  tripWithOptions1And2,
+} from '@/trip/trip/testing'
+import {
   add,
   edit,
   remove,
   move,
-  activitiesOn,
   describedOn,
   dayWithThree,
 } from '@/trip/trip/Trip.activities.testing'
@@ -31,7 +33,7 @@ describe('Trip.editActivity', () => {
         '17:00 Walk Gion at dusk (Hanami-koji first.)',
         '19:00 Birthday dinner',
       ])
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -49,7 +51,7 @@ describe('Trip.editActivity', () => {
           '--:-- Walk Gion',
           '19:00 Birthday dinner',
         ])
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -67,7 +69,7 @@ describe('Trip.editActivity', () => {
         assert.deepStrictEqual(yield* activitiesOn(december(14)), [
           { id: onsen, title: 'Onsen' },
         ])
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -89,7 +91,7 @@ describe('Trip.editActivity', () => {
           (yield* activitiesOn(december(20))).map(({ time }) => time),
           [TokyoDateTime.make('2026-12-20T23:59:00.000+09:00[Asia/Tokyo]')],
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('lets the last write win for each field it carries', () =>
@@ -106,7 +108,7 @@ describe('Trip.editActivity', () => {
       assert.deepStrictEqual(yield* describedOn(december(14)), [
         '18:00 Onsen, Gora (Bring a towel.)',
       ])
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('refuses a blank title and an overlong note, writing nothing', () =>
@@ -137,7 +139,7 @@ describe('Trip.editActivity', () => {
           activities: ['--:-- Onsen'],
         },
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 })
 
@@ -150,7 +152,7 @@ describe('Trip.removeActivity', () => {
         '09:00 Kiyomizu-dera',
         '19:00 Birthday dinner',
       ])
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 })
 
@@ -177,7 +179,7 @@ describe('Trip.moveActivity', () => {
           ],
         },
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('keeps the moved order for timed Activities added later', () =>
@@ -191,7 +193,7 @@ describe('Trip.moveActivity', () => {
         '09:00 Kiyomizu-dera',
         '--:-- Walk Gion',
       ])
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect(
@@ -219,6 +221,6 @@ describe('Trip.moveActivity', () => {
             ],
           },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 })

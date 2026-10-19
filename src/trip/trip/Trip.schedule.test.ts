@@ -5,7 +5,13 @@ import { ScheduleId, ScheduleNotFound } from '@/trip/domain/domain'
 import type { ItineraryContent } from '@/trip/domain/domain'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
-import { operation, setTime, storage, tripWith } from '@/trip/trip/testing'
+import {
+  currentSchedule,
+  operation,
+  setTime,
+  storage,
+  tripWith,
+} from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import {
   option1WithEveryAttachment,
@@ -16,7 +22,6 @@ import {
   choose,
   schedules,
   archivedSchedules,
-  currentSchedule,
   withoutIds,
   withoutActivities,
   withoutHotels,

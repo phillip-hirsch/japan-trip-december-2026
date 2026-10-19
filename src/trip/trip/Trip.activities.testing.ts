@@ -1,35 +1,10 @@
-import { Effect, Option } from 'effect'
+import { Effect } from 'effect'
 
 import { timeOfDayOf } from '@/trip/domain/calendar'
 import { december, IsoDate, TimeOfDay } from '@/trip/domain/domain'
 import type { Activity, EditActivity, ScheduleId } from '@/trip/domain/domain'
-import { option1 } from '@/trip/itineraries/option-1'
-import { option2 } from '@/trip/itineraries/option-2'
-import { operation, tripWith } from '@/trip/trip/testing'
+import { activitiesOn, choose, operation } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
-
-export const trip = tripWith([option1, option2])
-
-export const choose = (
-  optionNumber: number,
-  n: number,
-  replacing: ScheduleId | null,
-) =>
-  Effect.map(
-    Trip.use((trip) =>
-      trip.choose({ operationId: operation(n), optionNumber, replacing }),
-    ),
-    ({ scheduleId }) => scheduleId,
-  )
-
-export const restore = (
-  scheduleId: ScheduleId,
-  n: number,
-  replacing: ScheduleId,
-) =>
-  Trip.use((trip) =>
-    trip.restore({ operationId: operation(n), scheduleId, replacing }),
-  )
 
 export const add = (
   n: number,
@@ -65,12 +40,6 @@ export const move = (
   activityId: string,
   before: string | null,
 ) => Trip.use((trip) => trip.moveActivity({ scheduleId, activityId, before }))
-
-export const activitiesOn = (date: IsoDate) =>
-  Effect.map(
-    Trip.use((trip) => trip.day(date)),
-    (page) => Option.getOrThrow(page).day.activities,
-  )
 
 export const described = ({ title, time, note }: Activity) =>
   [
