@@ -215,7 +215,7 @@ describe('Trip.addActivity', () => {
   )
 })
 
-describe('Activity writes to a missing, stale or archived target', () => {
+describe('Activity writes to a missing target', () => {
   it.effect('fail with ActivityNotFound for an Activity since removed', () =>
     Effect.gen(function* () {
       const { scheduleId, walk, temple } = yield* dayWithThree
@@ -239,72 +239,6 @@ describe('Activity writes to a missing, stale or archived target', () => {
         [true, true, true, true],
       )
     }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
-  it.effect(
-    'refuse every write naming a stale Schedule id with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const { scheduleId: stale, walk, temple } = yield* dayWithThree
-        yield* choose(2, 5, stale)
-
-        const errors = yield* Effect.all([
-          Effect.flip(
-            edit({ scheduleId: stale, activityId: walk, title: 'Renamed' }),
-          ),
-          Effect.flip(remove(stale, walk)),
-          Effect.flip(move(stale, walk, temple)),
-        ])
-
-        assert.deepStrictEqual(
-          errors.map(({ _tag }) => _tag),
-          ['ScheduleChanged', 'ScheduleChanged', 'ScheduleChanged'],
-        )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
-  it.effect(
-    'reject every write to an archived Schedule, leaving it as it was',
-    () =>
-      Effect.gen(function* () {
-        const { scheduleId: archived, walk, temple } = yield* dayWithThree
-        yield* choose(2, 5, archived)
-
-        const errors = yield* Effect.all([
-          Effect.flip(add(6, archived, december(15), 'Added after archiving')),
-          Effect.flip(
-            edit({ scheduleId: archived, activityId: walk, title: 'Renamed' }),
-          ),
-          Effect.flip(remove(archived, walk)),
-          Effect.flip(move(archived, walk, temple)),
-        ])
-
-        const schedule = yield* Trip.use((trip) => trip.schedule(archived))
-
-        assert.deepStrictEqual(
-          {
-            errors: errors.map(({ _tag }) => _tag),
-            status: schedule.status,
-            activities: schedule.days
-              .find((day) => day.date === december(15))
-              ?.activities.map(described),
-          },
-          {
-            errors: [
-              'ScheduleChanged',
-              'ScheduleChanged',
-              'ScheduleChanged',
-              'ScheduleChanged',
-            ],
-            status: 'archived',
-            activities: [
-              '09:00 Kiyomizu-dera',
-              '--:-- Walk Gion',
-              '19:00 Birthday dinner',
-            ],
-          },
-        )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 })
 

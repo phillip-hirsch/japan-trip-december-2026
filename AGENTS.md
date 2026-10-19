@@ -98,6 +98,10 @@ Import from `src/` with the `@/` alias (`@/routes/...` for `src/routes/...`).
 
 A module over the pre-commit token limit splits into `<Module>.<area>.ts` siblings by Trip area: Itinerary, Schedule, Stays, Notes, Checklist, Activities and Detail tiles. One more sibling holds the pieces several areas share. The Trip service also keeps the checks its writes share in `Trip.guards.ts`, and its whole interface, every method with its doc comment, in `Trip.contract.ts`. The original path stays the entry point. It re-exports every sibling and keeps any area too small for its own file. Other modules import only the entry. Siblings import each other but never the entry, because that cycle fails when the modules load.
 
+### Trip writes
+
+Every Trip write to the Schedule store is its own input checks plus one call to the Schedule-write unit in `src/trip/trip/Trip.guards.ts`: `scheduleWrite`, or `tripWrite` for a write that names no Schedule, such as the Trip note. The unit replays a repeated operation id, refuses a Schedule that isn't current with Schedule changed, runs the write in one transaction, records its result, and turns storage failures into defects. A write never opens its own transaction or checks the Schedule itself. Its target declares once whether it takes an operation id. `Trip.schedule-writes.test.ts` covers this for every write, so a feature test keeps just one Schedule changed case.
+
 ### Cloudflare bindings
 
 Dev and build use `cf dev` and `cf build`, which read `cloudflare.config.ts`. Deploy is `cf build`, then `cf deploy --prebuilt --mode production` ([ADR 0005](docs/adr/0005-use-cf-cli-for-dev-and-build.md)). `wrangler.jsonc` stays for `wrangler tail`, `wrangler secret put`, and `wrangler types`. Keep the two files in step. `worker-configuration.d.ts` is generated: run `vp run cf-typegen` after a `wrangler.jsonc` change and commit the result. Server code reads the typed environment with `import { env } from 'cloudflare:workers'`.

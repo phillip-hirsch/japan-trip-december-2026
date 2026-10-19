@@ -19,7 +19,12 @@ import { reminderDateOf } from '@/trip/domain/checklist-items'
 import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
 import { scheduleStore } from '@/trip/schedule-store/schedule-store'
 import type { OwnChecklistItem } from '@/trip/schedule-store/schedule-store'
-import { requireChecklistText, requireCurrent } from '@/trip/trip/Trip.guards'
+import {
+  namedSchedule,
+  requireChecklistText,
+  scheduleWrite,
+  tripWrite,
+} from '@/trip/trip/Trip.guards'
 import { moveDetailsOf, staySummaryOf } from '@/trip/trip/Trip.shared'
 
 const monthBefore = (date: IsoDate) =>
@@ -199,71 +204,62 @@ const checklist = Effect.gen(function* () {
   Effect.withSpan('Trip.checklist'),
 )
 
-const tickChecklistItem = Effect.fn('Trip.tickChecklistItem')(
-  function* ({ scheduleId, itemId, ticked }: TickChecklistItem) {
-    const store = yield* scheduleStore
-    yield* store.transaction(
-      Effect.gen(function* () {
-        yield* requireCurrent(store, scheduleId)
-        const found = yield* store.scheduleById(scheduleId)
+const tickChecklistItem = Effect.fn('Trip.tickChecklistItem')(function* ({
+  scheduleId,
+  itemId,
+  ticked,
+}: TickChecklistItem) {
+  yield* scheduleWrite({ naming: scheduleId }, (store) =>
+    Effect.gen(function* () {
+      const { copy } = yield* namedSchedule(store, scheduleId)
 
-        const derives = Option.exists(found, ({ copy }) =>
-          derivedChecklistOf(copy, new Set()).some(
-            (item) => item.id === itemId,
-          ),
-        )
+      const derives = derivedChecklistOf(copy, new Set()).some(
+        (item) => item.id === itemId,
+      )
 
-        if (!derives) return yield* new ChecklistItemNotFound({ itemId })
-        yield* store.writeTick(scheduleId, itemId, ticked)
-      }),
-    )
-  },
-  Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-)
+      if (!derives) return yield* new ChecklistItemNotFound({ itemId })
+      yield* store.writeTick(scheduleId, itemId, ticked)
+    }),
+  )
+})
 
-const addOwnChecklistItem = Effect.fn('Trip.addOwnChecklistItem')(
-  function* ({ operationId, text, reminderDate }: AddOwnChecklistItem) {
-    const trimmed = yield* requireChecklistText(text)
-    const store = yield* scheduleStore
+const addOwnChecklistItem = Effect.fn('Trip.addOwnChecklistItem')(function* ({
+  operationId,
+  text,
+  reminderDate,
+}: AddOwnChecklistItem) {
+  const trimmed = yield* requireChecklistText(text)
 
-    return yield* store.transaction(
-      Effect.gen(function* () {
-        const recorded = yield* store.recordedResult(OwnChecklistItemAdded)(
-          operationId,
-        )
+  return yield* tripWrite(
+    { recorded: { operationId, result: OwnChecklistItemAdded } },
+    (store) => {
+      const itemId = crypto.randomUUID()
 
-        if (Option.isSome(recorded)) return recorded.value.result
-        const added = { itemId: crypto.randomUUID() }
-        yield* store.addOwnItem(added.itemId, trimmed, reminderDate ?? null)
-        yield* store.recordResult(OwnChecklistItemAdded)({
-          id: operationId,
-          result: added,
-        })
+      return Effect.as(
+        store.addOwnItem(itemId, trimmed, reminderDate ?? null),
+        { itemId },
+      )
+    },
+  )
+})
 
-        return added
-      }),
-    )
-  },
-  Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-)
-
-const tickOwnChecklistItem = Effect.fn('Trip.tickOwnChecklistItem')(
-  function* ({ itemId, ticked }: TickOwnChecklistItem) {
-    const store = yield* scheduleStore
-
-    if (!(yield* store.writeOwnTick(itemId, ticked))) {
-      return yield* new ChecklistItemNotFound({ itemId })
-    }
-  },
-  Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-)
+const tickOwnChecklistItem = Effect.fn('Trip.tickOwnChecklistItem')(function* ({
+  itemId,
+  ticked,
+}: TickOwnChecklistItem) {
+  yield* tripWrite({}, (store) =>
+    Effect.gen(function* () {
+      if (!(yield* store.writeOwnTick(itemId, ticked))) {
+        return yield* new ChecklistItemNotFound({ itemId })
+      }
+    }),
+  )
+})
 
 const removeOwnChecklistItem = Effect.fn('Trip.removeOwnChecklistItem')(
   function* ({ itemId }: RemoveOwnChecklistItem) {
-    const store = yield* scheduleStore
-    yield* store.removeOwnItem(itemId)
+    yield* tripWrite({}, (store) => store.removeOwnItem(itemId))
   },
-  Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
 )
 
 /** The Checklist read, its ticks and Phillip's own items. */

@@ -77,34 +77,6 @@ describe('Trip.writeDayNote', () => {
       }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
-  it.effect(
-    'rejects a write to an archived Schedule, leaving it as it was',
-    () =>
-      Effect.gen(function* () {
-        const archived = yield* choose(1, 1, null)
-        yield* writeDayNote(archived, december(14), 'Book the onsen.')
-        yield* choose(2, 2, archived)
-
-        const error = yield* Effect.flip(
-          writeDayNote(archived, december(14), 'Rewritten after archiving.'),
-        )
-
-        const schedule = yield* Trip.use((trip) => trip.schedule(archived))
-        assert.deepStrictEqual(
-          {
-            tag: error._tag,
-            status: schedule.status,
-            note: schedule.days.find((day) => day.date === december(14))?.note,
-          },
-          {
-            tag: 'ScheduleChanged',
-            status: 'archived',
-            note: 'Book the onsen.',
-          },
-        )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
   it.effect('fails with DayNotFound for a Day the Schedule lacks', () =>
     Effect.gen(function* () {
       const scheduleId = yield* choose(1, 1, null)
@@ -210,49 +182,6 @@ describe('Trip.writeStayNote', () => {
         'Try the kissaten by Exit 3.',
       )
     }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
-  it.effect(
-    'refuses a write naming a stale Schedule id with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const stale = yield* choose(1, 1, null)
-        const staleStayId = yield* firstStayId(stale)
-        const current = yield* choose(2, 2, stale)
-
-        const error = yield* Effect.flip(
-          writeStayNote(stale, staleStayId, 'Written on an old screen.'),
-        )
-
-        assert.deepStrictEqual(
-          {
-            tag: error._tag,
-            stale: yield* stayNotesOf(stale),
-            current: yield* stayNotesOf(current),
-          },
-          { tag: 'ScheduleChanged', stale: [], current: [] },
-        )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
-  it.effect(
-    'rejects a write to an archived Schedule, leaving it as it was',
-    () =>
-      Effect.gen(function* () {
-        const archived = yield* choose(1, 1, null)
-        const stayId = yield* firstStayId(archived)
-        yield* writeStayNote(archived, stayId, 'Asakusa is quiet at night.')
-        yield* choose(2, 2, archived)
-
-        const error = yield* Effect.flip(
-          writeStayNote(archived, stayId, 'Rewritten after archiving.'),
-        )
-
-        assert.deepStrictEqual(
-          { tag: error._tag, note: yield* firstStayNote(archived) },
-          { tag: 'ScheduleChanged', note: 'Asakusa is quiet at night.' },
-        )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 
   it.effect('fails with StayNotFound for a Stay the Schedule lacks', () =>
