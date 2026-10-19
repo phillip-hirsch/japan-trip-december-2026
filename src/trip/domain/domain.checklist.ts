@@ -10,7 +10,7 @@ import { ScheduleId } from '@/trip/domain/domain.schedule'
 import {
   OperationId,
   ScheduleChanged,
-  writeOutcome,
+  operationOutcome,
 } from '@/trip/domain/domain.writes'
 
 /**
@@ -136,21 +136,21 @@ export class ChecklistTextInvalid extends Schema.TaggedError<ChecklistTextInvali
   { maxLength: Schema.Int },
 ) {}
 
-export const TickChecklistItemOutcome = writeOutcome('Ticked', {}, [
+export const TickChecklistItemOutcome = operationOutcome('Ticked', {}, [
   ScheduleChanged,
   ChecklistItemNotFound,
 ])
 
 export type TickChecklistItemOutcome = typeof TickChecklistItemOutcome.Type
 
-export const TickOwnChecklistItemOutcome = writeOutcome('Ticked', {}, [
+export const TickOwnChecklistItemOutcome = operationOutcome('Ticked', {}, [
   ChecklistItemNotFound,
 ])
 
 export type TickOwnChecklistItemOutcome =
   typeof TickOwnChecklistItemOutcome.Type
 
-export const AddOwnChecklistItemOutcome = writeOutcome(
+export const AddOwnChecklistItemOutcome = operationOutcome(
   'Added',
   OwnChecklistItemAdded.fields,
   [ChecklistTextInvalid],
@@ -158,7 +158,7 @@ export const AddOwnChecklistItemOutcome = writeOutcome(
 
 export type AddOwnChecklistItemOutcome = typeof AddOwnChecklistItemOutcome.Type
 
-export const RemoveOwnChecklistItemOutcome = writeOutcome('Removed', {}, [])
+export const RemoveOwnChecklistItemOutcome = operationOutcome('Removed', {}, [])
 
 export type RemoveOwnChecklistItemOutcome =
   typeof RemoveOwnChecklistItemOutcome.Type

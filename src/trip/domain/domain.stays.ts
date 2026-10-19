@@ -10,7 +10,7 @@ import {
 import {
   OperationId,
   ScheduleChanged,
-  writeOutcome,
+  operationOutcome,
 } from '@/trip/domain/domain.writes'
 
 export class StayNotFound extends Schema.TaggedError<StayNotFound>()(
@@ -61,12 +61,11 @@ export const StaysEdited = Schema.Struct({ schedule: ScheduleDetail })
 
 export type StaysEdited = typeof StaysEdited.Type
 
-export const StayEditOutcome = Schema.TaggedUnion({
-  Edited: StaysEdited.fields,
-  ScheduleChanged: ScheduleChanged.fields,
-  StayNotFound: StayNotFound.fields,
-  HardRuleBroken: HardRuleBroken.fields,
-})
+export const StayEditOutcome = operationOutcome('Edited', StaysEdited.fields, [
+  ScheduleChanged,
+  StayNotFound,
+  HardRuleBroken,
+])
 
 export type StayEditOutcome = typeof StayEditOutcome.Type
 
@@ -127,7 +126,7 @@ export const ChangeStayBase = Schema.Struct({
 
 export type ChangeStayBase = typeof ChangeStayBase.Type
 
-export const WriteHotelDetailsOutcome = writeOutcome('Written', {}, [
+export const WriteHotelDetailsOutcome = operationOutcome('Written', {}, [
   ScheduleChanged,
   StayNotFound,
   HotelDetailTooLong,
