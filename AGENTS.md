@@ -90,6 +90,10 @@ Browser code may value-import only `Predicate`, `Data` and `Match` from `effect`
 
 Import from `src/` with the `@/` alias (`@/routes/...` for `src/routes/...`).
 
+### Splitting a module
+
+A module over the pre-commit token limit splits into `<Module>.<area>.ts` siblings by Trip area: Itinerary, Schedule, Stays, Notes, Checklist, Activities and Detail tiles. One more sibling holds the pieces several areas share. The original path stays the entry point. It re-exports every sibling and keeps any area too small for its own file. Other modules import only the entry. Siblings import each other but never the entry, because that cycle fails when the modules load.
+
 ### Cloudflare bindings
 
 Dev and build use `cf dev` and `cf build`, which read `cloudflare.config.ts`. Deploy is `cf build`, then `cf deploy --prebuilt --mode production` ([ADR 0005](docs/adr/0005-use-cf-cli-for-dev-and-build.md)). `wrangler.jsonc` stays for `wrangler tail`, `wrangler secret put`, and `wrangler types`. Keep the two files in step. `worker-configuration.d.ts` is generated: run `vp run cf-typegen` after a `wrangler.jsonc` change and commit the result. Server code reads the typed environment with `import { env } from 'cloudflare:workers'`.
