@@ -538,9 +538,9 @@ function AddActivityForm({
       form="untilShown"
       nameForm={false}
       ready={value.title.trim() !== ''}
-      summary={null}
-      editLabel="Add an Activity"
-      editIcon={PlusIcon}
+      edits={[
+        { label: 'Add an Activity', icon: PlusIcon, onClick: field.edit },
+      ]}
     >
       {(frame) => (
         <ActivityInputs

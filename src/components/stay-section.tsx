@@ -1,7 +1,22 @@
 import { useId } from 'react'
 import type { ReactNode } from 'react'
 
-import type { ScheduleStayDetail } from '@/trip/domain/domain'
+import type {
+  AnchorWarning,
+  ScheduleId,
+  ScheduleStayDetail,
+} from '@/trip/domain/domain'
+
+/**
+ * What a Stay edit editor works on: a Stay of the Schedule shown, the Stay
+ * after it if any, and the Anchor warnings before the edit.
+ */
+export interface StayEditorProps {
+  readonly scheduleId: ScheduleId
+  readonly stay: ScheduleStayDetail
+  readonly next: ScheduleStayDetail | undefined
+  readonly anchorWarnings: ReadonlyArray<AnchorWarning>
+}
 
 export function StaySection({
   heading,
