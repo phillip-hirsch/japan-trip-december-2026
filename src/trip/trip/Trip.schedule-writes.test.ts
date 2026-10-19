@@ -405,6 +405,32 @@ describe('Schedule writes', () => {
       }).pipe(provided),
   )
 
+  it.effect(
+    'refuse a restore of an unknown Schedule from an out-of-date screen with ScheduleChanged',
+    () =>
+      Effect.gen(function* () {
+        const { archived } = yield* currentAndArchived
+        const before = yield* shown
+
+        const error = yield* Effect.flip(
+          Trip.use((trip) =>
+            trip.restore({
+              operationId: operation(3),
+              scheduleId: ScheduleId.make(
+                '9f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f',
+              ),
+              replacing: archived,
+            }),
+          ),
+        )
+
+        assert.deepStrictEqual(
+          { tag: error._tag, shown: yield* shown },
+          { tag: 'ScheduleChanged', shown: before },
+        )
+      }).pipe(provided),
+  )
+
   it.effect('refuse a write naming a Schedule while none is current', () =>
     Effect.gen(function* () {
       const error = yield* Effect.flip(
