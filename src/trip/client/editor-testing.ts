@@ -13,8 +13,19 @@ import { isDeepStrictEqual } from 'node:util'
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import type { PlaceId } from '@/trip/catalogue/catalogue-ids'
+import { places } from '@/trip/catalogue/places'
 import { SaveState } from '@/trip/client/drafts'
 import { schedulesQuery } from '@/trip/client/queries'
+import { nightsBetween } from '@/trip/domain/calendar'
+import {
+  december,
+  Hotel,
+  IsoInstant,
+  ScheduleId,
+  StayEditOutcome,
+} from '@/trip/domain/domain'
+import type { AnchorWarning, ScheduleStayDetail } from '@/trip/domain/domain'
 
 Reflect.set(globalThis, 'IS_REACT_ACT_ENVIRONMENT', true)
 
@@ -120,3 +131,50 @@ export const openEditor = async <P extends object, F>(
     close: () => act(async () => root.unmount()),
   }
 }
+
+/** The Schedule shown, in the Stay edit tests. */
+export const scheduleId = ScheduleId.make(
+  '00000000-0000-4000-8000-00000000000a',
+)
+
+/**
+ * A Stay of the Schedule shown, in `base` from December `checkIn` to
+ * December `checkOut`, with no hotel details or note.
+ */
+export const scheduleStay = (
+  id: string,
+  base: PlaceId,
+  checkIn: number,
+  checkOut: number,
+): ScheduleStayDetail => ({
+  id,
+  base: { id: base, ...places[base], newPlace: false },
+  checkIn: december(checkIn),
+  checkOut: december(checkOut),
+  nights: nightsBetween(december(checkIn), december(checkOut)),
+  accommodation: 'hotel',
+  highlights: [],
+  verifyClaims: [],
+  hotel: Hotel.cases.NotRecorded.make({}),
+})
+
+/** A Stay edit that went through, leaving the Schedule with `anchorWarnings`. */
+export const staysEdited = (
+  anchorWarnings: ReadonlyArray<AnchorWarning> = [],
+): StayEditOutcome =>
+  StayEditOutcome.cases.Edited.make({
+    schedule: {
+      id: scheduleId,
+      status: 'current',
+      sourceOptionNumber: 1,
+      sourceContentVersion: 'v1',
+      chosenAt: IsoInstant.make('2026-10-01T00:00:00.000Z'),
+      archivedAt: null,
+      birthdayOutline: '',
+      sourceItinerary: 'unchanged',
+      verifyClaims: [],
+      stays: [],
+      days: [],
+      anchorWarnings,
+    },
+  })

@@ -47,13 +47,9 @@ interface FramedField<V> {
   readonly withdrawn?: boolean
 }
 
-interface FramedSend<V> extends FramedField<V> {
+interface FramedEditor<V> extends FramedField<V> {
   readonly discard: () => void
   readonly save: () => Promise<void>
-}
-
-interface FramedEditor<V> extends FramedSend<V> {
-  readonly edit: () => void
 }
 
 /**
@@ -122,70 +118,19 @@ export const useEditorFrame = <V,>(
     problemId,
     /** The "not saved" alert's id while it shows, for an input's aria-describedby. */
     describedBy: frame.problem === undefined ? undefined : problemId,
+    /** `hintId`, then the "not saved" alert's id while it shows. */
+    describedWith: (hintId: string) =>
+      frame.problem === undefined ? hintId : `${hintId} ${problemId}`,
   }
 }
 
 export type EditorFrameView = ReturnType<typeof useEditorFrame>
 
-function WithdrawnView({
-  frame,
-  labelledBy,
-  reason,
-  onDiscard,
-}: {
-  frame: EditorFrameView
-  labelledBy: string
-  reason: string | undefined
-  onDiscard: () => void
-}) {
-  return (
-    <div
-      role="group"
-      aria-labelledby={labelledBy}
-      className="flex flex-col items-start gap-3"
-    >
-      {frame.problem !== undefined && <NotSavedAlert problem={frame.problem} />}
-      {reason !== undefined && (
-        <p className="text-sm text-muted-foreground">{reason}</p>
-      )}
-      <Button type="button" size="sm" variant="ghost" onClick={onDiscard}>
-        {frame.discardLabel}
-      </Button>
-    </div>
-  )
-}
-
-/**
- * An edit Phillip has open that the refreshed Schedule no longer offers. It
- * shows any refusal of the edit, why it can't be sent, and how to dismiss it.
- * EditorFrame shows the same view; editors not yet on the frame use this.
- */
-export function WithdrawnEdit<V>({
-  field,
-  labelledBy,
-  reason,
-}: {
-  field: FramedField<V> & { readonly discard: () => void }
-  labelledBy: string
-  reason: string
-}) {
-  const frame = useEditorFrame(field)
-
-  return (
-    <WithdrawnView
-      frame={frame}
-      labelledBy={labelledBy}
-      reason={reason}
-      onDiscard={field.discard}
-    />
-  )
-}
-
 /**
  * A one-shot send, such as a Tick or moving an Activity, that wasn't saved:
  * why, with Retry and Dismiss. Otherwise it shows nothing.
  */
-export function SendNotSaved<V>({ field }: { field: FramedSend<V> }) {
+export function SendNotSaved<V>({ field }: { field: FramedEditor<V> }) {
   const { problem } = frameOf(field)
 
   return (
@@ -200,15 +145,23 @@ export function SendNotSaved<V>({ field }: { field: FramedSend<V> }) {
   )
 }
 
+/** A button on the summary that opens the form, such as Edit. */
+export interface EditAction {
+  readonly label: string
+  readonly icon: LucideIcon
+  readonly onClick: () => void
+  readonly disabled?: boolean
+}
+
 /**
- * The editor's summary: either its saved value with an Edit button, or, for
+ * The editor's summary: either its saved value with its Edit buttons, or, for
  * an editor that lays out its own, the whole view, given the frame.
  */
 type Summary =
   | {
-      readonly summary: ReactNode
-      readonly editLabel: string
-      readonly editIcon: LucideIcon
+      readonly summary?: ReactNode
+      /** The summary's buttons, each opening the form. */
+      readonly edits: ReadonlyArray<EditAction>
     }
   | { readonly summaryView: (frame: EditorFrameView) => ReactNode }
 
@@ -226,6 +179,8 @@ export function EditorFrame<V>({
   verb = saveVerb,
   form = 'untilSaved',
   withdrawnReason,
+  hintId,
+  buttonSize = 'default',
   actions,
   ready = true,
   nameForm = true,
@@ -239,9 +194,15 @@ export function EditorFrame<V>({
   verb?: SaveVerb
   form?: FormShown
   withdrawnReason?: string
+  /** The id of a hint in the form that describes it as a whole. */
+  hintId?: string
+  buttonSize?: 'default' | 'sm'
   /** Shown after Save and Cancel. */
   actions?: (frame: EditorFrameView) => ReactNode
-  /** Whether the value can be sent, such as an Activity once it has a title. */
+  /**
+   * Whether the value can be sent, such as an Activity once it has a title,
+   * or a Stay edit once a date still offered is chosen.
+   */
   ready?: boolean
   /**
    * Whether the heading names the form. Pass false when the heading already
@@ -260,24 +221,25 @@ export function EditorFrame<V>({
   if (frame.view === 'summary') {
     if ('summaryView' in shown) return shown.summaryView(frame)
 
-    if (!('summary' in shown)) return null
-
-    const { summary, editLabel, editIcon: EditIcon } = shown
+    if (!('edits' in shown)) return null
 
     return (
       <div className="flex flex-col items-start gap-3">
-        {summary}
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            aria-describedby={labelledBy}
-            disabled={frame.busy}
-            onClick={field.edit}
-          >
-            <EditIcon data-icon="inline-start" aria-hidden />
-            {editLabel}
-          </Button>
+        {shown.summary}
+        <div className="flex flex-wrap items-center gap-3">
+          {shown.edits.map(({ label, icon: Icon, onClick, disabled }) => (
+            <Button
+              key={label}
+              variant="outline"
+              size="sm"
+              aria-describedby={labelledBy}
+              disabled={disabled}
+              onClick={onClick}
+            >
+              <Icon data-icon="inline-start" aria-hidden />
+              {label}
+            </Button>
+          ))}
           <SavedStatus saved={frame.justSaved}>{verb.done}</SavedStatus>
         </div>
       </div>
@@ -286,12 +248,21 @@ export function EditorFrame<V>({
 
   if (frame.view === 'withdrawn') {
     return (
-      <WithdrawnView
-        frame={frame}
-        labelledBy={labelledBy}
-        reason={withdrawnReason}
-        onDiscard={field.discard}
-      />
+      <div
+        role="group"
+        aria-labelledby={labelledBy}
+        className="flex flex-col items-start gap-3"
+      >
+        {frame.problem !== undefined && (
+          <NotSavedAlert problem={frame.problem} />
+        )}
+        {withdrawnReason !== undefined && (
+          <p className="text-sm text-muted-foreground">{withdrawnReason}</p>
+        )}
+        <Button type="button" size="sm" variant="ghost" onClick={field.discard}>
+          {frame.discardLabel}
+        </Button>
+      </div>
     )
   }
 
@@ -304,6 +275,7 @@ export function EditorFrame<V>({
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type={formless ? 'button' : 'submit'}
+          size={buttonSize}
           disabled={frame.busy || !ready}
           onClick={formless ? () => void field.save() : undefined}
         >
@@ -312,6 +284,7 @@ export function EditorFrame<V>({
         {frame.discardLabel !== undefined && (
           <Button
             type="button"
+            size={buttonSize}
             variant="ghost"
             disabled={frame.busy}
             onClick={field.discard}
@@ -332,6 +305,7 @@ export function EditorFrame<V>({
       <div
         role="group"
         aria-labelledby={labelledBy}
+        aria-describedby={hintId}
         className="flex flex-col gap-3"
       >
         {content}
@@ -342,6 +316,7 @@ export function EditorFrame<V>({
   return (
     <form
       aria-labelledby={nameForm ? labelledBy : undefined}
+      aria-describedby={hintId}
       className="flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault()

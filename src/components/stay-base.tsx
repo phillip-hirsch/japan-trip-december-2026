@@ -3,16 +3,13 @@ import { PencilIcon } from 'lucide-react'
 import { useId } from 'react'
 
 import { ChipChoice } from '@/components/chip-choice'
-import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
+import { EditorFrame, saveVerb } from '@/components/editor-frame'
+import type { SaveVerb } from '@/components/editor-frame'
 import { answerStayEdit, hardRuleProblem } from '@/components/schedule-rules'
 import { StaySection } from '@/components/stay-section'
-import { Button } from '@/components/ui/button'
-import type {
-  HardRule,
-  ScheduleDetail,
-  ScheduleStayDetail,
-} from '@/trip/domain/domain'
-import { keyedBy, SaveAnswer, SaveState, useSave } from '@/trip/client/drafts'
+import type { StayEditorProps } from '@/components/stay-section'
+import type { HardRule } from '@/trip/domain/domain'
+import { keyedBy, SaveAnswer, useSave } from '@/trip/client/drafts'
 import { placeIds } from '@/trip/catalogue/catalogue-ids'
 import type { PlaceId } from '@/trip/catalogue/catalogue-ids'
 import { places } from '@/trip/catalogue/places'
@@ -21,80 +18,54 @@ import { changeStayBase } from '@/trip/trip/trip.functions'
 const unknownPlace = (rule: HardRule) =>
   SaveAnswer.Refused({ problem: hardRuleProblem(rule) })
 
-/** Picking a place keeps no draft, since picking it again loses nothing. */
-function StayBaseForm({
-  schedule,
-  stay,
-}: {
-  schedule: ScheduleDetail
-  stay: ScheduleStayDetail
-}) {
-  const change = useServerFn(changeStayBase)
-  const hintId = useId()
-  const problemId = useId()
-  const scheduleId = schedule.id
+const baseVerb: SaveVerb = { ...saveVerb, done: 'Base changed' }
 
-  const field = useSave<PlaceId>({
+/**
+ * The Base of a Stay of the Schedule shown. Picking a place keeps no draft,
+ * since picking it again loses nothing.
+ */
+export const useStayBase = ({
+  scheduleId,
+  stay,
+  anchorWarnings,
+}: Omit<StayEditorProps, 'next'>) => {
+  const change = useServerFn(changeStayBase)
+
+  return useSave<PlaceId>({
     scheduleId,
     saved: stay.base.id,
     write: 'stayEdit',
-    run: async (place) => {
-      const outcome = await change({
-        data: { scheduleId, stayId: stay.id, place },
-      })
-
-      return answerStayEdit(
+    run: async (place) =>
+      answerStayEdit(
         'The Base change breaks an Anchor',
-        schedule.anchorWarnings,
+        anchorWarnings,
         unknownPlace,
-      )(outcome)
-    },
+      )(await change({ data: { scheduleId, stayId: stay.id, place } })),
   })
+}
 
-  const { state, value } = field
+function StayBaseEditor(props: Omit<StayEditorProps, 'next'>) {
+  const { stay } = props
+  const field = useStayBase(props)
+  const hintId = useId()
 
   return (
     <StaySection heading="Base" stay={stay}>
-      {(headingId) => {
-        if (SaveState.$is('Clean')(state) || SaveState.$is('Saved')(state)) {
-          return (
-            <div className="flex flex-wrap items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                aria-describedby={headingId}
-                onClick={field.edit}
-              >
-                <PencilIcon data-icon="inline-start" aria-hidden />
-                Change Base
-              </Button>
-              <SavedStatus
-                saved={SaveState.$is('Saved')(state) || state.justSaved}
-              >
-                Base changed
-              </SavedStatus>
-            </div>
-          )
-        }
-
-        const notSaved = SaveState.$is('NotSaved')(state)
-        const saving = SaveState.$is('Saving')(state)
-
-        return (
-          <form
-            aria-labelledby={headingId}
-            className="flex flex-col gap-3"
-            onSubmit={(event) => {
-              event.preventDefault()
-              void field.save()
-            }}
-          >
-            {notSaved && (
-              <NotSavedAlert problem={state.problem} problemId={problemId} />
-            )}
+      {(headingId) => (
+        <EditorFrame
+          field={field}
+          labelledBy={headingId}
+          verb={baseVerb}
+          edits={[
+            { label: 'Change Base', icon: PencilIcon, onClick: field.edit },
+          ]}
+          ready={field.value !== stay.base.id}
+          buttonSize="sm"
+        >
+          {(frame) => (
             <fieldset
               className="flex flex-col gap-2"
-              aria-describedby={notSaved ? `${hintId} ${problemId}` : hintId}
+              aria-describedby={frame.describedWith(hintId)}
             >
               <legend className="mb-2 text-sm">Change the Base to</legend>
               <ChipChoice
@@ -102,8 +73,8 @@ function StayBaseForm({
                   value: place,
                   label: places[place].romaji,
                 }))}
-                value={value}
-                disabled={saving}
+                value={field.value}
+                disabled={frame.busy}
                 onChange={field.change}
               />
               <p id={hintId} className="text-sm text-muted-foreground">
@@ -111,29 +82,11 @@ function StayBaseForm({
                 their travel time. Its hotel details, note and ticks stay.
               </p>
             </fieldset>
-            <div className="flex flex-wrap items-center gap-2">
-              <Button
-                type="submit"
-                size="sm"
-                disabled={saving || value === stay.base.id}
-              >
-                {saving ? 'Saving…' : notSaved ? 'Retry' : 'Save'}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                disabled={saving}
-                onClick={field.discard}
-              >
-                {notSaved ? 'Discard' : 'Cancel'}
-              </Button>
-            </div>
-          </form>
-        )
-      }}
+          )}
+        </EditorFrame>
+      )}
     </StaySection>
   )
 }
 
-export const StayBaseField = keyedBy(StayBaseForm, ({ stay }) => stay.id)
+export const StayBaseField = keyedBy(StayBaseEditor, ({ stay }) => stay.id)
