@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Data, Predicate } from 'effect'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import { ConnectionStatus, currentConnection } from '@/access/connection-status'
 import { toast } from '@/components/ui/toast'
@@ -273,12 +273,13 @@ export function useSave<V>({
   if (held.target !== target) setHeld({ target, state: clean })
 
   const state = held.target === target ? held.state : clean
-  const targetRef = useRef(target)
-  targetRef.current = target
+  // Handlers and answers read the props of the last render React committed.
   const savedRef = useRef(saved)
-  savedRef.current = saved
   const scheduleIdRef = useRef(scheduleId)
-  scheduleIdRef.current = scheduleId
+  useLayoutEffect(() => {
+    savedRef.current = saved
+    scheduleIdRef.current = scheduleId
+  })
   const drafted = isDraft !== undefined
   const ownDraftWriteId = useRef<string>(undefined)
   const operation = useRef<Operation>(undefined)
@@ -287,17 +288,15 @@ export function useSave<V>({
   const visit = useRef(0)
 
   /**
-   * Updates the state of this render's target, unless the target changed
-   * since.
+   * Updates the state of this render's target, unless the hook has moved to
+   * another target since.
    */
-  const updateState = (update: (current: SaveState<V>) => SaveState<V>) => {
-    if (targetRef.current !== target) return
-
-    setHeld((current) => ({
-      target,
-      state: update(current.target === target ? current.state : clean),
-    }))
-  }
+  const updateState = (update: (current: SaveState<V>) => SaveState<V>) =>
+    setHeld((current) =>
+      current.target === target
+        ? { target, state: update(current.state) }
+        : current,
+    )
 
   const setState = (next: SaveState<V>) => updateState(() => next)
 
