@@ -16,6 +16,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
 import type { ChooseOutcome, RestoreOutcome } from '@/trip/domain/domain'
+import { operationFor } from '@/trip/client/operations'
+import type { Operation } from '@/trip/client/operations'
 import { invalidateAfter } from '@/trip/client/queries'
 import type { TripWrite } from '@/trip/client/queries'
 
@@ -70,12 +72,12 @@ const confirming: DialogState = DialogState.Confirming()
  * A write that replaces the current Schedule (choosing or restoring), after
  * a confirmation saying what happens. On success it opens the Schedule.
  *
- * One operation id serves every attempt at the same target, so a retry after
- * a lost answer returns the first result instead of writing again. A refusal
- * writes nothing, so the same id can confirm again once the refreshed
- * confirmation has been read. A new target (the page now shows another
- * Itinerary or Schedule) gets a new id, so it never returns another
- * target's result.
+ * Each attempt goes under an operation for its target, by the rule a save
+ * uses for its Schedule. A retry after a lost answer returns the first
+ * result instead of writing again. A refusal writes nothing, so the same id
+ * can confirm again once Phillip has read the refreshed confirmation. When
+ * the page shows another Itinerary or Schedule, its target gets a new id, so
+ * it never returns another target's result.
  */
 export function ReplaceScheduleDialog({
   write,
@@ -106,15 +108,12 @@ export function ReplaceScheduleDialog({
 }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const operation = useRef<{ target: string; id: string }>(undefined)
+  const operation = useRef<Operation>(undefined)
   const [open, setOpen] = useState(false)
   const [state, setState] = useState<DialogState>(confirming)
 
   const confirm = async () => {
-    if (operation.current?.target !== target) {
-      operation.current = { target, id: crypto.randomUUID() }
-    }
-
+    operation.current = operationFor(operation.current, target)
     const operationId = operation.current.id
     setState(DialogState.Working())
 

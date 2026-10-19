@@ -66,6 +66,51 @@ export const answeringOnly =
   async <D>({ data }: { readonly data: D }) =>
     isDeepStrictEqual(data, expected) ? written : refused
 
+/** A request to a write the Trip replays by operation id. */
+interface UnderOperation {
+  readonly operationId: string
+  readonly scheduleId?: string
+}
+
+/**
+ * Like `answeringOnly`, for a write sent under an operation. It answers
+ * `written` only to a request carrying exactly `expected`, whatever its
+ * operation id.
+ */
+export const answeringOnlyUnderAnyOperation =
+  <E, W, R>(expected: E, written: W, refused: R) =>
+  async <D extends UnderOperation>({ data }: { readonly data: D }) =>
+    isDeepStrictEqual(
+      Object.fromEntries(
+        Object.entries(data).filter(([key]) => key !== 'operationId'),
+      ),
+      expected,
+    )
+      ? written
+      : refused
+
+/**
+ * A write sent under an operation whose first request lands but gets no
+ * answer. It answers each later request `written` when `retried` says it
+ * suits the first, and `refused` otherwise.
+ */
+export const losingFirstAnswer = <W, R>(
+  retried: (request: UnderOperation, first: UnderOperation) => boolean,
+  written: W,
+  refused: R,
+) => {
+  let first: UnderOperation | undefined
+
+  return async <D extends UnderOperation>({ data }: { readonly data: D }) => {
+    if (first === undefined) {
+      first = data
+      throw new Error('The answer was lost')
+    }
+
+    return retried(data, first) ? written : refused
+  }
+}
+
 /**
  * A page showing the Schedules, read with `read`, and an editor on it whose
  * field is `useField(props)`. Opening it again after closing it acts as a

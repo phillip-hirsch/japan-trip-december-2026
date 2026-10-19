@@ -43,7 +43,7 @@ export type FormShown = 'untilSaved' | 'untilShown' | 'always'
 /** What the frame reads of a field from the save hook. */
 interface FramedField<V> {
   readonly state: SaveState<V>
-  /** An open edit the Schedule shown no longer offers, as useOfferedSave says. */
+  /** An open edit the Schedule shown no longer offers, as useSave says. */
   readonly withdrawn?: boolean
 }
 

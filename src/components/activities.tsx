@@ -36,21 +36,18 @@ import type {
   ScheduleId,
 } from '@/trip/domain/domain'
 import {
+  activityMovesTarget,
+  activityRemovalsTarget,
   activityTarget,
   answerOwn,
-  keyedBy,
   newActivityTarget,
   SaveAnswer,
   SaveState,
-  useOperationSave,
   useSave,
+  useSend,
   warned,
 } from '@/trip/client/drafts'
-import type {
-  DraftKeeping,
-  OwnOutcome,
-  SaveWarning,
-} from '@/trip/client/drafts'
+import type { OwnOutcome, SaveWarning } from '@/trip/client/drafts'
 import { activityTitleMaxLength, noteMaxLength } from '@/trip/domain/limits'
 import {
   addActivity,
@@ -130,13 +127,11 @@ export const useActivityEdit = ({
   const fields = fieldsOf(activity)
 
   const field = useSave<ActivityEdit>({
-    draft: {
-      target: activityTarget(activity.id),
-      isValue: (value): value is ActivityEdit =>
-        isActivityFields(value) &&
-        Predicate.isObject(value) &&
-        isActivityFields(value.from),
-    },
+    target: activityTarget(activity.id),
+    draft: (value): value is ActivityEdit =>
+      isActivityFields(value) &&
+      Predicate.isObject(value) &&
+      isActivityFields(value.from),
     equals: sameFields,
     scheduleId,
     saved: { ...fields, from: fields },
@@ -170,29 +165,12 @@ export const useActivityEdit = ({
   return { ...field, edit: editAgain }
 }
 
-interface NewActivity extends ActivityFields {
-  readonly operationId: string
-  readonly operationScheduleId: string
-}
+const noNewActivity: ActivityFields = { title: '', time: '', note: '' }
 
-const noNewActivity: NewActivity = {
-  title: '',
-  time: '',
-  note: '',
-  operationId: '',
-  operationScheduleId: '',
-}
-
-const newActivityDraft = (date: IsoDate): DraftKeeping<NewActivity> => ({
-  target: newActivityTarget(date),
-  isValue: (value): value is NewActivity =>
-    isActivityFields(value) &&
-    Predicate.isObject(value) &&
-    Predicate.isString(value.operationId) &&
-    Predicate.isString(value.operationScheduleId),
-})
-
-/** A new Activity on a Day of the Schedule shown, kept as a Draft. */
+/**
+ * A new Activity on a Day of the Schedule shown, kept as a Draft. Every
+ * retry goes under one operation, so the Trip adds it once.
+ */
 export const useNewActivity = ({
   scheduleId,
   date,
@@ -202,13 +180,14 @@ export const useNewActivity = ({
 }) => {
   const add = useServerFn(addActivity)
 
-  return useOperationSave({
-    draft: newActivityDraft(date),
+  return useSave({
+    target: newActivityTarget(date),
+    draft: isActivityFields,
     equals: sameFields,
     scheduleId,
     saved: noNewActivity,
     write: 'activity',
-    run: async ({ operationId, title, time, note }) =>
+    run: async ({ title, time, note }, operationId) =>
       timeRefusal(time) ??
       answerOwn(
         await add({
@@ -243,20 +222,30 @@ const passedActivityGone = (moving: string, outcome: MoveActivityOutcome) =>
   Predicate.isTagged('ActivityNotFound')(outcome) &&
   outcome.activityId !== moving
 
+/** The Activities on a Day of the Schedule shown, as last read. */
+interface DayShown {
+  readonly scheduleId: ScheduleId
+  readonly date: IsoDate
+  readonly activities: ReadonlyArray<Activity>
+}
+
+const isShown = (activities: ReadonlyArray<Activity>, activityId: string) =>
+  activities.some(({ id }) => id === activityId)
+
 /**
  * Moves of the Activities on a Day of the Schedule shown, one at a time.
- * A move past an Activity that is gone counts as saved, with a warning.
+ * A move past an Activity that is gone counts as saved, with a warning. The
+ * hook drops a move not saved once its Activity is gone.
  */
-export const useActivityMove = ({ scheduleId }: { scheduleId: ScheduleId }) => {
+export const useActivityMove = ({ scheduleId, date, activities }: DayShown) => {
   const move = useServerFn(moveActivity)
 
-  return useSave<ActivityMove | null>({
+  return useSend<ActivityMove>({
+    target: activityMovesTarget(date),
+    moot: ({ activityId }) => !isShown(activities, activityId),
     scheduleId,
-    saved: null,
     write: 'activity',
     run: async (activityMove) => {
-      if (activityMove === null) return SaveAnswer.Saved()
-
       const outcome = await move({ data: { scheduleId, ...activityMove } })
 
       return passedActivityGone(activityMove.activityId, outcome)
@@ -272,23 +261,23 @@ const removalAnswerOf = (outcome: RemoveActivityOutcome) =>
 
 /**
  * Removals of the Activities on a Day of the Schedule shown, by id, one at a
- * time. Removing one already gone counts as saved.
+ * time. Removing one already gone counts as saved. The hook drops a removal
+ * not saved once its Activity is gone.
  */
 export const useActivityRemoval = ({
   scheduleId,
-}: {
-  scheduleId: ScheduleId
-}) => {
+  date,
+  activities,
+}: DayShown) => {
   const remove = useServerFn(removeActivity)
 
-  return useSave<string | null>({
+  return useSend<string>({
+    target: activityRemovalsTarget(date),
+    moot: (activityId) => !isShown(activities, activityId),
     scheduleId,
-    saved: null,
     write: 'activity',
     run: async (activityId) =>
-      activityId === null
-        ? SaveAnswer.Saved()
-        : removalAnswerOf(await remove({ data: { scheduleId, activityId } })),
+      removalAnswerOf(await remove({ data: { scheduleId, activityId } })),
   })
 }
 
@@ -518,7 +507,7 @@ function ActivityRow({
   )
 }
 
-function AddActivityForm({
+function AddActivity({
   scheduleId,
   date,
   labelledBy,
@@ -553,9 +542,7 @@ function AddActivityForm({
   )
 }
 
-const AddActivity = keyedBy(AddActivityForm, ({ date }) => date)
-
-function DayActivities({
+export function Activities({
   scheduleId,
   date,
   activities,
@@ -568,8 +555,8 @@ function DayActivities({
   near: Coordinates
   labelledBy: string
 }) {
-  const moving = useActivityMove({ scheduleId })
-  const removal = useActivityRemoval({ scheduleId })
+  const moving = useActivityMove({ scheduleId, date, activities })
+  const removal = useActivityRemoval({ scheduleId, date, activities })
   const moveFrame = frameOf(moving)
   const removalFrame = frameOf(removal)
 
@@ -577,28 +564,8 @@ function DayActivities({
     !SaveState.$is('Clean')(moving.state) ||
     !SaveState.$is('Clean')(removal.state)
 
-  const movingId = moving.value?.activityId
-  const removingId = removal.value
-
-  useEffect(() => {
-    const shown = new Set(activities.map(({ id }) => id))
-
-    const discardIfActivityGone = (
-      save: typeof moving | typeof removal,
-      activityId: string | null | undefined,
-    ) => {
-      if (
-        SaveState.$is('NotSaved')(save.state) &&
-        activityId != null &&
-        !shown.has(activityId)
-      ) {
-        save.discard()
-      }
-    }
-
-    discardIfActivityGone(moving, movingId)
-    discardIfActivityGone(removal, removingId)
-  }, [activities, moving.state, removal.state])
+  const movingId = moving.sent?.activityId
+  const removingId = removal.sent
 
   return (
     <div className="flex flex-col gap-4">
@@ -660,5 +627,3 @@ function DayActivities({
     </div>
   )
 }
-
-export const Activities = keyedBy(DayActivities, ({ date }) => date)

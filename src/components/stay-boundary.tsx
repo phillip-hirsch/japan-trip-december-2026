@@ -16,11 +16,7 @@ import {
   tripDates,
 } from '@/trip/domain/calendar'
 import type { IsoDate } from '@/trip/domain/domain'
-import {
-  keyedBy,
-  stayBoundaryTarget,
-  useOfferedSave,
-} from '@/trip/client/drafts'
+import { stayBoundaryTarget, useSave } from '@/trip/client/drafts'
 import { moveStayBoundary } from '@/trip/trip/trip.functions'
 
 const isDate = (value: unknown): value is IsoDate =>
@@ -38,9 +34,10 @@ export const useStayBoundary = ({
 }: StayEditorProps) => {
   const move = useServerFn(moveStayBoundary)
 
-  return useOfferedSave<IsoDate>({
+  return useSave<IsoDate>({
+    target: stayBoundaryTarget(stay.id),
+    draft: isDate,
     offered: () => next !== undefined,
-    draft: { target: stayBoundaryTarget(stay.id), isValue: isDate },
     scheduleId,
     saved: stay.checkOut,
     write: 'stayEdit',
@@ -52,7 +49,7 @@ export const useStayBoundary = ({
   })
 }
 
-function StayBoundaryEditor(props: StayEditorProps) {
+export function StayBoundaryField(props: StayEditorProps) {
   const { stay, next } = props
   const field = useStayBoundary(props)
   const hintId = useId()
@@ -116,8 +113,3 @@ function StayBoundaryEditor(props: StayEditorProps) {
     </StaySection>
   )
 }
-
-export const StayBoundaryField = keyedBy(
-  StayBoundaryEditor,
-  ({ stay }) => stay.id,
-)

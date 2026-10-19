@@ -11,7 +11,6 @@ import type { Hotel, HotelDetails, Pin, ScheduleId } from '@/trip/domain/domain'
 import {
   answerOwn,
   hotelDetailsTarget,
-  keyedBy,
   SaveAnswer,
   useSave,
 } from '@/trip/client/drafts'
@@ -91,7 +90,8 @@ export const useHotelDetails = ({
   const write = useServerFn(writeHotelDetails)
 
   return useSave<HotelFields>({
-    draft: { target: hotelDetailsTarget(stayId), isValue: isHotelFields },
+    target: hotelDetailsTarget(stayId),
+    draft: isHotelFields,
     equals: sameFields,
     scheduleId,
     saved: fieldsOf(hotel),
@@ -104,7 +104,7 @@ export const useHotelDetails = ({
   })
 }
 
-function HotelDetailsEditor({
+export function HotelDetailsField({
   labelledBy,
   ...props
 }: Parameters<typeof useHotelDetails>[0] & { labelledBy: string }) {
@@ -164,8 +164,3 @@ function HotelDetailsEditor({
     </EditorFrame>
   )
 }
-
-export const HotelDetailsField = keyedBy(
-  HotelDetailsEditor,
-  ({ stayId }) => stayId,
-)

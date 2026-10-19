@@ -19,13 +19,7 @@ import type {
   ScheduleId,
   SetPinOutcome,
 } from '@/trip/domain/domain'
-import {
-  answerOwn,
-  keyedBy,
-  pinTarget,
-  SaveAnswer,
-  useSave,
-} from '@/trip/client/drafts'
+import { answerOwn, pinTarget, SaveAnswer, useSave } from '@/trip/client/drafts'
 import type { OwnOutcome } from '@/trip/client/drafts'
 import { locationLinkMaxLength } from '@/trip/domain/limits'
 import { linkRefusalOf } from '@/trip/location-links/pins'
@@ -120,7 +114,8 @@ export const usePin = ({
   const write = useServerFn(setPin)
 
   return useSave<PinFields>({
-    draft: { target: pinTarget(target), isValue: isPinFields },
+    target: pinTarget(target),
+    draft: isPinFields,
     equals: sameFields,
     scheduleId,
     saved: fieldsOf(pin),
@@ -138,7 +133,7 @@ export const usePin = ({
   })
 }
 
-function PinEditor({
+export function PinField({
   near,
   noun,
   labelledBy,
@@ -168,8 +163,6 @@ function PinEditor({
     return () => lookups.current === lookup
   }
 
-  useEffect(() => cancelLookups, [])
-
   const field = usePin(props)
   const { value } = field
   const placing = frameOf(field).view === 'form'
@@ -185,6 +178,9 @@ function PinEditor({
     cancelLookups()
     setFinding(idle)
   }
+
+  // A new Pin target cancels any lookup in progress.
+  useEffect(() => stopFinding, [pinTarget(props.target)])
 
   const looking = finding.state === 'finding'
   const placed = value.coordinates
@@ -419,5 +415,3 @@ function PinEditor({
     </EditorFrame>
   )
 }
-
-export const PinField = keyedBy(PinEditor, ({ target }) => pinTarget(target))
