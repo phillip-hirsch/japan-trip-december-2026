@@ -12,10 +12,10 @@ import type { StayEditorProps } from '@/components/stay-section'
 import { formatShortDate, tripDates } from '@/trip/domain/calendar'
 import type { IsoDate, ScheduleStayDetail } from '@/trip/domain/domain'
 import {
-  keyedBy,
   SaveAnswer,
   SaveState,
-  useOfferedSave,
+  splitMergeTarget,
+  useSave,
 } from '@/trip/client/drafts'
 import { mergeStays, splitStay } from '@/trip/trip/trip.functions'
 
@@ -23,8 +23,6 @@ import { mergeStays, splitStay } from '@/trip/trip/trip.functions'
 export type SplitOrMerge =
   | { readonly kind: 'split'; readonly date: IsoDate | undefined }
   | { readonly kind: 'merge'; readonly next: ScheduleStayDetail }
-
-type Choice = SplitOrMerge & { readonly operationId: string }
 
 const labels = {
   split: {
@@ -46,7 +44,8 @@ const labels = {
 /**
  * Splitting a Stay of the Schedule shown on a night after its check-in, or
  * merging it with `next`, the Stay after it, while both are in one Base.
- * Each choice is a fresh operation, so a retry of it splits or merges once.
+ * Each choice is a fresh operation, so a retry of it splits or merges once,
+ * and a choice kept across a Schedule change is a fresh one there.
  */
 export const useSplitMergeStay = ({
   scheduleId,
@@ -56,7 +55,7 @@ export const useSplitMergeStay = ({
 }: StayEditorProps) => {
   const split = useServerFn(splitStay)
   const merge = useServerFn(mergeStays)
-  const [lastKind, setLastKind] = useState<Choice['kind']>('split')
+  const [lastKind, setLastKind] = useState<SplitOrMerge['kind']>('split')
 
   const splitDates = tripDates.filter(
     (date) => stay.checkIn < date && date < stay.checkOut,
@@ -64,19 +63,17 @@ export const useSplitMergeStay = ({
 
   const mergeable = next?.base.id === stay.base.id ? next : undefined
 
-  const field = useOfferedSave<Choice | null>({
+  const field = useSave<SplitOrMerge>({
+    target: splitMergeTarget(stay.id),
     offered: (choice) =>
-      choice === null
+      choice === undefined
         ? splitDates.length > 0 || mergeable !== undefined
         : choice.kind === 'split'
           ? splitDates.length > 0
           : choice.next.id === mergeable?.id,
     scheduleId,
-    saved: null,
     write: 'stayEdit',
-    run: async (choice) => {
-      if (choice === null) return SaveAnswer.Saved()
-
+    run: async (choice, operationId) => {
       setLastKind(choice.kind)
 
       const answer = answerStayEdit(
@@ -89,7 +86,7 @@ export const useSplitMergeStay = ({
           await merge({
             data: {
               scheduleId,
-              operationId: choice.operationId,
+              operationId,
               stayIds: [stay.id, choice.next.id],
             },
           }),
@@ -104,7 +101,7 @@ export const useSplitMergeStay = ({
         await split({
           data: {
             scheduleId,
-            operationId: choice.operationId,
+            operationId,
             stayId: stay.id,
             date: choice.date,
           },
@@ -118,7 +115,7 @@ export const useSplitMergeStay = ({
   const canChoose = !SaveState.$is('Saved')(field.state)
 
   const change = (choice: SplitOrMerge) => {
-    if (canChoose) field.change({ ...choice, operationId: crypto.randomUUID() })
+    if (canChoose) field.change(choice)
   }
 
   const kind = field.value?.kind ?? lastKind
@@ -135,7 +132,7 @@ export const useSplitMergeStay = ({
   }
 }
 
-function SplitMergeStayEditor(props: StayEditorProps) {
+export function SplitMergeStay(props: StayEditorProps) {
   const { stay } = props
   const field = useSplitMergeStay(props)
   const hintId = useId()
@@ -215,8 +212,3 @@ function SplitMergeStayEditor(props: StayEditorProps) {
     </StaySection>
   )
 }
-
-export const SplitMergeStay = keyedBy(
-  SplitMergeStayEditor,
-  ({ stay }) => stay.id,
-)

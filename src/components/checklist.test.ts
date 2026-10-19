@@ -20,6 +20,8 @@ import {
 import { SaveState } from '@/trip/client/drafts'
 import {
   answeringOnly,
+  answeringOnlyUnderAnyOperation,
+  losingFirstAnswer,
   notSavedProblem,
   openEditor,
 } from '@/trip/client/editor-testing'
@@ -58,7 +60,11 @@ const sentTicked = SaveState.Saved({ value: true })
 describe('a Tick', () => {
   /** The Tick of `item`, on a Checklist of `shown`'s Schedule. */
   const openTick = (item: ChecklistItem, shown: ScheduleId | null) =>
-    openEditor(() => useTick({ item, scheduleId: shown }), {})
+    openEditor(
+      ({ item }: { item: ChecklistItem }) =>
+        useTick({ item, scheduleId: shown }),
+      { item },
+    )
 
   it('ticks an own Checklist item on the Trip, naming no Schedule', async () => {
     vi.mocked(tickOwnChecklistItem).mockImplementation(
@@ -108,6 +114,21 @@ describe('a Tick', () => {
     )
     await editor.close()
   })
+
+  it('drops a Tick not saved once the Checklist shows the item ticked after all', async () => {
+    vi.mocked(tickOwnChecklistItem).mockRejectedValue(new Error('offline'))
+    const editor = await openTick(jrPass, null)
+    await act(() => editor.field().send(true))
+    assert.isTrue(SaveState.$is('NotSaved')(editor.field().state))
+
+    await editor.show({ item: { ...jrPass, ticked: true } })
+
+    assert.deepStrictEqual(
+      editor.field().state,
+      SaveState.Clean({ justSaved: false }),
+    )
+    await editor.close()
+  })
 })
 
 describe('removing an own Checklist item', () => {
@@ -124,11 +145,11 @@ describe('removing an own Checklist item', () => {
       {},
     )
 
-    await act(() => editor.field().send(true))
+    await act(() => editor.field().send('item-jr-pass'))
 
     assert.deepStrictEqual(
       editor.field().state,
-      SaveState.Saved({ value: true }),
+      SaveState.Saved({ value: 'item-jr-pass' }),
     )
     await editor.close()
   })
@@ -149,18 +170,38 @@ describe('adding an own Checklist item', () => {
       }),
     )
     vi.mocked(addOwnChecklistItem).mockImplementation(
-      answeringOnly(
-        {
-          operationId: editor.field().value.operationId,
-          text: 'Buy a JR Pass',
-          reminderDate: '2026-11-06',
-        },
+      answeringOnlyUnderAnyOperation(
+        { text: 'Buy a JR Pass', reminderDate: '2026-11-06' },
         AddOwnChecklistItemOutcome.cases.Added.make({ itemId: 'item-1' }),
         AddOwnChecklistItemOutcome.cases.ChecklistTextInvalid.make({
           maxLength: 200,
         }),
       ),
     )
+    await act(() => editor.field().save())
+
+    assert.isTrue(SaveState.$is('Saved')(editor.field().state))
+    await editor.close()
+  })
+
+  it('adds the item once when Retry follows an add whose answer was lost', async () => {
+    localStorage.clear()
+    vi.mocked(addOwnChecklistItem).mockImplementation(
+      losingFirstAnswer(
+        (retry, first) => retry.operationId === first.operationId,
+        AddOwnChecklistItemOutcome.cases.Added.make({ itemId: 'item-1' }),
+        // Stands for any answer but Added: the item would be added twice.
+        AddOwnChecklistItemOutcome.cases.ChecklistTextInvalid.make({
+          maxLength: 200,
+        }),
+      ),
+    )
+    const editor = await openNewItem()
+
+    await act(async () =>
+      editor.field().change({ ...editor.field().value, text: 'Buy a JR Pass' }),
+    )
+    await act(() => editor.field().save())
     await act(() => editor.field().save())
 
     assert.isTrue(SaveState.$is('Saved')(editor.field().state))

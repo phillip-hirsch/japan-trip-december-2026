@@ -115,6 +115,71 @@ describe('the Day note', () => {
     assert.strictEqual(reopened.field().value, 'Tsukiji at dawn.')
     await reopened.close()
   })
+  describe('moving to another Day in the same editor', () => {
+    const december8 = IsoDate.make('2026-12-08')
+
+    interface DayShown {
+      readonly date: IsoDate
+      readonly note: string | undefined
+    }
+
+    const december7: DayShown = { date, note: undefined }
+
+    const openOnDecember7 = () =>
+      openEditor(
+        (shown: DayShown) => useDayNote({ scheduleId, ...shown }),
+        december7,
+      )
+
+    it('starts afresh on the other Day, and restores the first Day’s Draft on returning', async () => {
+      localStorage.clear()
+      const editor = await openOnDecember7()
+      await act(async () => editor.field().change('Tsukiji at dawn.'))
+
+      await editor.show({ date: december8, note: undefined })
+      assert.deepStrictEqual(
+        { state: editor.field().state, value: editor.field().value },
+        { state: SaveState.Clean({ justSaved: false }), value: '' },
+      )
+
+      await editor.show({ date, note: undefined })
+      assert.deepStrictEqual(
+        {
+          problem: notSavedProblem(editor.field().state),
+          value: editor.field().value,
+        },
+        {
+          problem:
+            'This is what you typed here last time. Save it, or discard it.',
+          value: 'Tsukiji at dawn.',
+        },
+      )
+      await editor.close()
+    })
+
+    it('leaves the other Day’s note as it is when the first Day’s save is answered after moving', async () => {
+      localStorage.clear()
+      const answer = deferred<WriteDayNoteOutcome>()
+      vi.mocked(writeDayNote).mockReturnValue(answer.promise)
+      const editor = await openOnDecember7()
+      await act(async () => editor.field().change('Tsukiji at dawn.'))
+      const { finished } = await startSaving(() => editor.field().save())
+
+      await editor.show({ date: december8, note: 'Nara deer.' })
+      await act(async () => {
+        answer.resolve(
+          WriteDayNoteOutcome.cases.NoteTooLong.make({ maxLength: 10 }),
+        )
+        await finished
+      })
+
+      assert.deepStrictEqual(
+        { state: editor.field().state, value: editor.field().value },
+        { state: SaveState.Clean({ justSaved: false }), value: 'Nara deer.' },
+      )
+      await editor.close()
+    })
+  })
 })
 
 describe('the Stay note', () => {

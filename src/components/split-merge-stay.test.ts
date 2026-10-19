@@ -5,12 +5,18 @@ import { act } from 'react'
 
 import { useEditorFrame } from '@/components/editor-frame'
 import { useSplitMergeStay } from '@/components/split-merge-stay'
-import { december, HardRule, StayEditOutcome } from '@/trip/domain/domain'
+import {
+  december,
+  HardRule,
+  ScheduleId,
+  StayEditOutcome,
+} from '@/trip/domain/domain'
 import type { ScheduleStayDetail } from '@/trip/domain/domain'
 import { SaveState } from '@/trip/client/drafts'
 import {
-  answeringOnly,
+  answeringOnlyUnderAnyOperation,
   deferred,
+  losingFirstAnswer,
   notSavedProblem,
   openEditor,
   scheduleId,
@@ -41,6 +47,8 @@ const oneNightKyoto = scheduleStay('stay-kyoto', 'kyoto', 11, 12)
 interface Shown {
   readonly stay: ScheduleStayDetail
   readonly next: ScheduleStayDetail | undefined
+  /** The Schedule shown, when not the usual one. */
+  readonly scheduleShown?: ScheduleId
 }
 
 /**
@@ -49,9 +57,9 @@ interface Shown {
  */
 const openSplitMerge = (shown: Shown, read?: () => Promise<string>) =>
   openEditor(
-    ({ stay, next }: Shown) => {
+    ({ stay, next, scheduleShown = scheduleId }: Shown) => {
       const field = useSplitMergeStay({
-        scheduleId,
+        scheduleId: scheduleShown,
         stay,
         next,
         anchorWarnings: [],
@@ -70,12 +78,10 @@ describe('splitting a Stay', () => {
     await act(async () =>
       editor.field().field.change({ kind: 'split', date: december(10) }),
     )
-    const { value } = editor.field().field
     vi.mocked(splitStay).mockImplementation(
-      answeringOnly(
+      answeringOnlyUnderAnyOperation(
         {
           scheduleId,
-          operationId: value?.operationId,
           stayId: 'stay-kyoto',
           date: december(10),
         },
@@ -131,12 +137,10 @@ describe('merging a Stay with the next', () => {
     await act(async () =>
       editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
     )
-    const { value } = editor.field().field
     vi.mocked(mergeStays).mockImplementation(
-      answeringOnly(
+      answeringOnlyUnderAnyOperation(
         {
           scheduleId,
-          operationId: value?.operationId,
           stayIds: ['stay-kyoto', 'stay-kyoto-2'],
         },
         staysEdited(),
@@ -150,6 +154,61 @@ describe('merging a Stay with the next', () => {
       SaveState.Clean({ justSaved: true }),
     )
     assert.strictEqual(editor.field().field.verb.done, 'Merged')
+    await editor.close()
+  })
+
+  it('merges once when Retry follows a merge whose answer was lost', async () => {
+    vi.mocked(mergeStays).mockImplementation(
+      losingFirstAnswer(
+        (retry, first) => retry.operationId === first.operationId,
+        staysEdited(),
+        // Stands for any answer but merged: it would merge twice.
+        stayGone,
+      ),
+    )
+    const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
+
+    await act(async () =>
+      editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
+    )
+    await act(() => editor.field().field.save())
+    await act(() => editor.field().field.save())
+
+    assert.deepStrictEqual(
+      editor.field().field.state,
+      SaveState.Clean({ justSaved: true }),
+    )
+    await editor.close()
+  })
+
+  it('sends a merge kept across a Schedule change to the Schedule shown as a new operation', async () => {
+    const replacement = ScheduleId.make('00000000-0000-4000-8000-00000000000b')
+    vi.mocked(mergeStays).mockImplementation(
+      losingFirstAnswer(
+        (retry, first) =>
+          retry.operationId !== first.operationId &&
+          retry.scheduleId === replacement,
+        staysEdited(),
+        stayGone,
+      ),
+    )
+    const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
+
+    await act(async () =>
+      editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
+    )
+    await act(() => editor.field().field.save())
+    await editor.show({
+      stay: kyoto,
+      next: kyotoAgain,
+      scheduleShown: replacement,
+    })
+    await act(() => editor.field().field.save())
+
+    assert.deepStrictEqual(
+      editor.field().field.state,
+      SaveState.Clean({ justSaved: true }),
+    )
     await editor.close()
   })
 

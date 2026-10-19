@@ -1,4 +1,5 @@
 import { useServerFn } from '@tanstack/react-start'
+import { Predicate } from 'effect'
 import { PencilIcon } from 'lucide-react'
 
 import { EditorFrame } from '@/components/editor-frame'
@@ -8,12 +9,12 @@ import type { IsoDate, ScheduleId } from '@/trip/domain/domain'
 import {
   answerOwn,
   dayNoteTarget,
-  keyedBy,
   SaveAnswer,
   stayNoteTarget,
   tripNoteTarget,
-  useDraftedField,
+  useSave,
 } from '@/trip/client/drafts'
+import type { SaveField } from '@/trip/client/drafts'
 import { noteMaxLength } from '@/trip/domain/limits'
 import {
   writeDayNote,
@@ -42,8 +43,9 @@ export const useDayNote = ({
 }) => {
   const write = useServerFn(writeDayNote)
 
-  return useDraftedField({
+  return useSave({
     target: dayNoteTarget(date),
+    draft: Predicate.isString,
     scheduleId,
     saved: note ?? '',
     write: 'dayNote',
@@ -67,8 +69,9 @@ export const useStayNote = ({
 }) => {
   const write = useServerFn(writeStayNote)
 
-  return useDraftedField({
+  return useSave({
     target: stayNoteTarget(stayId),
+    draft: Predicate.isString,
     scheduleId,
     saved: note ?? '',
     write: 'stayNote',
@@ -87,8 +90,9 @@ export const useStayNote = ({
 export const useTripNote = ({ note }: { note: string | undefined }) => {
   const write = useServerFn(writeTripNote)
 
-  return useDraftedField({
+  return useSave({
     target: tripNoteTarget,
+    draft: Predicate.isString,
     scheduleId: null,
     saved: note ?? '',
     write: 'tripNote',
@@ -103,7 +107,7 @@ function NoteFrame({
   emptyText,
   textClassName = 'text-base leading-relaxed',
 }: {
-  field: ReturnType<typeof useDraftedField>
+  field: SaveField<string>
   labelledBy: string
   emptyText?: string
   textClassName?: string
@@ -157,7 +161,7 @@ function NoteFrame({
   )
 }
 
-function DayNoteEditor({
+export function DayNote({
   labelledBy,
   ...props
 }: Parameters<typeof useDayNote>[0] & { labelledBy: string }) {
@@ -168,9 +172,7 @@ function DayNoteEditor({
   )
 }
 
-export const DayNote = keyedBy(DayNoteEditor, ({ date }) => date)
-
-function StayNoteEditor({
+export function StayNote({
   labelledBy,
   ...props
 }: Parameters<typeof useStayNote>[0] & { labelledBy: string }) {
@@ -181,9 +183,6 @@ function StayNoteEditor({
   )
 }
 
-export const StayNote = keyedBy(StayNoteEditor, ({ stayId }) => stayId)
-
-/** There is one Trip note, so its editor never needs keying. */
 export function TripNote({
   labelledBy,
   ...props

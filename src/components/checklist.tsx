@@ -29,14 +29,16 @@ import type {
 } from '@/trip/domain/domain'
 import {
   answerOwn,
+  checklistItemRemovalTarget,
   newChecklistItemTarget,
   SaveAnswer,
   SaveState,
-  useOperationSave,
+  tickTarget,
   useSave,
+  useSend,
   warned,
 } from '@/trip/client/drafts'
-import type { DraftKeeping, SaveWarning } from '@/trip/client/drafts'
+import type { SaveWarning } from '@/trip/client/drafts'
 import { reminderDateOf } from '@/trip/domain/checklist-items'
 import { checklistTextMaxLength } from '@/trip/domain/limits'
 import {
@@ -114,6 +116,7 @@ const tickScheduleChanged: SaveWarning = {
 /**
  * The Tick on `item`, of a Checklist showing the Schedule `scheduleId`, or
  * none yet. An own item belongs to the Trip, so its Tick names no Schedule.
+ * A Tick not saved that the Checklist shows after all is dropped.
  */
 export const useTick = ({
   item,
@@ -126,10 +129,11 @@ export const useTick = ({
   const tickDerived = useServerFn(tickChecklistItem)
   const tickOwn = useServerFn(tickOwnChecklistItem)
 
-  return useSave({
+  return useSend<boolean>({
+    target: tickTarget(item),
+    moot: (ticked) => ticked === item.ticked,
     // Own items belong to the Trip, so a Schedule change never refuses them.
     scheduleId: own ? null : scheduleId,
-    saved: item.ticked,
     write: 'checklist',
     run: async (ticked) => {
       if (own) return tickOwn({ data: { itemId: item.id, ticked } })
@@ -150,15 +154,15 @@ export const useTick = ({
   })
 }
 
-/** Removing one of Phillip's own Checklist items, sent as true. */
+/** Removing one of Phillip's own Checklist items, sent as its id. */
 export const useChecklistItemRemoval = ({ itemId }: { itemId: string }) => {
   const remove = useServerFn(removeOwnChecklistItem)
 
-  return useSave({
+  return useSend<string>({
+    target: checklistItemRemovalTarget(itemId),
     scheduleId: null,
-    saved: false,
     write: 'checklist',
-    run: () => remove({ data: { itemId } }),
+    run: (removing) => remove({ data: { itemId: removing } }),
   })
 }
 
@@ -175,7 +179,7 @@ function ChecklistRow({
   const tickFrame = frameOf(tick)
   const removalFrame = frameOf(removal)
 
-  const ticked = tick.value
+  const ticked = tick.sending ?? item.ticked
   const removing = !SaveState.$is('Clean')(removal.state)
   const { title, about } = wordingOf(item)
   const verifyNote = verifyNoteOf(item)
@@ -243,7 +247,7 @@ function ChecklistRow({
           aria-label="Remove"
           aria-describedby={titleId}
           disabled={removing}
-          onClick={() => void removal.send(true)}
+          onClick={() => void removal.send(item.id)}
           className="-my-1 text-muted-foreground"
         >
           <Trash2Icon aria-hidden />
@@ -282,40 +286,35 @@ export function ChecklistItems({
 interface NewChecklistItem {
   readonly text: string
   readonly reminderDate: string
-  readonly operationId: string
 }
 
-const noNewItem: NewChecklistItem = {
-  text: '',
-  reminderDate: '',
-  operationId: '',
-}
+const noNewItem: NewChecklistItem = { text: '', reminderDate: '' }
 
-const newItemDraft: DraftKeeping<NewChecklistItem> = {
-  target: newChecklistItemTarget,
-  isValue: (value): value is NewChecklistItem =>
-    Predicate.isObject(value) &&
-    Predicate.isString(value.text) &&
-    Predicate.isString(value.reminderDate) &&
-    Predicate.isString(value.operationId),
-}
+const isNewItem = (value: unknown): value is NewChecklistItem =>
+  Predicate.isObject(value) &&
+  Predicate.isString(value.text) &&
+  Predicate.isString(value.reminderDate)
 
 const textInvalid = ({ maxLength }: { readonly maxLength: number }) =>
   SaveAnswer.Refused({
     problem: `An item needs some text, at most ${maxLength} characters.`,
   })
 
-/** A new own Checklist item, kept as a Draft. It belongs to the Trip. */
+/**
+ * A new own Checklist item, kept as a Draft, and added once under its
+ * operation however often it is retried. It belongs to the Trip.
+ */
 export const useNewChecklistItem = () => {
   const add = useServerFn(addOwnChecklistItem)
 
-  return useOperationSave({
-    draft: newItemDraft,
+  return useSave({
+    target: newChecklistItemTarget,
+    draft: isNewItem,
     equals: (a, b) => a.text === b.text && a.reminderDate === b.reminderDate,
     scheduleId: null,
     saved: noNewItem,
     write: 'checklist',
-    run: async ({ text, reminderDate, operationId }) =>
+    run: async ({ text, reminderDate }, operationId) =>
       reminderDate !== '' && !/^\d{4}-\d{2}-\d{2}$/.test(reminderDate)
         ? SaveAnswer.Refused({
             problem: 'Choose a reminder date with a four-digit year.',

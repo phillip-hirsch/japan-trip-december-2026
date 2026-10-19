@@ -9,7 +9,7 @@ import { answerStayEdit, hardRuleProblem } from '@/components/schedule-rules'
 import { StaySection } from '@/components/stay-section'
 import type { StayEditorProps } from '@/components/stay-section'
 import type { HardRule } from '@/trip/domain/domain'
-import { keyedBy, SaveAnswer, useSave } from '@/trip/client/drafts'
+import { SaveAnswer, stayBaseTarget, useSave } from '@/trip/client/drafts'
 import { placeIds } from '@/trip/catalogue/catalogue-ids'
 import type { PlaceId } from '@/trip/catalogue/catalogue-ids'
 import { places } from '@/trip/catalogue/places'
@@ -32,6 +32,7 @@ export const useStayBase = ({
   const change = useServerFn(changeStayBase)
 
   return useSave<PlaceId>({
+    target: stayBaseTarget(stay.id),
     scheduleId,
     saved: stay.base.id,
     write: 'stayEdit',
@@ -44,7 +45,7 @@ export const useStayBase = ({
   })
 }
 
-function StayBaseEditor(props: Omit<StayEditorProps, 'next'>) {
+export function StayBaseField(props: Omit<StayEditorProps, 'next'>) {
   const { stay } = props
   const field = useStayBase(props)
   const hintId = useId()
@@ -88,5 +89,3 @@ function StayBaseEditor(props: Omit<StayEditorProps, 'next'>) {
     </StaySection>
   )
 }
-
-export const StayBaseField = keyedBy(StayBaseEditor, ({ stay }) => stay.id)
