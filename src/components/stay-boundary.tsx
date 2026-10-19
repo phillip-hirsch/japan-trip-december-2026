@@ -15,20 +15,20 @@ import {
   isTripDate,
   nightsBetween,
   tripDates,
-} from '@/trip/calendar'
+} from '@/trip/domain/calendar'
 import type {
   AnchorWarning,
   IsoDate,
   ScheduleId,
   ScheduleStayDetail,
-} from '@/trip/domain'
+} from '@/trip/domain/domain'
 import {
   keyedBy,
   SaveState,
   stayBoundaryTarget,
   useOfferedSave,
-} from '@/trip/drafts'
-import { moveStayBoundary } from '@/trip/trip.functions'
+} from '@/trip/client/drafts'
+import { moveStayBoundary } from '@/trip/trip/trip.functions'
 
 const isDate = (value: unknown): value is IsoDate =>
   Predicate.isString(value) && isTripDate(value)

@@ -1,6 +1,6 @@
 import { ChipChoice } from '@/components/chip-choice'
-import { formatShortDate, formatWeekday } from '@/trip/calendar'
-import type { IsoDate } from '@/trip/domain'
+import { formatShortDate, formatWeekday } from '@/trip/domain/calendar'
+import type { IsoDate } from '@/trip/domain/domain'
 
 /**
  * One of a few Trip dates, chosen from a row of chips, each with its weekday.

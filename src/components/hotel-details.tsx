@@ -7,17 +7,17 @@ import { EditorFrame } from '@/components/editor-frame'
 import { OpenInGoogleMaps } from '@/components/open-in-google-maps'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type { Hotel, HotelDetails, Pin, ScheduleId } from '@/trip/domain'
+import type { Hotel, HotelDetails, Pin, ScheduleId } from '@/trip/domain/domain'
 import {
   answerOwn,
   hotelDetailsTarget,
   keyedBy,
   SaveAnswer,
   useSave,
-} from '@/trip/drafts'
-import { trimmedHotelDetails } from '@/trip/hotel-details'
-import { hotelDetailMaxLength } from '@/trip/limits'
-import { writeHotelDetails } from '@/trip/trip.functions'
+} from '@/trip/client/drafts'
+import { trimmedHotelDetails } from '@/trip/domain/hotel-details'
+import { hotelDetailMaxLength } from '@/trip/domain/limits'
+import { writeHotelDetails } from '@/trip/trip/trip.functions'
 
 type HotelFields = Required<HotelDetails>
 

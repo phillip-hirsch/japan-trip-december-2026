@@ -11,12 +11,12 @@ import type {
   HardRule,
   ScheduleDetail,
   ScheduleStayDetail,
-} from '@/trip/domain'
-import { keyedBy, SaveAnswer, SaveState, useSave } from '@/trip/drafts'
-import { placeIds } from '@/trip/catalogue-ids'
-import type { PlaceId } from '@/trip/catalogue-ids'
-import { places } from '@/trip/places'
-import { changeStayBase } from '@/trip/trip.functions'
+} from '@/trip/domain/domain'
+import { keyedBy, SaveAnswer, SaveState, useSave } from '@/trip/client/drafts'
+import { placeIds } from '@/trip/catalogue/catalogue-ids'
+import type { PlaceId } from '@/trip/catalogue/catalogue-ids'
+import { places } from '@/trip/catalogue/places'
+import { changeStayBase } from '@/trip/trip/trip.functions'
 
 const unknownPlace = (rule: HardRule) =>
   SaveAnswer.Refused({ problem: hardRuleProblem(rule) })

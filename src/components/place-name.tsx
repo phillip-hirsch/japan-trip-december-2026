@@ -1,6 +1,6 @@
 import { DisplayJa } from '@/components/display-ja'
 import { cn } from '@/lib/utils'
-import type { Place } from '@/trip/domain'
+import type { Place } from '@/trip/domain/domain'
 
 export function PlaceName({
   place,

@@ -3,9 +3,9 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 
 import { NoSchedule } from '@/components/no-schedule'
 import { ScheduleDayView } from '@/components/schedule-day'
-import { formatDay, isTripDate } from '@/trip/calendar'
-import { parseTripDate } from '@/trip/params'
-import { dayQuery } from '@/trip/queries'
+import { formatDay, isTripDate } from '@/trip/domain/calendar'
+import { parseTripDate } from '@/trip/client/params'
+import { dayQuery } from '@/trip/client/queries'
 import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/schedule/$date')({

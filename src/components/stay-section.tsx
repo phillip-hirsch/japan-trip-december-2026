@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import type { ReactNode } from 'react'
 
-import type { ScheduleStayDetail } from '@/trip/domain'
+import type { ScheduleStayDetail } from '@/trip/domain/domain'
 
 export function StaySection({
   heading,

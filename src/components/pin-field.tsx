@@ -17,7 +17,7 @@ import type {
   ResolveLocationLinkOutcome,
   ScheduleId,
   SetPinOutcome,
-} from '@/trip/domain'
+} from '@/trip/domain/domain'
 import {
   answerOwn,
   keyedBy,
@@ -25,11 +25,11 @@ import {
   SaveAnswer,
   SaveState,
   useSave,
-} from '@/trip/drafts'
-import type { OwnOutcome } from '@/trip/drafts'
-import { locationLinkMaxLength } from '@/trip/limits'
-import { linkRefusalOf } from '@/trip/pins'
-import { resolveLocationLink, setPin } from '@/trip/trip.functions'
+} from '@/trip/client/drafts'
+import type { OwnOutcome } from '@/trip/client/drafts'
+import { locationLinkMaxLength } from '@/trip/domain/limits'
+import { linkRefusalOf } from '@/trip/location-links/pins'
+import { resolveLocationLink, setPin } from '@/trip/trip/trip.functions'
 
 interface PinFields {
   readonly link: string

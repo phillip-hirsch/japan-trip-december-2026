@@ -4,6 +4,6 @@ export const generatedFiles = [
   'pnpm-lock.yaml',
   'public/map/**',
   'src/routeTree.gen.ts',
-  'src/trip/rail-geometry.json',
+  'src/trip/catalogue/rail-geometry.json',
   'worker-configuration.d.ts',
 ]

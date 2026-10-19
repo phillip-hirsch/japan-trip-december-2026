@@ -152,7 +152,7 @@ describe('check-staged-file-size', () => {
     for (const path of [
       'pnpm-lock.yaml',
       'src/routeTree.gen.ts',
-      'src/trip/rail-geometry.json',
+      'src/trip/catalogue/rail-geometry.json',
       'worker-configuration.d.ts',
       'tools/oxlint/anti-slop/rules/rule.ts',
       'src/components/ui/map.tsx',

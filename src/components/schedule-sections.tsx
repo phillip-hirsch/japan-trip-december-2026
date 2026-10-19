@@ -20,12 +20,12 @@ import {
   ItemDescription,
   ItemTitle,
 } from '@/components/ui/item'
-import { formatMoment } from '@/trip/calendar'
+import { formatMoment } from '@/trip/domain/calendar'
 import type {
   ArchivedScheduleSummary,
   ScheduleDetail,
   ScheduleStayDetail,
-} from '@/trip/domain'
+} from '@/trip/domain/domain'
 
 const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
   const editable = schedule.status === 'current'

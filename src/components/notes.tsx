@@ -4,7 +4,7 @@ import { PencilIcon } from 'lucide-react'
 import { EditorFrame } from '@/components/editor-frame'
 import { NoteText } from '@/components/note-text'
 import { Textarea } from '@/components/ui/textarea'
-import type { IsoDate, ScheduleId } from '@/trip/domain'
+import type { IsoDate, ScheduleId } from '@/trip/domain/domain'
 import {
   answerOwn,
   dayNoteTarget,
@@ -13,13 +13,13 @@ import {
   stayNoteTarget,
   tripNoteTarget,
   useDraftedField,
-} from '@/trip/drafts'
-import { noteMaxLength } from '@/trip/limits'
+} from '@/trip/client/drafts'
+import { noteMaxLength } from '@/trip/domain/limits'
 import {
   writeDayNote,
   writeStayNote,
   writeTripNote,
-} from '@/trip/trip.functions'
+} from '@/trip/trip/trip.functions'
 
 const nearsTheCap = (note: string) => note.length >= noteMaxLength - 1_000
 

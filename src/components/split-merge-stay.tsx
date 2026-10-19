@@ -9,10 +9,19 @@ import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
 import { answerStayEdit } from '@/components/schedule-rules'
 import { StaySection } from '@/components/stay-section'
 import { Button } from '@/components/ui/button'
-import { formatShortDate, tripDates } from '@/trip/calendar'
-import type { IsoDate, ScheduleDetail, ScheduleStayDetail } from '@/trip/domain'
-import { keyedBy, SaveAnswer, SaveState, useOfferedSave } from '@/trip/drafts'
-import { mergeStays, splitStay } from '@/trip/trip.functions'
+import { formatShortDate, tripDates } from '@/trip/domain/calendar'
+import type {
+  IsoDate,
+  ScheduleDetail,
+  ScheduleStayDetail,
+} from '@/trip/domain/domain'
+import {
+  keyedBy,
+  SaveAnswer,
+  SaveState,
+  useOfferedSave,
+} from '@/trip/client/drafts'
+import { mergeStays, splitStay } from '@/trip/trip/trip.functions'
 
 type Choice =
   | {

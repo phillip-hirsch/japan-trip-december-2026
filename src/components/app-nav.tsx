@@ -21,7 +21,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useScheduleSummary } from '@/trip/queries'
+import { useScheduleSummary } from '@/trip/client/queries'
 
 type NavEntry = {
   to: LinkProps['to']

@@ -1,5 +1,5 @@
-import { december, VerifyClaimAttachment } from '@/trip/domain'
-import type { DurationRange, ItineraryContent } from '@/trip/domain'
+import { december, VerifyClaimAttachment } from '@/trip/domain/domain'
+import type { DurationRange, ItineraryContent } from '@/trip/domain/domain'
 import { shigeharuOpeningDays } from '@/trip/itineraries/shigeharu'
 
 export const tokyoKyotoDuration: DurationRange = {

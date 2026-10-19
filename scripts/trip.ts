@@ -5,7 +5,7 @@ import { Effect } from 'effect'
 import { runnerImport } from 'vite-plus'
 import type { InlineConfig } from 'vite-plus'
 
-import type { Trip } from '../src/trip/Trip.ts'
+import type { Trip } from '../src/trip/trip/Trip.ts'
 
 const viteConfig: InlineConfig = {
   configFile: false,
@@ -16,7 +16,10 @@ export const readTrip = async <A>(
   read: (trip: Trip['Service']) => Effect.Effect<A>,
 ): Promise<A> => {
   const { Trip: TripService } = (
-    await runnerImport<{ Trip: typeof Trip }>('/src/trip/Trip.ts', viteConfig)
+    await runnerImport<{ Trip: typeof Trip }>(
+      '/src/trip/trip/Trip.ts',
+      viteConfig,
+    )
   ).module
 
   return Effect.runPromise(

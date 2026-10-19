@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 
 import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
 import { Button } from '@/components/ui/button'
-import { SaveState } from '@/trip/drafts'
+import { SaveState } from '@/trip/client/drafts'
 
 /** An editor's words for Save, for Save while saving, and for once saved. */
 export interface SaveVerb {

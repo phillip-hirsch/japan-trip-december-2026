@@ -6,9 +6,13 @@ import { DisplayJa } from '@/components/display-ja'
 import { ItineraryList } from '@/components/itinerary-list'
 import { ScheduleDayView } from '@/components/schedule-day'
 import { ScheduleSections } from '@/components/schedule-sections'
-import { formatDay, tripEndDate, tripStartDate } from '@/trip/calendar'
-import type { HomeState, ItinerarySummary, ScheduleDetail } from '@/trip/domain'
-import { homeQuery, useHome } from '@/trip/queries'
+import { formatDay, tripEndDate, tripStartDate } from '@/trip/domain/calendar'
+import type {
+  HomeState,
+  ItinerarySummary,
+  ScheduleDetail,
+} from '@/trip/domain/domain'
+import { homeQuery, useHome } from '@/trip/client/queries'
 
 export const Route = createFileRoute('/')({
   loader: {

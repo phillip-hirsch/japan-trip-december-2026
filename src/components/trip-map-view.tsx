@@ -12,7 +12,7 @@ import {
   MarkerLabel,
   useMap,
 } from '@/components/ui/map'
-import type { Coordinates, Place } from '@/trip/domain'
+import type { Coordinates, Place } from '@/trip/domain/domain'
 
 // What every map of the Trip shares. It brings MapLibre along, so only the
 // lazily loaded map canvases import it.

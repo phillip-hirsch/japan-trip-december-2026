@@ -84,11 +84,15 @@ guide doesn't cover, search through the source code in `node_modules/effect/src`
 
 ### Effect in the browser
 
-Browser code may value-import only `Predicate`, `Data` and `Match` from `effect`, and must use `import type` for `@/trip/domain`. Keep `Schema`, `SchemaParser`, `Effect` and the rest server-only: Schema plus the Effect runtime costs about 75 KB gzip ([research](docs/research/effect-v4.md)); Predicate, Data and Match are small and runtime-free.
+Browser code may value-import only `Predicate`, `Data` and `Match` from `effect`, and must use `import type` for `@/trip/domain/domain`. Keep `Schema`, `SchemaParser`, `Effect` and the rest server-only: Schema plus the Effect runtime costs about 75 KB gzip ([research](docs/research/effect-v4.md)); Predicate, Data and Match are small and runtime-free.
 
 ### Imports
 
 Import from `src/` with the `@/` alias (`@/routes/...` for `src/routes/...`).
+
+### Trip modules
+
+`src/trip` has one folder per service (`trip`, `trip-store`, `schedule-store`, `itineraries`, `detail-tiles`, `location-links`), plus `domain`, `catalogue` and `client` for what they share. A new module goes in the folder of the service that owns it, never loose in `src/trip`.
 
 ### Splitting a module
 
@@ -121,7 +125,7 @@ Router integration (Base UI, so no `asChild`):
 
 Tests are colocated with the modules they exercise (`*.test.ts` under `src/`), written with `@effect/vitest` and run by `vp test`. Every test honours this contract:
 
-- Drive behaviour only through a public seam: the Trip service, `runTripWrite` (for a Trip write's outcome) or the Access gate. Behaviour the browser lifecycle owns (mount, unmount, query-cache listeners), which neither seam reaches, goes through the exported React hook instead, rendered under `// @vitest-environment happy-dom` and asserting on what the hook returns and on the query cache. A hook test mocks out the server-function transport, `@/trip/trip.functions`, and nothing else.
+- Drive behaviour only through a public seam: the Trip service, `runTripWrite` (for a Trip write's outcome) or the Access gate. Behaviour the browser lifecycle owns (mount, unmount, query-cache listeners), which neither seam reaches, goes through the exported React hook instead, rendered under `// @vitest-environment happy-dom` and asserting on what the hook returns and on the query cache. A hook test mocks out the server-function transport, `@/trip/trip/trip.functions`, and nothing else.
 - Assert only on returned values, described in glossary terms (`GLOSSARY.md`).
 - Build the module under test for real; substitute only its dependencies (Itinerary catalogue, Clock, SQL client, configuration, key-set transport, link resolver, Detail tiles archive) through layers or `Effect.provideService`.
 - Read state back through the seam; tables, internal helpers and component internals stay uninspected.

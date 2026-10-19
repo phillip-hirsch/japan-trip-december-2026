@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { NoSchedule } from '@/components/no-schedule'
 import { ScheduleMap } from '@/components/schedule-map'
-import { scheduleMapQuery } from '@/trip/queries'
+import { scheduleMapQuery } from '@/trip/client/queries'
 import { pageTitle } from '@/lib/app-identity'
 
 const mapViewport = 'h-[calc(100svh-var(--tab-bar-height))] md:h-svh'

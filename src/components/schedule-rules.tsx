@@ -9,11 +9,15 @@ import {
   shigeharuDate,
   tripEndDate,
   tripStartDate,
-} from '@/trip/calendar'
-import type { AnchorWarning, HardRule, StayEditOutcome } from '@/trip/domain'
-import { answerOwn, SaveAnswer, warned } from '@/trip/drafts'
-import type { SaveWarning } from '@/trip/drafts'
-import { places } from '@/trip/places'
+} from '@/trip/domain/calendar'
+import type {
+  AnchorWarning,
+  HardRule,
+  StayEditOutcome,
+} from '@/trip/domain/domain'
+import { answerOwn, SaveAnswer, warned } from '@/trip/client/drafts'
+import type { SaveWarning } from '@/trip/client/drafts'
+import { places } from '@/trip/catalogue/places'
 
 export const anchorWarningText = (warning: AnchorWarning) =>
   Match.value(warning).pipe(

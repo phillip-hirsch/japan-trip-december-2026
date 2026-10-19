@@ -3,8 +3,8 @@ import { use } from 'react'
 import { RecommendationStar } from '@/components/itinerary-summary'
 import { BaseMarker, lngLatOf, TripMapView } from '@/components/trip-map-view'
 import { MapArc, MapRoute } from '@/components/ui/map'
-import type { ComparisonMap, Coordinates } from '@/trip/domain'
-import { getComparisonMap } from '@/trip/trip.functions'
+import type { ComparisonMap, Coordinates } from '@/trip/domain/domain'
+import { getComparisonMap } from '@/trip/trip/trip.functions'
 
 // MapLibre takes colour strings, not CSS variables. The recommended Itinerary
 // takes the theme's --vermilion; the others take hues that also differ in

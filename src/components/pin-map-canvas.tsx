@@ -8,7 +8,7 @@ import {
   TripMapView,
 } from '@/components/trip-map-view'
 import { MapMarker, MarkerContent, useMap } from '@/components/ui/map'
-import type { Coordinates } from '@/trip/domain'
+import type { Coordinates } from '@/trip/domain/domain'
 
 const oneBlockZoom = 16
 

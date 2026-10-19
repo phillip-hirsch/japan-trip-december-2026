@@ -2,7 +2,7 @@ import { lazy } from 'react'
 import type { ComponentType } from 'react'
 
 import { LazyMap } from '@/components/lazy-map'
-import type { ItineraryMap as ItineraryMapData } from '@/trip/domain'
+import type { ItineraryMap as ItineraryMapData } from '@/trip/domain/domain'
 
 // MapLibre and its styles form their own chunk, which the server build never
 // includes: the map renders only in the browser.

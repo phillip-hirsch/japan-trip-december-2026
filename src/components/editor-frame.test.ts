@@ -5,12 +5,12 @@ import { act } from 'react'
 
 import { useEditorFrame } from '@/components/editor-frame'
 import { useDayNote } from '@/components/notes'
-import { IsoDate, ScheduleId, WriteDayNoteOutcome } from '@/trip/domain'
-import { SaveAnswer, useOfferedSave } from '@/trip/drafts'
-import { deferred, openEditor, startSaving } from '@/trip/editor-testing'
-import { writeDayNote } from '@/trip/trip.functions'
+import { IsoDate, ScheduleId, WriteDayNoteOutcome } from '@/trip/domain/domain'
+import { SaveAnswer, useOfferedSave } from '@/trip/client/drafts'
+import { deferred, openEditor, startSaving } from '@/trip/client/editor-testing'
+import { writeDayNote } from '@/trip/trip/trip.functions'
 
-vi.mock('@/trip/trip.functions', () => ({ writeDayNote: vi.fn() }))
+vi.mock('@/trip/trip/trip.functions', () => ({ writeDayNote: vi.fn() }))
 
 const scheduleA = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
 

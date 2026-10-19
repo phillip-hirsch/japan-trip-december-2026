@@ -20,11 +20,11 @@ import {
 } from '@/components/schedule-sections'
 import { Button } from '@/components/ui/button'
 import { VerifyClaims } from '@/components/verify-claims'
-import { formatMoment } from '@/trip/calendar'
-import type { ScheduleDetail } from '@/trip/domain'
-import { scheduleByIdQuery, useScheduleSummary } from '@/trip/queries'
-import { parseScheduleId } from '@/trip/params'
-import { restoreSchedule } from '@/trip/trip.functions'
+import { formatMoment } from '@/trip/domain/calendar'
+import type { ScheduleDetail } from '@/trip/domain/domain'
+import { scheduleByIdQuery, useScheduleSummary } from '@/trip/client/queries'
+import { parseScheduleId } from '@/trip/client/params'
+import { restoreSchedule } from '@/trip/trip/trip.functions'
 import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/schedule/archived/$scheduleId')({

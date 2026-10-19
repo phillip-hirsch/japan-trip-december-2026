@@ -137,7 +137,7 @@ Split each file before committing. Aim well under the limit, with one clear resp
 
 2. Move each group into a new sibling file named for what it holds:
    - TypeScript and TSX: move the group with its private helpers and the types only it uses. Types shared by several groups get their own module. Import across files with the '@/' alias, except under scripts/, where plain node runs the file and imports must be relative. Keep the original path as the module's entry point. It keeps the public API and imports the pieces, so callers' imports still work. If two new files would import each other, they belong together, or their shared part moves to a third file.
-   - Tests (*.test.ts): split by behaviour into <Module>.<area>.test.ts files, like src/trip/Trip.activities.test.ts. Shared layers and fixtures go in a testing.ts next to them (see src/trip/testing.ts), not into each file.
+   - Tests (*.test.ts): split by behaviour into <Module>.<area>.test.ts files, like src/trip/trip/Trip.activities.test.ts. Shared layers and fixtures go in a testing.ts next to them (see src/trip/trip/testing.ts), not into each file.
    - Markdown: split at the top-level headings into files named for each section, and reduce the original file to an index that links to them.
    - JSON and other data: split by top-level key or record into separate files, and import them where the original was read.
 

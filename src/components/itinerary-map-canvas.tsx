@@ -1,6 +1,6 @@
 import { ItineraryMapLayers, pointsOf } from '@/components/itinerary-map-layers'
 import { TripMapView } from '@/components/trip-map-view'
-import type { ItineraryMap } from '@/trip/domain'
+import type { ItineraryMap } from '@/trip/domain/domain'
 
 export default function ItineraryMapCanvas({ map }: { map: ItineraryMap }) {
   return (

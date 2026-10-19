@@ -16,12 +16,12 @@ import {
   formatDurationRange,
   formatNights,
   formatShortDate,
-} from '@/trip/calendar'
+} from '@/trip/domain/calendar'
 import type {
   ItineraryComparison,
   MovesComparison,
   MoveSummary,
-} from '@/trip/domain'
+} from '@/trip/domain/domain'
 
 function Muted({ children }: { children: ReactNode }) {
   return <span className="text-muted-foreground">{children}</span>

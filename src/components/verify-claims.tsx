@@ -2,7 +2,7 @@ import { BadgeAlertIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import type { VerifyClaimDetail } from '@/trip/domain'
+import type { VerifyClaimDetail } from '@/trip/domain/domain'
 
 export function VerifyClaims({
   claims,

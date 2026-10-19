@@ -1,7 +1,10 @@
 import { layers, namedFlavor } from '@protomaps/basemaps'
 import type { StyleSpecification } from 'maplibre-gl'
 
-import { detailTilesMaxZoom, detailTilesPath } from '@/trip/detail-tile-source'
+import {
+  detailTilesMaxZoom,
+  detailTilesPath,
+} from '@/trip/detail-tiles/detail-tile-source'
 
 const attribution =
   '<a href="https://github.com/protomaps/basemaps">Protomaps</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

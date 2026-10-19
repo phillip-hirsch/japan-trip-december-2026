@@ -15,9 +15,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import type { ChooseOutcome, RestoreOutcome } from '@/trip/domain'
-import { invalidateAfter } from '@/trip/queries'
-import type { TripWrite } from '@/trip/queries'
+import type { ChooseOutcome, RestoreOutcome } from '@/trip/domain/domain'
+import { invalidateAfter } from '@/trip/client/queries'
+import type { TripWrite } from '@/trip/client/queries'
 
 type Refusal = { readonly problem: string; readonly final: boolean }
 

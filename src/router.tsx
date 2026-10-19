@@ -2,8 +2,8 @@ import { createRouter as createTanStackRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
 import { NotFound } from '@/components/not-found'
 import { routeTree } from '@/routeTree.gen'
-import { shouldDehydrateQuery } from '@/trip/queries'
-import { createQueryClient } from '@/trip/query-client'
+import { shouldDehydrateQuery } from '@/trip/client/queries'
+import { createQueryClient } from '@/trip/client/query-client'
 
 export function getRouter() {
   const queryClient = createQueryClient()

@@ -7,7 +7,7 @@ import {
   MarkerContent,
   MarkerPopup,
 } from '@/components/ui/map'
-import type { Coordinates, ItineraryMap, Place } from '@/trip/domain'
+import type { Coordinates, ItineraryMap, Place } from '@/trip/domain/domain'
 
 // MapLibre takes colour strings, not CSS variables: these are the theme's
 // --paper, --chart-1 and --muted-foreground in hex. Vermilion stays reserved

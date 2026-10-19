@@ -20,8 +20,12 @@ import {
   formatNights,
   formatShortDate,
   formatWeekday,
-} from '@/trip/calendar'
-import type { ChecklistItem, ChecklistMove, ScheduleId } from '@/trip/domain'
+} from '@/trip/domain/calendar'
+import type {
+  ChecklistItem,
+  ChecklistMove,
+  ScheduleId,
+} from '@/trip/domain/domain'
 import {
   answerOwn,
   newChecklistItemTarget,
@@ -30,16 +34,16 @@ import {
   useOperationSave,
   useSave,
   warned,
-} from '@/trip/drafts'
-import type { DraftKeeping, SaveWarning } from '@/trip/drafts'
-import { reminderDateOf } from '@/trip/checklist-items'
-import { checklistTextMaxLength } from '@/trip/limits'
+} from '@/trip/client/drafts'
+import type { DraftKeeping, SaveWarning } from '@/trip/client/drafts'
+import { reminderDateOf } from '@/trip/domain/checklist-items'
+import { checklistTextMaxLength } from '@/trip/domain/limits'
 import {
   addOwnChecklistItem,
   removeOwnChecklistItem,
   tickChecklistItem,
   tickOwnChecklistItem,
-} from '@/trip/trip.functions'
+} from '@/trip/trip/trip.functions'
 
 const formatWeekdayDate = (date: string) =>
   `${formatWeekday(date)} ${formatShortDate(date)}`
