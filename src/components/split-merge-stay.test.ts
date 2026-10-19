@@ -266,7 +266,7 @@ describe('merging a Stay with the next', () => {
     await editor.close()
   })
 
-  it('offers the split dates and the merge the Schedule read offers', async () => {
+  it('shows the offered split dates and merge', async () => {
     const editor = await openSplitMerge({
       stay: kyotoMergingWith('stay-kyoto-2'),
       next: kyotoAgain,
@@ -280,7 +280,7 @@ describe('merging a Stay with the next', () => {
     await editor.close()
   })
 
-  it('is not offered while the Schedule read offers no merge', async () => {
+  it('is not offered while the Schedule offers no merge', async () => {
     const editor = await openSplitMerge({ stay: kyoto, next: osaka })
 
     assert.isUndefined(editor.field().field.mergeable)

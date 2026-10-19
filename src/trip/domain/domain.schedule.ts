@@ -98,8 +98,8 @@ export const ScheduleStayDetail = Schema.Struct({
   note: Schema.optionalKey(Schema.String),
   hotel: Hotel,
   /**
-   * Empty when decoding a Stay edit recorded before the Schedule read had
-   * offers. A retry of that edit returns the recorded result.
+   * Empty when decoding a Stay edit recorded before the Schedule had
+   * Offered Stay edits. A retry of that edit returns the recorded result.
    */
   offers: StayEditOffers.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed({ splitDates: [] })),

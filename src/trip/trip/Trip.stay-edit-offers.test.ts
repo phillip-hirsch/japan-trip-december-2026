@@ -69,7 +69,7 @@ interface Candidate {
 
 /**
  * Every split and Stay boundary move on a Trip date, and every merge of two
- * Stays, each marked with whether the Schedule read offers it.
+ * Stays, each marked with whether the Schedule offers it.
  */
 const candidatesOf = (schedule: ScheduleDetail): Array<Candidate> => {
   const offers = offersByPosition(schedule)
@@ -127,9 +127,9 @@ const candidatesOf = (schedule: ScheduleDetail): Array<Candidate> => {
   return [...splits, ...boundaryMoves, ...merges]
 }
 
-describe('the Stay edits each Stay offers', () => {
+describe('Offered Stay edits', () => {
   it.effect(
-    'are the dates it can split on, the next Stay in its Base to merge with, and where its check-out can move before the next Stay',
+    "are each Stay's split dates, a merge with the next Stay in its Base, and the dates its Stay boundary can move to",
     () =>
       Effect.gen(function* () {
         yield* chooseOption1(1, null)
@@ -214,7 +214,7 @@ describe('the Stay edits each Stay offers', () => {
   )
 
   it.effect(
-    'are empty when a retry returns a Stay edit recorded before the Schedule read had them',
+    'are empty when a retry returns a Stay edit recorded before the Schedule had them',
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* chooseOption1(1, null)

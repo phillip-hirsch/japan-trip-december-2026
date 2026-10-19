@@ -83,7 +83,7 @@ describe('moving the date between two Stays', () => {
     await editor.close()
   })
 
-  it('offers the check-outs and next Stay the Schedule read offers', async () => {
+  it('shows the offered check-out dates and the next Stay', async () => {
     localStorage.clear()
     const editor = await openStayBoundary(kyotoBeforeOsaka)
 

@@ -91,7 +91,7 @@ const unchecked = { disableChecks: true }
  * How Stays sorted by check-in break the Hard rules on Stay dates.
  * `checkInOf` gives the check-in that names a Stay without nights. The
  * breaks skip re-checking their dates, which are already checked. The Stay
- * edit offers run this over a hundred times per Schedule read.
+ * edit offers run this over a hundred times per read of the Schedule.
  */
 export const stayDateRuleBreaksOf = <
   S extends Pick<Stay, 'checkIn' | 'checkOut'>,
@@ -273,7 +273,7 @@ type EditedStays = Pick<ScheduleCopy, 'stays' | 'moves'>
 
 /**
  * Why a Stay edit is refused, as plain data. The offers try many Stay edits
- * on every Schedule read, and building an error for each refusal would cost
+ * on every read of the Schedule, and building an error for each refusal would cost
  * more than the rest of the check.
  */
 type Refusal = Data.TaggedEnum<{
