@@ -10,11 +10,13 @@ const maxTokens = 5_000
 const bytesPerToken = 4
 
 // Files agents don't write: generated files, the vendored anti-slop rules
-// and the shadcn/ui registry components.
+// and the shadcn/ui registry components. Research notes are skipped too:
+// each is one dated write-up, and splitting it would only scatter it.
 const skippedPatterns = [
   ...generatedFiles,
   'tools/oxlint/anti-slop/**',
   'src/components/ui/**',
+  'docs/research/**',
 ]
 
 const git = (args: ReadonlyArray<string>, input = '') =>
