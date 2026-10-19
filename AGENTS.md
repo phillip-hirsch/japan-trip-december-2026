@@ -92,7 +92,7 @@ Import from `src/` with the `@/` alias (`@/routes/...` for `src/routes/...`).
 
 ### Splitting a module
 
-A module over the pre-commit token limit splits into `<Module>.<area>.ts` siblings by Trip area: Itinerary, Schedule, Stays, Notes, Checklist, Activities and Detail tiles. One more sibling holds the pieces several areas share. The Trip service also keeps the checks its writes share in `Trip.guards.ts`. The original path stays the entry point. It re-exports every sibling and keeps any area too small for its own file. Other modules import only the entry. Siblings import each other but never the entry, because that cycle fails when the modules load.
+A module over the pre-commit token limit splits into `<Module>.<area>.ts` siblings by Trip area: Itinerary, Schedule, Stays, Notes, Checklist, Activities and Detail tiles. One more sibling holds the pieces several areas share. The Trip service also keeps the checks its writes share in `Trip.guards.ts`, and its whole interface, every method with its doc comment, in `Trip.contract.ts`. The original path stays the entry point. It re-exports every sibling and keeps any area too small for its own file. Other modules import only the entry. Siblings import each other but never the entry, because that cycle fails when the modules load.
 
 ### Cloudflare bindings
 
