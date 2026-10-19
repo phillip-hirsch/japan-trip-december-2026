@@ -556,21 +556,20 @@ export const stayEditOffersOf = (
   const stayId = stay.id
   const next = nextStayOf(copy.stays, stay)
 
-  return {
-    splitDates: tripDates.filter((date) =>
-      accepts(StayEdit.Split({ stayId, date })),
+  const splitDates = tripDates.filter((date) =>
+    accepts(StayEdit.Split({ stayId, date })),
+  )
+
+  if (next === undefined) return { splitDates }
+
+  const boundary = {
+    next: next.id,
+    checkOuts: tripDates.filter((checkOut) =>
+      accepts(StayEdit.MoveBoundary({ stayId, checkOut })),
     ),
-    ...(next !== undefined &&
-      accepts(StayEdit.Merge({ stayIds: [stayId, next.id] })) && {
-        mergeWith: next.id,
-      }),
-    ...(next !== undefined && {
-      boundary: {
-        next: next.id,
-        checkOuts: tripDates.filter((checkOut) =>
-          accepts(StayEdit.MoveBoundary({ stayId, checkOut })),
-        ),
-      },
-    }),
   }
+
+  return accepts(StayEdit.Merge({ stayIds: [stayId, next.id] }))
+    ? { splitDates, mergeWith: next.id, boundary }
+    : { splitDates, boundary }
 }

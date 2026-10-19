@@ -1,5 +1,8 @@
+// effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
+// @effect-diagnostics unstableApiUsage:off
 import { assert, describe, it } from '@effect/vitest'
 import { Effect, Result } from 'effect'
+import { SqlClient } from 'effect/sql'
 
 import { tripDates } from '@/trip/domain/calendar'
 import { december } from '@/trip/domain/domain'
@@ -177,7 +180,9 @@ describe('the Stay edits each Stay offers', () => {
 
         for (const { name, offered, edit } of candidates) {
           const { stays } = yield* scheduleById(scheduleId)
-          const stayAt = (position: number) => stays[position]?.id ?? ''
+
+          const stayAt = (position: number) =>
+            stays[position]?.id ?? assert.fail(`No Stay ${position}`)
 
           const outcome = yield* Effect.result(
             edit(scheduleId, stayAt, operation(n++)),
@@ -199,9 +204,49 @@ describe('the Stay edits each Stay offers', () => {
         }
 
         assert.deepStrictEqual(mismatches, [])
+        // 9 splits, the Kyoto merge and 18 check-out moves, so the Stay edits
+        // tried include accepted ones, not only refusals.
         assert.strictEqual(
           candidates.filter(({ offered }) => offered).length,
           9 + 1 + 18,
+        )
+      }).pipe(Effect.provide([sampleTrip, storage])),
+  )
+
+  it.effect(
+    'are absent from a Stay edit recorded before the Schedule read had them, which a retry still returns',
+    () =>
+      Effect.gen(function* () {
+        const scheduleId = yield* chooseOption1(1, null)
+        const kyotoId = (yield* currentSchedule).stays[1]?.id ?? ''
+
+        const split = splitStay({
+          scheduleId,
+          operationId: operation(2),
+          stayId: kyotoId,
+          date: december(10),
+        })
+
+        const { schedule } = yield* split
+
+        // The SQL client stands in for storage written by an earlier
+        // version, whose recorded result had no offers on its Stays.
+        const sql = yield* SqlClient.SqlClient
+
+        const rows = yield* sql<{
+          readonly result: string
+        }>`SELECT result FROM operations WHERE id = ${operation(2)}`
+
+        const recorded = JSON.parse(rows[0]?.result ?? '{}')
+
+        for (const stay of recorded.schedule.stays) delete stay.offers
+        yield* sql`UPDATE operations SET result = ${JSON.stringify(recorded)} WHERE id = ${operation(2)}`
+
+        const retried = yield* split
+
+        assert.deepStrictEqual(
+          retried.schedule.stays.map(({ id, offers }) => ({ id, offers })),
+          schedule.stays.map(({ id }) => ({ id, offers: { splitDates: [] } })),
         )
       }).pipe(Effect.provide([sampleTrip, storage])),
   )

@@ -1,4 +1,4 @@
-import { DateTime, Option, Schema, Struct } from 'effect'
+import { DateTime, Effect, Option, Schema, Struct } from 'effect'
 
 import { tripTimeZone } from '@/trip/domain/calendar'
 import {
@@ -97,7 +97,13 @@ export const ScheduleStayDetail = Schema.Struct({
   ...StayDetail.fields,
   note: Schema.optionalKey(Schema.String),
   hotel: Hotel,
-  offers: StayEditOffers,
+  /**
+   * None in a Stay edit recorded before the Schedule read had offers, which
+   * a retry of that edit returns.
+   */
+  offers: StayEditOffers.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed({ splitDates: [] })),
+  ),
 })
 
 export type ScheduleStayDetail = typeof ScheduleStayDetail.Type
