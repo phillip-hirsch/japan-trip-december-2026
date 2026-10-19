@@ -7,7 +7,11 @@ import {
   VerifyClaimAttachment,
 } from '@/trip/domain/domain.itinerary'
 import { ScheduleId } from '@/trip/domain/domain.schedule'
-import { OperationId, ScheduleChanged } from '@/trip/domain/domain.writes'
+import {
+  OperationId,
+  ScheduleChanged,
+  writeOutcome,
+} from '@/trip/domain/domain.writes'
 
 /**
  * The id of a Checklist item: for one derived from the Schedule, the id of
@@ -132,32 +136,29 @@ export class ChecklistTextInvalid extends Schema.TaggedError<ChecklistTextInvali
   { maxLength: Schema.Int },
 ) {}
 
-export const TickChecklistItemOutcome = Schema.TaggedUnion({
-  Ticked: {},
-  ScheduleChanged: ScheduleChanged.fields,
-  ChecklistItemNotFound: ChecklistItemNotFound.fields,
-})
+export const TickChecklistItemOutcome = writeOutcome('Ticked', {}, [
+  ScheduleChanged,
+  ChecklistItemNotFound,
+])
 
 export type TickChecklistItemOutcome = typeof TickChecklistItemOutcome.Type
 
-export const TickOwnChecklistItemOutcome = Schema.TaggedUnion({
-  Ticked: {},
-  ChecklistItemNotFound: ChecklistItemNotFound.fields,
-})
+export const TickOwnChecklistItemOutcome = writeOutcome('Ticked', {}, [
+  ChecklistItemNotFound,
+])
 
 export type TickOwnChecklistItemOutcome =
   typeof TickOwnChecklistItemOutcome.Type
 
-export const AddOwnChecklistItemOutcome = Schema.TaggedUnion({
-  Added: OwnChecklistItemAdded.fields,
-  ChecklistTextInvalid: ChecklistTextInvalid.fields,
-})
+export const AddOwnChecklistItemOutcome = writeOutcome(
+  'Added',
+  OwnChecklistItemAdded.fields,
+  [ChecklistTextInvalid],
+)
 
 export type AddOwnChecklistItemOutcome = typeof AddOwnChecklistItemOutcome.Type
 
-export const RemoveOwnChecklistItemOutcome = Schema.TaggedUnion({
-  Removed: {},
-})
+export const RemoveOwnChecklistItemOutcome = writeOutcome('Removed', {}, [])
 
 export type RemoveOwnChecklistItemOutcome =
   typeof RemoveOwnChecklistItemOutcome.Type

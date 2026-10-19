@@ -11,7 +11,11 @@ import {
   ScheduleId,
 } from '@/trip/domain/domain.schedule'
 import { StayNotFound } from '@/trip/domain/domain.stays'
-import { OperationId, ScheduleChanged } from '@/trip/domain/domain.writes'
+import {
+  OperationId,
+  ScheduleChanged,
+  writeOutcome,
+} from '@/trip/domain/domain.writes'
 
 export const TimeOfDay = Schema.String.check(
   Schema.isPattern(timeOfDayPattern),
@@ -83,39 +87,35 @@ export class ActivityTitleInvalid extends Schema.TaggedError<ActivityTitleInvali
   { maxLength: Schema.Int },
 ) {}
 
-export const AddActivityOutcome = Schema.TaggedUnion({
-  Added: ActivityAdded.fields,
-  ScheduleChanged: ScheduleChanged.fields,
-  DayNotFound: DayNotFound.fields,
-  ActivityTitleInvalid: ActivityTitleInvalid.fields,
-  NoteTooLong: NoteTooLong.fields,
-})
+export const AddActivityOutcome = writeOutcome('Added', ActivityAdded.fields, [
+  ScheduleChanged,
+  DayNotFound,
+  ActivityTitleInvalid,
+  NoteTooLong,
+])
 
 export type AddActivityOutcome = typeof AddActivityOutcome.Type
 
-export const EditActivityOutcome = Schema.TaggedUnion({
-  Edited: {},
-  ScheduleChanged: ScheduleChanged.fields,
-  ActivityNotFound: ActivityNotFound.fields,
-  ActivityTitleInvalid: ActivityTitleInvalid.fields,
-  NoteTooLong: NoteTooLong.fields,
-})
+export const EditActivityOutcome = writeOutcome('Edited', {}, [
+  ScheduleChanged,
+  ActivityNotFound,
+  ActivityTitleInvalid,
+  NoteTooLong,
+])
 
 export type EditActivityOutcome = typeof EditActivityOutcome.Type
 
-export const RemoveActivityOutcome = Schema.TaggedUnion({
-  Removed: {},
-  ScheduleChanged: ScheduleChanged.fields,
-  ActivityNotFound: ActivityNotFound.fields,
-})
+export const RemoveActivityOutcome = writeOutcome('Removed', {}, [
+  ScheduleChanged,
+  ActivityNotFound,
+])
 
 export type RemoveActivityOutcome = typeof RemoveActivityOutcome.Type
 
-export const MoveActivityOutcome = Schema.TaggedUnion({
-  Moved: {},
-  ScheduleChanged: ScheduleChanged.fields,
-  ActivityNotFound: ActivityNotFound.fields,
-})
+export const MoveActivityOutcome = writeOutcome('Moved', {}, [
+  ScheduleChanged,
+  ActivityNotFound,
+])
 
 export type MoveActivityOutcome = typeof MoveActivityOutcome.Type
 
@@ -159,12 +159,11 @@ export class CoordinatesOutsideJapan extends Schema.TaggedError<CoordinatesOutsi
   { coordinates: Coordinates },
 ) {}
 
-export const ResolveLocationLinkOutcome = Schema.TaggedUnion({
-  Resolved: { coordinates: Coordinates },
-  LocationLinkRefused: LocationLinkRefused.fields,
-  NoCoordinatesInLink: NoCoordinatesInLink.fields,
-  CoordinatesOutsideJapan: CoordinatesOutsideJapan.fields,
-})
+export const ResolveLocationLinkOutcome = writeOutcome(
+  'Resolved',
+  { coordinates: Coordinates },
+  [LocationLinkRefused, NoCoordinatesInLink, CoordinatesOutsideJapan],
+)
 
 export type ResolveLocationLinkOutcome = typeof ResolveLocationLinkOutcome.Type
 
@@ -188,13 +187,12 @@ export const SetPin = Schema.Struct({
 
 export type SetPin = typeof SetPin.Type
 
-export const SetPinOutcome = Schema.TaggedUnion({
-  Set: {},
-  ScheduleChanged: ScheduleChanged.fields,
-  ActivityNotFound: ActivityNotFound.fields,
-  StayNotFound: StayNotFound.fields,
-  LocationLinkRefused: LocationLinkRefused.fields,
-  CoordinatesOutsideJapan: CoordinatesOutsideJapan.fields,
-})
+export const SetPinOutcome = writeOutcome('Set', {}, [
+  ScheduleChanged,
+  ActivityNotFound,
+  StayNotFound,
+  LocationLinkRefused,
+  CoordinatesOutsideJapan,
+])
 
 export type SetPinOutcome = typeof SetPinOutcome.Type
