@@ -7,12 +7,8 @@ import { EditorFrame, saveVerb } from '@/components/editor-frame'
 import type { SaveVerb } from '@/components/editor-frame'
 import { answerStayEdit, hardRuleProblem } from '@/components/schedule-rules'
 import { StaySection } from '@/components/stay-section'
-import type {
-  AnchorWarning,
-  HardRule,
-  ScheduleId,
-  ScheduleStayDetail,
-} from '@/trip/domain/domain'
+import type { StayEditorProps } from '@/components/stay-section'
+import type { HardRule } from '@/trip/domain/domain'
 import { keyedBy, SaveAnswer, useSave } from '@/trip/client/drafts'
 import { placeIds } from '@/trip/catalogue/catalogue-ids'
 import type { PlaceId } from '@/trip/catalogue/catalogue-ids'
@@ -22,7 +18,7 @@ import { changeStayBase } from '@/trip/trip/trip.functions'
 const unknownPlace = (rule: HardRule) =>
   SaveAnswer.Refused({ problem: hardRuleProblem(rule) })
 
-const verb: SaveVerb = { ...saveVerb, done: 'Base changed' }
+const baseVerb: SaveVerb = { ...saveVerb, done: 'Base changed' }
 
 /**
  * The Base of a Stay of the Schedule shown. Picking a place keeps no draft,
@@ -32,14 +28,10 @@ export const useStayBase = ({
   scheduleId,
   stay,
   anchorWarnings,
-}: {
-  scheduleId: ScheduleId
-  stay: ScheduleStayDetail
-  anchorWarnings: ReadonlyArray<AnchorWarning>
-}) => {
+}: Omit<StayEditorProps, 'next'>) => {
   const change = useServerFn(changeStayBase)
 
-  const field = useSave<PlaceId>({
+  return useSave<PlaceId>({
     scheduleId,
     saved: stay.base.id,
     write: 'stayEdit',
@@ -50,11 +42,9 @@ export const useStayBase = ({
         unknownPlace,
       )(await change({ data: { scheduleId, stayId: stay.id, place } })),
   })
-
-  return { ...field, verb }
 }
 
-function StayBaseEditor(props: Parameters<typeof useStayBase>[0]) {
+function StayBaseEditor(props: Omit<StayEditorProps, 'next'>) {
   const { stay } = props
   const field = useStayBase(props)
   const hintId = useId()
@@ -65,7 +55,7 @@ function StayBaseEditor(props: Parameters<typeof useStayBase>[0]) {
         <EditorFrame
           field={field}
           labelledBy={headingId}
-          verb={field.verb}
+          verb={baseVerb}
           edits={[
             { label: 'Change Base', icon: PencilIcon, onClick: field.edit },
           ]}
@@ -75,11 +65,7 @@ function StayBaseEditor(props: Parameters<typeof useStayBase>[0]) {
           {(frame) => (
             <fieldset
               className="flex flex-col gap-2"
-              aria-describedby={
-                frame.describedBy === undefined
-                  ? hintId
-                  : `${hintId} ${frame.describedBy}`
-              }
+              aria-describedby={frame.describedWith(hintId)}
             >
               <legend className="mb-2 text-sm">Change the Base to</legend>
               <ChipChoice

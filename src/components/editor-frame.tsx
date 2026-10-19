@@ -74,6 +74,9 @@ export const useEditorFrame = <V,>(
     problemId,
     /** The "not saved" alert's id while it shows, for an input's aria-describedby. */
     describedBy: problem === undefined ? undefined : problemId,
+    /** `hintId`, then the "not saved" alert's id while it shows. */
+    describedWith: (hintId: string) =>
+      problem === undefined ? hintId : `${hintId} ${problemId}`,
   }
 }
 
@@ -84,6 +87,7 @@ export interface EditAction {
   readonly label: string
   readonly icon: LucideIcon
   readonly onClick: () => void
+  readonly disabled?: boolean
 }
 
 /**
@@ -137,12 +141,13 @@ export function EditorFrame<V>({
       <div className="flex flex-col items-start gap-3">
         {summary}
         <div className="flex flex-wrap items-center gap-3">
-          {edits.map(({ label, icon: Icon, onClick }) => (
+          {edits.map(({ label, icon: Icon, onClick, disabled }) => (
             <Button
               key={label}
               variant="outline"
               size="sm"
               aria-describedby={labelledBy}
+              disabled={disabled}
               onClick={onClick}
             >
               <Icon data-icon="inline-start" aria-hidden />

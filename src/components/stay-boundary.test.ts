@@ -5,25 +5,19 @@ import { act } from 'react'
 
 import { useEditorFrame } from '@/components/editor-frame'
 import { useStayBoundary } from '@/components/stay-boundary'
-import {
-  december,
-  HardRule,
-  ScheduleId,
-  StayEditOutcome,
-} from '@/trip/domain/domain'
+import { december, HardRule, StayEditOutcome } from '@/trip/domain/domain'
 import type { ScheduleStayDetail } from '@/trip/domain/domain'
 import { SaveState } from '@/trip/client/drafts'
 import {
   answeringOnly,
   openEditor,
+  scheduleId,
   scheduleStay,
   staysEdited,
 } from '@/trip/client/editor-testing'
 import { moveStayBoundary } from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({ moveStayBoundary: vi.fn() }))
-
-const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
 
 const kyoto = scheduleStay('stay-kyoto', 'kyoto', 9, 12)
 
@@ -70,7 +64,7 @@ describe('moving the date between two Stays', () => {
     await editor.close()
   })
 
-  it('shows an open move as withdrawn once the Stay is the last, offering Cancel', async () => {
+  it('shows an open Stay boundary edit as withdrawn once the Stay is the last, offering Cancel', async () => {
     localStorage.clear()
     const editor = await openStayBoundary(osaka)
     await act(async () => editor.field().field.change(december(11)))
@@ -85,7 +79,7 @@ describe('moving the date between two Stays', () => {
     await editor.close()
   })
 
-  it('keeps a move the Hard rules refused visible as withdrawn, with the refusal, offering Discard', async () => {
+  it('keeps a Stay boundary edit the Hard rules refused visible as withdrawn, with the refusal, offering Discard', async () => {
     localStorage.clear()
     vi.mocked(moveStayBoundary).mockResolvedValue(
       StayEditOutcome.cases.HardRuleBroken.make({

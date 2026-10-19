@@ -132,6 +132,11 @@ export const openEditor = async <P extends object, F>(
   }
 }
 
+/** The Schedule shown, in the Stay edit tests. */
+export const scheduleId = ScheduleId.make(
+  '00000000-0000-4000-8000-00000000000a',
+)
+
 /**
  * A Stay of the Schedule shown, in `base` from December `checkIn` to
  * December `checkOut`, with no hotel details or note.
@@ -159,7 +164,7 @@ export const staysEdited = (
 ): StayEditOutcome =>
   StayEditOutcome.cases.Edited.make({
     schedule: {
-      id: ScheduleId.make('00000000-0000-4000-8000-00000000000a'),
+      id: scheduleId,
       status: 'current',
       sourceOptionNumber: 1,
       sourceContentVersion: 'v1',

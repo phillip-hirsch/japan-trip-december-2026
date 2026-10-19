@@ -5,20 +5,19 @@ import { act } from 'react'
 
 import { useEditorFrame } from '@/components/editor-frame'
 import { useStayBase } from '@/components/stay-base'
-import { HardRule, ScheduleId, StayEditOutcome } from '@/trip/domain/domain'
+import { HardRule, StayEditOutcome } from '@/trip/domain/domain'
 import { SaveState } from '@/trip/client/drafts'
 import {
   answeringOnly,
   notSavedProblem,
   openEditor,
+  scheduleId,
   scheduleStay,
   staysEdited,
 } from '@/trip/client/editor-testing'
 import { changeStayBase } from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({ changeStayBase: vi.fn() }))
-
-const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
 
 const kyoto = scheduleStay('stay-kyoto', 'kyoto', 9, 12)
 
@@ -28,7 +27,7 @@ const openStayBase = (read?: () => Promise<string>) =>
     () => {
       const field = useStayBase({ scheduleId, stay: kyoto, anchorWarnings: [] })
 
-      return { field, frame: useEditorFrame(field, field.verb) }
+      return { field, frame: useEditorFrame(field) }
     },
     {},
     read,
@@ -53,7 +52,6 @@ describe('changing a Base', () => {
       editor.field().field.state,
       SaveState.Clean({ justSaved: true }),
     )
-    assert.strictEqual(editor.field().field.verb.done, 'Base changed')
     await editor.close()
   })
 

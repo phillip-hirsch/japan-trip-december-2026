@@ -5,18 +5,16 @@ import { act } from 'react'
 
 import { useEditorFrame } from '@/components/editor-frame'
 import { useSplitMergeStay } from '@/components/split-merge-stay'
-import {
-  december,
-  HardRule,
-  ScheduleId,
-  StayEditOutcome,
-} from '@/trip/domain/domain'
+import { december, HardRule, StayEditOutcome } from '@/trip/domain/domain'
 import type { ScheduleStayDetail } from '@/trip/domain/domain'
 import { SaveState } from '@/trip/client/drafts'
 import {
   answeringOnly,
+  deferred,
   openEditor,
+  scheduleId,
   scheduleStay,
+  startSaving,
   staysEdited,
 } from '@/trip/client/editor-testing'
 import { mergeStays, splitStay } from '@/trip/trip/trip.functions'
@@ -25,8 +23,6 @@ vi.mock('@/trip/trip/trip.functions', () => ({
   splitStay: vi.fn(),
   mergeStays: vi.fn(),
 }))
-
-const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
 
 const stayGone = StayEditOutcome.cases.StayNotFound.make({
   stayId: 'stay-kyoto',
@@ -38,7 +34,10 @@ const kyoto = scheduleStay('stay-kyoto', 'kyoto', 9, 12)
  * Split and merge of the Kyoto Stay, December 9 to 12, while the Stay after
  * it is `next`, and its frame.
  */
-const openSplitMerge = (next: ScheduleStayDetail | undefined) =>
+const openSplitMerge = (
+  next: ScheduleStayDetail | undefined,
+  read?: () => Promise<string>,
+) =>
   openEditor(
     ({ next }: { next: ScheduleStayDetail | undefined }) => {
       const field = useSplitMergeStay({
@@ -51,6 +50,7 @@ const openSplitMerge = (next: ScheduleStayDetail | undefined) =>
       return { field, frame: useEditorFrame(field, field.verb) }
     },
     { next },
+    read,
   )
 
 describe('splitting a Stay', () => {
@@ -80,6 +80,39 @@ describe('splitting a Stay', () => {
       SaveState.Clean({ justSaved: true }),
     )
     assert.strictEqual(editor.field().field.verb.done, 'Split')
+    await editor.close()
+  })
+
+  it('shows an open split as withdrawn once the Stay has only one night, offering Cancel', async () => {
+    const editor = await openEditor(
+      ({ stay }: { stay: ScheduleStayDetail }) => {
+        const field = useSplitMergeStay({
+          scheduleId,
+          stay,
+          next: undefined,
+          anchorWarnings: [],
+        })
+
+        return { field, frame: useEditorFrame(field, field.verb) }
+      },
+      { stay: kyoto },
+    )
+
+    await act(async () =>
+      editor.field().field.change({ kind: 'split', date: december(10) }),
+    )
+
+    await editor.show({ stay: scheduleStay('stay-kyoto', 'kyoto', 9, 10) })
+
+    const { view, discardLabel } = editor.field().frame
+    assert.deepStrictEqual(
+      { view, discardLabel },
+      { view: 'withdrawn', discardLabel: 'Cancel' },
+    )
+    assert.strictEqual(
+      editor.field().field.withdrawnReason,
+      'This Stay has only one night now, so it can’t be split.',
+    )
     await editor.close()
   })
 })
@@ -114,6 +147,34 @@ describe('merging a Stay with the next', () => {
       SaveState.Clean({ justSaved: true }),
     )
     assert.strictEqual(editor.field().field.verb.done, 'Merged')
+    await editor.close()
+  })
+
+  it('offers no other split or merge until the refreshed Schedule shows the merge', async () => {
+    vi.mocked(mergeStays).mockResolvedValue(staysEdited())
+    const reread = deferred<string>()
+    let reads = 0
+
+    const editor = await openSplitMerge(kyotoAgain, () =>
+      reads++ === 0 ? Promise.resolve('schedules') : reread.promise,
+    )
+
+    await act(async () =>
+      editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
+    )
+    const { finished } = await startSaving(() => editor.field().field.save())
+
+    assert.isFalse(editor.field().field.canChoose)
+    await act(async () =>
+      editor.field().field.change({ kind: 'split', date: december(10) }),
+    )
+    assert.isTrue(SaveState.$is('Saved')(editor.field().field.state))
+
+    await act(async () => {
+      reread.resolve('schedules, re-read')
+      await finished
+    })
+    assert.isTrue(editor.field().field.canChoose)
     await editor.close()
   })
 

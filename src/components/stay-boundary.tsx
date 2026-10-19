@@ -7,6 +7,7 @@ import { DateChoice } from '@/components/date-choice'
 import { EditorFrame } from '@/components/editor-frame'
 import { answerStayEdit } from '@/components/schedule-rules'
 import { StaySection } from '@/components/stay-section'
+import type { StayEditorProps } from '@/components/stay-section'
 import {
   formatDay,
   formatNights,
@@ -14,12 +15,7 @@ import {
   nightsBetween,
   tripDates,
 } from '@/trip/domain/calendar'
-import type {
-  AnchorWarning,
-  IsoDate,
-  ScheduleId,
-  ScheduleStayDetail,
-} from '@/trip/domain/domain'
+import type { IsoDate } from '@/trip/domain/domain'
 import {
   keyedBy,
   stayBoundaryTarget,
@@ -39,12 +35,7 @@ export const useStayBoundary = ({
   stay,
   next,
   anchorWarnings,
-}: {
-  scheduleId: ScheduleId
-  stay: ScheduleStayDetail
-  next: ScheduleStayDetail | undefined
-  anchorWarnings: ReadonlyArray<AnchorWarning>
-}) => {
+}: StayEditorProps) => {
   const move = useServerFn(moveStayBoundary)
 
   return useOfferedSave<IsoDate>({
@@ -61,7 +52,7 @@ export const useStayBoundary = ({
   })
 }
 
-function StayBoundaryEditor(props: Parameters<typeof useStayBoundary>[0]) {
+function StayBoundaryEditor(props: StayEditorProps) {
   const { stay, next } = props
   const field = useStayBoundary(props)
   const hintId = useId()
@@ -103,11 +94,7 @@ function StayBoundaryEditor(props: Parameters<typeof useStayBoundary>[0]) {
             next && (
               <fieldset
                 className="flex flex-col gap-2"
-                aria-describedby={
-                  frame.describedBy === undefined
-                    ? hintId
-                    : `${hintId} ${frame.describedBy}`
-                }
+                aria-describedby={frame.describedWith(hintId)}
               >
                 <legend className="mb-2 text-sm">Check out on</legend>
                 <DateChoice
