@@ -35,7 +35,6 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
     : undefined
 
   const { note } = stay
-  const next = schedule.stays.find(({ checkIn }) => checkIn === stay.checkOut)
 
   if (!editable && hotel === undefined && note === undefined) return null
 
@@ -94,7 +93,7 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
         <StayBoundaryField
           scheduleId={schedule.id}
           stay={stay}
-          next={next}
+          stays={schedule.stays}
           anchorWarnings={schedule.anchorWarnings}
         />
       )}
@@ -102,7 +101,7 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
         <SplitMergeStay
           scheduleId={schedule.id}
           stay={stay}
-          next={next}
+          stays={schedule.stays}
           anchorWarnings={schedule.anchorWarnings}
         />
       )}

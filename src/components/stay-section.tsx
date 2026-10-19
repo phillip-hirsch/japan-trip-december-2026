@@ -8,15 +8,22 @@ import type {
 } from '@/trip/domain/domain'
 
 /**
- * What a Stay edit editor works on: a Stay of the Schedule shown, the Stay
- * after it if any, and the Anchor warnings before the edit.
+ * What a Stay edit editor works on: a Stay of the Schedule shown, with the
+ * Stay edits it offers, the Stays its offers name, and the Anchor warnings
+ * before the edit.
  */
 export interface StayEditorProps {
   readonly scheduleId: ScheduleId
   readonly stay: ScheduleStayDetail
-  readonly next: ScheduleStayDetail | undefined
+  readonly stays: ReadonlyArray<ScheduleStayDetail>
   readonly anchorWarnings: ReadonlyArray<AnchorWarning>
 }
+
+/** The Stay of the Schedule shown that an offer names, if any. */
+export const stayNamed = (
+  stays: ReadonlyArray<ScheduleStayDetail>,
+  stayId: string | undefined,
+) => (stayId === undefined ? undefined : stays.find(({ id }) => id === stayId))
 
 export function StaySection({
   heading,

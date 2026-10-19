@@ -1,8 +1,9 @@
-import { Data, Effect, Struct } from 'effect'
+import { Data, Effect, Result, Struct } from 'effect'
 
 import {
   birthdayDate,
   shigeharuEveDate,
+  tripDates,
   tripEndDate,
   tripStartDate,
 } from '@/trip/domain/calendar'
@@ -28,6 +29,7 @@ import type {
   ScheduleAnchor,
   SplitStay,
   Stay,
+  StayEditOffers,
   VerifyClaim,
 } from '@/trip/domain/domain'
 import { isPlaceId } from '@/trip/catalogue/places'
@@ -61,6 +63,12 @@ export const stayForNight = <S extends Pick<Stay, 'checkIn' | 'checkOut'>>(
   stays: ReadonlyArray<S>,
   date: IsoDate,
 ) => stays.find((stay) => stay.checkIn <= date && date < stay.checkOut)
+
+/** The Stay after a Stay: the one checking in the day it checks out. */
+export const nextStayOf = <S extends Pick<Stay, 'checkIn'>>(
+  stays: ReadonlyArray<S>,
+  stay: Pick<Stay, 'checkOut'>,
+) => stays.find(({ checkIn }) => checkIn === stay.checkOut)
 
 /** Each Stay boundary between back-to-back Stays, with the Stays it joins. */
 export const stayBoundariesOf = <S extends Stay>(stays: ReadonlyArray<S>) =>
@@ -258,21 +266,23 @@ export interface AppliedStayEdit extends StayChanges {
 
 type EditedStays = Pick<ScheduleCopy, 'stays' | 'moves'>
 
-const refuse = (rule: HardRule) => Effect.fail(new HardRuleBroken({ rule }))
+type Edited = Result.Result<EditedStays, StayNotFound | HardRuleBroken>
+
+const refuse = (rule: HardRule) => Result.fail(new HardRuleBroken({ rule }))
 
 const findStay = (copy: ScheduleCopy, stayId: string) => {
   const stay = copy.stays.find(({ id }) => id === stayId)
 
   return stay === undefined
-    ? Effect.fail(new StayNotFound({ stayId }))
-    : Effect.succeed(stay)
+    ? Result.fail(new StayNotFound({ stayId }))
+    : Result.succeed(stay)
 }
 
 const split = (
   copy: ScheduleCopy,
   { stayId, date }: Data.TaggedEnum.Value<StayEdit, 'Split'>,
-): Effect.Effect<EditedStays, StayNotFound> =>
-  Effect.map(findStay(copy, stayId), (stay) => {
+): Edited =>
+  Result.map(findStay(copy, stayId), (stay) => {
     const later: ScheduleStay = {
       id: crypto.randomUUID(),
       base: stay.base,
@@ -294,43 +304,44 @@ const split = (
     }
   })
 
-const merge = Effect.fnUntraced(function* (
+const merge = (
   copy: ScheduleCopy,
   { stayIds }: Data.TaggedEnum.Value<StayEdit, 'Merge'>,
-): Effect.fn.Return<EditedStays, StayNotFound | HardRuleBroken> {
-  const a = yield* findStay(copy, stayIds[0])
-  const b = yield* findStay(copy, stayIds[1])
-  const [earlier, later] = a.checkIn <= b.checkIn ? [a, b] : [b, a]
+): Edited =>
+  Result.gen(function* () {
+    const a = yield* findStay(copy, stayIds[0])
+    const b = yield* findStay(copy, stayIds[1])
+    const [earlier, later] = a.checkIn <= b.checkIn ? [a, b] : [b, a]
 
-  if (earlier.checkOut !== later.checkIn) {
-    return yield* refuse(HardRule.cases.StaysNotAdjacent.make({}))
-  }
+    if (earlier.checkOut !== later.checkIn) {
+      return yield* refuse(HardRule.cases.StaysNotAdjacent.make({}))
+    }
 
-  if (earlier.base !== later.base) {
-    return yield* refuse(HardRule.cases.StaysInDifferentBases.make({}))
-  }
+    if (earlier.base !== later.base) {
+      return yield* refuse(HardRule.cases.StaysInDifferentBases.make({}))
+    }
 
-  const merged: ScheduleStay = {
-    ...earlier,
-    checkOut: later.checkOut,
-    highlights: [...new Set([...earlier.highlights, ...later.highlights])],
-  }
+    const merged: ScheduleStay = {
+      ...earlier,
+      checkOut: later.checkOut,
+      highlights: [...new Set([...earlier.highlights, ...later.highlights])],
+    }
 
-  return {
-    stays: copy.stays.flatMap((stay) =>
-      stay.id === later.id ? [] : [stay.id === earlier.id ? merged : stay],
-    ),
-    moves: copy.moves.filter((move) => move.date !== later.checkIn),
-  }
-})
+    return {
+      stays: copy.stays.flatMap((stay) =>
+        stay.id === later.id ? [] : [stay.id === earlier.id ? merged : stay],
+      ),
+      moves: copy.moves.filter((move) => move.date !== later.checkIn),
+    }
+  })
 
 const moveBoundary = (
   copy: ScheduleCopy,
   { stayId, checkOut }: Data.TaggedEnum.Value<StayEdit, 'MoveBoundary'>,
-): Effect.Effect<EditedStays, StayNotFound> =>
-  Effect.map(findStay(copy, stayId), (stay) => {
+): Edited =>
+  Result.map(findStay(copy, stayId), (stay) => {
     const from = stay.checkOut
-    const next = copy.stays.find(({ checkIn }) => checkIn === from)
+    const next = nextStayOf(copy.stays, stay)
 
     return {
       stays: copy.stays.map((each) =>
@@ -346,31 +357,32 @@ const moveBoundary = (
     }
   })
 
-const changeBase = Effect.fnUntraced(function* (
+const changeBase = (
   copy: ScheduleCopy,
   { stayId, place }: Data.TaggedEnum.Value<StayEdit, 'ChangeBase'>,
-): Effect.fn.Return<EditedStays, StayNotFound | HardRuleBroken> {
-  const stay = yield* findStay(copy, stayId)
+): Edited =>
+  Result.gen(function* () {
+    const stay = yield* findStay(copy, stayId)
 
-  if (!isPlaceId(place)) {
-    return yield* refuse(HardRule.cases.PlaceNotInCatalogue.make({ place }))
-  }
+    if (!isPlaceId(place)) {
+      return yield* refuse(HardRule.cases.PlaceNotInCatalogue.make({ place }))
+    }
 
-  if (stay.base === place) return copy
+    if (stay.base === place) return copy
 
-  const adjoining = new Set([stay.checkIn, stay.checkOut])
+    const adjoining = new Set([stay.checkIn, stay.checkOut])
 
-  return {
-    stays: copy.stays.map((each) =>
-      each.id === stayId ? { ...each, base: place, highlights: [] } : each,
-    ),
-    moves: copy.moves.map((move) =>
-      adjoining.has(move.date)
-        ? { ...Struct.omit(move, ['duration']), sections: [] }
-        : move,
-    ),
-  }
-})
+    return {
+      stays: copy.stays.map((each) =>
+        each.id === stayId ? { ...each, base: place, highlights: [] } : each,
+      ),
+      moves: copy.moves.map((move) =>
+        adjoining.has(move.date)
+          ? { ...Struct.omit(move, ['duration']), sections: [] }
+          : move,
+      ),
+    }
+  })
 
 const byCheckIn = (a: Stay, b: Stay) => a.checkIn.localeCompare(b.checkIn)
 
@@ -438,33 +450,42 @@ const droppedIds = (
 }
 
 /**
- * Applies a Stay edit to a Schedule's copy and checks the Hard rules in this
- * order:
+ * The Stays and Moves a Stay edit leaves, Stays sorted by check-in, or why
+ * it's refused. It checks the Hard rules in this order:
  *
  * 1. The Stay named exists, or it fails with StayNotFound.
  * 2. The edit can apply. A merge needs adjacent Stays in one Base, and a new
  *    Base must be a place in the catalogue.
  * 3. The Hard rules on Stay dates, with a Stay without nights first.
- *
- * A Move left off a Stay boundary is a bug in the edit, so it dies.
+ */
+const checkedStayEdit = (copy: ScheduleCopy, edit: StayEdit): Edited =>
+  Result.flatMap(
+    StayEdit.$match(edit, {
+      Split: (edit) => split(copy, edit),
+      Merge: (edit) => merge(copy, edit),
+      MoveBoundary: (edit) => moveBoundary(copy, edit),
+      ChangeBase: (edit) => changeBase(copy, edit),
+    }),
+    ({ stays, moves }) => {
+      const sorted = [...stays].sort(byCheckIn)
+      const broken = stayDateRuleBroken(copy, sorted)
+
+      return broken === undefined
+        ? Result.succeed({ stays: sorted, moves })
+        : refuse(broken)
+    },
+  )
+
+/**
+ * Applies a Stay edit to a Schedule's copy, or fails with the Hard rule that
+ * refuses it, as checkedStayEdit orders them. A Move left off a Stay boundary
+ * is a bug in the edit, so it dies.
  */
 export const applyStayEdit = Effect.fnUntraced(function* (
   copy: ScheduleCopy,
   edit: StayEdit,
 ): Effect.fn.Return<AppliedStayEdit, StayNotFound | HardRuleBroken> {
-  const edited = yield* StayEdit.$match(edit, {
-    Split: (edit) => split(copy, edit),
-    Merge: (edit) => merge(copy, edit),
-    MoveBoundary: (edit) => moveBoundary(copy, edit),
-    ChangeBase: (edit) => changeBase(copy, edit),
-  })
-
-  const stays = [...edited.stays].sort(byCheckIn)
-  const broken = stayDateRuleBroken(copy, stays)
-
-  if (broken !== undefined) return yield* refuse(broken)
-
-  const { moves } = edited
+  const { stays, moves } = yield* Effect.fromResult(checkedStayEdit(copy, edit))
   const verifyClaims = claimsFollowingStays(copy, stays)
   const misfits = fitBreaksOf({ stays, moves, verifyClaims, days: copy.days })
 
@@ -492,3 +513,36 @@ export const applyStayEdit = Effect.fnUntraced(function* (
     },
   }
 })
+
+/**
+ * The Stay edits a Stay of a Schedule's copy offers: each split, merge and
+ * Stay boundary move the Hard rules accept, checked as the edit itself is.
+ */
+export const stayEditOffersOf = (
+  copy: ScheduleCopy,
+  stay: Pick<ScheduleStay, 'id' | 'checkOut'>,
+): StayEditOffers => {
+  const accepts = (edit: StayEdit) =>
+    Result.isSuccess(checkedStayEdit(copy, edit))
+
+  const stayId = stay.id
+  const next = nextStayOf(copy.stays, stay)
+
+  return {
+    splitDates: tripDates.filter((date) =>
+      accepts(StayEdit.Split({ stayId, date })),
+    ),
+    ...(next !== undefined &&
+      accepts(StayEdit.Merge({ stayIds: [stayId, next.id] })) && {
+        mergeWith: next.id,
+      }),
+    ...(next !== undefined && {
+      boundary: {
+        next: next.id,
+        checkOuts: tripDates.filter((checkOut) =>
+          accepts(StayEdit.MoveBoundary({ stayId, checkOut })),
+        ),
+      },
+    }),
+  }
+}

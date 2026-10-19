@@ -7,9 +7,9 @@ import { DateChoice } from '@/components/date-choice'
 import { EditorFrame } from '@/components/editor-frame'
 import type { SaveVerb } from '@/components/editor-frame'
 import { answerStayEdit } from '@/components/schedule-rules'
-import { StaySection } from '@/components/stay-section'
+import { StaySection, stayNamed } from '@/components/stay-section'
 import type { StayEditorProps } from '@/components/stay-section'
-import { formatShortDate, tripDates } from '@/trip/domain/calendar'
+import { formatShortDate } from '@/trip/domain/calendar'
 import type { IsoDate, ScheduleStayDetail } from '@/trip/domain/domain'
 import {
   SaveAnswer,
@@ -42,27 +42,22 @@ const labels = {
 } as const
 
 /**
- * Splitting a Stay of the Schedule shown on a night after its check-in, or
- * merging it with `next`, the Stay after it, while both are in one Base.
- * A retry of a choice goes under its operation, so it splits or merges
- * once. A choice kept across a Schedule change gets a new operation for the
- * Schedule now shown.
+ * Splitting a Stay of the Schedule shown on a date it offers, or merging it
+ * with the next Stay while it offers that. A retry of a choice goes under its
+ * operation, so it splits or merges once. A choice kept across a Schedule
+ * change gets a new operation for the Schedule now shown.
  */
 export const useSplitMergeStay = ({
   scheduleId,
   stay,
-  next,
+  stays,
   anchorWarnings,
 }: StayEditorProps) => {
   const split = useServerFn(splitStay)
   const merge = useServerFn(mergeStays)
   const [lastKind, setLastKind] = useState<SplitOrMerge['kind']>('split')
-
-  const splitDates = tripDates.filter(
-    (date) => stay.checkIn < date && date < stay.checkOut,
-  )
-
-  const mergeable = next?.base.id === stay.base.id ? next : undefined
+  const { splitDates } = stay.offers
+  const mergeable = stayNamed(stays, stay.offers.mergeWith)
 
   const field = useSave<SplitOrMerge>({
     target: splitMergeTarget(stay.id),

@@ -36,6 +36,7 @@ import {
   anchorWarningsOf,
   attachmentKey,
   stayBoundariesOf,
+  stayEditOffersOf,
 } from '@/trip/domain/schedule-copy'
 import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
 
@@ -229,12 +230,20 @@ const scheduleDetailOf =
   }: {
     readonly schedule: ScheduleRecord
     readonly copy: ScheduleCopy
-  }): ScheduleDetail => ({
-    ...schedule,
-    sourceItinerary: sourceItineraryOf(schedule, itineraries),
-    ...staysAndDaysOf(copy),
-    anchorWarnings: anchorWarningsOf(copy),
-  })
+  }): ScheduleDetail => {
+    const { stays, ...rest } = staysAndDaysOf(copy)
+
+    return {
+      ...schedule,
+      sourceItinerary: sourceItineraryOf(schedule, itineraries),
+      ...rest,
+      stays: stays.map((stay) => ({
+        ...stay,
+        offers: stayEditOffersOf(copy, stay),
+      })),
+      anchorWarnings: anchorWarningsOf(copy),
+    }
+  }
 
 export const find = Effect.fnUntraced(function* <A>(
   entries: ReadonlyMap<number, A>,

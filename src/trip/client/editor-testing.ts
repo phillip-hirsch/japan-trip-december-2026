@@ -25,7 +25,11 @@ import {
   ScheduleId,
   StayEditOutcome,
 } from '@/trip/domain/domain'
-import type { AnchorWarning, ScheduleStayDetail } from '@/trip/domain/domain'
+import type {
+  AnchorWarning,
+  ScheduleStayDetail,
+  StayEditOffers,
+} from '@/trip/domain/domain'
 
 Reflect.set(globalThis, 'IS_REACT_ACT_ENVIRONMENT', true)
 
@@ -184,13 +188,15 @@ export const scheduleId = ScheduleId.make(
 
 /**
  * A Stay of the Schedule shown, in `base` from December `checkIn` to
- * December `checkOut`, with no hotel details or note.
+ * December `checkOut`, with no hotel details or note, offering the Stay edits
+ * given, or none.
  */
 export const scheduleStay = (
   id: string,
   base: PlaceId,
   checkIn: number,
   checkOut: number,
+  offers: StayEditOffers = { splitDates: [] },
 ): ScheduleStayDetail => ({
   id,
   base: { id: base, ...places[base], newPlace: false },
@@ -201,6 +207,7 @@ export const scheduleStay = (
   highlights: [],
   verifyClaims: [],
   hotel: Hotel.cases.NotRecorded.make({}),
+  offers,
 })
 
 /** A Stay edit that went through, leaving the Schedule with `anchorWarnings`. */
