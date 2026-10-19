@@ -73,8 +73,8 @@ export const Hotel = Schema.TaggedUnion({
 export type Hotel = typeof Hotel.Type
 
 /**
- * The Stay edits a Stay offers, which are exactly the ones the Hard rules
- * accept. Changing its Base is always offered, so it isn't listed.
+ * The Stay edits a Stay offers, which are the ones the Hard rules accept.
+ * Changing its Base is always offered, so it isn't listed.
  */
 export const StayEditOffers = Schema.Struct({
   /** The dates it can split on, in Trip order. */
@@ -98,8 +98,8 @@ export const ScheduleStayDetail = Schema.Struct({
   note: Schema.optionalKey(Schema.String),
   hotel: Hotel,
   /**
-   * None in a Stay edit recorded before the Schedule read had offers, which
-   * a retry of that edit returns.
+   * Empty when decoding a Stay edit recorded before the Schedule read had
+   * offers. A retry of that edit returns the recorded result.
    */
   offers: StayEditOffers.pipe(
     Schema.withDecodingDefaultKey(Effect.succeed({ splitDates: [] })),

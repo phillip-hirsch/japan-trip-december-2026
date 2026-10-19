@@ -214,7 +214,7 @@ describe('the Stay edits each Stay offers', () => {
   )
 
   it.effect(
-    'are absent from a Stay edit recorded before the Schedule read had them, which a retry still returns',
+    'are empty when a retry returns a Stay edit recorded before the Schedule read had them',
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* chooseOption1(1, null)
@@ -230,8 +230,8 @@ describe('the Stay edits each Stay offers', () => {
         const first = yield* split
         const { schedule } = first
 
-        // The SQL client stands in for storage written by an earlier
-        // version: it holds the same result, recorded without offers.
+        // Seed the SQL client with this result as an earlier version
+        // recorded it, without offers.
         const encoded = yield* Schema.encodeEffect(StaysEdited)(first)
 
         const earlier = {

@@ -64,7 +64,7 @@ export const stayForNight = <S extends Pick<Stay, 'checkIn' | 'checkOut'>>(
   date: IsoDate,
 ) => stays.find((stay) => stay.checkIn <= date && date < stay.checkOut)
 
-/** The Stay after a Stay: the one checking in the day it checks out. */
+/** The Stay that checks in on the day a Stay checks out. */
 export const nextStayOf = <S extends Pick<Stay, 'checkIn'>>(
   stays: ReadonlyArray<S>,
   stay: Pick<Stay, 'checkOut'>,
@@ -89,9 +89,9 @@ const unchecked = { disableChecks: true }
 
 /**
  * How Stays sorted by check-in break the Hard rules on Stay dates.
- * `checkInOf` gives the check-in that names a Stay without nights. Their
- * dates are already checked, so the breaks skip checking them again: the
- * Stay edit offers run this over a hundred times a read.
+ * `checkInOf` gives the check-in that names a Stay without nights. The
+ * breaks skip re-checking their dates, which are already checked. The Stay
+ * edit offers run this over a hundred times per Schedule read.
  */
 export const stayDateRuleBreaksOf = <
   S extends Pick<Stay, 'checkIn' | 'checkOut'>,
@@ -543,8 +543,9 @@ export const applyStayEdit = Effect.fnUntraced(function* (
 })
 
 /**
- * The Stay edits a Stay of a Schedule's copy offers: each split, merge and
- * Stay boundary move the Hard rules accept, checked as the edit itself is.
+ * The Stay edits a Stay of a Schedule's copy offers. These are the splits,
+ * the merge and the Stay boundary moves that pass the same Hard rule check
+ * as the Stay edit itself.
  */
 export const stayEditOffersOf = (
   copy: ScheduleCopy,
