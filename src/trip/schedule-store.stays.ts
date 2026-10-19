@@ -18,14 +18,12 @@ import {
 import type { HotelDetails } from '@/trip/domain'
 import type { AppliedStayEdit, StayChanges } from '@/trip/schedule-copy'
 import {
+  ofSchedule,
+  ordered,
   PinColumns,
   pinColumnsOf,
   pinOf,
-} from '@/trip/schedule-store.activities'
-import {
-  ofSchedule,
-  ordered,
-  sharedQueries,
+  queryBuilders,
 } from '@/trip/schedule-store.shared'
 
 const StayRow = Schema.Struct({
@@ -94,9 +92,9 @@ const VerifyClaimRow = Schema.Struct({
   attachedTo: Schema.fromJsonString(VerifyClaimAttachment),
 })
 
-/** The Stays, Moves and Verify claims of a Schedule copy, read and written. */
+/** Reads and writes the Stays, Moves and Verify claims of a Schedule copy. */
 export const stayCopyQueries = (sql: SqlClient.SqlClient) => {
-  const { insertInto, rowsOf } = sharedQueries(sql)
+  const { insertInto, rowsOf } = queryBuilders(sql)
 
   const findStays = rowsOf(
     StayRow,

@@ -24,7 +24,7 @@ import {
 import {
   ofSchedule,
   ordered,
-  sharedQueries,
+  queryBuilders,
 } from '@/trip/schedule-store.shared'
 import {
   hotelColumns,
@@ -55,11 +55,11 @@ const AnchorRow = Schema.Struct({
 })
 
 /**
- * The Schedules with their copies, the transactions writes run in and the
- * recorded results of operations.
+ * Reads and writes Schedules with their copies. Also holds the transaction
+ * that writes run in and the recorded results of operations.
  */
 export const scheduleQueries = (sql: SqlClient.SqlClient) => {
-  const { insertInto, inserter, rowsOf } = sharedQueries(sql)
+  const { insertInto, inserter, rowsOf } = queryBuilders(sql)
 
   const { findActivities, insertActivity } = activityCopyQueries(sql)
 

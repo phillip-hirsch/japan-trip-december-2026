@@ -15,35 +15,12 @@ import type { Activity, Pin } from '@/trip/domain'
 import {
   ofSchedule,
   ordered,
-  sharedQueries,
+  PinColumns,
+  pinColumnsOf,
+  pinOf,
+  queryBuilders,
   storedNote,
 } from '@/trip/schedule-store.shared'
-
-export const PinColumns = Schema.Struct({
-  pinLatitude: Schema.NullOr(Schema.Finite),
-  pinLongitude: Schema.NullOr(Schema.Finite),
-  pinLink: Schema.NullOr(Schema.String),
-})
-
-export type PinColumns = typeof PinColumns.Type
-
-export const pinColumnsOf = (pin: Pin | undefined): PinColumns => ({
-  pinLatitude: pin?.coordinates.latitude ?? null,
-  pinLongitude: pin?.coordinates.longitude ?? null,
-  pinLink: pin?.link ?? null,
-})
-
-export const pinOf = ({
-  pinLatitude,
-  pinLongitude,
-  pinLink,
-}: PinColumns): Pin | undefined =>
-  pinLatitude === null || pinLongitude === null
-    ? undefined
-    : {
-        coordinates: { latitude: pinLatitude, longitude: pinLongitude },
-        ...(pinLink !== null && { link: pinLink }),
-      }
 
 const ActivityRow = Schema.Struct({
   id: ActivityId,
@@ -96,9 +73,9 @@ export interface ActivityChanges {
   readonly note?: string
 }
 
-/** The Activities of a Schedule copy, read and written. */
+/** Reads and writes the Activities of a Schedule copy. */
 export const activityCopyQueries = (sql: SqlClient.SqlClient) => {
-  const { inserter, rowsOf } = sharedQueries(sql)
+  const { inserter, rowsOf } = queryBuilders(sql)
 
   const insertActivity = inserter('activities', ActivityRow)
 
