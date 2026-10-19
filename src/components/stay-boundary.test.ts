@@ -73,8 +73,13 @@ describe('moving the date between two Stays', () => {
 
     const { view, discardLabel, problem } = editor.field().frame
     assert.deepStrictEqual(
-      { view, discardLabel, problem },
-      { view: 'withdrawn', discardLabel: 'Cancel', problem: undefined },
+      { shown: editor.field().field.shown, view, discardLabel, problem },
+      {
+        shown: true,
+        view: 'withdrawn',
+        discardLabel: 'Cancel',
+        problem: undefined,
+      },
     )
     await editor.close()
   })
@@ -96,8 +101,9 @@ describe('moving the date between two Stays', () => {
 
     const { view, discardLabel, problem } = editor.field().frame
     assert.deepStrictEqual(
-      { view, discardLabel, problem },
+      { shown: editor.field().field.shown, view, discardLabel, problem },
       {
+        shown: true,
         view: 'withdrawn',
         discardLabel: 'Discard',
         problem:

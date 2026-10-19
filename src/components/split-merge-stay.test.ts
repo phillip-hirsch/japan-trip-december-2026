@@ -125,18 +125,6 @@ describe('merging a Stay with the next', () => {
   const refusal =
     'Only Stays in the same Base can be merged. Nothing changed. Your Stays may have changed on another device.'
 
-  /** Answers every merge with `answer`, recording the Stays it was sent. */
-  const answerMerges = (answer: () => Promise<StayEditOutcome>) => {
-    const sent: Array<ReadonlyArray<string>> = []
-    vi.mocked(mergeStays).mockImplementation(async ({ data }) => {
-      sent.push(data.stayIds)
-
-      return answer()
-    })
-
-    return sent
-  }
-
   it('is merged once it sends both Stays of the Schedule shown', async () => {
     const editor = await openSplitMerge({ stay: kyoto, next: kyotoAgain })
 
@@ -166,7 +154,7 @@ describe('merging a Stay with the next', () => {
   })
 
   it('offers no other split or merge until the refreshed Schedule shows the merge', async () => {
-    answerMerges(async () => staysEdited())
+    vi.mocked(mergeStays).mockResolvedValue(staysEdited())
     const reread = deferred<string>()
     let reads = 0
 
@@ -211,8 +199,13 @@ describe('merging a Stay with the next', () => {
 
     const { view, discardLabel, problem } = editor.field().frame
     assert.deepStrictEqual(
-      { view, discardLabel, problem },
-      { view: 'withdrawn', discardLabel: 'Cancel', problem: undefined },
+      { shown: editor.field().field.shown, view, discardLabel, problem },
+      {
+        shown: true,
+        view: 'withdrawn',
+        discardLabel: 'Cancel',
+        problem: undefined,
+      },
     )
     assert.strictEqual(
       editor.field().field.withdrawnReason,
@@ -222,7 +215,10 @@ describe('merging a Stay with the next', () => {
   })
 
   it('keeps a merge the Hard rules refused shown as withdrawn until discarded, and sends nothing on retry', async () => {
-    const sent = answerMerges(async () => inDifferentBases)
+    // A retry that reached the Trip would be merged.
+    vi.mocked(mergeStays)
+      .mockResolvedValueOnce(inDifferentBases)
+      .mockResolvedValue(staysEdited())
 
     const editor = await openSplitMerge({
       stay: oneNightKyoto,
@@ -233,18 +229,22 @@ describe('merging a Stay with the next', () => {
       editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
     )
     await act(() => editor.field().field.save())
-    assert.deepStrictEqual(sent, [['stay-kyoto', 'stay-kyoto-2']])
+    assert.strictEqual(notSavedProblem(editor.field().field.state), refusal)
 
     await editor.show({ stay: oneNightKyoto, next: osaka })
 
     const { view, discardLabel, problem } = editor.field().frame
     assert.deepStrictEqual(
-      { view, discardLabel, problem },
-      { view: 'withdrawn', discardLabel: 'Discard', problem: refusal },
+      { shown: editor.field().field.shown, view, discardLabel, problem },
+      {
+        shown: true,
+        view: 'withdrawn',
+        discardLabel: 'Discard',
+        problem: refusal,
+      },
     )
 
     await act(() => editor.field().field.save())
-    assert.deepStrictEqual(sent, [['stay-kyoto', 'stay-kyoto-2']])
     assert.strictEqual(notSavedProblem(editor.field().field.state), refusal)
 
     await act(async () => editor.field().field.discard())
@@ -253,7 +253,8 @@ describe('merging a Stay with the next', () => {
   })
 
   it('withdraws a merge with a next Stay the Schedule no longer has, and offers the merge with the new one', async () => {
-    const sent = answerMerges(async () => staysEdited())
+    // A merge that reached the Trip would be saved.
+    vi.mocked(mergeStays).mockResolvedValue(staysEdited())
 
     const editor = await openSplitMerge({
       stay: oneNightKyoto,
@@ -268,7 +269,7 @@ describe('merging a Stay with the next', () => {
     await editor.show({ stay: oneNightKyoto, next: newKyoto })
     assert.isTrue(editor.field().field.withdrawn)
     await act(() => editor.field().field.save())
-    assert.deepStrictEqual(sent, [])
+    assert.isTrue(SaveState.$is('Editing')(editor.field().field.state))
 
     await act(async () => editor.field().field.discard())
     assert.isFalse(editor.field().field.withdrawn)
@@ -278,7 +279,7 @@ describe('merging a Stay with the next', () => {
 
   it('shows the refusal of a merge the Schedule withdrew while it was on its way', async () => {
     const answer = deferred<StayEditOutcome>()
-    answerMerges(() => answer.promise)
+    vi.mocked(mergeStays).mockImplementation(() => answer.promise)
 
     const editor = await openSplitMerge({
       stay: oneNightKyoto,
@@ -298,8 +299,8 @@ describe('merging a Stay with the next', () => {
 
     const { view, problem } = editor.field().frame
     assert.deepStrictEqual(
-      { view, problem },
-      { view: 'withdrawn', problem: refusal },
+      { shown: editor.field().field.shown, view, problem },
+      { shown: true, view: 'withdrawn', problem: refusal },
     )
     await editor.close()
   })
