@@ -1,7 +1,3 @@
----
-status: accepted
----
-
 # Offline cold start uses a precached SPA shell
 
 With no signal, the installed Home Screen app loads every page from a service worker that answers with TanStack Start's SPA shell, precached by the build and free of loader data, and the page renders from data stored on the device. We chose this over caching each server-rendered page because any page, including a Day not opened recently, renders offline once its data is stored, while cached pages work only where Phillip has already been and break when a deploy removes the assets they point at. Both approaches cold-started offline on Phillip's iPhone on 2026-10-19; the results and screenshots are in #32 and #124, and the prototypes are on the `prototype/offline-cold-start` branch.
