@@ -147,25 +147,25 @@ describe('the editor frame', () => {
     await editor.close()
   })
 
-  it('holds a just-saved note busy until the read that shows it', async () => {
+  it('lets a saved note be edited again even when the read that would confirm it fails', async () => {
     localStorage.clear()
     answerDayNote(written)
-    const reread = deferred<string>()
     let reads = 0
 
     const editor = await openDayNoteFrame(() =>
-      reads++ === 0 ? Promise.resolve('schedules') : reread.promise,
+      reads++ === 0
+        ? Promise.resolve('schedules')
+        : Promise.reject(new Error('offline')),
     )
 
     await act(async () => editor.field().field.change('Tsukiji at six.'))
-    const { finished } = await startSaving(() => editor.field().field.save())
-    assert.isTrue(editor.field().frame.busy)
+    await act(() => editor.field().field.save())
 
-    await act(async () => {
-      reread.resolve('schedules, re-read')
-      await finished
-    })
-    assert.isFalse(editor.field().frame.busy)
+    const { view, justSaved, busy } = editor.field().frame
+    assert.deepStrictEqual(
+      { view, justSaved, busy },
+      { view: 'summary', justSaved: true, busy: false },
+    )
     await editor.close()
   })
 

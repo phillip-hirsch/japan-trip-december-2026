@@ -69,8 +69,9 @@ type EditorView = 'summary' | 'form' | 'withdrawn'
  * - The summary shows a Clean value, and a Saved one unless the form stays
  *   until the read shows it. It is marked just saved after a save.
  * - The form shows a value being edited, on its way, or not saved, with why.
- * - A value is busy from Save until the read that shows it, so it can't
- *   change, and no edit starts from a value the page doesn't show yet.
+ * - A value is busy while it is on its way, and while Saved if its form
+ *   still shows it, so an add can't be sent twice. Once the summary shows
+ *   it, it can be edited again, even if the read that confirms it fails.
  * - A Clean value has nothing to discard.
  * - Opening the form focuses it; a restored Draft opens unfocused.
  */
@@ -100,7 +101,7 @@ export const frameOf = <V,>(
   return {
     view,
     justSaved: saved || (clean && state.justSaved),
-    busy: saving || saved,
+    busy: saving || (saved && !summaryShown),
     submitLabel: saving ? verb.submitting : notSaved ? 'Retry' : verb.submit,
     discardLabel: clean ? undefined : notSaved ? 'Discard' : 'Cancel',
     autoFocus: SaveState.$is('Editing')(state),

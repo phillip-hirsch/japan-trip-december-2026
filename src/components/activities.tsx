@@ -367,7 +367,7 @@ function ActivityRow({
   onRemove: () => void
   /** A move or removal on its Day is still open. */
   unmovable: boolean
-  /** Its own move or removal is busy. */
+  /** Its own move or removal is on its way, or saved but not yet shown. */
   settling: boolean
   /** Its removal is open. */
   removing: boolean
@@ -622,8 +622,9 @@ function DayActivities({
                   onRemove={() => void removal.send(activity.id)}
                   unmovable={dayOrderUnsettled}
                   settling={
-                    (isMoveTarget && moveFrame.busy) ||
-                    (isRemovalTarget && removalFrame.busy)
+                    (isMoveTarget && (moveFrame.busy || moveFrame.justSaved)) ||
+                    (isRemovalTarget &&
+                      (removalFrame.busy || removalFrame.justSaved))
                   }
                   removing={isRemovalTarget}
                   removed={isRemovalTarget && removalFrame.justSaved}
