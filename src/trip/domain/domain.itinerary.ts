@@ -2,7 +2,7 @@ import { DateTime, Option, Schema, Struct } from 'effect'
 
 import { displayStrings } from '@/fonts/display-strings'
 import { isCalendarDate } from '@/trip/domain/calendar'
-import { writeOutcome } from '@/trip/domain/domain.writes'
+import { operationOutcome } from '@/trip/domain/domain.writes'
 import {
   placeIds,
   railLineIds,
@@ -508,7 +508,7 @@ export class ItineraryNotFound extends Schema.TaggedError<ItineraryNotFound>()(
   { optionNumber: Schema.Int },
 ) {}
 
-export const ItineraryOutcome = writeOutcome(
+export const ItineraryOutcome = operationOutcome(
   'Itinerary',
   { itinerary: ItineraryDetail },
   [ItineraryNotFound],

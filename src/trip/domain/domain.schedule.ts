@@ -21,7 +21,7 @@ import {
 import {
   OperationId,
   ScheduleChanged,
-  writeOutcome,
+  operationOutcome,
 } from '@/trip/domain/domain.writes'
 
 /** The id of something copied into a Schedule, fresh in each Schedule. */
@@ -340,7 +340,7 @@ export const HomeState = Schema.TaggedUnion({
 export type HomeState = typeof HomeState.Type
 
 /** A Day's page, null until a Schedule exists. */
-export const DayOutcome = writeOutcome(
+export const DayOutcome = operationOutcome(
   'Day',
   { page: Schema.NullOr(DayPage) },
   [DayNotFound],
@@ -348,7 +348,7 @@ export const DayOutcome = writeOutcome(
 
 export type DayOutcome = typeof DayOutcome.Type
 
-export const ScheduleOutcome = writeOutcome(
+export const ScheduleOutcome = operationOutcome(
   'Schedule',
   { schedule: ScheduleDetail },
   [ScheduleNotFound],
@@ -356,14 +356,14 @@ export const ScheduleOutcome = writeOutcome(
 
 export type ScheduleOutcome = typeof ScheduleOutcome.Type
 
-export const ChooseOutcome = writeOutcome('Chosen', ScheduleChosen.fields, [
+export const ChooseOutcome = operationOutcome('Chosen', ScheduleChosen.fields, [
   ItineraryNotFound,
   ScheduleChanged,
 ])
 
 export type ChooseOutcome = typeof ChooseOutcome.Type
 
-export const RestoreOutcome = writeOutcome(
+export const RestoreOutcome = operationOutcome(
   'Restored',
   ScheduleRestored.fields,
   [ScheduleNotFound, ScheduleChanged],

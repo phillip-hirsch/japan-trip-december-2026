@@ -50,7 +50,7 @@ import type {
   TickOwnChecklistItem,
   WriteDayNote,
   WriteHotelDetails,
-  WriteOutcome,
+  OperationOutcome,
   WriteStayNote,
   WriteTripNote,
 } from '@/trip/domain/domain'
@@ -66,7 +66,7 @@ interface TripOperation<I, S extends Schema.Codec<unknown, unknown>> {
 
 /** Pairs a Trip operation with its outcome, answered through `outcomeOf`. */
 const withOutcome = <
-  O extends WriteOutcome,
+  O extends OperationOutcome,
   I,
   A extends SuccessValueOf<O>,
   E extends O['Type'],

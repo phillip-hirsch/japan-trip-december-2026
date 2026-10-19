@@ -3,7 +3,7 @@ import { Schema } from 'effect'
 import { IsoDate } from '@/trip/domain/domain.itinerary'
 import { CopyId, DayNotFound, ScheduleId } from '@/trip/domain/domain.schedule'
 import { StayNotFound } from '@/trip/domain/domain.stays'
-import { ScheduleChanged, writeOutcome } from '@/trip/domain/domain.writes'
+import { ScheduleChanged, operationOutcome } from '@/trip/domain/domain.writes'
 
 /**
  * Write the Day note on a Day of the Schedule named, as a whole value: an
@@ -23,7 +23,7 @@ export class NoteTooLong extends Schema.TaggedError<NoteTooLong>()(
   { maxLength: Schema.Int },
 ) {}
 
-export const WriteDayNoteOutcome = writeOutcome('Written', {}, [
+export const WriteDayNoteOutcome = operationOutcome('Written', {}, [
   ScheduleChanged,
   DayNotFound,
   NoteTooLong,
@@ -43,7 +43,7 @@ export const WriteStayNote = Schema.Struct({
 
 export type WriteStayNote = typeof WriteStayNote.Type
 
-export const WriteStayNoteOutcome = writeOutcome('Written', {}, [
+export const WriteStayNoteOutcome = operationOutcome('Written', {}, [
   ScheduleChanged,
   StayNotFound,
   NoteTooLong,
@@ -59,6 +59,8 @@ export const WriteTripNote = Schema.Struct({ note: Schema.String })
 
 export type WriteTripNote = typeof WriteTripNote.Type
 
-export const WriteTripNoteOutcome = writeOutcome('Written', {}, [NoteTooLong])
+export const WriteTripNoteOutcome = operationOutcome('Written', {}, [
+  NoteTooLong,
+])
 
 export type WriteTripNoteOutcome = typeof WriteTripNoteOutcome.Type
