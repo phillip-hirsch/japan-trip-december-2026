@@ -14,7 +14,7 @@ import { StayNotFound } from '@/trip/domain/domain.stays'
 import {
   OperationId,
   ScheduleChanged,
-  writeOutcome,
+  operationOutcome,
 } from '@/trip/domain/domain.writes'
 
 export const TimeOfDay = Schema.String.check(
@@ -87,16 +87,15 @@ export class ActivityTitleInvalid extends Schema.TaggedError<ActivityTitleInvali
   { maxLength: Schema.Int },
 ) {}
 
-export const AddActivityOutcome = writeOutcome('Added', ActivityAdded.fields, [
-  ScheduleChanged,
-  DayNotFound,
-  ActivityTitleInvalid,
-  NoteTooLong,
-])
+export const AddActivityOutcome = operationOutcome(
+  'Added',
+  ActivityAdded.fields,
+  [ScheduleChanged, DayNotFound, ActivityTitleInvalid, NoteTooLong],
+)
 
 export type AddActivityOutcome = typeof AddActivityOutcome.Type
 
-export const EditActivityOutcome = writeOutcome('Edited', {}, [
+export const EditActivityOutcome = operationOutcome('Edited', {}, [
   ScheduleChanged,
   ActivityNotFound,
   ActivityTitleInvalid,
@@ -105,14 +104,14 @@ export const EditActivityOutcome = writeOutcome('Edited', {}, [
 
 export type EditActivityOutcome = typeof EditActivityOutcome.Type
 
-export const RemoveActivityOutcome = writeOutcome('Removed', {}, [
+export const RemoveActivityOutcome = operationOutcome('Removed', {}, [
   ScheduleChanged,
   ActivityNotFound,
 ])
 
 export type RemoveActivityOutcome = typeof RemoveActivityOutcome.Type
 
-export const MoveActivityOutcome = writeOutcome('Moved', {}, [
+export const MoveActivityOutcome = operationOutcome('Moved', {}, [
   ScheduleChanged,
   ActivityNotFound,
 ])
@@ -159,7 +158,7 @@ export class CoordinatesOutsideJapan extends Schema.TaggedError<CoordinatesOutsi
   { coordinates: Coordinates },
 ) {}
 
-export const ResolveLocationLinkOutcome = writeOutcome(
+export const ResolveLocationLinkOutcome = operationOutcome(
   'Resolved',
   { coordinates: Coordinates },
   [LocationLinkRefused, NoCoordinatesInLink, CoordinatesOutsideJapan],
@@ -187,7 +186,7 @@ export const SetPin = Schema.Struct({
 
 export type SetPin = typeof SetPin.Type
 
-export const SetPinOutcome = writeOutcome('Set', {}, [
+export const SetPinOutcome = operationOutcome('Set', {}, [
   ScheduleChanged,
   ActivityNotFound,
   StayNotFound,

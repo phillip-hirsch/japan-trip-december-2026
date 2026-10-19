@@ -65,7 +65,8 @@ const unavailable = () =>
 
 /**
  * Serves one Detail tile as an ordinary response. Only a request that has
- * passed the Access gate reaches it.
+ * passed the Access gate reaches it. Its typed failure becomes an HTTP status,
+ * not an outcome, so this route maps it instead of `outcomeOf`.
  */
 export const serveDetailTile = (tile: TileCoordinates) =>
   runTrip(

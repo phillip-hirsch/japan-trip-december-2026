@@ -8,7 +8,7 @@ import { option2 } from '@/trip/itineraries/option-2'
 import { noteMaxLength } from '@/trip/domain/limits'
 import { operation, storage, tripWith } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
-import { runTripWrite } from '@/trip/trip-store/trip-writes'
+import { runTripOperation } from '@/trip/trip-store/trip-operations'
 
 const trip = tripWith([option1, option2])
 
@@ -30,12 +30,12 @@ const dayNote = (date: IsoDate) =>
     (page) => Option.getOrThrow(page).day.note,
   )
 
-describe('runTripWrite', () => {
+describe('runTripOperation', () => {
   it.effect('answers a written Day note with Written', () =>
     Effect.gen(function* () {
       const scheduleId = yield* choose(1, 1, null)
 
-      const outcome = yield* runTripWrite('writeDayNote', {
+      const outcome = yield* runTripOperation('writeDayNote', {
         scheduleId,
         date: december(14),
         note: 'Book the onsen.',
@@ -58,7 +58,7 @@ describe('runTripWrite', () => {
         const archived = yield* choose(1, 1, null)
         yield* choose(2, 2, archived)
 
-        const outcome = yield* runTripWrite('writeDayNote', {
+        const outcome = yield* runTripOperation('writeDayNote', {
           scheduleId: archived,
           date: december(14),
           note: 'Written on an old screen.',
@@ -77,7 +77,7 @@ describe('runTripWrite', () => {
       Effect.gen(function* () {
         const scheduleId = yield* choose(1, 1, null)
 
-        const outcome = yield* runTripWrite('writeDayNote', {
+        const outcome = yield* runTripOperation('writeDayNote', {
           scheduleId,
           date: IsoDate.make('2026-12-21'),
           note: 'After the Trip.',
@@ -96,7 +96,7 @@ describe('runTripWrite', () => {
     Effect.gen(function* () {
       const scheduleId = yield* choose(1, 1, null)
 
-      const outcome = yield* runTripWrite('writeDayNote', {
+      const outcome = yield* runTripOperation('writeDayNote', {
         scheduleId,
         date: december(14),
         note: 'あ'.repeat(noteMaxLength + 1),

@@ -18,7 +18,11 @@ import {
   StaySummary,
   VerifyClaimDetail,
 } from '@/trip/domain/domain.itinerary'
-import { OperationId, ScheduleChanged } from '@/trip/domain/domain.writes'
+import {
+  OperationId,
+  ScheduleChanged,
+  operationOutcome,
+} from '@/trip/domain/domain.writes'
 
 /** The id of something copied into a Schedule, fresh in each Schedule. */
 export const CopyId = Schema.String
@@ -335,26 +339,34 @@ export const HomeState = Schema.TaggedUnion({
 
 export type HomeState = typeof HomeState.Type
 
-export const DayOutcome = Schema.TaggedUnion({
-  Day: { page: DayPage },
-  NoSchedule: {},
-  DayNotFound: DayNotFound.fields,
-})
+/** A Day's page, null until a Schedule exists. */
+export const DayOutcome = operationOutcome(
+  'Day',
+  { page: Schema.NullOr(DayPage) },
+  [DayNotFound],
+)
 
 export type DayOutcome = typeof DayOutcome.Type
 
-export const ChooseOutcome = Schema.TaggedUnion({
-  Chosen: ScheduleChosen.fields,
-  ItineraryNotFound: ItineraryNotFound.fields,
-  ScheduleChanged: ScheduleChanged.fields,
-})
+export const ScheduleOutcome = operationOutcome(
+  'Schedule',
+  { schedule: ScheduleDetail },
+  [ScheduleNotFound],
+)
+
+export type ScheduleOutcome = typeof ScheduleOutcome.Type
+
+export const ChooseOutcome = operationOutcome('Chosen', ScheduleChosen.fields, [
+  ItineraryNotFound,
+  ScheduleChanged,
+])
 
 export type ChooseOutcome = typeof ChooseOutcome.Type
 
-export const RestoreOutcome = Schema.TaggedUnion({
-  Restored: ScheduleRestored.fields,
-  ScheduleNotFound: ScheduleNotFound.fields,
-  ScheduleChanged: ScheduleChanged.fields,
-})
+export const RestoreOutcome = operationOutcome(
+  'Restored',
+  ScheduleRestored.fields,
+  [ScheduleNotFound, ScheduleChanged],
+)
 
 export type RestoreOutcome = typeof RestoreOutcome.Type

@@ -24,14 +24,14 @@ import {
   fushimiInari,
   hotelTarget,
 } from '@/trip/trip/Trip.pins.testing'
-import { runTripWrite } from '@/trip/trip-store/trip-writes'
+import { runTripOperation } from '@/trip/trip-store/trip-operations'
 
-describe('runTripWrite for an Activity', () => {
+describe('runTripOperation for an Activity', () => {
   it.effect('answers an added Activity with Added and its id', () =>
     Effect.gen(function* () {
       const scheduleId = yield* choose(1, 1, null)
 
-      const outcome = yield* runTripWrite('addActivity', {
+      const outcome = yield* runTripOperation('addActivity', {
         operationId: operation(2),
         scheduleId,
         date: december(15),
@@ -53,7 +53,7 @@ describe('runTripWrite for an Activity', () => {
       Effect.gen(function* () {
         const scheduleId = yield* choose(1, 1, null)
 
-        const outcome = yield* runTripWrite('addActivity', {
+        const outcome = yield* runTripOperation('addActivity', {
           operationId: operation(2),
           scheduleId,
           date: december(15),
@@ -76,7 +76,7 @@ describe('runTripWrite for an Activity', () => {
     Effect.gen(function* () {
       const { scheduleId, walk } = yield* dayWithThree
 
-      const outcome = yield* runTripWrite('editActivity', {
+      const outcome = yield* runTripOperation('editActivity', {
         scheduleId,
         activityId: walk,
         note: 'Hanamikoji first',
@@ -102,7 +102,7 @@ describe('runTripWrite for an Activity', () => {
       Effect.gen(function* () {
         const scheduleId = yield* choose(1, 1, null)
 
-        const outcome = yield* runTripWrite('editActivity', {
+        const outcome = yield* runTripOperation('editActivity', {
           scheduleId,
           activityId: 'no-such-activity',
           title: 'Gone',
@@ -121,7 +121,7 @@ describe('runTripWrite for an Activity', () => {
     Effect.gen(function* () {
       const { scheduleId, temple, walk } = yield* dayWithThree
 
-      const outcome = yield* runTripWrite('moveActivity', {
+      const outcome = yield* runTripOperation('moveActivity', {
         scheduleId,
         activityId: walk,
         before: temple,
@@ -145,7 +145,7 @@ describe('runTripWrite for an Activity', () => {
     Effect.gen(function* () {
       const { scheduleId, walk } = yield* dayWithThree
 
-      const outcome = yield* runTripWrite('removeActivity', {
+      const outcome = yield* runTripOperation('removeActivity', {
         scheduleId,
         activityId: walk,
       })
@@ -161,12 +161,12 @@ describe('runTripWrite for an Activity', () => {
   )
 })
 
-describe('runTripWrite for a Pin', () => {
+describe('runTripOperation for a Pin', () => {
   it.effect('answers a Pin set on an Activity with Set', () =>
     Effect.gen(function* () {
       const { scheduleId, temple } = yield* dayWithThree
 
-      const outcome = yield* runTripWrite('setPin', {
+      const outcome = yield* runTripOperation('setPin', {
         scheduleId,
         target: activityTarget(temple),
         pin: fushimiInari,
@@ -189,7 +189,7 @@ describe('runTripWrite for a Pin', () => {
         const stayId = yield* kyotoStayId(scheduleId)
         const london = { latitude: 51.5332609, longitude: -0.1260032 }
 
-        const outcome = yield* runTripWrite('setPin', {
+        const outcome = yield* runTripOperation('setPin', {
           scheduleId,
           target: hotelTarget(stayId),
           pin: { coordinates: london },

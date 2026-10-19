@@ -17,7 +17,7 @@ import {
   storage,
   tripWithOption1,
 } from '@/trip/trip/testing'
-import { runTripWrite } from '@/trip/trip-store/trip-writes'
+import { runTripOperation } from '@/trip/trip-store/trip-operations'
 
 const tickedIds = Effect.map(checklistItems, (items) =>
   items.filter(({ ticked }) => ticked).map(({ id }) => id),
@@ -28,9 +28,9 @@ const ownItems = Effect.map(checklistItems, (items) =>
 )
 
 const addOwn = (n: number, text: string) =>
-  runTripWrite('addOwnChecklistItem', { operationId: operation(n), text })
+  runTripOperation('addOwnChecklistItem', { operationId: operation(n), text })
 
-describe('runTripWrite for a Tick', () => {
+describe('runTripOperation for a Tick', () => {
   it.effect(
     'answers a Tick on an item derived from the Schedule with Ticked',
     () =>
@@ -38,7 +38,7 @@ describe('runTripWrite for a Tick', () => {
         const scheduleId = yield* choose(1, 1, null)
         const itemId = yield* kyotoStayId(scheduleId)
 
-        const outcome = yield* runTripWrite('tickChecklistItem', {
+        const outcome = yield* runTripOperation('tickChecklistItem', {
           scheduleId,
           itemId,
           ticked: true,
@@ -60,7 +60,7 @@ describe('runTripWrite for a Tick', () => {
       Effect.gen(function* () {
         const scheduleId = yield* choose(1, 1, null)
 
-        const outcome = yield* runTripWrite('tickChecklistItem', {
+        const outcome = yield* runTripOperation('tickChecklistItem', {
           scheduleId,
           itemId: 'no-such-item',
           ticked: true,
@@ -80,7 +80,7 @@ describe('runTripWrite for a Tick', () => {
       const [own] = yield* Effect.andThen(addOwn(1, 'Buy a SIM'), ownItems)
       const itemId = own?.id ?? ''
 
-      const outcome = yield* runTripWrite('tickOwnChecklistItem', {
+      const outcome = yield* runTripOperation('tickOwnChecklistItem', {
         itemId,
         ticked: true,
       })
@@ -99,7 +99,7 @@ describe('runTripWrite for a Tick', () => {
     'answers a Tick on an Own Checklist item that is gone with ChecklistItemNotFound and its id',
     () =>
       Effect.gen(function* () {
-        const outcome = yield* runTripWrite('tickOwnChecklistItem', {
+        const outcome = yield* runTripOperation('tickOwnChecklistItem', {
           itemId: 'no-such-item',
           ticked: true,
         })
@@ -114,7 +114,7 @@ describe('runTripWrite for a Tick', () => {
   )
 })
 
-describe('runTripWrite for an Own Checklist item', () => {
+describe('runTripOperation for an Own Checklist item', () => {
   it.effect('answers an added Own Checklist item with Added and its id', () =>
     Effect.gen(function* () {
       const outcome = yield* addOwn(1, 'Buy a SIM')
@@ -162,7 +162,7 @@ describe('runTripWrite for an Own Checklist item', () => {
     Effect.gen(function* () {
       const [own] = yield* Effect.andThen(addOwn(1, 'Buy a SIM'), ownItems)
 
-      const outcome = yield* runTripWrite('removeOwnChecklistItem', {
+      const outcome = yield* runTripOperation('removeOwnChecklistItem', {
         itemId: own?.id ?? '',
       })
 
