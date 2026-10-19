@@ -189,6 +189,45 @@ describe('editing an Activity', () => {
     await editor.close()
   })
 
+  it('sends a title changed back when edited again before the read that shows the first edit', async () => {
+    localStorage.clear()
+    let reads = 0
+
+    const editor = await openActivityEdit(() =>
+      reads++ === 0
+        ? Promise.resolve('schedules')
+        : Promise.reject(new Error('offline')),
+    )
+
+    vi.mocked(editActivity).mockResolvedValueOnce(
+      EditActivityOutcome.cases.Edited.make({}),
+    )
+    await act(async () =>
+      editor.field().change({ ...editor.field().value, title: 'Toyosu' }),
+    )
+    await act(() => editor.field().save())
+
+    vi.mocked(editActivity).mockImplementation(
+      answeringOnly(
+        {
+          scheduleId: scheduleA,
+          activityId: 'activity-tsukiji',
+          title: 'Tsukiji',
+        },
+        EditActivityOutcome.cases.Edited.make({}),
+        EditActivityOutcome.cases.ScheduleChanged.make({}),
+      ),
+    )
+    await act(async () => editor.field().edit())
+    await act(async () =>
+      editor.field().change({ ...editor.field().value, title: 'Tsukiji' }),
+    )
+    await act(() => editor.field().save())
+
+    assert.isTrue(SaveState.$is('Saved')(editor.field().state))
+    await editor.close()
+  })
+
   it('keeps the Draft for an Activity that no longer exists marked "not saved", says it is gone, and refetches', async () => {
     localStorage.clear()
     vi.mocked(editActivity).mockResolvedValue(

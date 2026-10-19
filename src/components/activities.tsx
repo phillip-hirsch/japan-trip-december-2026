@@ -115,7 +115,9 @@ interface ActivityEdit extends ActivityFields {
 
 /**
  * An edit of an Activity of the Schedule shown, kept as a Draft. It sends
- * only the fields changed, so the last write wins for each.
+ * only the fields changed, so the last write wins for each. An edit opened
+ * on a value just saved starts from what was sent, not from the Activity as
+ * last read, so changing a field back still sends it.
  */
 export const useActivityEdit = ({
   scheduleId,
@@ -127,7 +129,7 @@ export const useActivityEdit = ({
   const edit = useServerFn(editActivity)
   const fields = fieldsOf(activity)
 
-  return useSave<ActivityEdit>({
+  const field = useSave<ActivityEdit>({
     draft: {
       target: activityTarget(activity.id),
       isValue: (value): value is ActivityEdit =>
@@ -156,6 +158,16 @@ export const useActivityEdit = ({
         activityRefusal,
       ),
   })
+
+  const editAgain = () => {
+    if (!SaveState.$is('Saved')(field.state)) return field.edit()
+
+    const { title, time, note } = field.value
+    const sent = { title, time, note }
+    field.change({ ...sent, from: sent })
+  }
+
+  return { ...field, edit: editAgain }
 }
 
 interface NewActivity extends ActivityFields {
