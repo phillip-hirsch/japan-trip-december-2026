@@ -27,7 +27,6 @@ interface FramedField<V> {
 }
 
 interface FramedEditor<V> extends FramedField<V> {
-  readonly edit: () => void
   readonly discard: () => void
   readonly save: () => Promise<void>
 }
@@ -80,63 +79,16 @@ export const useEditorFrame = <V,>(
 
 export type EditorFrameView = ReturnType<typeof useEditorFrame>
 
-function WithdrawnView({
-  frame,
-  labelledBy,
-  reason,
-  onDiscard,
-}: {
-  frame: EditorFrameView
-  labelledBy: string
-  reason: string | undefined
-  onDiscard: () => void
-}) {
-  return (
-    <div
-      role="group"
-      aria-labelledby={labelledBy}
-      className="flex flex-col items-start gap-3"
-    >
-      {frame.problem !== undefined && <NotSavedAlert problem={frame.problem} />}
-      {reason !== undefined && (
-        <p className="text-sm text-muted-foreground">{reason}</p>
-      )}
-      <Button type="button" size="sm" variant="ghost" onClick={onDiscard}>
-        {frame.discardLabel}
-      </Button>
-    </div>
-  )
-}
-
-/**
- * An edit Phillip has open that the refreshed Schedule no longer offers. It
- * shows any refusal of the edit, why it can't be sent, and how to dismiss it.
- * EditorFrame shows the same view; editors not yet on the frame use this.
- */
-export function WithdrawnEdit<V>({
-  field,
-  labelledBy,
-  reason,
-}: {
-  field: FramedField<V> & { readonly discard: () => void }
-  labelledBy: string
-  reason: string
-}) {
-  const frame = useEditorFrame(field)
-
-  return (
-    <WithdrawnView
-      frame={frame}
-      labelledBy={labelledBy}
-      reason={reason}
-      onDiscard={field.discard}
-    />
-  )
+/** A button on the summary that opens the form, such as Edit. */
+export interface EditAction {
+  readonly label: string
+  readonly icon: LucideIcon
+  readonly onClick: () => void
 }
 
 /**
  * One editor of a value saved under the save pattern. It shows the saved
- * summary with an Edit button, the open form, or the withdrawn view.
+ * summary with its Edit buttons, the open form, or the withdrawn view.
  *
  * The editor supplies the summary, its verb, and the form's inputs, which it
  * renders from the frame's view. The frame owns the labels, the "not saved"
@@ -147,9 +99,11 @@ export function EditorFrame<V>({
   labelledBy,
   verb = saveVerb,
   summary,
-  editLabel,
-  editIcon: EditIcon,
+  edits,
   withdrawnReason,
+  hintId,
+  canSave = true,
+  buttonSize = 'default',
   actions,
   nameForm = true,
   children,
@@ -158,10 +112,15 @@ export function EditorFrame<V>({
   /** The heading the editor is under. */
   labelledBy: string
   verb?: SaveVerb
-  summary: ReactNode
-  editLabel: string
-  editIcon: LucideIcon
+  summary?: ReactNode
+  /** The summary's buttons, each opening the form. */
+  edits: ReadonlyArray<EditAction>
   withdrawnReason?: string
+  /** The id of a hint in the form that describes it as a whole. */
+  hintId?: string
+  /** Whether Save is offered, such as once a date still offered is chosen. */
+  canSave?: boolean
+  buttonSize?: 'default' | 'sm'
   /** Shown after Save and Cancel. */
   actions?: ReactNode
   /**
@@ -177,16 +136,19 @@ export function EditorFrame<V>({
     return (
       <div className="flex flex-col items-start gap-3">
         {summary}
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            aria-describedby={labelledBy}
-            onClick={field.edit}
-          >
-            <EditIcon data-icon="inline-start" aria-hidden />
-            {editLabel}
-          </Button>
+        <div className="flex flex-wrap items-center gap-3">
+          {edits.map(({ label, icon: Icon, onClick }) => (
+            <Button
+              key={label}
+              variant="outline"
+              size="sm"
+              aria-describedby={labelledBy}
+              onClick={onClick}
+            >
+              <Icon data-icon="inline-start" aria-hidden />
+              {label}
+            </Button>
+          ))}
           <SavedStatus saved={frame.justSaved}>{verb.done}</SavedStatus>
         </div>
       </div>
@@ -195,18 +157,28 @@ export function EditorFrame<V>({
 
   if (frame.view === 'withdrawn') {
     return (
-      <WithdrawnView
-        frame={frame}
-        labelledBy={labelledBy}
-        reason={withdrawnReason}
-        onDiscard={field.discard}
-      />
+      <div
+        role="group"
+        aria-labelledby={labelledBy}
+        className="flex flex-col items-start gap-3"
+      >
+        {frame.problem !== undefined && (
+          <NotSavedAlert problem={frame.problem} />
+        )}
+        {withdrawnReason !== undefined && (
+          <p className="text-sm text-muted-foreground">{withdrawnReason}</p>
+        )}
+        <Button type="button" size="sm" variant="ghost" onClick={field.discard}>
+          {frame.discardLabel}
+        </Button>
+      </div>
     )
   }
 
   return (
     <form
       aria-labelledby={nameForm ? labelledBy : undefined}
+      aria-describedby={hintId}
       className="flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault()
@@ -218,11 +190,16 @@ export function EditorFrame<V>({
       )}
       {children(frame)}
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" disabled={frame.busy}>
+        <Button
+          type="submit"
+          size={buttonSize}
+          disabled={frame.busy || !canSave}
+        >
           {frame.submitLabel}
         </Button>
         <Button
           type="button"
+          size={buttonSize}
           variant="ghost"
           disabled={frame.busy}
           onClick={field.discard}

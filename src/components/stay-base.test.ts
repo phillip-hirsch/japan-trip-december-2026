@@ -1,0 +1,81 @@
+// @vitest-environment happy-dom
+import { assert, describe, it } from '@effect/vitest'
+import { vi } from 'vite-plus/test'
+import { act } from 'react'
+
+import { useEditorFrame } from '@/components/editor-frame'
+import { useStayBase } from '@/components/stay-base'
+import { HardRule, ScheduleId, StayEditOutcome } from '@/trip/domain/domain'
+import { SaveState } from '@/trip/client/drafts'
+import {
+  answeringOnly,
+  notSavedProblem,
+  openEditor,
+  scheduleStay,
+  staysEdited,
+} from '@/trip/client/editor-testing'
+import { changeStayBase } from '@/trip/trip/trip.functions'
+
+vi.mock('@/trip/trip/trip.functions', () => ({ changeStayBase: vi.fn() }))
+
+const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
+
+const kyoto = scheduleStay('stay-kyoto', 'kyoto', 9, 12)
+
+/** The Base of the Kyoto Stay, and its frame. */
+const openStayBase = (read?: () => Promise<string>) =>
+  openEditor(
+    () => {
+      const field = useStayBase({ scheduleId, stay: kyoto, anchorWarnings: [] })
+
+      return { field, frame: useEditorFrame(field, field.verb) }
+    },
+    {},
+    read,
+  )
+
+describe('changing a Base', () => {
+  it('is changed once it sends the place chosen to the Stay of the Schedule shown', async () => {
+    vi.mocked(changeStayBase).mockImplementation(
+      answeringOnly(
+        { scheduleId, stayId: 'stay-kyoto', place: 'osaka' },
+        staysEdited(),
+        StayEditOutcome.cases.StayNotFound.make({ stayId: 'stay-kyoto' }),
+      ),
+    )
+    const editor = await openStayBase()
+
+    await act(async () => editor.field().field.edit())
+    await act(async () => editor.field().field.change('osaka'))
+    await act(() => editor.field().field.save())
+
+    assert.deepStrictEqual(
+      editor.field().field.state,
+      SaveState.Clean({ justSaved: true }),
+    )
+    assert.strictEqual(editor.field().field.verb.done, 'Base changed')
+    await editor.close()
+  })
+
+  it('keeps a place the app doesn’t know marked "not saved", without re-reading the Schedules', async () => {
+    vi.mocked(changeStayBase).mockResolvedValue(
+      StayEditOutcome.cases.HardRuleBroken.make({
+        rule: HardRule.cases.PlaceNotInCatalogue.make({ place: 'osaka' }),
+      }),
+    )
+    let reads = 0
+    const editor = await openStayBase(async () => `schedules, read ${++reads}`)
+
+    await act(async () => editor.field().field.edit())
+    await act(async () => editor.field().field.change('osaka'))
+    await act(() => editor.field().field.save())
+
+    assert.strictEqual(
+      notSavedProblem(editor.field().field.state),
+      'The app doesn’t know that place. Add new places with the Itinerary guide.',
+    )
+    assert.strictEqual(editor.field().frame.view, 'form')
+    assert.strictEqual(editor.schedulesShown(), 'schedules, read 1')
+    await editor.close()
+  })
+})

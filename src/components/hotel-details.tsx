@@ -127,8 +127,13 @@ function HotelDetailsEditor({
           </p>
         )
       }
-      editLabel={recorded ? 'Edit hotel' : 'Add hotel'}
-      editIcon={PencilIcon}
+      edits={[
+        {
+          label: recorded ? 'Edit hotel' : 'Add hotel',
+          icon: PencilIcon,
+          onClick: field.edit,
+        },
+      ]}
     >
       {(frame) =>
         hotelFields.map(({ key, label, code }, index) => (

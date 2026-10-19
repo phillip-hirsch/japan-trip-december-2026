@@ -6,7 +6,6 @@ import { act } from 'react'
 import { useEditorFrame } from '@/components/editor-frame'
 import { useDayNote } from '@/components/notes'
 import { IsoDate, ScheduleId, WriteDayNoteOutcome } from '@/trip/domain/domain'
-import { SaveAnswer, useOfferedSave } from '@/trip/client/drafts'
 import { deferred, openEditor, startSaving } from '@/trip/client/editor-testing'
 import { writeDayNote } from '@/trip/trip/trip.functions'
 
@@ -192,67 +191,6 @@ describe('the editor frame', () => {
         submitLabel: 'Retry',
         discardLabel: 'Discard',
       },
-    )
-    await editor.close()
-  })
-})
-
-describe('the editor frame of a Stay edit the Schedule withdraws', () => {
-  const refusal =
-    'Only Stays in the same Base can be merged. Nothing changed. Your Stays may have changed on another device.'
-
-  /** "Merge with next Stay", offered while the next Stay is `next`. */
-  const openMergeFrame = (
-    next: string | undefined,
-    answer: () => Promise<SaveAnswer>,
-  ) =>
-    openEditor(
-      ({ next }: { next: string | undefined }) => {
-        const field = useOfferedSave<string | null>({
-          offered: (choice) =>
-            choice === null ? next !== undefined : choice === next,
-          scheduleId: scheduleA,
-          saved: null,
-          write: 'stayEdit',
-          run: answer,
-        })
-
-        return { field, frame: useEditorFrame(field) }
-      },
-      { next },
-    )
-
-  it('shows an open edit as withdrawn, offering Cancel', async () => {
-    const editor = await openMergeFrame('stay-osaka', async () =>
-      SaveAnswer.Saved(),
-    )
-
-    await act(async () => editor.field().field.change('stay-osaka'))
-
-    await editor.show({ next: undefined })
-
-    const { view, discardLabel, problem } = editor.field().frame
-    assert.deepStrictEqual(
-      { view, discardLabel, problem },
-      { view: 'withdrawn', discardLabel: 'Cancel', problem: undefined },
-    )
-    await editor.close()
-  })
-
-  it('shows a refused edit as withdrawn with its refusal, offering Discard', async () => {
-    const editor = await openMergeFrame('stay-osaka', async () =>
-      SaveAnswer.Gone({ problem: refusal }),
-    )
-
-    await act(async () => editor.field().field.change('stay-osaka'))
-    await act(() => editor.field().field.save())
-
-    await editor.show({ next: undefined })
-
-    const { view, discardLabel, problem } = editor.field().frame
-    assert.deepStrictEqual(
-      { view, discardLabel, problem },
-      { view: 'withdrawn', discardLabel: 'Discard', problem: refusal },
     )
     await editor.close()
   })

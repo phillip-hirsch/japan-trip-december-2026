@@ -123,8 +123,13 @@ function NoteFrame({
           <NoteText text={value} className={textClassName} />
         )
       }
-      editLabel={value === '' ? 'Add a note' : 'Edit note'}
-      editIcon={PencilIcon}
+      edits={[
+        {
+          label: value === '' ? 'Add a note' : 'Edit note',
+          icon: PencilIcon,
+          onClick: field.edit,
+        },
+      ]}
       nameForm={false}
       actions={
         nearsTheCap(value) && (
