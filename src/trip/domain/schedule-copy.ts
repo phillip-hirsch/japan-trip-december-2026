@@ -1,4 +1,4 @@
-import { Data, Effect, Result, Struct } from 'effect'
+import { Data, Effect, Predicate, Result, Struct } from 'effect'
 
 import {
   birthdayDate,
@@ -85,9 +85,13 @@ export const attachmentKey = (attachedTo: VerifyClaimAttachment) =>
     Itinerary: () => 'Itinerary',
   })
 
+const unchecked = { disableChecks: true }
+
 /**
  * How Stays sorted by check-in break the Hard rules on Stay dates.
- * `checkInOf` gives the check-in that names a Stay without nights.
+ * `checkInOf` gives the check-in that names a Stay without nights. Their
+ * dates are already checked, so the breaks skip checking them again: the
+ * Stay edit offers run this over a hundred times a read.
  */
 export const stayDateRuleBreaksOf = <
   S extends Pick<Stay, 'checkIn' | 'checkOut'>,
@@ -99,25 +103,26 @@ export const stayDateRuleBreaksOf = <
   const last = stays.at(-1)
 
   if (first === undefined || last === undefined)
-    return [StayDateRuleBreak.cases.NoStays.make({})]
+    return [StayDateRuleBreak.cases.NoStays.make({}, unchecked)]
 
   const breaks: Array<StayDateRuleBreak> = []
 
   if (first.checkIn !== tripStartDate || last.checkOut !== tripEndDate) {
     breaks.push(
-      StayDateRuleBreak.cases.NotTheTripDates.make({
-        checkIn: first.checkIn,
-        checkOut: last.checkOut,
-      }),
+      StayDateRuleBreak.cases.NotTheTripDates.make(
+        { checkIn: first.checkIn, checkOut: last.checkOut },
+        unchecked,
+      ),
     )
   }
 
   for (const stay of stays) {
     if (stay.checkOut <= stay.checkIn) {
       breaks.push(
-        StayDateRuleBreak.cases.StayWithoutNights.make({
-          checkIn: checkInOf(stay),
-        }),
+        StayDateRuleBreak.cases.StayWithoutNights.make(
+          { checkIn: checkInOf(stay) },
+          unchecked,
+        ),
       )
     }
   }
@@ -129,17 +134,17 @@ export const stayDateRuleBreaksOf = <
 
     if (previous.checkOut < next.checkIn) {
       breaks.push(
-        StayDateRuleBreak.cases.Gap.make({
-          from: previous.checkOut,
-          to: next.checkIn,
-        }),
+        StayDateRuleBreak.cases.Gap.make(
+          { from: previous.checkOut, to: next.checkIn },
+          unchecked,
+        ),
       )
     } else if (next.checkIn < previous.checkOut) {
       breaks.push(
-        StayDateRuleBreak.cases.Overlap.make({
-          from: next.checkIn,
-          to: previous.checkOut,
-        }),
+        StayDateRuleBreak.cases.Overlap.make(
+          { from: next.checkIn, to: previous.checkOut },
+          unchecked,
+        ),
       )
     }
   })
@@ -266,15 +271,29 @@ export interface AppliedStayEdit extends StayChanges {
 
 type EditedStays = Pick<ScheduleCopy, 'stays' | 'moves'>
 
-type Edited = Result.Result<EditedStays, StayNotFound | HardRuleBroken>
+/**
+ * Why a Stay edit is refused, as plain data. The offers try many Stay edits
+ * on every Schedule read, and building an error for each refusal would cost
+ * more than the rest of the check.
+ */
+type Refusal = Data.TaggedEnum<{
+  StayNotFound: { readonly stayId: string }
+  HardRuleBroken: { readonly rule: HardRule }
+}>
 
-const refuse = (rule: HardRule) => Result.fail(new HardRuleBroken({ rule }))
+const Refusal = Data.taggedEnum<Refusal>()
+
+type Edited = Result.Result<EditedStays, Refusal>
+
+const refuse = (rule: HardRule) => Result.fail(Refusal.HardRuleBroken({ rule }))
+
+const notRecorded = Hotel.cases.NotRecorded.make({})
 
 const findStay = (copy: ScheduleCopy, stayId: string) => {
   const stay = copy.stays.find(({ id }) => id === stayId)
 
   return stay === undefined
-    ? Result.fail(new StayNotFound({ stayId }))
+    ? Result.fail(Refusal.StayNotFound({ stayId }))
     : Result.succeed(stay)
 }
 
@@ -290,7 +309,7 @@ const split = (
       checkOut: stay.checkOut,
       accommodation: stay.accommodation,
       highlights: [],
-      hotel: Hotel.cases.NotRecorded.make({}),
+      hotel: notRecorded,
     }
 
     return {
@@ -402,7 +421,7 @@ const stayDateRuleBroken = (
     (stay) => checkInNow.get(stay.id) ?? stay.checkIn,
   )
 
-  return breaks.find(StayDateRuleBreak.guards.StayWithoutNights) ?? breaks.at(0)
+  return breaks.find(Predicate.isTagged('StayWithoutNights')) ?? breaks.at(0)
 }
 
 /**
@@ -485,7 +504,16 @@ export const applyStayEdit = Effect.fnUntraced(function* (
   copy: ScheduleCopy,
   edit: StayEdit,
 ): Effect.fn.Return<AppliedStayEdit, StayNotFound | HardRuleBroken> {
-  const { stays, moves } = yield* Effect.fromResult(checkedStayEdit(copy, edit))
+  const { stays, moves } = yield* Effect.fromResult(
+    Result.mapError(
+      checkedStayEdit(copy, edit),
+      Refusal.$match({
+        StayNotFound: ({ stayId }) => new StayNotFound({ stayId }),
+        HardRuleBroken: ({ rule }) => new HardRuleBroken({ rule }),
+      }),
+    ),
+  )
+
   const verifyClaims = claimsFollowingStays(copy, stays)
   const misfits = fitBreaksOf({ stays, moves, verifyClaims, days: copy.days })
 
