@@ -179,7 +179,7 @@ export function PinField({
     setFinding(idle)
   }
 
-  // Another Pin, like its field, starts with no lookup under way.
+  // A new Pin target cancels any lookup in progress.
   useEffect(() => stopFinding, [pinTarget(props.target)])
 
   const looking = finding.state === 'finding'

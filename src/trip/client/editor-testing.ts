@@ -73,8 +73,9 @@ interface UnderOperation {
 }
 
 /**
- * `answeringOnly` for a write sent under an operation: it answers `written`
- * only to a request carrying exactly `expected`, under any operation id.
+ * Like `answeringOnly`, for a write sent under an operation. It answers
+ * `written` only to a request carrying exactly `expected`, whatever its
+ * operation id.
  */
 export const answeringOnlyUnderAnyOperation =
   <E, W, R>(expected: E, written: W, refused: R) =>

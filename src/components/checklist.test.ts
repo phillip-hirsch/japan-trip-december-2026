@@ -190,7 +190,7 @@ describe('adding an own Checklist item', () => {
       losingFirstAnswer(
         (retry, first) => retry.operationId === first.operationId,
         AddOwnChecklistItemOutcome.cases.Added.make({ itemId: 'item-1' }),
-        // Stands for any answer but Added: the item would be added twice.
+        // Any answer but Added. Getting it means the item was added twice.
         AddOwnChecklistItemOutcome.cases.ChecklistTextInvalid.make({
           maxLength: 200,
         }),

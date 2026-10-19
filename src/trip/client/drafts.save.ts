@@ -55,10 +55,10 @@ const readDraft = <V>(
       return undefined
     }
 
-    // A Draft kept before operations were stored on their own holds its
-    // operation in its value, for the Schedule it names or else the Draft's.
-    // Taking it out keeps a retry of a send that landed from adding it
-    // again, and keeps an edit from reviving it.
+    // Drafts written before #99 keep their operation inside the value, as
+    // operationId and operationScheduleId. Move it out. A retry of a send
+    // that landed then reuses its id and adds nothing, and a later edit
+    // can't bring the old id back.
     let value = draft.value
     let operation = isOperation(draft.operation) ? draft.operation : undefined
 
@@ -135,7 +135,7 @@ export const SaveState = Data.taggedEnum<SaveStateDefinition>()
 
 const clean = SaveState.Clean({ justSaved: false })
 
-/** A value Phillip has open: being edited, or not saved. */
+/** Whether Phillip is editing the value, or it is not saved. */
 const isOpen = <V>(
   state: SaveState<V>,
 ): state is Extract<SaveState<V>, { readonly _tag: 'Editing' | 'NotSaved' }> =>
@@ -179,13 +179,13 @@ const useOnChange = <A>(
 /** What every save sets, whether or not it has a saved value. */
 interface SaveOptions<V, S> {
   /**
-   * What it saves, such as `dayNoteTarget(date)`. The hook starts afresh when
-   * this changes, so its editor needs no key.
+   * What it saves, such as `dayNoteTarget(date)`. The hook resets to Clean
+   * when this changes, so its editor needs no key.
    */
   readonly target: string
   /**
-   * Keeps the value as a Draft under its target, saying whether a value read
-   * back from the device is one.
+   * Keeps the value as a Draft under its target. It checks that a value
+   * read back from the device is one.
    */
   readonly draft?: (value: unknown) => value is V
   readonly equals?: (a: V, b: V) => boolean
@@ -206,10 +206,10 @@ interface SaveOptions<V, S> {
    * Sends the value, answering the outcomes only this editor has, as
    * `answerOwn` does; throws when the request gets no answer.
    *
-   * Each send goes under an operation id, for writes the Trip replays by it.
-   * A retry of the same value to the same Schedule, even after a reload,
-   * keeps it, so it writes once. An edited value, or one kept across a
-   * Schedule change, gets a new one for the Schedule now shown.
+   * Each value comes with an operation id. Writes the Trip replays by
+   * operation id send it, and others ignore it. A retry of the same value to
+   * the same Schedule keeps the id, even after a reload, so it writes once.
+   * An edited value, or one kept across a Schedule change, gets a new id.
    */
   readonly run: (value: V, operationId: string) => Promise<SaveReply>
 }
@@ -241,8 +241,8 @@ export interface SaveField<V, S = V> {
  * the value, and so does an answer that what it was for is gone. Every other
  * refusal keeps the value without refetching.
  *
- * Without `saved`, nothing is saved to show while Clean, as for a split or
- * merge chosen afresh each time.
+ * Without `saved`, the value is undefined while Clean. Split and merge work
+ * this way, since no choice of theirs is ever saved.
  */
 export function useSave<V>(
   options: SaveOptions<V, V> & { readonly saved: V },
@@ -269,7 +269,7 @@ export function useSave<V>({
     readonly state: SaveState<V>
   }>({ target, state: clean })
 
-  // Another target starts afresh, even if its earlier state is still held.
+  // A new target resets the state to Clean.
   if (held.target !== target) setHeld({ target, state: clean })
 
   const state = held.target === target ? held.state : clean
@@ -283,7 +283,7 @@ export function useSave<V>({
   const ownDraftWriteId = useRef<string>(undefined)
   const operation = useRef<Operation>(undefined)
   // Counts visits to a target, so the answer to a save from an earlier
-  // visit never marks a later one.
+  // visit never changes the state of a later one.
   const visit = useRef(0)
 
   /**
@@ -562,9 +562,9 @@ export function useSave<V>({
 }
 
 /**
- * A one-shot send, such as a Tick or moving an Activity: no saved value
- * stands for it, so `sent` is what is on its way, saved but not yet shown,
- * or not saved. Retry it with `save`.
+ * A one-shot send, such as a Tick or moving an Activity. It has no saved
+ * value, so `sent` holds the value on its way, saved but not yet shown, or
+ * not saved. `save` retries it.
  */
 export const useSend = <V>({
   moot = () => false,
@@ -574,9 +574,9 @@ export const useSend = <V>({
   'target' | 'scheduleId' | 'write' | 'run'
 > & {
   /**
-   * Whether the page now shows a send not saved needs no retry, such as a
-   * Tick the Checklist shows ticked after all, or a move of an Activity
-   * since removed. Such a send is dropped.
+   * Whether a send not saved needs no retry, given what the page now shows.
+   * Examples are a Tick the Checklist shows ticked after all, or a move of
+   * an Activity since removed. The hook drops such a send.
    */
   readonly moot?: (value: V) => boolean
 }) => {

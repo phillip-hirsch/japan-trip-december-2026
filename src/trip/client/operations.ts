@@ -1,6 +1,6 @@
 /**
- * One attempt at a write that the Trip replays by its id: a retry under the
- * same id returns the first result instead of writing again.
+ * One attempt at a write. The Trip replays a write by its operation id, so a
+ * retry under the same id returns the first result instead of writing again.
  */
 export interface Operation {
   readonly id: string
@@ -12,9 +12,9 @@ export interface Operation {
 }
 
 /**
- * The operation a send goes under: the one kept from an earlier attempt while
- * it is for the same thing, so a retry after a lost answer writes once, and
- * a new one otherwise, so it never returns another attempt's result.
+ * The operation for a send to `subject`. It reuses a kept operation for the
+ * same subject, so a retry after a lost answer writes once. Any other send
+ * gets a new id, so it never gets another attempt's result.
  */
 export const operationFor = (
   kept: Operation | undefined,

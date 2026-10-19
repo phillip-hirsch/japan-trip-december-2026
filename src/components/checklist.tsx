@@ -116,7 +116,7 @@ const tickScheduleChanged: SaveWarning = {
 /**
  * The Tick on `item`, of a Checklist showing the Schedule `scheduleId`, or
  * none yet. An own item belongs to the Trip, so its Tick names no Schedule.
- * A Tick not saved that the Checklist shows after all is dropped.
+ * The hook drops a Tick not saved once the Checklist shows it.
  */
 export const useTick = ({
   item,
@@ -301,8 +301,8 @@ const textInvalid = ({ maxLength }: { readonly maxLength: number }) =>
   })
 
 /**
- * A new own Checklist item, kept as a Draft, and added once under its
- * operation however often it is retried. It belongs to the Trip.
+ * A new own Checklist item, kept as a Draft. Every retry goes under one
+ * operation, so the Trip adds it once. It belongs to the Trip.
  */
 export const useNewChecklistItem = () => {
   const add = useServerFn(addOwnChecklistItem)

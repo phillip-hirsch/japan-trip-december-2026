@@ -63,7 +63,7 @@ describe('adding an Activity', () => {
     activityId: 'activity-tsukiji',
   })
 
-  // Stands for any answer but Added: the Activity would be added twice.
+  // Any answer but Added. Getting it means the Activity was added twice.
   const addedAgain = AddActivityOutcome.cases.ScheduleChanged.make({})
 
   const added = SaveState.Clean({ justSaved: true })

@@ -72,12 +72,12 @@ const confirming: DialogState = DialogState.Confirming()
  * A write that replaces the current Schedule (choosing or restoring), after
  * a confirmation saying what happens. On success it opens the Schedule.
  *
- * Every attempt goes under an operation for its target, as each save does
- * for its Schedule, so a retry after a lost answer returns the first result
- * instead of writing again. A refusal writes nothing, so the same id can
- * confirm again once the refreshed confirmation has been read. A new target
- * (the page now shows another Itinerary or Schedule) gets a new id, so it
- * never returns another target's result.
+ * Each attempt goes under an operation for its target, by the rule a save
+ * uses for its Schedule. A retry after a lost answer returns the first
+ * result instead of writing again. A refusal writes nothing, so the same id
+ * can confirm again once Phillip has read the refreshed confirmation. When
+ * the page shows another Itinerary or Schedule, its target gets a new id, so
+ * it never returns another target's result.
  */
 export function ReplaceScheduleDialog({
   write,

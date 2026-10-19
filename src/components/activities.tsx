@@ -168,8 +168,8 @@ export const useActivityEdit = ({
 const noNewActivity: ActivityFields = { title: '', time: '', note: '' }
 
 /**
- * A new Activity on a Day of the Schedule shown, kept as a Draft, and added
- * once under its operation however often it is retried.
+ * A new Activity on a Day of the Schedule shown, kept as a Draft. Every
+ * retry goes under one operation, so the Trip adds it once.
  */
 export const useNewActivity = ({
   scheduleId,
@@ -234,8 +234,8 @@ const isShown = (activities: ReadonlyArray<Activity>, activityId: string) =>
 
 /**
  * Moves of the Activities on a Day of the Schedule shown, one at a time.
- * A move past an Activity that is gone counts as saved, with a warning; a
- * move not saved of one since gone is dropped.
+ * A move past an Activity that is gone counts as saved, with a warning. The
+ * hook drops a move not saved once its Activity is gone.
  */
 export const useActivityMove = ({ scheduleId, date, activities }: DayShown) => {
   const move = useServerFn(moveActivity)
@@ -261,8 +261,8 @@ const removalAnswerOf = (outcome: RemoveActivityOutcome) =>
 
 /**
  * Removals of the Activities on a Day of the Schedule shown, by id, one at a
- * time. Removing one already gone counts as saved, and a removal not saved
- * of one since gone is dropped.
+ * time. Removing one already gone counts as saved. The hook drops a removal
+ * not saved once its Activity is gone.
  */
 export const useActivityRemoval = ({
   scheduleId,

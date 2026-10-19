@@ -162,7 +162,7 @@ describe('merging a Stay with the next', () => {
       losingFirstAnswer(
         (retry, first) => retry.operationId === first.operationId,
         staysEdited(),
-        // Stands for any answer but merged: it would merge twice.
+        // Any answer but merged. Getting it means it merged twice.
         stayGone,
       ),
     )

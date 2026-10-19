@@ -44,8 +44,9 @@ const labels = {
 /**
  * Splitting a Stay of the Schedule shown on a night after its check-in, or
  * merging it with `next`, the Stay after it, while both are in one Base.
- * Each choice is a fresh operation, so a retry of it splits or merges once,
- * and a choice kept across a Schedule change is a fresh one there.
+ * A retry of a choice goes under its operation, so it splits or merges
+ * once. A choice kept across a Schedule change gets a new operation for the
+ * Schedule now shown.
  */
 export const useSplitMergeStay = ({
   scheduleId,
