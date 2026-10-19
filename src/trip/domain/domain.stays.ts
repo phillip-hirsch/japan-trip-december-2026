@@ -7,7 +7,11 @@ import {
   ScheduleDetail,
   ScheduleId,
 } from '@/trip/domain/domain.schedule'
-import { OperationId, ScheduleChanged } from '@/trip/domain/domain.writes'
+import {
+  OperationId,
+  ScheduleChanged,
+  writeOutcome,
+} from '@/trip/domain/domain.writes'
 
 export class StayNotFound extends Schema.TaggedError<StayNotFound>()(
   'StayNotFound',
@@ -52,18 +56,6 @@ export class HardRuleBroken extends Schema.TaggedError<HardRuleBroken>()(
   'HardRuleBroken',
   { rule: HardRule },
 ) {}
-
-/**
- * What every Stay edit names. The Schedule must be current. A Stay edit that
- * creates something carries a client-generated operation id, so a retry
- * returns the first result instead of editing again.
- */
-export const StayEditTarget = Schema.Struct({
-  scheduleId: ScheduleId,
-  operationId: Schema.optionalKey(OperationId),
-})
-
-export type StayEditTarget = typeof StayEditTarget.Type
 
 export const StaysEdited = Schema.Struct({ schedule: ScheduleDetail })
 
@@ -135,11 +127,10 @@ export const ChangeStayBase = Schema.Struct({
 
 export type ChangeStayBase = typeof ChangeStayBase.Type
 
-export const WriteHotelDetailsOutcome = Schema.TaggedUnion({
-  Written: {},
-  ScheduleChanged: ScheduleChanged.fields,
-  StayNotFound: StayNotFound.fields,
-  HotelDetailTooLong: HotelDetailTooLong.fields,
-})
+export const WriteHotelDetailsOutcome = writeOutcome('Written', {}, [
+  ScheduleChanged,
+  StayNotFound,
+  HotelDetailTooLong,
+])
 
 export type WriteHotelDetailsOutcome = typeof WriteHotelDetailsOutcome.Type

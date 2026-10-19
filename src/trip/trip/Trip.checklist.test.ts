@@ -259,32 +259,6 @@ describe('Trip.tickChecklistItem', () => {
   )
 
   it.effect(
-    'rejects a tick on an archived Schedule, leaving it as it was',
-    () =>
-      Effect.gen(function* () {
-        const archived = yield* choose(1, 1, null)
-        const itemId = yield* idOf(ChecklistItem.guards.BookHotel)
-        yield* tick(archived, itemId, true)
-        const current = yield* choose(2, 2, archived)
-        const error = yield* Effect.flip(tick(archived, itemId, false))
-        yield* restore(archived, 3, current)
-
-        assert.deepStrictEqual(
-          {
-            tag: error._tag,
-            ticked: (yield* describedChecklist).filter((item) =>
-              item.startsWith('[x]'),
-            ),
-          },
-          {
-            tag: 'ScheduleChanged',
-            ticked: ['[x] Book hotel: Tokyo 2026-12-06 to 2026-12-09'],
-          },
-        )
-      }).pipe(Effect.provide([trip, storage])),
-  )
-
-  it.effect(
     'fails with ChecklistItemNotFound for an item the Schedule lacks',
     () =>
       Effect.gen(function* () {

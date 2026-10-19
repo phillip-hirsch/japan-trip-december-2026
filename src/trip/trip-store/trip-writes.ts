@@ -1,23 +1,42 @@
 // effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
 // @effect-diagnostics unstableApiUsage:off
-import { Effect, Schema } from 'effect'
+import type { Effect } from 'effect'
 import type { SqlClient } from 'effect/sql'
 
-import { WriteDayNoteOutcome } from '@/trip/domain/domain'
-import type { WriteDayNote, WriteOutcome } from '@/trip/domain/domain'
+import {
+  AddActivityOutcome,
+  AddOwnChecklistItemOutcome,
+  EditActivityOutcome,
+  MoveActivityOutcome,
+  RemoveActivityOutcome,
+  RemoveOwnChecklistItemOutcome,
+  SetPinOutcome,
+  TickChecklistItemOutcome,
+  TickOwnChecklistItemOutcome,
+  WriteDayNoteOutcome,
+  WriteHotelDetailsOutcome,
+  WriteStayNoteOutcome,
+  WriteTripNoteOutcome,
+  outcomeOf,
+} from '@/trip/domain/domain'
+import type {
+  AddActivity,
+  AddOwnChecklistItem,
+  EditActivity,
+  MoveActivity,
+  RemoveActivity,
+  RemoveOwnChecklistItem,
+  SetPin,
+  SuccessValueOf,
+  TickChecklistItem,
+  TickOwnChecklistItem,
+  WriteDayNote,
+  WriteHotelDetails,
+  WriteOutcome,
+  WriteStayNote,
+  WriteTripNote,
+} from '@/trip/domain/domain'
 import { Trip } from '@/trip/trip/Trip'
-
-type SuccessOf<O extends WriteOutcome> = Omit<
-  Extract<O['Type'], { readonly _tag: O['success'] }>,
-  '_tag'
->
-
-/**
- * What the operation may succeed with: the success case's fields, or nothing
- * when that case has none required.
- */
-type SuccessValueOf<O extends WriteOutcome> =
-  {} extends SuccessOf<O> ? SuccessOf<O> | void : SuccessOf<O>
 
 interface TripWrite<I, O extends WriteOutcome> {
   readonly outcome: O
@@ -26,11 +45,7 @@ interface TripWrite<I, O extends WriteOutcome> {
   ) => Effect.Effect<O['Encoded'], never, Trip | SqlClient.SqlClient>
 }
 
-/**
- * Pairs a Trip operation with its outcome. The operation's success value must
- * fill the success case, and each of its typed failures must be one of the
- * outcome's failure cases, so a failure the outcome lacks fails to compile.
- */
+/** Pairs a Trip operation with its outcome, answered through `outcomeOf`. */
 const defineTripWrite = <
   O extends WriteOutcome,
   I,
@@ -41,18 +56,59 @@ const defineTripWrite = <
   operation: (input: I) => Effect.Effect<A, E, Trip | SqlClient.SqlClient>,
 ): TripWrite<I, O> => ({
   outcome,
-  run: (input) =>
-    operation(input).pipe(
-      Effect.map((value) => ({ ...value, _tag: outcome.success })),
-      Effect.catch(Effect.succeed),
-      Effect.flatMap(Schema.encodeUnknownEffect(outcome)),
-      Effect.orDie,
-    ),
+  run: (input) => outcomeOf(outcome, operation(input)),
 })
 
 const tripWrites = {
   writeDayNote: defineTripWrite(WriteDayNoteOutcome, (input: WriteDayNote) =>
     Trip.use((trip) => trip.writeDayNote(input)),
+  ),
+  writeStayNote: defineTripWrite(WriteStayNoteOutcome, (input: WriteStayNote) =>
+    Trip.use((trip) => trip.writeStayNote(input)),
+  ),
+  writeTripNote: defineTripWrite(WriteTripNoteOutcome, (input: WriteTripNote) =>
+    Trip.use((trip) => trip.writeTripNote(input)),
+  ),
+  writeHotelDetails: defineTripWrite(
+    WriteHotelDetailsOutcome,
+    (input: WriteHotelDetails) =>
+      Trip.use((trip) => trip.writeHotelDetails(input)),
+  ),
+  tickChecklistItem: defineTripWrite(
+    TickChecklistItemOutcome,
+    (input: TickChecklistItem) =>
+      Trip.use((trip) => trip.tickChecklistItem(input)),
+  ),
+  tickOwnChecklistItem: defineTripWrite(
+    TickOwnChecklistItemOutcome,
+    (input: TickOwnChecklistItem) =>
+      Trip.use((trip) => trip.tickOwnChecklistItem(input)),
+  ),
+  addOwnChecklistItem: defineTripWrite(
+    AddOwnChecklistItemOutcome,
+    (input: AddOwnChecklistItem) =>
+      Trip.use((trip) => trip.addOwnChecklistItem(input)),
+  ),
+  removeOwnChecklistItem: defineTripWrite(
+    RemoveOwnChecklistItemOutcome,
+    (input: RemoveOwnChecklistItem) =>
+      Trip.use((trip) => trip.removeOwnChecklistItem(input)),
+  ),
+  addActivity: defineTripWrite(AddActivityOutcome, (input: AddActivity) =>
+    Trip.use((trip) => trip.addActivity(input)),
+  ),
+  editActivity: defineTripWrite(EditActivityOutcome, (input: EditActivity) =>
+    Trip.use((trip) => trip.editActivity(input)),
+  ),
+  moveActivity: defineTripWrite(MoveActivityOutcome, (input: MoveActivity) =>
+    Trip.use((trip) => trip.moveActivity(input)),
+  ),
+  removeActivity: defineTripWrite(
+    RemoveActivityOutcome,
+    (input: RemoveActivity) => Trip.use((trip) => trip.removeActivity(input)),
+  ),
+  setPin: defineTripWrite(SetPinOutcome, (input: SetPin) =>
+    Trip.use((trip) => trip.setPin(input)),
   ),
 }
 

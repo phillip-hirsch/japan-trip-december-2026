@@ -6,54 +6,50 @@ import type {
   WriteStayNote,
   WriteTripNote,
 } from '@/trip/domain/domain'
-import { scheduleStore } from '@/trip/schedule-store/schedule-store'
 import {
-  requireCurrent,
   requireNoteLength,
   requireStay,
+  scheduleWrite,
+  tripWrite,
 } from '@/trip/trip/Trip.guards'
 
-const writeDayNote = Effect.fn('Trip.writeDayNote')(
-  function* ({ scheduleId, date, note }: WriteDayNote) {
-    yield* requireNoteLength(note)
-    const store = yield* scheduleStore
-    yield* store.transaction(
-      Effect.gen(function* () {
-        yield* requireCurrent(store, scheduleId)
+const writeDayNote = Effect.fn('Trip.writeDayNote')(function* ({
+  scheduleId,
+  date,
+  note,
+}: WriteDayNote) {
+  yield* requireNoteLength(note)
+  yield* scheduleWrite({ naming: scheduleId }, (store) =>
+    Effect.gen(function* () {
+      if (!(yield* store.hasDay(scheduleId, date))) {
+        return yield* new DayNotFound({ date })
+      }
 
-        if (!(yield* store.hasDay(scheduleId, date))) {
-          return yield* new DayNotFound({ date })
-        }
+      yield* store.writeDayNote(scheduleId, date, note)
+    }),
+  )
+})
 
-        yield* store.writeDayNote(scheduleId, date, note)
-      }),
-    )
-  },
-  Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-)
+const writeStayNote = Effect.fn('Trip.writeStayNote')(function* ({
+  scheduleId,
+  stayId,
+  note,
+}: WriteStayNote) {
+  yield* requireNoteLength(note)
+  yield* scheduleWrite({ naming: scheduleId }, (store) =>
+    Effect.andThen(
+      requireStay(store, scheduleId, stayId),
+      store.writeStayNote(scheduleId, stayId, note),
+    ),
+  )
+})
 
-const writeStayNote = Effect.fn('Trip.writeStayNote')(
-  function* ({ scheduleId, stayId, note }: WriteStayNote) {
-    yield* requireNoteLength(note)
-    const store = yield* scheduleStore
-    yield* store.transaction(
-      Effect.gen(function* () {
-        yield* requireStay(store, scheduleId, stayId)
-        yield* store.writeStayNote(scheduleId, stayId, note)
-      }),
-    )
-  },
-  Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-)
-
-const writeTripNote = Effect.fn('Trip.writeTripNote')(
-  function* ({ note }: WriteTripNote) {
-    yield* requireNoteLength(note)
-    const store = yield* scheduleStore
-    yield* store.writeTripNote(note)
-  },
-  Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-)
+const writeTripNote = Effect.fn('Trip.writeTripNote')(function* ({
+  note,
+}: WriteTripNote) {
+  yield* requireNoteLength(note)
+  yield* tripWrite({}, (store) => store.writeTripNote(note))
+})
 
 /** The Day, Stay and Trip note writes. */
 export const noteMethods = Effect.succeed({
