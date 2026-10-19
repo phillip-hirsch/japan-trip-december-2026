@@ -5,10 +5,11 @@ import { useId } from 'react'
 
 import { ButtonLink } from '@/components/button-link'
 import {
-  NotSavedAlert,
-  RetryOrDismiss,
-  SavedStatus,
-} from '@/components/not-saved-alert'
+  addVerb,
+  EditorFrame,
+  frameOf,
+  SendNotSaved,
+} from '@/components/editor-frame'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -110,20 +111,22 @@ const tickScheduleChanged: SaveWarning = {
     'The tick wasn’t saved. The Checklist now shows the Schedule as it is.',
 }
 
-function ChecklistRow({
+/**
+ * The Tick on `item`, of a Checklist showing the Schedule `scheduleId`, or
+ * none yet. An own item belongs to the Trip, so its Tick names no Schedule.
+ */
+export const useTick = ({
   item,
   scheduleId,
 }: {
   item: ChecklistItem
   scheduleId: ScheduleId | null
-}) {
-  const titleId = useId()
+}) => {
   const own = Predicate.isTagged('Own')(item)
   const tickDerived = useServerFn(tickChecklistItem)
   const tickOwn = useServerFn(tickOwnChecklistItem)
-  const remove = useServerFn(removeOwnChecklistItem)
 
-  const tick = useSave({
+  return useSave({
     // Own items belong to the Trip, so a Schedule change never refuses them.
     scheduleId: own ? null : scheduleId,
     saved: item.ticked,
@@ -145,13 +148,32 @@ function ChecklistRow({
       )
     },
   })
+}
 
-  const removal = useSave({
+/** Removing one of Phillip's own Checklist items, sent as true. */
+export const useChecklistItemRemoval = ({ itemId }: { itemId: string }) => {
+  const remove = useServerFn(removeOwnChecklistItem)
+
+  return useSave({
     scheduleId: null,
     saved: false,
     write: 'checklist',
-    run: () => remove({ data: { itemId: item.id } }),
+    run: () => remove({ data: { itemId } }),
   })
+}
+
+function ChecklistRow({
+  item,
+  scheduleId,
+}: {
+  item: ChecklistItem
+  scheduleId: ScheduleId | null
+}) {
+  const titleId = useId()
+  const tick = useTick({ item, scheduleId })
+  const removal = useChecklistItemRemoval({ itemId: item.id })
+  const tickFrame = frameOf(tick)
+  const removalFrame = frameOf(removal)
 
   const ticked = tick.value
   const removing = !SaveState.$is('Clean')(removal.state)
@@ -165,15 +187,13 @@ function ChecklistRow({
       size="sm"
       className={cn(
         'items-start transition-opacity',
-        (SaveState.$is('Saving')(removal.state) ||
-          SaveState.$is('Saved')(removal.state)) &&
-          'opacity-50',
+        removalFrame.busy && 'opacity-50',
       )}
     >
       <Checkbox
         aria-labelledby={titleId}
         checked={ticked}
-        readOnly={SaveState.$is('Saving')(tick.state)}
+        readOnly={tickFrame.busy}
         disabled={removing && !SaveState.$is('NotSaved')(removal.state)}
         onCheckedChange={(checked) => void tick.send(checked)}
         className="mt-0.5 size-5"
@@ -213,24 +233,10 @@ function ChecklistRow({
             )}
           </div>
         )}
-        {SaveState.$is('NotSaved')(tick.state) && (
-          <NotSavedAlert problem={tick.state.problem}>
-            <RetryOrDismiss
-              onRetry={() => void tick.save()}
-              onDismiss={tick.discard}
-            />
-          </NotSavedAlert>
-        )}
-        {SaveState.$is('NotSaved')(removal.state) && (
-          <NotSavedAlert problem={removal.state.problem}>
-            <RetryOrDismiss
-              onRetry={() => void removal.save()}
-              onDismiss={removal.discard}
-            />
-          </NotSavedAlert>
-        )}
+        <SendNotSaved field={tick} />
+        <SendNotSaved field={removal} />
       </div>
-      {own && (
+      {Predicate.isTagged('Own')(item) && (
         <Button
           variant="ghost"
           size="icon-sm"
@@ -299,12 +305,11 @@ const textInvalid = ({ maxLength }: { readonly maxLength: number }) =>
     problem: `An item needs some text, at most ${maxLength} characters.`,
   })
 
-export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
+/** A new own Checklist item, kept as a Draft. It belongs to the Trip. */
+export const useNewChecklistItem = () => {
   const add = useServerFn(addOwnChecklistItem)
-  const dateId = useId()
-  const problemId = useId()
 
-  const field = useOperationSave({
+  return useOperationSave({
     draft: newItemDraft,
     equals: (a, b) => a.text === b.text && a.reminderDate === b.reminderDate,
     scheduleId: null,
@@ -326,66 +331,54 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
             textInvalid,
           ),
   })
+}
 
-  const { state, value } = field
-  const saving = SaveState.$is('Saving')(state)
-  const notSaved = SaveState.$is('NotSaved')(state)
-  const settling = saving || SaveState.$is('Saved')(state)
+export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
+  const field = useNewChecklistItem()
+  const dateId = useId()
+  const { value } = field
 
   const change = (next: Partial<NewChecklistItem>) =>
     field.change({ ...value, ...next })
 
   return (
-    <form
-      className="flex flex-col gap-3"
-      onSubmit={(event) => {
-        event.preventDefault()
-        void field.save()
-      }}
+    <EditorFrame
+      field={field}
+      labelledBy={labelledBy}
+      verb={addVerb}
+      form="always"
+      nameForm={false}
+      ready={value.text.trim() !== ''}
     >
-      {notSaved && (
-        <NotSavedAlert problem={state.problem} problemId={problemId} />
-      )}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <Input
-          aria-labelledby={labelledBy}
-          aria-describedby={notSaved ? problemId : undefined}
-          placeholder="Something to book or confirm"
-          value={value.text}
-          onChange={(event) => change({ text: event.target.value })}
-          readOnly={settling}
-          required
-          maxLength={checklistTextMaxLength}
-          className="h-10 sm:flex-1"
-        />
-        <div className="flex flex-col gap-1.5 sm:w-44">
-          <label htmlFor={dateId} className="text-sm text-muted-foreground">
-            Reminder date (optional)
-          </label>
+      {(frame) => (
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
           <Input
-            id={dateId}
-            type="date"
-            value={value.reminderDate}
-            onChange={(event) => change({ reminderDate: event.target.value })}
-            readOnly={settling}
-            className="h-10"
+            aria-labelledby={labelledBy}
+            aria-describedby={frame.describedBy}
+            placeholder="Something to book or confirm"
+            value={value.text}
+            onChange={(event) => change({ text: event.target.value })}
+            readOnly={frame.busy}
+            required
+            maxLength={checklistTextMaxLength}
+            className="h-10 sm:flex-1"
           />
+          <div className="flex flex-col gap-1.5 sm:w-44">
+            <label htmlFor={dateId} className="text-sm text-muted-foreground">
+              Reminder date (optional)
+            </label>
+            <Input
+              id={dateId}
+              type="date"
+              value={value.reminderDate}
+              onChange={(event) => change({ reminderDate: event.target.value })}
+              readOnly={frame.busy}
+              className="h-10"
+            />
+          </div>
         </div>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="submit" disabled={settling || value.text.trim() === ''}>
-          {saving ? 'Adding…' : notSaved ? 'Retry' : 'Add'}
-        </Button>
-        {(notSaved || SaveState.$is('Editing')(state)) && (
-          <Button type="button" variant="ghost" onClick={field.discard}>
-            {notSaved ? 'Discard' : 'Clear'}
-          </Button>
-        )}
-        <SavedStatus saved={SaveState.$is('Clean')(state) && state.justSaved}>
-          Added
-        </SavedStatus>
-      </div>
-    </form>
+      )}
+    </EditorFrame>
   )
 }
 

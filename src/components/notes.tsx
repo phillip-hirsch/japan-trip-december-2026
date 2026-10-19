@@ -126,7 +126,7 @@ function NoteFrame({
       editLabel={value === '' ? 'Add a note' : 'Edit note'}
       editIcon={PencilIcon}
       nameForm={false}
-      actions={
+      actions={() =>
         nearsTheCap(value) && (
           <p className="ml-auto text-sm text-muted-foreground tabular-nums">
             {value.length.toLocaleString('en')} /{' '}

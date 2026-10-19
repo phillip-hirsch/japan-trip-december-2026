@@ -3,7 +3,8 @@ import { Match, Predicate } from 'effect'
 import { MapPinIcon, MapPinPlusIcon } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 
-import { NotSavedAlert, SavedStatus } from '@/components/not-saved-alert'
+import { EditorFrame, frameOf, saveVerb } from '@/components/editor-frame'
+import { SavedStatus } from '@/components/not-saved-alert'
 import { OpenInGoogleMaps } from '@/components/open-in-google-maps'
 import { PinMap } from '@/components/pin-map'
 import { Button } from '@/components/ui/button'
@@ -23,7 +24,6 @@ import {
   keyedBy,
   pinTarget,
   SaveAnswer,
-  SaveState,
   useSave,
 } from '@/trip/client/drafts'
 import type { OwnOutcome } from '@/trip/client/drafts'
@@ -107,46 +107,19 @@ type Finding =
 
 const idle: Finding = { state: 'idle' }
 
-function PinEditor({
+/** The Pin on an Activity or a Stay's hotel of the Schedule shown, set as `pin`. */
+export const usePin = ({
   scheduleId,
   target,
   pin,
-  near,
-  noun,
-  labelledBy,
-  summaryClassName,
 }: {
   scheduleId: ScheduleId
   target: PinTarget
   pin: Pin | undefined
-  near: Coordinates
-  noun: string
-  labelledBy: string
-  summaryClassName?: string
-}) {
-  const resolve = useServerFn(resolveLocationLink)
+}) => {
   const write = useServerFn(setPin)
-  const linkId = useId()
-  const noteId = useId()
-  const problemId = useId()
-  const [finding, setFinding] = useState<Finding>(idle)
-  const [frame, setFrame] = useState<Coordinates | undefined>(undefined)
-  const lookups = useRef(0)
 
-  const cancelLookups = () => {
-    lookups.current += 1
-  }
-
-  const beginLookup = () => {
-    cancelLookups()
-    const lookup = lookups.current
-
-    return () => lookups.current === lookup
-  }
-
-  useEffect(() => cancelLookups, [])
-
-  const field = useSave<PinFields>({
+  return useSave<PinFields>({
     draft: { target: pinTarget(target), isValue: isPinFields },
     equals: sameFields,
     scheduleId,
@@ -163,65 +136,64 @@ function PinEditor({
       )
     },
   })
+}
 
-  const { state, value } = field
+function PinEditor({
+  near,
+  noun,
+  labelledBy,
+  summaryClassName,
+  ...props
+}: Parameters<typeof usePin>[0] & {
+  near: Coordinates
+  noun: string
+  labelledBy: string
+  summaryClassName?: string
+}) {
+  const resolve = useServerFn(resolveLocationLink)
+  const linkId = useId()
+  const noteId = useId()
+  const [finding, setFinding] = useState<Finding>(idle)
+  const [mapFrame, setMapFrame] = useState<Coordinates | undefined>(undefined)
+  const lookups = useRef(0)
 
-  const placing =
-    !SaveState.$is('Clean')(state) && !SaveState.$is('Saved')(state)
+  const cancelLookups = () => {
+    lookups.current += 1
+  }
+
+  const beginLookup = () => {
+    cancelLookups()
+    const lookup = lookups.current
+
+    return () => lookups.current === lookup
+  }
+
+  useEffect(() => cancelLookups, [])
+
+  const field = usePin(props)
+  const { value } = field
+  const placing = frameOf(field).view === 'form'
 
   useEffect(() => {
-    if (!placing) setFrame(undefined)
-    else if (frame === undefined && value.coordinates !== null) {
-      setFrame(value.coordinates)
+    if (!placing) setMapFrame(undefined)
+    else if (mapFrame === undefined && value.coordinates !== null) {
+      setMapFrame(value.coordinates)
     }
-  }, [placing, frame, value.coordinates])
+  }, [placing, mapFrame, value.coordinates])
 
   const stopFinding = () => {
     cancelLookups()
     setFinding(idle)
   }
 
-  if (!placing) {
-    const justSaved = SaveState.$is('Saved')(state) || state.justSaved
-    const shown = pinOfFields(value)
-
-    return (
-      <div
-        className={cn(
-          'flex flex-wrap items-center gap-x-4 gap-y-2',
-          summaryClassName,
-        )}
-      >
-        {shown && <OpenInGoogleMaps pin={shown} />}
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-describedby={labelledBy}
-          disabled={SaveState.$is('Saved')(state)}
-          onClick={() => {
-            stopFinding()
-            field.edit()
-          }}
-          className="-mx-2.5 text-muted-foreground"
-        >
-          <MapPinPlusIcon data-icon="inline-start" aria-hidden />
-          {shown ? `Change ${noun}` : `Add ${noun}`}
-        </Button>
-        <SavedStatus saved={justSaved}>Saved</SavedStatus>
-      </div>
-    )
-  }
-
-  const notSaved = SaveState.$is('NotSaved')(state)
-  const saving = SaveState.$is('Saving')(state)
-  const busy = saving || finding.state === 'finding'
+  const looking = finding.state === 'finding'
   const placed = value.coordinates
 
   const place = (coordinates: Coordinates) =>
     field.change({ ...value, coordinates })
 
   const dropByHand = () => {
-    setFrame(near)
+    setMapFrame(near)
     field.change(droppedByHand(near))
     setFinding({
       state: 'byHand',
@@ -261,7 +233,7 @@ function PinEditor({
     Match.value(outcome).pipe(
       Match.tagsExhaustive({
         Resolved: ({ coordinates }) => {
-          setFrame(coordinates)
+          setMapFrame(coordinates)
           field.change({ link, coordinates })
           setFinding({
             state: 'found',
@@ -269,7 +241,7 @@ function PinEditor({
           })
         },
         NoCoordinatesInLink: () => {
-          setFrame(near)
+          setMapFrame(near)
           field.change({ link, coordinates: near })
           setFinding({ state: 'byHand', note: noCoordinates })
         },
@@ -282,137 +254,169 @@ function PinEditor({
   }
 
   return (
-    <div
-      role="group"
-      aria-labelledby={labelledBy}
-      className="flex flex-col gap-3"
-    >
-      {notSaved && (
-        <NotSavedAlert problem={state.problem} problemId={problemId} />
-      )}
-      <form
-        className="flex flex-col gap-1.5"
-        onSubmit={(event) => {
-          event.preventDefault()
-          void find(value.link)
-        }}
-      >
-        <label htmlFor={linkId} className="text-sm text-muted-foreground">
-          Google Maps link
-        </label>
-        <div className="flex gap-2">
-          <Input
-            id={linkId}
-            type="url"
-            inputMode="url"
-            placeholder="https://maps.app.goo.gl/…"
-            aria-describedby={
-              [
-                ...(finding.state !== 'idle' ? [noteId] : []),
-                ...(notSaved ? [problemId] : []),
-              ].join(' ') || undefined
-            }
-            // Opening the editor focuses it; a restored draft opens unfocused.
-            autoFocus={SaveState.$is('Editing')(state) && placed === null}
-            readOnly={busy}
-            value={value.link}
-            maxLength={locationLinkMaxLength}
-            autoComplete="off"
-            spellCheck={false}
-            onChange={(event) => {
-              stopFinding()
-              field.change({ link: event.target.value, coordinates: null })
-            }}
-            // Pasting finds the place at once. A paste still fires on the
-            // read-only field, so it waits like typing does.
-            onPaste={(event) => {
-              const pasted = event.clipboardData.getData('text')
+    <EditorFrame
+      field={{
+        ...field,
+        discard: () => {
+          stopFinding()
+          field.discard()
+        },
+      }}
+      labelledBy={labelledBy}
+      verb={{ ...saveVerb, submit: `Confirm ${noun}` }}
+      formless
+      ready={placed !== null && !looking}
+      summaryView={(frame) => {
+        const shown = pinOfFields(value)
 
-              if (busy || pasted.trim() === '') return
-              event.preventDefault()
-              field.change({ link: pasted, coordinates: null })
-              void find(pasted)
-            }}
-            className="h-10 min-w-0 flex-1"
-          />
-          <Button
-            type="submit"
-            variant="outline"
-            disabled={busy || value.link.trim() === ''}
-            className="h-10"
+        return (
+          <div
+            className={cn(
+              'flex flex-wrap items-center gap-x-4 gap-y-2',
+              summaryClassName,
+            )}
           >
-            {finding.state === 'finding' ? 'Finding…' : 'Find'}
-          </Button>
-        </div>
-      </form>
-      {finding.state === 'finding' && (
-        <p id={noteId} role="status" className="text-sm text-muted-foreground">
-          Finding the place…
-        </p>
-      )}
-      {(finding.state === 'found' ||
-        finding.state === 'byHand' ||
-        finding.state === 'problem') && (
-        <p
-          id={noteId}
-          role={finding.state === 'problem' ? 'alert' : 'status'}
-          className={cn(
-            'text-sm',
-            finding.state !== 'problem' && 'text-muted-foreground',
-          )}
-        >
-          {finding.note}
-        </p>
-      )}
-      {placed === null ? (
-        <div>
+            {shown && <OpenInGoogleMaps pin={shown} />}
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-describedby={labelledBy}
+              disabled={frame.busy}
+              onClick={() => {
+                stopFinding()
+                field.edit()
+              }}
+              className="-mx-2.5 text-muted-foreground"
+            >
+              <MapPinPlusIcon data-icon="inline-start" aria-hidden />
+              {shown ? `Change ${noun}` : `Add ${noun}`}
+            </Button>
+            <SavedStatus saved={frame.justSaved}>{saveVerb.done}</SavedStatus>
+          </div>
+        )
+      }}
+      actions={(frame) =>
+        props.pin !== undefined && (
           <Button
             type="button"
             variant="ghost"
-            size="sm"
-            disabled={busy}
-            onClick={dropByHand}
-            className="-mx-2.5 text-muted-foreground"
-          >
-            <MapPinIcon data-icon="inline-start" aria-hidden />
-            Drop the pin by hand
-          </Button>
-        </div>
-      ) : (
-        <PinMap pin={placed} frame={frame ?? placed} onMove={place} />
-      )}
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          disabled={busy || placed === null}
-          onClick={() => void field.save()}
-        >
-          {saving ? 'Saving…' : notSaved ? 'Retry' : `Confirm ${noun}`}
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={saving}
-          onClick={() => {
-            stopFinding()
-            field.discard()
-          }}
-        >
-          {notSaved ? 'Discard' : 'Cancel'}
-        </Button>
-        {pin !== undefined && (
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={busy}
+            disabled={frame.busy || looking}
             onClick={() => void field.send(noPin)}
             className="ml-auto text-muted-foreground"
           >
             Remove {noun}
           </Button>
-        )}
-      </div>
-    </div>
+        )
+      }
+    >
+      {(frame) => {
+        const busy = frame.busy || looking
+
+        return (
+          <>
+            <form
+              className="flex flex-col gap-1.5"
+              onSubmit={(event) => {
+                event.preventDefault()
+                void find(value.link)
+              }}
+            >
+              <label htmlFor={linkId} className="text-sm text-muted-foreground">
+                Google Maps link
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  id={linkId}
+                  type="url"
+                  inputMode="url"
+                  placeholder="https://maps.app.goo.gl/…"
+                  aria-describedby={
+                    [
+                      ...(finding.state !== 'idle' ? [noteId] : []),
+                      ...(frame.describedBy !== undefined
+                        ? [frame.describedBy]
+                        : []),
+                    ].join(' ') || undefined
+                  }
+                  autoFocus={frame.autoFocus && placed === null}
+                  readOnly={busy}
+                  value={value.link}
+                  maxLength={locationLinkMaxLength}
+                  autoComplete="off"
+                  spellCheck={false}
+                  onChange={(event) => {
+                    stopFinding()
+                    field.change({
+                      link: event.target.value,
+                      coordinates: null,
+                    })
+                  }}
+                  // Pasting finds the place at once. A paste still fires on the
+                  // read-only field, so it waits like typing does.
+                  onPaste={(event) => {
+                    const pasted = event.clipboardData.getData('text')
+
+                    if (busy || pasted.trim() === '') return
+                    event.preventDefault()
+                    field.change({ link: pasted, coordinates: null })
+                    void find(pasted)
+                  }}
+                  className="h-10 min-w-0 flex-1"
+                />
+                <Button
+                  type="submit"
+                  variant="outline"
+                  disabled={busy || value.link.trim() === ''}
+                  className="h-10"
+                >
+                  {looking ? 'Finding…' : 'Find'}
+                </Button>
+              </div>
+            </form>
+            {looking && (
+              <p
+                id={noteId}
+                role="status"
+                className="text-sm text-muted-foreground"
+              >
+                Finding the place…
+              </p>
+            )}
+            {(finding.state === 'found' ||
+              finding.state === 'byHand' ||
+              finding.state === 'problem') && (
+              <p
+                id={noteId}
+                role={finding.state === 'problem' ? 'alert' : 'status'}
+                className={cn(
+                  'text-sm',
+                  finding.state !== 'problem' && 'text-muted-foreground',
+                )}
+              >
+                {finding.note}
+              </p>
+            )}
+            {placed === null ? (
+              <div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={busy}
+                  onClick={dropByHand}
+                  className="-mx-2.5 text-muted-foreground"
+                >
+                  <MapPinIcon data-icon="inline-start" aria-hidden />
+                  Drop the pin by hand
+                </Button>
+              </div>
+            ) : (
+              <PinMap pin={placed} frame={mapFrame ?? placed} onMove={place} />
+            )}
+          </>
+        )
+      }}
+    </EditorFrame>
   )
 }
 
