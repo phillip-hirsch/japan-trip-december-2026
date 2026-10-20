@@ -15,16 +15,17 @@ const isAppPath = (url: URL) =>
   url.origin === self.location.origin && !url.pathname.startsWith('/cdn-cgi/')
 
 /**
- * Only a 200 from the app itself is stored: never anything from Access's
- * login flow or under /cdn-cgi/, nor an error or a redirect to log in.
+ * The precache stores only a 200 from the app itself. It never stores
+ * anything from Access's login flow or under /cdn-cgi/, an error, or a
+ * redirect to log in.
  */
 const storable = (response: Response) =>
   response.status === 200 &&
   URL.canParse(response.url) &&
   isAppPath(new URL(response.url))
 
-// No skipWaiting: a new build's worker waits until the app is closed, so an
-// open page never loses the precached chunks of the build it runs.
+// The worker doesn't skip waiting. A new build's worker activates once the app
+// is closed, so an open page never loses the precached chunks of its build.
 const serwist = new Serwist({
   precacheEntries: [...self.__SW_MANIFEST],
   precacheOptions: {
@@ -62,9 +63,10 @@ const shellRequest = ({ url }: Request) =>
   })
 
 /**
- * Offline, a prerendered page from the precache, or else the shell. An
- * address that names a page another way redirects to it first, as online,
- * always on the app's own origin: only the path changes.
+ * Offline, answers with the prerendered page from the precache, or else the
+ * shell. An address that names a page another way, such as `/options/2/`,
+ * redirects to the page first, as static assets do online. The redirect
+ * changes only the path, so it stays on the app's origin.
  */
 const offlinePage = async (url: URL) => {
   const page = pagePath(url.pathname)
@@ -95,8 +97,8 @@ const pageLoad = async ({
   }
 }
 
-// Server-function reads are never captured: the app's transport alone says
-// whether it is connected, offline or logged out.
+// The worker never captures server-function reads. Only the app's transport
+// says whether it is connected, offline or logged out.
 const pageLoads = serwist.registerCapture(
   ({ request, url }) => request.mode === 'navigate' && isAppPath(url),
   { handle: pageLoad },
@@ -110,8 +112,8 @@ serwist.unregisterRoute(pageLoads)
 serwist.routes.get('GET')?.unshift(pageLoads)
 
 // The app asks before loading a prerendered page whole offline. Only this
-// worker's own precache list counts: a waiting worker may have stored pages
-// this one can't serve.
+// worker's own precache list counts, because a waiting worker may have stored
+// pages this one can't serve.
 self.addEventListener('message', (event) => {
   const question: unknown = event.data
 

@@ -15,14 +15,14 @@ const shellLeaks = [
   { name: 'a match below the root route', pattern: /\{i:"(?!__root__)/ },
 ]
 
-/** What the SPA shell's HTML carries that it mustn't; empty when clean. */
+/** The problems in the SPA shell's HTML, or none when it is clean. */
 export const shellProblems = (html: string) =>
   shellLeaks.flatMap(({ name, pattern }) =>
     pattern.test(html) ? [`the SPA shell carries ${name}`] : [],
   )
 
-// The build runs the check through scripts/prerender.ts; this checks a built
-// shell by hand: `node scripts/check-spa-shell.ts <_shell.html>`.
+// The build runs this check through scripts/prerender.ts. To check a built
+// shell by hand, run `node scripts/check-spa-shell.ts <_shell.html>`.
 if (import.meta.main) {
   const file = process.argv[2]
 

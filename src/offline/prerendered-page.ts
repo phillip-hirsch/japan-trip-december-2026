@@ -34,13 +34,12 @@ const workerHoldsPage = (href: string) => {
 }
 
 /**
- * A prerendered page's loader read, or, offline, the page loaded whole. An
- * in-app link runs the read over the network; when it fails because the app
- * is offline and the service worker holds the page, the page loads whole
- * instead, answered from the precache (ADR 0006). A page it doesn't hold,
- * such as `/options/9`, fails once instead of reloading into the shell
- * forever. A preload never reloads: the router follows this only on a
- * navigation.
+ * Runs a prerendered page's loader read over the network. When the read
+ * fails because the app is offline and the service worker holds the page,
+ * the page loads whole instead, and the worker answers from the precache
+ * (ADR 0006). A page the worker doesn't hold, such as `/options/9`, fails
+ * once instead of reloading into the shell forever. A preload never reloads,
+ * because the router follows this redirect only on a navigation.
  */
 export const readOrReloadOffline = async <A>(
   href: string,

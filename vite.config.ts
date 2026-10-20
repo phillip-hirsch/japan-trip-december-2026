@@ -114,10 +114,11 @@ const config = defineConfig({
   // MapLibre's docs ask TanStack Start apps to bundle it, avoiding CJS
   // resolution issues. The map itself never renders on the server.
   ssr: { noExternal: ['maplibre-gl'] },
-  // TanStack Router #7740: the Worker answers the shell header only while
-  // prerendering, and the prerender runs in workerd, which never sees Start's
-  // flag. Baking it into the Worker lets the service worker ask for the shell
-  // (ADR 0006). Never define TSS_SHELL: every page would become the shell.
+  // Works around TanStack Router #7740. The Worker answers the shell header
+  // only while prerendering, and the prerender runs in workerd, which never
+  // sees Start's flag. Defining the flag in the Worker build lets the service
+  // worker ask for the shell (ADR 0006). Never define TSS_SHELL, which would
+  // turn every page into the shell.
   environments: {
     ssr: { define: { 'process.env.TSS_PRERENDERING': JSON.stringify('true') } },
   },

@@ -17,7 +17,8 @@ export function getRouter() {
     defaultPreloadStaleTime: 0,
     defaultNotFoundComponent: NotFound,
     // Without it, a page whose loader fails, such as a page opened offline
-    // from the SPA shell, replaces the whole document, frame and all.
+    // from the SPA shell, replaces the whole document, including the app's
+    // frame and the offline banner.
     defaultErrorComponent: PageError,
   })
 

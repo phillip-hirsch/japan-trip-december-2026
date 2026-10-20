@@ -1,6 +1,6 @@
-// What the build, the service worker and the app agree on about offline page
-// loads (ADR 0006). No imports, so the build scripts and the worker can share
-// it.
+// The names the build scripts, the service worker and the app share for
+// offline page loads (ADR 0006). The module imports nothing, so the build
+// scripts and the worker can both load it.
 
 /** Where the SPA shell is served; the build writes it to `_shell.html`. */
 export const shellPath = '/_shell'

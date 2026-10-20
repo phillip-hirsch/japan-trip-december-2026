@@ -28,7 +28,7 @@ export const readPrerenderedPaths = () =>
  */
 const htmlFile = (pagePath: string) => pageFile(pagePath).slice(1)
 
-/** The client build's output directory, where the prerendered pages land. */
+/** The client build's output directory, where the build writes the pages. */
 export const clientOutDir = (builder: ViteBuilder) =>
   path.resolve(
     builder.config.root,

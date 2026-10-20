@@ -8,7 +8,7 @@ import { assert, describe, it, onTestFinished } from '@effect/vitest'
 
 const checker = fileURLToPath(new URL('./check-spa-shell.ts', import.meta.url))
 
-// The dehydrated router state as Start writes it into the shell, trimmed.
+// Trimmed copies of the dehydrated router state Start writes into the shell.
 const rootMatch = '{i:"__root__#",u:1792463392116,s:"success",ssr:!0}'
 
 const homeMatch =

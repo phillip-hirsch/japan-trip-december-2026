@@ -13,9 +13,10 @@ import {
 import { clientOutDir } from './prerender.ts'
 
 /**
- * The SPA shell: `/` rendered with the shell header, so only the root route
- * renders and no loader runs. Listed by hand instead of Start's `spa` option,
- * which would also make `cf dev` render every page as the shell.
+ * The SPA shell is `/` rendered with the shell header, so only the root route
+ * renders and no loader runs. It is listed here instead of turning on Start's
+ * `spa` option, which would also make `cf dev` render every page as the
+ * shell.
  */
 export const shellPage = {
   path: '/',
