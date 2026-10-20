@@ -14,11 +14,7 @@ import {
 } from './scripts/prerender.ts'
 
 import { generatedFiles } from './scripts/generated-files.ts'
-import {
-  serviceWorker,
-  shellPage,
-  shellPath,
-} from './scripts/service-worker.ts'
+import { serviceWorker, shellPage } from './scripts/service-worker.ts'
 
 import effectTsconfig from './tsconfig.effect.json' with { type: 'json' }
 
@@ -148,7 +144,7 @@ const config = defineConfig({
         },
       }),
       viteReact({ compiler: true }),
-      checkPrerenderedHtml([...prerenderedPaths, shellPath]),
+      checkPrerenderedHtml(prerenderedPaths),
       serviceWorker(),
     ]
   }),

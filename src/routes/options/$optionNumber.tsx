@@ -10,7 +10,7 @@ import { VerifyClaims } from '@/components/verify-claims'
 import { parseOptionNumber } from '@/trip/client/params'
 import { getItinerary } from '@/trip/trip/trip.functions'
 import { pageTitle } from '@/lib/app-identity'
-import { readPrerenderedPage } from '@/offline/prerendered-page'
+import { readOrReloadOffline } from '@/offline/prerendered-page'
 
 export const Route = createFileRoute('/options/$optionNumber')({
   params: {
@@ -24,7 +24,7 @@ export const Route = createFileRoute('/options/$optionNumber')({
     stringify: ({ optionNumber }) => ({ optionNumber: String(optionNumber) }),
   },
   loader: ({ location, params: { optionNumber } }) =>
-    readPrerenderedPage(location.href, () =>
+    readOrReloadOffline(location.href, () =>
       getItinerary({ data: { optionNumber } }),
     ),
   head: ({ loaderData }) => ({

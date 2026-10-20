@@ -5,10 +5,12 @@ import { injectManifest } from '@serwist/build'
 import { build } from 'vite-plus'
 import type { Plugin } from 'vite-plus'
 
-import { checkSpaShell } from './check-spa-shell.ts'
-
-/** Where the SPA shell is served, as `_shell.html` in the client output. */
-export const shellPath = '/_shell'
+import {
+  serviceWorkerPath,
+  shellHeaders,
+  shellPath,
+} from '../src/offline/shell.ts'
+import { clientOutDir } from './prerender.ts'
 
 /**
  * The SPA shell: `/` rendered with the shell header, so only the root route
@@ -20,7 +22,7 @@ export const shellPage = {
   prerender: {
     enabled: true,
     outputPath: shellPath,
-    headers: { 'X-TSS_SHELL': 'true' },
+    headers: shellHeaders,
     crawlLinks: false,
   },
   sitemap: { exclude: true },
@@ -33,10 +35,10 @@ const workerSource = path.resolve(
 
 /**
  * Builds the service worker after Start's prerender, so the shell and the
- * prerendered pages exist (ADR 0006). It fails the build if the shell carries
- * loader data, bundles the worker on the Serwist runtime, then injects the
- * precache list: the hashed assets, the icons, the web manifest and every
- * prerendered page, the shell included. List it after `tanstackStart()`.
+ * prerendered pages exist (ADR 0006). It bundles the worker on the Serwist
+ * runtime, then injects the precache list: the hashed assets, the icons, the
+ * web manifest and every prerendered page, the shell included. List it after
+ * `tanstackStart()` and `checkPrerenderedHtml()`, which checks the shell.
  */
 export const serviceWorker = (): Plugin => ({
   name: 'japan-trip:service-worker',
@@ -45,18 +47,14 @@ export const serviceWorker = (): Plugin => ({
   buildApp: {
     order: 'post',
     async handler(builder) {
-      const outDir = path.resolve(
-        builder.config.root,
-        builder.environments.client.config.build.outDir,
-      )
-
-      await checkSpaShell(path.join(outDir, `${shellPath}.html`))
-
+      const outDir = clientOutDir(builder)
       const bundleDir = path.join(builder.config.root, '.service-worker')
+      const fileName = serviceWorkerPath.slice(1)
 
       await build({
         configFile: false,
         logLevel: 'warn',
+        resolve: { tsconfigPaths: true },
         // Serwist reads it, and a worker has no `process`.
         define: { 'process.env.NODE_ENV': JSON.stringify('production') },
         build: {
@@ -67,14 +65,14 @@ export const serviceWorker = (): Plugin => ({
             entry: workerSource,
             formats: ['iife'],
             name: 'serviceWorker',
-            fileName: () => 'sw.js',
+            fileName: () => fileName,
           },
         },
       })
 
       const { count, size, warnings } = await injectManifest({
-        swSrc: path.join(bundleDir, 'sw.js'),
-        swDest: path.join(outDir, 'sw.js'),
+        swSrc: path.join(bundleDir, fileName),
+        swDest: path.join(outDir, fileName),
         globDirectory: outDir,
         globPatterns: [
           'assets/**/*.{js,css,woff2}',

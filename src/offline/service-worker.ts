@@ -4,11 +4,11 @@
 import { NetworkOnly, Serwist } from 'serwist'
 import type { PrecacheEntry, RouteHandlerCallbackOptions } from 'serwist'
 
+import { pageFile, shellHeaders, shellPath } from '@/offline/shell'
+
 declare const self: ServiceWorkerGlobalScope & {
   readonly __SW_MANIFEST: ReadonlyArray<PrecacheEntry | string>
 }
-
-const shell = '/_shell.html'
 
 const isAppPath = (url: URL) =>
   url.origin === self.location.origin && !url.pathname.startsWith('/cdn-cgi/')
@@ -22,6 +22,8 @@ const storable = (response: Response) =>
   URL.canParse(response.url) &&
   isAppPath(new URL(response.url))
 
+// No skipWaiting: a new build's worker waits until the app is closed, so an
+// open page never loses the precached chunks of the build it runs.
 const serwist = new Serwist({
   precacheEntries: [...self.__SW_MANIFEST],
   precacheOptions: {
@@ -37,10 +39,12 @@ const serwist = new Serwist({
       },
     ],
   },
-  skipWaiting: true,
   clientsClaim: true,
 })
 
+// A connection that hangs, as in a tunnel, counts as failed after a few
+// seconds, so the app opens from the precache instead of a blank screen. The
+// shell's own server-function reads still report a late login redirect.
 const network = new NetworkOnly({ networkTimeoutSeconds: 4 })
 
 /**
@@ -51,15 +55,15 @@ const network = new NetworkOnly({ networkTimeoutSeconds: 4 })
  */
 const shellRequest = ({ url }: Request) =>
   new Request(url, {
-    headers: { 'X-TSS_SHELL': 'true' },
+    headers: shellHeaders,
     credentials: 'include',
     redirect: 'manual',
   })
 
 /** Offline, a prerendered page from the precache, or else the shell. */
 const offlinePage = async (url: URL) =>
-  (await serwist.matchPrecache(`${url.pathname}.html`)) ??
-  (await serwist.matchPrecache(shell)) ??
+  (await serwist.matchPrecache(pageFile(url.pathname))) ??
+  (await serwist.matchPrecache(pageFile(shellPath))) ??
   Response.error()
 
 const pageLoad = async ({
