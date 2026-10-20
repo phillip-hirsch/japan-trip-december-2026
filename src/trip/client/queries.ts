@@ -63,9 +63,10 @@ const isOffline = () =>
   ConnectionStatus.$is('Offline')(currentConnection())
 
 /**
- * Resolves with the data stored for `queryKey` once the app is offline and
- * has some, whichever comes second, such as a snapshot storing a Day after
- * the connection dropped. `stop` ends the listening.
+ * Resolves with the data stored for `queryKey` as soon as the app is offline
+ * and has data stored for it. The two can happen in either order, such as a
+ * snapshot storing a Day after the connection dropped. `stop` removes the
+ * listeners.
  */
 const storedOnceOffline = <TData>(
   queryClient: QueryClient,
@@ -102,10 +103,10 @@ const storedOnceOffline = <TData>(
  * Reads a query for a loader. Online, it fetches fresh data, as
  * `fetchQuery` does with a zero stale time, and answers with what the app
  * then stores. Offline, it answers at once with the data the app already
- * has instead of waiting for the network, also when the app goes offline
- * during the read. With nothing stored, it fails: at once when the browser
- * knows it is offline, where `fetchQuery` would wait for the network,
- * otherwise as the read does.
+ * has instead of waiting for the network. That includes going offline in
+ * the middle of the read. With nothing stored, it fails. It fails at once
+ * when the browser knows it is offline, where `fetchQuery` would wait for
+ * the network, and otherwise fails as the read does.
  */
 export const loadQuery = async <TData, TKey extends QueryKey>(
   queryClient: QueryClient,
@@ -138,11 +139,11 @@ export const loadQuery = async <TData, TKey extends QueryKey>(
 }
 
 /**
- * When the read of each stored answer started, counted in the order reads
- * start. The Schedules, the Days and the Checklist store an answer only if
- * no answer from a later read is stored, whichever arrives last, so a slow
- * read never rolls back a newer one. Every Schedule snapshot that fills them
- * keeps to the same order.
+ * Numbers each read as it starts, and records the number on its answer. The
+ * Schedules, the Days and the Checklist store an answer only if no answer
+ * from a later read is stored. Arrival order doesn't matter, so a slow read
+ * never rolls back a newer one. Every Schedule snapshot that fills them uses
+ * the same numbers.
  */
 const readStarts = new WeakMap<object, number>()
 
@@ -150,7 +151,7 @@ let readsStarted = 0
 
 const startRead = () => ++readsStarted
 
-/** Marks `answer` as from a read that started `started`. */
+/** Records that `answer` came from read number `started`. */
 const answerOfRead = <T>(answer: T, started: number) => {
   if (Predicate.isObject(answer)) readStarts.set(answer, started)
 
@@ -170,14 +171,15 @@ const readStartOf = <T>(answer: T) =>
   Predicate.isObject(answer) ? readStarts.get(answer) : undefined
 
 /**
- * Runs as the cache stores an answer, read or filled, and keeps the stored
- * one if its read started later. An answer with no recorded read, such as
- * one the server rendered into the page, counts as the oldest when stored
- * and the newest when arriving.
+ * The cache calls this whenever it stores an answer, from a read or from a
+ * snapshot. It keeps the stored answer if that answer's read started later.
+ * An answer without a read number, such as one the server rendered into the
+ * page, counts as the oldest when stored and the newest when arriving.
  *
- * A null answer can't carry its read, but only a Day read before any
- * Schedule exists answers null. Once one exists, one is always current, so
- * a null arriving over a stored answer is from a read that started before.
+ * A null answer has no read number, because a number can't be recorded on
+ * null. Only a Day read answers null, and only before any Schedule exists.
+ * Once Phillip has chosen a Schedule there is always a current one, so a null
+ * arriving over a stored answer comes from a read that started earlier.
  */
 const keepLatestRead = <T>(stored: T | undefined, arriving: T): T => {
   const arrivingStart = readStartOf(arriving)
@@ -270,14 +272,14 @@ export const scheduleMapQuery = queryOptions({
   refetchOnMount: false,
 })
 
-/** The snapshot as the server function answers it, still plain data. */
+/** What the snapshot's server function returns, as plain data. */
 type SnapshotAnswer = Awaited<ReturnType<typeof getScheduleSnapshot>>
 
 /**
- * Stores the Schedules, every Day page and the Checklist from a snapshot
- * whose read started `started`, each unless a later read is stored. It
- * builds each query with its own options first, so a Day never read on its
- * own keeps to the read order too.
+ * Stores the Schedules, every Day page and the Checklist from the snapshot
+ * of read number `started`. It skips any of them already stored from a
+ * later read. It builds each query with its own options first, so a Day
+ * that was never read on its own still checks the read numbers.
  */
 const storeSnapshot = (
   queryClient: QueryClient,
@@ -317,7 +319,7 @@ const scheduleSnapshotQuery = queryOptions({
 /**
  * Stores the Schedules, every Day page and the Checklist from the Schedule
  * snapshot, so any Day opens offline, even one never opened on this device.
- * They come from one snapshot, unless a later read of one is stored. It reads
+ * They all come from one snapshot, except any stored from a later read. It reads
  * the snapshot after hydration, on focus, on reconnect and after every write.
  * It never re-renders its component.
  */
@@ -404,7 +406,10 @@ const affectedBy = {
 
 export type TripWrite = keyof typeof affectedBy
 
-/** Also reads the Schedule snapshot again, without waiting for it. */
+/**
+ * Invalidates the queries given. It also reads the Schedule snapshot again,
+ * without waiting for it.
+ */
 const invalidate = (
   queryClient: QueryClient,
   queryKeys: ReadonlyArray<QueryKey>,

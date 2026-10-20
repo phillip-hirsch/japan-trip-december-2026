@@ -203,7 +203,7 @@ describe('the Schedule snapshot', () => {
     await app.close()
   })
 
-  it('keeps a Day read after it started, though the snapshot answers later', async () => {
+  it('keeps a Day read that started after the snapshot read, though the snapshot answers later', async () => {
     const olderSnapshot = deferred<ScheduleSnapshot>()
     vi.mocked(getScheduleSnapshot).mockImplementation(
       () => olderSnapshot.promise,

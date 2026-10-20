@@ -162,7 +162,7 @@ export const openEditor = async <P extends object, F>(
       return rendered
     },
     show,
-    /** The page's query client, for what loaders read and the app stores. */
+    /** The page's query client. Tests read stored data and run loaders on it. */
     queryClient,
     // The leak in #83 is a listener left on the query cache itself.
     listening: () => queryClient.getQueryCache().hasListeners(),
