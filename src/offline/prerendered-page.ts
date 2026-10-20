@@ -1,22 +1,36 @@
 import { redirect } from '@tanstack/react-router'
 
 import { ConnectionStatus, currentConnection } from '@/access/connection-status'
-import { pageFile, pagePath } from '@/offline/shell'
+import type { HoldsPageQuestion } from '@/offline/shell'
+
+const workerAnswerMs = 1000
 
 /**
- * Whether the service worker holds the prerendered page at `href`, so that
- * loading it whole offline brings back the page with its data. Precache keys
- * carry a revision in their query, hence `ignoreSearch`.
+ * Whether the service worker controlling this page can answer a load of the
+ * prerendered page at `href` offline, so that loading it whole brings back
+ * the page with its data. No worker, or no answer in time, means no.
  */
-const isPrecached = async (href: string) => {
-  if (!('caches' in window)) return false
-  const { pathname } = new URL(href, window.location.origin)
+const workerHoldsPage = (href: string) => {
+  const worker =
+    'serviceWorker' in navigator ? navigator.serviceWorker.controller : null
 
-  return (
-    (await caches.match(pageFile(pagePath(pathname)), {
-      ignoreSearch: true,
-    })) !== undefined
-  )
+  if (worker === null) return Promise.resolve(false)
+
+  const question: HoldsPageQuestion = {
+    holdsPage: new URL(href, window.location.origin).pathname,
+  }
+
+  return new Promise<boolean>((resolve) => {
+    const channel = new MessageChannel()
+    const timer = setTimeout(() => resolve(false), workerAnswerMs)
+
+    channel.port1.onmessage = (event: MessageEvent<boolean>) => {
+      clearTimeout(timer)
+      resolve(event.data === true)
+    }
+
+    worker.postMessage(question, [channel.port2])
+  })
 }
 
 /**
@@ -37,7 +51,7 @@ export const readOrReloadOffline = async <A>(
   } catch (error) {
     if (
       ConnectionStatus.$is('Offline')(currentConnection()) &&
-      (await isPrecached(href))
+      (await workerHoldsPage(href))
     ) {
       throw redirect({ href, reloadDocument: true })
     }

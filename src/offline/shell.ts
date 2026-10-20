@@ -15,6 +15,15 @@ export const serviceWorkerPath = '/sw.js'
 export const pageFile = (pagePath: string) => `${pagePath}.html`
 
 /**
+ * Asks the controlling service worker whether it can answer a load of the
+ * prerendered page at `holdsPage` offline. It replies true or false on the
+ * message's port.
+ */
+export interface HoldsPageQuestion {
+  readonly holdsPage: string
+}
+
+/**
  * The page a path names: `/options/2/` and `/options/2.html` are both
  * `/options/2`, where static assets redirect them online.
  */

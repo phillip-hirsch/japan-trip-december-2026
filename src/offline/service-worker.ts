@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 // The service worker (ADR 0006), bundled by scripts/service-worker.ts after
 // the prerender, which injects the precache list.
+import { Predicate } from 'effect'
 import { NetworkOnly, Serwist } from 'serwist'
 import type { PrecacheEntry, RouteHandlerCallbackOptions } from 'serwist'
 
@@ -107,5 +108,27 @@ const pageLoads = serwist.registerCapture(
 serwist.unregisterRoute(pageLoads)
 
 serwist.routes.get('GET')?.unshift(pageLoads)
+
+// The app asks before loading a prerendered page whole offline. Only this
+// worker's own precache list counts: a waiting worker may have stored pages
+// this one can't serve.
+self.addEventListener('message', (event) => {
+  const question: unknown = event.data
+
+  if (
+    !Predicate.hasProperty(question, 'holdsPage') ||
+    !Predicate.isString(question.holdsPage)
+  ) {
+    return
+  }
+
+  const port = event.ports[0]
+
+  event.waitUntil(
+    serwist
+      .matchPrecache(pageFile(pagePath(question.holdsPage)))
+      .then((page) => port?.postMessage(page !== undefined)),
+  )
+})
 
 serwist.addEventListeners()
