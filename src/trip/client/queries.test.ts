@@ -105,7 +105,7 @@ describe('the Schedule summary', () => {
           nav.Reader,
           lazy(() => pageCode.promise),
         ),
-        // A hydration mismatch is the failure this guards against.
+        // React reports a hydration mismatch through this callback.
         { onRecoverableError: (error) => mismatches.push(error) },
       ),
     )

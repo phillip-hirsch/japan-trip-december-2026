@@ -120,9 +120,10 @@ const scheduleSummaryQuery = queryOptions({
  * The Schedule summary: undefined until it first answers, then null before a
  * Schedule exists. `useQuery` only fetches in the browser, after hydration.
  *
- * Always undefined in a server render and on the render hydrating a page, as
- * the server never has it. A page code-split from the app nav hydrates after
- * the nav has read it, and must still match the server's HTML first.
+ * It is undefined in a server render and on the render that hydrates a page,
+ * because the server never has it. A code-split page hydrates after the app
+ * nav has read the summary, and its first render must still match the
+ * server's HTML.
  */
 export const useScheduleSummary = () => {
   const hydrated = useHydrated()
