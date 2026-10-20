@@ -60,11 +60,30 @@ const shellRequest = ({ url }: Request) =>
     redirect: 'manual',
   })
 
-/** Offline, a prerendered page from the precache, or else the shell. */
-const offlinePage = async (url: URL) =>
-  (await serwist.matchPrecache(pageFile(url.pathname))) ??
-  (await serwist.matchPrecache(pageFile(shellPath))) ??
-  Response.error()
+/**
+ * The page an address names: `/options/2/` and `/options/2.html` are both
+ * `/options/2`, where static assets redirect them online.
+ */
+const pagePath = ({ pathname }: URL) =>
+  pathname.replace(/\/+$/, '').replace(/\.html$/, '') || '/'
+
+/**
+ * Offline, a prerendered page from the precache, or else the shell. An
+ * address that names a page another way redirects to it first, as online.
+ */
+const offlinePage = async (url: URL) => {
+  const page = pagePath(url)
+
+  if (page !== url.pathname) {
+    return Response.redirect(new URL(page + url.search, url).href, 307)
+  }
+
+  return (
+    (await serwist.matchPrecache(pageFile(page))) ??
+    (await serwist.matchPrecache(pageFile(shellPath))) ??
+    Response.error()
+  )
+}
 
 const pageLoad = async ({
   request,
@@ -80,9 +99,16 @@ const pageLoad = async ({
 
 // Server-function reads are never captured: the app's transport alone says
 // whether it is connected, offline or logged out.
-serwist.registerCapture(
+const pageLoads = serwist.registerCapture(
   ({ request, url }) => request.mode === 'navigate' && isAppPath(url),
   { handle: pageLoad },
 )
+
+// Serwist registers its precache route first. Page loads go before it, so a
+// load of a precached address, such as `/options/2.html`, still goes to the
+// network first.
+serwist.unregisterRoute(pageLoads)
+
+serwist.routes.get('GET')?.unshift(pageLoads)
 
 serwist.addEventListeners()
