@@ -1,6 +1,7 @@
 import { createRouter as createTanStackRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
 import { NotFound } from '@/components/not-found'
+import { PageError } from '@/components/page-error'
 import { routeTree } from '@/routeTree.gen'
 import { shouldDehydrateQuery } from '@/trip/client/queries'
 import { createQueryClient } from '@/trip/client/query-client'
@@ -15,6 +16,10 @@ export function getRouter() {
     defaultPreload: 'intent',
     defaultPreloadStaleTime: 0,
     defaultNotFoundComponent: NotFound,
+    // Without it, a page whose loader fails, such as a page opened offline
+    // from the SPA shell, replaces the whole document, including the app's
+    // frame and the offline banner.
+    defaultErrorComponent: PageError,
   })
 
   setupRouterSsrQueryIntegration({

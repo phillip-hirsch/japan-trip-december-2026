@@ -2,8 +2,10 @@ import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 
 import { Effect } from 'effect'
-import type { Plugin } from 'vite-plus'
+import type { Plugin, ViteBuilder } from 'vite-plus'
 
+import { pageFile, shellPath } from '../src/offline/shell.ts'
+import { shellProblems } from './check-spa-shell.ts'
 import { readTrip } from './trip.ts'
 
 /**
@@ -24,7 +26,14 @@ export const readPrerenderedPaths = () =>
  * `/options/1` becomes `options/1.html`, which Workers static assets serve at
  * `/options/1` without a trailing-slash redirect.
  */
-const htmlFile = (pagePath: string) => `${pagePath.slice(1)}.html`
+const htmlFile = (pagePath: string) => pageFile(pagePath).slice(1)
+
+/** The client build's output directory, where the build writes the pages. */
+export const clientOutDir = (builder: ViteBuilder) =>
+  path.resolve(
+    builder.config.root,
+    builder.environments.client.config.build.outDir,
+  )
 
 const leakedEmailAddress = /[\w.%+-]+@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}\b/i
 
@@ -43,12 +52,14 @@ const pageProblems = (
       ? [`${file} links to ${href}, which isn't prerendered`]
       : [],
   ),
+  ...(file === htmlFile(shellPath) ? shellProblems(html) : []),
 ]
 
 /**
  * Fails the build unless the client output holds exactly the prerendered
- * pages, none containing an email address or linking to an Itinerary page
- * that isn't prerendered. It must follow TanStack Start's prerender, which is
+ * pages and the SPA shell, none containing an email address or linking to an
+ * Itinerary page that isn't prerendered, and the shell carrying no loader
+ * data (ADR 0006). It must follow TanStack Start's prerender, which is
  * also an enforce-post, order-post `buildApp` hook, so list it after
  * `tanstackStart()`.
  */
@@ -61,12 +72,9 @@ export const checkPrerenderedHtml = (
   buildApp: {
     order: 'post',
     async handler(builder) {
-      const outDir = path.resolve(
-        builder.config.root,
-        builder.environments.client.config.build.outDir,
-      )
+      const outDir = clientOutDir(builder)
 
-      const expected = prerenderedPaths.map(htmlFile)
+      const expected = [...prerenderedPaths, shellPath].map(htmlFile)
 
       const found = (await readdir(outDir, { recursive: true }))
         .filter((file) => file.endsWith('.html'))

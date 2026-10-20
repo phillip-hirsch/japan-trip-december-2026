@@ -14,6 +14,7 @@ import {
 } from './scripts/prerender.ts'
 
 import { generatedFiles } from './scripts/generated-files.ts'
+import { serviceWorker, shellPage } from './scripts/service-worker.ts'
 
 import effectTsconfig from './tsconfig.effect.json' with { type: 'json' }
 
@@ -113,6 +114,14 @@ const config = defineConfig({
   // MapLibre's docs ask TanStack Start apps to bundle it, avoiding CJS
   // resolution issues. The map itself never renders on the server.
   ssr: { noExternal: ['maplibre-gl'] },
+  // Works around TanStack Router #7740. The Worker answers the shell header
+  // only while prerendering, and the prerender runs in workerd, which never
+  // sees Start's flag. Defining the flag in the Worker build lets the service
+  // worker ask for the shell (ADR 0006). Never define TSS_SHELL, which would
+  // turn every page into the shell.
+  environments: {
+    ssr: { define: { 'process.env.TSS_PRERENDERING': JSON.stringify('true') } },
+  },
   test: { include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'] },
   // Tests run the Effect services in Node; the Worker and UI plugins are only
   // for dev and build (the Cloudflare plugin cannot start under Vitest).
@@ -127,7 +136,7 @@ const config = defineConfig({
       // Prerenders through the local preview, whose Access dev simulation
       // passes the gate as it does for `cf dev`.
       tanstackStart({
-        pages: prerenderedPaths.map((path) => ({ path })),
+        pages: [...prerenderedPaths.map((path) => ({ path })), shellPage],
         prerender: {
           enabled: true,
           crawlLinks: false,
@@ -137,6 +146,7 @@ const config = defineConfig({
       }),
       viteReact({ compiler: true }),
       checkPrerenderedHtml(prerenderedPaths),
+      serviceWorker(),
     ]
   }),
 })
