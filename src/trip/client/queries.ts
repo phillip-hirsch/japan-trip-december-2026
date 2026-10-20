@@ -1,4 +1,5 @@
 import {
+  hashKey,
   onlineManager,
   partialMatchKey,
   queryOptions,
@@ -62,25 +63,35 @@ const isOffline = () =>
   ConnectionStatus.$is('Offline')(currentConnection())
 
 /**
- * Resolves with the stored data once the app is offline, if it has any.
- * `stop` ends the listening.
+ * Resolves with the data stored for `queryKey` once the app is offline and
+ * has some, whichever comes second, such as a snapshot storing a Day after
+ * the connection dropped. `stop` ends the listening.
  */
-const storedOnceOffline = <TData>(stored: () => TData | undefined) => {
+const storedOnceOffline = <TData>(
+  queryClient: QueryClient,
+  queryKey: QueryKey,
+) => {
   let stop = () => {}
 
   const answer = new Promise<TData>((resolve) => {
     const answerIfOffline = () => {
-      const data = stored()
+      const data = queryClient.getQueryData<TData>(queryKey)
 
       if (data !== undefined && isOffline()) resolve(data)
     }
 
+    const queryHash = hashKey(queryKey)
     const stopOnline = onlineManager.subscribe(answerIfOffline)
     const stopConnection = subscribeToConnection(answerIfOffline)
+
+    const stopStoring = queryClient.getQueryCache().subscribe((event) => {
+      if (event.query.queryHash === queryHash) answerIfOffline()
+    })
 
     stop = () => {
       stopOnline()
       stopConnection()
+      stopStoring()
     }
   })
 
@@ -109,7 +120,7 @@ export const loadQuery = async <TData, TKey extends QueryKey>(
     throw new Error('Offline, with nothing stored for this page')
   }
 
-  const offline = storedOnceOffline(stored)
+  const offline = storedOnceOffline<TData>(queryClient, options.queryKey)
 
   try {
     return await Promise.race([

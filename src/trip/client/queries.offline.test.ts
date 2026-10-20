@@ -280,6 +280,21 @@ describe('the Schedule snapshot', () => {
 })
 
 describe('a loader', () => {
+  it('answers with the Day a snapshot stores after the app went offline during its read', async () => {
+    const snapshot = deferred<ScheduleSnapshot>()
+    vi.mocked(getScheduleSnapshot).mockImplementation(() => snapshot.promise)
+    const app = await openApp()
+    vi.mocked(getDay).mockImplementation(() => deferred<DayPage>().promise)
+    const loading = loadQuery(app.queryClient, dayQuery(december(14)))
+
+    onlineManager.setOnline(false)
+    reportConnection(offline)
+    await act(async () => snapshot.resolve(snapshotWith('Onsen at 18:00.')))
+
+    assert.strictEqual((await loading)?.day.note, 'Onsen at 18:00.')
+    await app.close()
+  })
+
   it('answers with the stored Day when the app goes offline during a read of it already under way', async () => {
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
 
