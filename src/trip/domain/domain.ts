@@ -1,12 +1,5 @@
 import { Schema } from 'effect'
 
-import { Checklist } from '@/trip/domain/domain.checklist'
-import {
-  DayPage,
-  ScheduleDetail,
-  Schedules,
-} from '@/trip/domain/domain.schedule'
-
 export * from '@/trip/domain/domain.itinerary'
 
 export * from '@/trip/domain/domain.writes'
@@ -21,19 +14,7 @@ export * from '@/trip/domain/domain.activities'
 
 export * from '@/trip/domain/domain.checklist'
 
-/**
- * The current Schedule whole. It holds the Schedules as /schedule shows them,
- * every Day page in Trip order and the Checklist with its Ticks. The Trip
- * reads it as one transaction, so nothing in it comes from two moments. The
- * browser keeps it, so any Day opens offline.
- */
-export const ScheduleSnapshot = Schema.Struct({
-  schedules: Schema.Struct({ ...Schedules.fields, current: ScheduleDetail }),
-  days: Schema.Array(DayPage),
-  checklist: Checklist,
-})
-
-export type ScheduleSnapshot = typeof ScheduleSnapshot.Type
+export * from '@/trip/domain/domain.shared'
 
 /** A tile of the web map: its zoom, then its column and row at that zoom. */
 export interface TileCoordinates {

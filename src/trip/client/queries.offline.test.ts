@@ -1,32 +1,41 @@
 // @vitest-environment happy-dom
 import { afterEach, assert, describe, it } from '@effect/vitest'
-import { onlineManager, QueryClientProvider } from '@tanstack/react-query'
-import type { QueryClient } from '@tanstack/react-query'
+import { onlineManager } from '@tanstack/react-query'
 import { vi } from 'vite-plus/test'
-import { act, createElement } from 'react'
-import { createRoot } from 'react-dom/client'
+import { act } from 'react'
 
 import {
   connected,
   offline,
   reportConnection,
 } from '@/access/connection-status'
+import { useDayNote } from '@/components/notes'
+import { deferred, openEditor } from '@/trip/client/editor-testing'
 import { testQueryClient } from '@/trip/client/hook-testing'
 import {
   dayQuery,
-  invalidateAfter,
   loadQuery,
   schedulesQuery,
   useScheduleSnapshot,
 } from '@/trip/client/queries'
 import { tripDates } from '@/trip/domain/calendar'
-import { december, IsoInstant, ScheduleId } from '@/trip/domain/domain'
+import {
+  december,
+  IsoInstant,
+  ScheduleId,
+  WriteDayNoteOutcome,
+} from '@/trip/domain/domain'
 import type { DayPage, IsoDate, ScheduleSnapshot } from '@/trip/domain/domain'
-import { getDay, getScheduleSnapshot } from '@/trip/trip/trip.functions'
+import {
+  getDay,
+  getScheduleSnapshot,
+  writeDayNote,
+} from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({
   getDay: vi.fn(),
   getScheduleSnapshot: vi.fn(),
+  writeDayNote: vi.fn(),
 }))
 
 const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
@@ -88,33 +97,51 @@ const answerDayOffline = () =>
 const settle = () =>
   act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
 
-/** The app keeping the Schedule snapshot, as its root does. */
-const keepingSnapshot = async (queryClient: QueryClient) => {
-  const App = () => {
-    useScheduleSnapshot()
+/**
+ * The app keeping the Schedule snapshot, as its root does, on December 7's
+ * Day page with its Day note editor. Every other Day is off screen. The page
+ * reads the Schedules with `readSchedules`.
+ */
+const openApp = async (readSchedules?: () => Promise<string>) => {
+  const app = await openEditor(
+    () => {
+      useScheduleSnapshot()
 
-    return null
-  }
-
-  const root = createRoot(document.createElement('div'))
-  await act(async () =>
-    root.render(
-      createElement(
-        QueryClientProvider,
-        { client: queryClient },
-        createElement(App),
-      ),
-    ),
+      return useDayNote({ scheduleId, date: december(7), note: undefined })
+    },
+    {},
+    readSchedules,
   )
+
   await settle()
 
-  return { close: () => act(async () => root.unmount()) }
+  return app
 }
 
-const storedDay = (queryClient: QueryClient, date: IsoDate) =>
-  queryClient.getQueryData(dayQuery(date).queryKey)
+type App = Awaited<ReturnType<typeof openApp>>
+
+const storedDay = (app: App, date: IsoDate) =>
+  app.queryClient.getQueryData(dayQuery(date).queryKey)
+
+/** Saves a Day note on December 7, as Phillip does in its editor. */
+const saveDayNote = async (app: App) => {
+  vi.mocked(writeDayNote).mockResolvedValue(
+    WriteDayNoteOutcome.cases.Written.make({}),
+  )
+  await act(async () => app.field().change('Tsukiji at dawn.'))
+  await act(() => app.field().save())
+  await settle()
+}
+
+/** Whether a loader's read answers or fails. */
+const outcomeOf = (read: Promise<unknown>) =>
+  read.then(
+    () => 'answered',
+    () => 'failed',
+  )
 
 afterEach(() => {
+  localStorage.clear()
   reportConnection(connected)
   onlineManager.setOnline(true)
   vi.mocked(getDay).mockReset()
@@ -124,44 +151,88 @@ describe('the Schedule snapshot', () => {
   it('stores the Schedules and every Day page, before any Day is opened', async () => {
     const snapshot = snapshotWith('Onsen at 18:00.')
     answerSnapshot(snapshot)
-    const queryClient = testQueryClient()
-    const app = await keepingSnapshot(queryClient)
+    // The page's own read of the Schedules never answers, so only the
+    // snapshot stores them.
+    const app = await openApp(() => new Promise<string>(() => {}))
 
     assert.deepStrictEqual(
       {
-        schedules: queryClient.getQueryData(schedulesQuery.queryKey),
-        days: tripDates.map((date) => storedDay(queryClient, date)),
+        schedules: app.queryClient.getQueryData(schedulesQuery.queryKey),
+        days: tripDates.map((date) => storedDay(app, date)),
       },
       { schedules: snapshot.schedules, days: snapshot.days },
     )
     await app.close()
   })
 
-  it('stores every Day again after a write, including Days not on screen', async () => {
+  it('stores every Day again after a save, including Days not on screen', async () => {
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
-    const queryClient = testQueryClient()
-    const app = await keepingSnapshot(queryClient)
+    const app = await openApp()
 
     answerSnapshot(snapshotWith('Onsen moved to 20:00.'))
-    await act(() => invalidateAfter(queryClient, 'dayNote'))
+    await saveDayNote(app)
+
+    assert.strictEqual(
+      storedDay(app, december(14))?.day.note,
+      'Onsen moved to 20:00.',
+    )
+    await app.close()
+  })
+
+  it('keeps the Day it stored after a save when a read of that Day from before the save answers late', async () => {
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+    const app = await openApp()
+    const beforeSave = deferred<DayPage>()
+    vi.mocked(getDay).mockImplementation(() => beforeSave.promise)
+    const preloaded = loadQuery(app.queryClient, dayQuery(december(14)))
+
+    answerSnapshot(snapshotWith('Onsen moved to 20:00.'))
+    await saveDayNote(app)
+    await act(async () =>
+      beforeSave.resolve(dayPage(december(14), 'Onsen at 18:00.')),
+    )
+
+    assert.deepStrictEqual(
+      {
+        loaded: (await preloaded)?.day.note,
+        stored: storedDay(app, december(14))?.day.note,
+      },
+      { loaded: 'Onsen moved to 20:00.', stored: 'Onsen moved to 20:00.' },
+    )
+    await app.close()
+  })
+
+  it('keeps a Day read after it started, though the snapshot answers later', async () => {
+    const olderSnapshot = deferred<ScheduleSnapshot>()
+    vi.mocked(getScheduleSnapshot).mockImplementation(
+      () => olderSnapshot.promise,
+    )
+    const app = await openApp()
+    vi.mocked(getDay).mockImplementation(async () =>
+      dayPage(december(14), 'Written on another device.'),
+    )
+    await loadQuery(app.queryClient, dayQuery(december(14)))
+
+    await act(async () =>
+      olderSnapshot.resolve(snapshotWith('Onsen at 18:00.')),
+    )
     await settle()
 
     assert.strictEqual(
-      storedDay(queryClient, december(14))?.day.note,
-      'Onsen moved to 20:00.',
+      storedDay(app, december(14))?.day.note,
+      'Written on another device.',
     )
     await app.close()
   })
 })
 
-describe('loadQuery', () => {
+describe('a loader', () => {
   it('answers offline with a Day the snapshot stored, though it was never opened', async () => {
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
-    const queryClient = testQueryClient()
-    const app = await keepingSnapshot(queryClient)
+    const app = await openApp()
     answerDayOffline()
 
-    const page = await loadQuery(queryClient, dayQuery(december(14)))
+    const page = await loadQuery(app.queryClient, dayQuery(december(14)))
 
     assert.strictEqual(page?.day.note, 'Onsen at 18:00.')
     await app.close()
@@ -169,38 +240,41 @@ describe('loadQuery', () => {
 
   it('answers with the stored Day while the browser is offline, without waiting for the network', async () => {
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
-    const queryClient = testQueryClient()
-    const app = await keepingSnapshot(queryClient)
+    const app = await openApp()
     onlineManager.setOnline(false)
 
-    const page = await loadQuery(queryClient, dayQuery(december(14)))
+    const page = await loadQuery(app.queryClient, dayQuery(december(14)))
 
     assert.strictEqual(page?.day.note, 'Onsen at 18:00.')
     await app.close()
   })
 
   it('fails offline for a Day with nothing stored', async () => {
-    const queryClient = testQueryClient()
     answerDayOffline()
 
-    const read = await loadQuery(queryClient, dayQuery(december(14))).then(
-      () => 'answered',
-      () => 'failed',
+    assert.strictEqual(
+      await outcomeOf(loadQuery(testQueryClient(), dayQuery(december(14)))),
+      'failed',
     )
+  })
 
-    assert.strictEqual(read, 'failed')
+  it('fails at once while the browser is offline, for a Day with nothing stored', async () => {
+    onlineManager.setOnline(false)
+
+    assert.strictEqual(
+      await outcomeOf(loadQuery(testQueryClient(), dayQuery(december(14)))),
+      'failed',
+    )
   })
 
   it('answers online with the Day as the server reads it now, not the stored one', async () => {
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
-    const queryClient = testQueryClient()
-    const app = await keepingSnapshot(queryClient)
-
+    const app = await openApp()
     vi.mocked(getDay).mockImplementation(async () =>
       dayPage(december(14), 'Written on another device.'),
     )
 
-    const page = await loadQuery(queryClient, dayQuery(december(14)))
+    const page = await loadQuery(app.queryClient, dayQuery(december(14)))
 
     assert.strictEqual(page?.day.note, 'Written on another device.')
     await app.close()

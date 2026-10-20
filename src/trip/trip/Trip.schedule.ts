@@ -102,7 +102,7 @@ const firstMoveOnOrAfter = (days: ScheduleDetail['days'], date: IsoDate) =>
     )
     .at(0)
 
-const dayPageAt = (
+const dayPageFor = (
   schedule: ScheduleDetail,
   day: ScheduleDetail['days'][number],
 ): DayPage => {
@@ -131,10 +131,10 @@ const dayPageAt = (
   }
 }
 
-const dayPageOf = (schedule: ScheduleDetail, date: IsoDate) =>
+const findDayPage = (schedule: ScheduleDetail, date: IsoDate) =>
   Option.map(
     Option.fromUndefinedOr(schedule.days.find((day) => day.date === date)),
-    (day) => dayPageAt(schedule, day),
+    (day) => dayPageFor(schedule, day),
   )
 
 const homeStateOf = (
@@ -164,7 +164,7 @@ const homeStateOf = (
     ...shared,
     date,
     today: Option.getOrNull(
-      Option.flatMap(schedule, (schedule) => dayPageOf(schedule, date)),
+      Option.flatMap(schedule, (schedule) => findDayPage(schedule, date)),
     ),
   })
 }
@@ -280,7 +280,7 @@ export const scheduleMethods = Effect.gen(function* () {
       }),
     }
 
-    return { schedules, stored: current }
+    return { schedules, storedCurrent: current }
   })
 
   const schedules = Effect.gen(function* () {
@@ -298,12 +298,12 @@ export const scheduleMethods = Effect.gen(function* () {
 
     return yield* store.transaction(
       Effect.gen(function* () {
-        const { schedules, stored } = yield* schedulesIn(store)
-        const checklist = yield* checklistIn(store, stored)
+        const { schedules, storedCurrent } = yield* schedulesIn(store)
+        const checklist = yield* checklistIn(store, storedCurrent)
 
         return Option.map(schedules.current, (current): ScheduleSnapshot => ({
           schedules: { ...schedules, current },
-          days: current.days.map((day) => dayPageAt(current, day)),
+          days: current.days.map((day) => dayPageFor(current, day)),
           checklist,
         }))
       }),
@@ -352,7 +352,7 @@ export const scheduleMethods = Effect.gen(function* () {
     if (!isTripDate(date)) return yield* new DayNotFound({ date })
     const schedule = yield* currentSchedule
 
-    return Option.flatMap(schedule, (schedule) => dayPageOf(schedule, date))
+    return Option.flatMap(schedule, (schedule) => findDayPage(schedule, date))
   })
 
   return {
