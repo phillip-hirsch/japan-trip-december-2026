@@ -6,6 +6,7 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query'
 import type { Query, QueryClient, QueryKey } from '@tanstack/react-query'
+import { useHydrated } from '@tanstack/react-router'
 import { useEffect } from 'react'
 
 import { millisecondsUntilTokyoMidnight } from '@/trip/domain/calendar'
@@ -118,8 +119,17 @@ const scheduleSummaryQuery = queryOptions({
 /**
  * The Schedule summary: undefined until it first answers, then null before a
  * Schedule exists. `useQuery` only fetches in the browser, after hydration.
+ *
+ * Always undefined in a server render and on the render hydrating a page, as
+ * the server never has it. A page code-split from the app nav hydrates after
+ * the nav has read it, and must still match the server's HTML first.
  */
-export const useScheduleSummary = () => useQuery(scheduleSummaryQuery).data
+export const useScheduleSummary = () => {
+  const hydrated = useHydrated()
+  const { data } = useQuery(scheduleSummaryQuery)
+
+  return hydrated ? data : undefined
+}
 
 /**
  * Whether a server render may carry a query into the page. Never the Schedule
