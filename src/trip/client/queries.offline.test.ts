@@ -251,6 +251,32 @@ describe('the Schedule snapshot', () => {
     )
     await app.close()
   })
+
+  it('keeps the Day it stored once a Schedule is chosen when a read of that Day from before answers with no Schedule', async () => {
+    vi.mocked(getScheduleSnapshot).mockResolvedValue(null)
+    const app = await openApp()
+    const beforeChoosing = deferred<DayPage | null>()
+    vi.mocked(getDay).mockImplementation(() => beforeChoosing.promise)
+    const preloaded = loadQuery(app.queryClient, dayQuery(december(14)))
+
+    // Phillip chooses a Schedule elsewhere; focus reads the snapshot again.
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+    await act(async () => {
+      focusManager.setFocused(false)
+      focusManager.setFocused(true)
+    })
+    await settle()
+    await act(async () => beforeChoosing.resolve(null))
+
+    assert.deepStrictEqual(
+      {
+        loaded: (await preloaded)?.day.note,
+        stored: storedDay(app, december(14))?.day.note,
+      },
+      { loaded: 'Onsen at 18:00.', stored: 'Onsen at 18:00.' },
+    )
+    await app.close()
+  })
 })
 
 describe('a loader', () => {

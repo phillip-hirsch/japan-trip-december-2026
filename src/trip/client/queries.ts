@@ -163,9 +163,17 @@ const readStartOf = <T>(answer: T) =>
  * one if its read started later. An answer with no recorded read, such as
  * one the server rendered into the page, counts as the oldest when stored
  * and the newest when arriving.
+ *
+ * A null answer can't carry its read, but only a Day read before any
+ * Schedule exists answers null. Once one exists, one is always current, so
+ * a null arriving over a stored answer is from a read that started before.
  */
 const keepLatestRead = <T>(stored: T | undefined, arriving: T): T => {
   const arrivingStart = readStartOf(arriving)
+
+  if (stored !== undefined && stored !== null && arriving === null) {
+    return stored
+  }
 
   if (
     stored !== undefined &&
