@@ -39,8 +39,8 @@ const refetchOnReturn = (queryClient: QueryClient) => {
 }
 
 export const createQueryClient = () => {
-  // Stored data is what a page opens on offline, such as a Day filled from
-  // the Schedule snapshot but never shown, so none is dropped while unused.
+  // Offline, a page opens on stored data, such as a Day the Schedule snapshot
+  // filled but never shown. So the cache keeps unused queries.
   const queryClient = new QueryClient({
     defaultOptions: { queries: { gcTime: Infinity } },
   })

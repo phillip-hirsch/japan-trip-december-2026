@@ -260,7 +260,10 @@ export const scheduleMethods = Effect.gen(function* () {
     Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
   )
 
-  /** The Schedules, inside the caller's transaction, and the stored current. */
+  /**
+   * Reads the Schedules inside the caller's transaction. It also returns the
+   * current Schedule as stored, for reads that derive more from it.
+   */
   const schedulesIn = Effect.fnUntraced(function* (store: ScheduleStore) {
     const { current, archived, tripNote } = yield* Effect.all({
       current: store.current,

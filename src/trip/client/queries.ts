@@ -56,10 +56,10 @@ const isOffline = () =>
   ConnectionStatus.$is('Offline')(currentConnection())
 
 /**
- * What a loader reads: fresh from the server, as `fetchQuery` with a zero
- * stale time reads it. Offline, it answers at once with the data the app
- * already has instead of waiting for the network. With nothing stored, it
- * fails as the read does.
+ * Reads a query for a loader. Online, it fetches fresh data, as
+ * `fetchQuery` does with a zero stale time. Offline, it answers at once with
+ * the data the app already has instead of waiting for the network. With
+ * nothing stored, it fails as the read does.
  */
 export const loadQuery = async <TData, TKey extends QueryKey>(
   queryClient: QueryClient,
@@ -173,11 +173,11 @@ const storeSnapshot = (
 }
 
 /**
- * Keeps the Schedule, every Day page and the Checklist stored from the
- * Schedule snapshot, so any Day opens offline, even one never opened on this
- * device. They all come from one snapshot, never from two moments. It reads
- * the snapshot in the browser, again on focus, on reconnect and after every
- * write, and renders nothing from it.
+ * Stores the Schedules, every Day page and the Checklist from the Schedule
+ * snapshot, so any Day opens offline, even one never opened on this device.
+ * All of them come from one snapshot, never from two moments. The hook reads
+ * the snapshot after hydration, on focus, on reconnect and after every write.
+ * It never re-renders its component.
  */
 export const useScheduleSnapshot = () => {
   const queryClient = useQueryClient()
@@ -206,9 +206,9 @@ export const useScheduleSnapshot = () => {
 const scheduleSnapshotHash = JSON.stringify(keys.scheduleSnapshot)
 
 /**
- * Reads the snapshot again, if one is shown. A read already under way may
- * predate the write, so it is cancelled first, even before any snapshot has
- * answered.
+ * Reads the snapshot again while the app keeps it. It first cancels a read
+ * already under way, which may predate the write, even when no snapshot has
+ * answered yet.
  */
 const refreshSnapshot = async (queryClient: QueryClient) => {
   const queryKey = keys.scheduleSnapshot
@@ -294,8 +294,9 @@ const invalidate = (
 
 /**
  * Invalidates exactly the queries a successful write affects, and resolves
- * once the shown ones have refetched. The rest refetch when next shown, and
- * the Schedule snapshot, read again without waiting, stores them meanwhile.
+ * once the shown ones have refetched. The rest refetch when next shown.
+ * Meanwhile it reads the Schedule snapshot again, without waiting for it, and
+ * the snapshot stores them.
  */
 export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) => {
   void refreshSnapshot(queryClient)
