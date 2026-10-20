@@ -4,7 +4,7 @@
 import { NetworkOnly, Serwist } from 'serwist'
 import type { PrecacheEntry, RouteHandlerCallbackOptions } from 'serwist'
 
-import { pageFile, shellHeaders, shellPath } from '@/offline/shell'
+import { pageFile, pagePath, shellHeaders, shellPath } from '@/offline/shell'
 
 declare const self: ServiceWorkerGlobalScope & {
   readonly __SW_MANIFEST: ReadonlyArray<PrecacheEntry | string>
@@ -61,21 +61,18 @@ const shellRequest = ({ url }: Request) =>
   })
 
 /**
- * The page an address names: `/options/2/` and `/options/2.html` are both
- * `/options/2`, where static assets redirect them online.
- */
-const pagePath = ({ pathname }: URL) =>
-  pathname.replace(/\/+$/, '').replace(/\.html$/, '') || '/'
-
-/**
  * Offline, a prerendered page from the precache, or else the shell. An
- * address that names a page another way redirects to it first, as online.
+ * address that names a page another way redirects to it first, as online,
+ * always on the app's own origin: only the path changes.
  */
 const offlinePage = async (url: URL) => {
-  const page = pagePath(url)
+  const page = pagePath(url.pathname)
 
   if (page !== url.pathname) {
-    return Response.redirect(new URL(page + url.search, url).href, 307)
+    const target = new URL(url)
+    target.pathname = page
+
+    return Response.redirect(target.href, 307)
   }
 
   return (

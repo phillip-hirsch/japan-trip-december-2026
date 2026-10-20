@@ -13,3 +13,10 @@ export const serviceWorkerPath = '/sw.js'
 
 /** The HTML file the build writes for a prerendered page, such as the shell. */
 export const pageFile = (pagePath: string) => `${pagePath}.html`
+
+/**
+ * The page a path names: `/options/2/` and `/options/2.html` are both
+ * `/options/2`, where static assets redirect them online.
+ */
+export const pagePath = (pathname: string) =>
+  pathname.replace(/\/+$/, '').replace(/\.html$/, '') || '/'
