@@ -18,6 +18,7 @@ import appleTouchIcon from '@/icons/apple-touch-icon.png?inline'
 import { appName, appShortName, ink } from '@/lib/app-identity'
 import type { StyleWithVariables } from '@/lib/utils'
 import { registerServiceWorker } from '@/offline/register-service-worker'
+import { useScheduleSnapshot } from '@/trip/client/queries'
 import appCss from '@/styles.css?url'
 
 const inkStyle: StyleWithVariables = { '--ink': ink }
@@ -79,6 +80,7 @@ export const Route = createRootRouteWithContext<{
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   useEffect(registerServiceWorker, [])
+  useScheduleSnapshot()
 
   return (
     <html lang="en" className="dark" style={inkStyle}>

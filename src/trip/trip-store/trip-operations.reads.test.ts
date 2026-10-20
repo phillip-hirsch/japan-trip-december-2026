@@ -82,6 +82,28 @@ describe('runTripOperation for reads', () => {
   )
 
   it.effect(
+    'answers the Schedule snapshot as the Trip reads it, and null before a Schedule is chosen',
+    () =>
+      Effect.gen(function* () {
+        const before = yield* runTripOperation('scheduleSnapshot', undefined)
+        yield* choose(1, 1, null)
+
+        assert.deepStrictEqual(
+          {
+            before,
+            after: yield* runTripOperation('scheduleSnapshot', undefined),
+          },
+          {
+            before: null,
+            after: Option.getOrThrow(
+              yield* Trip.use((trip) => trip.scheduleSnapshot),
+            ),
+          },
+        )
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+  )
+
+  it.effect(
     'answers the Schedules with the Trip note once one is written',
     () =>
       Effect.gen(function* () {

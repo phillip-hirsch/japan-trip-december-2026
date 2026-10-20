@@ -53,6 +53,10 @@ _Avoid_: city maps, map tiles
 Phillip's one plain-text note about the whole Trip, shown on the Schedule page. It belongs to the Trip, not a Schedule, so it stays as it is when he chooses again or restores.
 _Avoid_: general note, global note
 
+**Schedule snapshot**:
+The current Schedule read whole at one moment: every Day page, the Checklist with its Ticks, and the Schedules with every note and Hotel details. The app keeps the last one it read on the device, so the Schedule and any Day open offline, even a Day never opened there.
+_Avoid_: cache, dump, export
+
 **Day page**:
 A Day of the Schedule on its own page at /schedule/$date: the Day's source description and Day trips, its Activities, its Day note, Tonight's hotel and the Next Move.
 

@@ -18,7 +18,10 @@ import type {
 import { reminderDateOf } from '@/trip/domain/checklist-items'
 import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
 import { scheduleStore } from '@/trip/schedule-store/schedule-store'
-import type { OwnChecklistItem } from '@/trip/schedule-store/schedule-store'
+import type {
+  OwnChecklistItem,
+  ScheduleStore,
+} from '@/trip/schedule-store/schedule-store'
 import {
   namedSchedule,
   requireChecklistText,
@@ -177,27 +180,34 @@ const checklistOf = (
       (reminderDateOf(a) ?? '').localeCompare(reminderDateOf(b) ?? ''),
   )
 
+/**
+ * The Checklist of `current`, the current Schedule as `store` just read it,
+ * inside the caller's transaction.
+ */
+export const checklistIn = Effect.fnUntraced(function* (
+  store: ScheduleStore,
+  current: Effect.Success<ScheduleStore['current']>,
+) {
+  const derived = Option.isSome(current)
+    ? derivedChecklistOf(
+        current.value.copy,
+        yield* store.ticks(current.value.schedule.id),
+      )
+    : []
+
+  return {
+    scheduleId: Option.getOrNull(
+      Option.map(current, ({ schedule }) => schedule.id),
+    ),
+    items: checklistOf(derived, yield* store.ownItems),
+  }
+})
+
 const checklist = Effect.gen(function* () {
   const store = yield* scheduleStore
 
   return yield* store.transaction(
-    Effect.gen(function* () {
-      const current = yield* store.current
-
-      const derived = Option.isSome(current)
-        ? derivedChecklistOf(
-            current.value.copy,
-            yield* store.ticks(current.value.schedule.id),
-          )
-        : []
-
-      return {
-        scheduleId: Option.getOrNull(
-          Option.map(current, ({ schedule }) => schedule.id),
-        ),
-        items: checklistOf(derived, yield* store.ownItems),
-      }
-    }),
+    Effect.flatMap(store.current, (current) => checklistIn(store, current)),
   )
 }).pipe(
   Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),

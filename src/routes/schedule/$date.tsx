@@ -5,7 +5,7 @@ import { NoSchedule } from '@/components/no-schedule'
 import { ScheduleDayView } from '@/components/schedule-day'
 import { formatDay, isTripDate } from '@/trip/domain/calendar'
 import { parseTripDate } from '@/trip/client/params'
-import { dayQuery } from '@/trip/client/queries'
+import { dayQuery, loadQuery } from '@/trip/client/queries'
 import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/schedule/$date')({
@@ -21,7 +21,7 @@ export const Route = createFileRoute('/schedule/$date')({
   },
   loader: {
     handler: ({ context, params: { date } }) =>
-      context.queryClient.fetchQuery(dayQuery(date)),
+      loadQuery(context.queryClient, dayQuery(date)),
     staleReloadMode: 'blocking',
   },
   // The head still runs for a date the params check refused, so the

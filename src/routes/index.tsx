@@ -12,11 +12,11 @@ import type {
   ItinerarySummary,
   ScheduleDetail,
 } from '@/trip/domain/domain'
-import { homeQuery, useHome } from '@/trip/client/queries'
+import { homeQuery, loadQuery, useHome } from '@/trip/client/queries'
 
 export const Route = createFileRoute('/')({
   loader: {
-    handler: ({ context }) => context.queryClient.fetchQuery(homeQuery),
+    handler: ({ context }) => loadQuery(context.queryClient, homeQuery),
     staleReloadMode: 'blocking',
   },
   component: Home,

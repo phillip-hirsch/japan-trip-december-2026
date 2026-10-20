@@ -18,6 +18,7 @@ import {
   ScheduleMap,
   ScheduleOutcome,
   Schedules,
+  ScheduleSnapshot,
   ScheduleSummary,
   SetPinOutcome,
   StayEditOutcome,
@@ -111,6 +112,11 @@ const tripOperations = {
         current: Option.getOrNull(current),
         ...rest,
       })),
+    ),
+  ),
+  scheduleSnapshot: read(Schema.NullOr(ScheduleSnapshot), () =>
+    Trip.use((trip) => trip.scheduleSnapshot).pipe(
+      Effect.map(Option.getOrNull),
     ),
   ),
   scheduleMap: read(Schema.NullOr(ScheduleMap), () =>

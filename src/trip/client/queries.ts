@@ -1,14 +1,21 @@
 import {
+  onlineManager,
   partialMatchKey,
   queryOptions,
   useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from '@tanstack/react-query'
-import type { Query, QueryClient, QueryKey } from '@tanstack/react-query'
+import type {
+  FetchQueryOptions,
+  Query,
+  QueryClient,
+  QueryKey,
+} from '@tanstack/react-query'
 import { useHydrated } from '@tanstack/react-router'
 import { useEffect } from 'react'
 
+import { ConnectionStatus, currentConnection } from '@/access/connection-status'
 import { millisecondsUntilTokyoMidnight } from '@/trip/domain/calendar'
 import type { IsoDate } from '@/trip/domain/domain'
 import {
@@ -18,6 +25,7 @@ import {
   getScheduleById,
   getScheduleMap,
   getSchedules,
+  getScheduleSnapshot,
   getScheduleSummary,
 } from '@/trip/trip/trip.functions'
 
@@ -33,15 +41,44 @@ const keys = {
   scheduleById: ['schedule-by-id'],
   checklist: ['checklist'],
   scheduleMap: ['schedule-map'],
+  scheduleSnapshot: ['schedule-snapshot'],
 } as const satisfies Record<string, QueryKey>
 
 // A page shown again must not open on data another device has since changed,
-// and only shown queries refetch on focus and reconnect. So loaders fetch
-// these with `fetchQuery`, which waits for fresh data whenever the cache is
-// stale (not `ensureQueryData`, which returns whatever is cached), and set
-// `staleReloadMode: 'blocking'`, so the router waits for that too instead of
-// rendering its cached match first. The page then mounts on what its loader
-// just fetched, so mounting never fetches again.
+// and only shown queries refetch on focus and reconnect. So loaders read
+// these with `loadQuery`, which waits for fresh data whenever the cache is
+// stale, and set `staleReloadMode: 'blocking'`, so the router waits for that
+// too instead of rendering its cached match first. The page then mounts on
+// what its loader just read, so mounting never fetches again.
+
+const isOffline = () =>
+  !onlineManager.isOnline() ||
+  ConnectionStatus.$is('Offline')(currentConnection())
+
+/**
+ * What a loader reads: fresh from the server, as `fetchQuery` with a zero
+ * stale time reads it. Offline, it answers at once with the data the app
+ * already has instead of waiting for the network. With nothing stored, it
+ * fails as the read does.
+ */
+export const loadQuery = async <TData, TKey extends QueryKey>(
+  queryClient: QueryClient,
+  options: FetchQueryOptions<TData, Error, TData, TKey>,
+): Promise<TData> => {
+  const stored = () => queryClient.getQueryData<TData>(options.queryKey)
+  const before = stored()
+
+  if (before !== undefined && isOffline()) return before
+
+  try {
+    return await queryClient.fetchQuery(options)
+  } catch (error) {
+    const after = stored()
+
+    if (after !== undefined && isOffline()) return after
+    throw error
+  }
+}
 
 export const homeQuery = queryOptions({
   queryKey: keys.home,
@@ -111,6 +148,74 @@ export const scheduleMapQuery = queryOptions({
   refetchOnMount: false,
 })
 
+const scheduleSnapshotQuery = queryOptions({
+  queryKey: keys.scheduleSnapshot,
+  queryFn: () => getScheduleSnapshot(),
+})
+
+type ScheduleSnapshot = Awaited<ReturnType<typeof getScheduleSnapshot>>
+
+/** Stores the Schedules, every Day page and the Checklist from a snapshot. */
+const storeSnapshot = (
+  queryClient: QueryClient,
+  snapshot: ScheduleSnapshot,
+  updatedAt: number,
+) => {
+  if (snapshot === null) return
+  const options = { updatedAt }
+  queryClient.setQueryData(schedulesQuery.queryKey, snapshot.schedules, options)
+
+  for (const page of snapshot.days) {
+    queryClient.setQueryData(dayQuery(page.day.date).queryKey, page, options)
+  }
+
+  queryClient.setQueryData(checklistQuery.queryKey, snapshot.checklist, options)
+}
+
+/**
+ * Keeps the Schedule, every Day page and the Checklist stored from the
+ * Schedule snapshot, so any Day opens offline, even one never opened on this
+ * device. They all come from one snapshot, never from two moments. It reads
+ * the snapshot in the browser, again on focus, on reconnect and after every
+ * write, and renders nothing from it.
+ */
+export const useScheduleSnapshot = () => {
+  const queryClient = useQueryClient()
+
+  useEffect(
+    () =>
+      queryClient.getQueryCache().subscribe((event) => {
+        if (
+          event.type === 'updated' &&
+          event.action.type === 'success' &&
+          event.query.queryHash === scheduleSnapshotHash
+        ) {
+          storeSnapshot(
+            queryClient,
+            event.action.data,
+            event.query.state.dataUpdatedAt,
+          )
+        }
+      }),
+    [queryClient],
+  )
+
+  useQuery({ ...scheduleSnapshotQuery, notifyOnChangeProps: [] })
+}
+
+const scheduleSnapshotHash = JSON.stringify(keys.scheduleSnapshot)
+
+/**
+ * Reads the snapshot again, if one is shown. A read already under way may
+ * predate the write, so it is cancelled first, even before any snapshot has
+ * answered.
+ */
+const refreshSnapshot = async (queryClient: QueryClient) => {
+  const queryKey = keys.scheduleSnapshot
+  await queryClient.cancelQueries({ queryKey })
+  await queryClient.invalidateQueries({ queryKey })
+}
+
 const scheduleSummaryQuery = queryOptions({
   queryKey: keys.scheduleSummary,
   queryFn: () => getScheduleSummary(),
@@ -132,12 +237,18 @@ export const useScheduleSummary = () => {
   return hydrated ? data : undefined
 }
 
+const neverDehydrated: ReadonlyArray<unknown> = [
+  keys.scheduleSummary[0],
+  keys.scheduleSnapshot[0],
+]
+
 /**
  * Whether a server render may carry a query into the page. Never the Schedule
- * summary, even if a loader fetched it, so prerendered HTML can't contain it.
+ * summary, even if a loader fetched it, so prerendered HTML can't contain it,
+ * and never the Schedule snapshot, which only the browser reads.
  */
 export const shouldDehydrateQuery = (query: Query) =>
-  query.queryKey[0] !== keys.scheduleSummary[0]
+  !neverDehydrated.includes(query.queryKey[0])
 
 const replacingTheSchedule = [
   keys.schedules,
@@ -183,10 +294,14 @@ const invalidate = (
 
 /**
  * Invalidates exactly the queries a successful write affects, and resolves
- * once the shown ones have refetched. The rest refetch when next shown.
+ * once the shown ones have refetched. The rest refetch when next shown, and
+ * the Schedule snapshot, read again without waiting, stores them meanwhile.
  */
-export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) =>
-  invalidate(queryClient, affectedBy[write])
+export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) => {
+  void refreshSnapshot(queryClient)
+
+  return invalidate(queryClient, affectedBy[write])
+}
 
 /**
  * Calls back whenever a shown query a write affects is read successfully;
@@ -211,5 +326,8 @@ export const subscribeToReadsAfter = (
     }
   })
 
-export const invalidateAfterScheduleChanged = (queryClient: QueryClient) =>
-  invalidate(queryClient, replacingTheSchedule)
+export const invalidateAfterScheduleChanged = (queryClient: QueryClient) => {
+  void refreshSnapshot(queryClient)
+
+  return invalidate(queryClient, replacingTheSchedule)
+}

@@ -39,7 +39,11 @@ const refetchOnReturn = (queryClient: QueryClient) => {
 }
 
 export const createQueryClient = () => {
-  const queryClient = new QueryClient()
+  // Stored data is what a page opens on offline, such as a Day filled from
+  // the Schedule snapshot but never shown, so none is dropped while unused.
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity } },
+  })
 
   if (typeof window !== 'undefined') refetchOnReturn(queryClient)
 
