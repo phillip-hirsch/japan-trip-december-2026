@@ -1,8 +1,4 @@
-import {
-  QueryClient,
-  QueryClientProvider,
-  useQuery,
-} from '@tanstack/react-query'
+import { QueryClientProvider, useQuery } from '@tanstack/react-query'
 import {
   createMemoryHistory,
   createRootRoute,
@@ -16,6 +12,7 @@ import { createRoot } from 'react-dom/client'
 import type { PlaceId } from '@/trip/catalogue/catalogue-ids'
 import { places } from '@/trip/catalogue/places'
 import { SaveState } from '@/trip/client/drafts'
+import { testQueryClient } from '@/trip/client/hook-testing'
 import { schedulesQuery } from '@/trip/client/queries'
 import { nightsBetween } from '@/trip/domain/calendar'
 import {
@@ -30,8 +27,6 @@ import type {
   ScheduleStayDetail,
   StayEditOffers,
 } from '@/trip/domain/domain'
-
-Reflect.set(globalThis, 'IS_REACT_ACT_ENVIRONMENT', true)
 
 export const deferred = <A>() => {
   let resolve: (value: A) => void = () => undefined
@@ -126,9 +121,7 @@ export const openEditor = async <P extends object, F>(
   props: P,
   read: () => Promise<string> = async () => 'schedules',
 ) => {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  })
+  const queryClient = testQueryClient()
 
   const router = createRouter({
     routeTree: createRootRoute(),
