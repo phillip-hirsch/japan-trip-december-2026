@@ -22,12 +22,19 @@ const workerHoldsPage = (href: string) => {
 
   return new Promise<boolean>((resolve) => {
     const channel = new MessageChannel()
-    const timer = setTimeout(() => resolve(false), workerAnswerMs)
 
-    channel.port1.onmessage = (event: MessageEvent<boolean>) => {
+    // The answer or the timeout, whichever comes first, closes the channel.
+    // The worker holds the other port, so closing this one releases both.
+    const finish = (holds: boolean) => {
       clearTimeout(timer)
-      resolve(event.data === true)
+      channel.port1.close()
+      resolve(holds)
     }
+
+    const timer = setTimeout(() => finish(false), workerAnswerMs)
+
+    channel.port1.onmessage = (event: MessageEvent<boolean>) =>
+      finish(event.data === true)
 
     worker.postMessage(question, [channel.port2])
   })
