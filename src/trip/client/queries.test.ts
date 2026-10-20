@@ -83,14 +83,14 @@ const withSummaryRead = async () => {
 
 describe('the Schedule summary', () => {
   it('is not yet known on the first render hydrating a code-split page, though the app nav already read it', async () => {
-    const nav = reader()
-    const page = reader()
-
     // The server renders the whole page, without the Schedule summary.
     const container = document.createElement('div')
     container.innerHTML = renderToString(
-      app(testQueryClient(), nav.Reader, page.Reader),
+      app(testQueryClient(), reader().Reader, reader().Reader),
     )
+
+    const nav = reader()
+    const page = reader()
 
     // In the browser, the page's code arrives after the app nav has hydrated
     // and read the summary.
