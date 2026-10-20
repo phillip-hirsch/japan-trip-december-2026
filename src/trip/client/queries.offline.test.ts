@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, assert, describe, it } from '@effect/vitest'
-import { onlineManager } from '@tanstack/react-query'
+import { focusManager, onlineManager, useQuery } from '@tanstack/react-query'
 import { vi } from 'vite-plus/test'
 import { act } from 'react'
 
@@ -144,6 +144,7 @@ afterEach(() => {
   localStorage.clear()
   reportConnection(connected)
   onlineManager.setOnline(true)
+  focusManager.setFocused(undefined)
   vi.mocked(getDay).mockReset()
 })
 
@@ -224,9 +225,67 @@ describe('the Schedule snapshot', () => {
     )
     await app.close()
   })
+
+  it('keeps the Day it stored after a save when a read of that Day from before the save answers in the same moment', async () => {
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+    const app = await openApp()
+    const beforeSave = deferred<DayPage>()
+    vi.mocked(getDay).mockImplementation(() => beforeSave.promise)
+    const preloaded = loadQuery(app.queryClient, dayQuery(december(14)))
+    const afterSave = deferred<ScheduleSnapshot>()
+    vi.mocked(getScheduleSnapshot).mockImplementation(() => afterSave.promise)
+    await saveDayNote(app)
+
+    await act(async () => {
+      beforeSave.resolve(dayPage(december(14), 'Onsen at 18:00.'))
+      afterSave.resolve(snapshotWith('Onsen moved to 20:00.'))
+    })
+    await settle()
+
+    assert.deepStrictEqual(
+      {
+        loaded: (await preloaded)?.day.note,
+        stored: storedDay(app, december(14))?.day.note,
+      },
+      { loaded: 'Onsen moved to 20:00.', stored: 'Onsen moved to 20:00.' },
+    )
+    await app.close()
+  })
 })
 
 describe('a loader', () => {
+  it('answers with the stored Day when the app goes offline during a read of it already under way', async () => {
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+
+    // December 14 is shown, and retries a failed read as the app does.
+    const app = await openEditor(() => {
+      useScheduleSnapshot()
+      useQuery({ ...dayQuery(december(14)), retry: 1, retryDelay: 0 })
+    }, {})
+
+    await settle()
+    let failRead: (error: Error) => void = () => undefined
+    vi.mocked(getDay).mockImplementation(
+      () =>
+        new Promise((_answer, fail) => {
+          failRead = fail
+        }),
+    )
+    // Focus refetches the shown Day, and the loader joins that read.
+    await act(async () => {
+      focusManager.setFocused(false)
+      focusManager.setFocused(true)
+    })
+    const loading = loadQuery(app.queryClient, dayQuery(december(14)))
+
+    onlineManager.setOnline(false)
+    reportConnection(offline)
+    failRead(new TypeError('Failed to fetch'))
+
+    assert.strictEqual((await loading)?.day.note, 'Onsen at 18:00.')
+    await app.close()
+  })
+
   it('answers offline with a Day the snapshot stored, though it was never opened', async () => {
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
     const app = await openApp()

@@ -1,8 +1,8 @@
 import {
-  hashKey,
   onlineManager,
   partialMatchKey,
   queryOptions,
+  replaceEqualDeep,
   useQuery,
   useQueryClient,
   useSuspenseQuery,
@@ -11,13 +11,17 @@ import type {
   FetchQueryOptions,
   Query,
   QueryClient,
-  QueryFunctionContext,
   QueryKey,
 } from '@tanstack/react-query'
 import { useHydrated } from '@tanstack/react-router'
+import { Predicate } from 'effect'
 import { useEffect } from 'react'
 
-import { ConnectionStatus, currentConnection } from '@/access/connection-status'
+import {
+  ConnectionStatus,
+  currentConnection,
+  subscribeToConnection,
+} from '@/access/connection-status'
 import { millisecondsUntilTokyoMidnight } from '@/trip/domain/calendar'
 import type { IsoDate } from '@/trip/domain/domain'
 import {
@@ -58,11 +62,39 @@ const isOffline = () =>
   ConnectionStatus.$is('Offline')(currentConnection())
 
 /**
+ * Resolves with the stored data once the app is offline, if it has any.
+ * `stop` ends the listening.
+ */
+const storedOnceOffline = <TData>(stored: () => TData | undefined) => {
+  let stop = () => {}
+
+  const answer = new Promise<TData>((resolve) => {
+    const answerIfOffline = () => {
+      const data = stored()
+
+      if (data !== undefined && isOffline()) resolve(data)
+    }
+
+    const stopOnline = onlineManager.subscribe(answerIfOffline)
+    const stopConnection = subscribeToConnection(answerIfOffline)
+
+    stop = () => {
+      stopOnline()
+      stopConnection()
+    }
+  })
+
+  return { answer, stop }
+}
+
+/**
  * Reads a query for a loader. Online, it fetches fresh data, as
- * `fetchQuery` does with a zero stale time. Offline, it answers at once with
- * the data the app already has instead of waiting for the network. With
- * nothing stored, it fails: at once when the browser knows it is offline,
- * where `fetchQuery` would wait for the network, otherwise as the read does.
+ * `fetchQuery` does with a zero stale time, and answers with what the app
+ * then stores. Offline, it answers at once with the data the app already
+ * has instead of waiting for the network, also when the app goes offline
+ * during the read. With nothing stored, it fails: at once when the browser
+ * knows it is offline, where `fetchQuery` would wait for the network,
+ * otherwise as the read does.
  */
 export const loadQuery = async <TData, TKey extends QueryKey>(
   queryClient: QueryClient,
@@ -77,55 +109,76 @@ export const loadQuery = async <TData, TKey extends QueryKey>(
     throw new Error('Offline, with nothing stored for this page')
   }
 
+  const offline = storedOnceOffline(stored)
+
   try {
-    return await queryClient.fetchQuery(options)
+    return await Promise.race([
+      queryClient.fetchQuery(options).then((fetched) => stored() ?? fetched),
+      offline.answer,
+    ])
   } catch (error) {
     const after = stored()
 
     if (after !== undefined && isOffline()) return after
     throw error
+  } finally {
+    offline.stop()
   }
 }
 
 /**
- * The order each stored answer's read started in, by query. An answer never
- * replaces one whose read started later, whichever arrives last, so a slow
- * read can't roll back a newer one. Reads of the Schedules, the Days and the
- * Checklist keep to it, and so does every Schedule snapshot that fills them.
+ * When the read of each stored answer started, counted in the order reads
+ * start. The Schedules, the Days and the Checklist store an answer only if
+ * no answer from a later read is stored, whichever arrives last, so a slow
+ * read never rolls back a newer one. Every Schedule snapshot that fills them
+ * keeps to the same order.
  */
-const readOrders = new WeakMap<QueryClient, Map<string, number>>()
+const readStarts = new WeakMap<object, number>()
 
 let readsStarted = 0
 
 const startRead = () => ++readsStarted
 
-/** Records a read's answer as stored for `queryKey`, unless a later one is. */
-const isLatestRead = (
-  queryClient: QueryClient,
-  queryKey: QueryKey,
-  started: number,
-) => {
-  const order = readOrders.get(queryClient) ?? new Map<string, number>()
-  readOrders.set(queryClient, order)
-  const hash = hashKey(queryKey)
+/** Marks `answer` as from a read that started `started`. */
+const answerOfRead = <T>(answer: T, started: number) => {
+  if (Predicate.isObject(answer)) readStarts.set(answer, started)
 
-  if ((order.get(hash) ?? 0) > started) return false
-  order.set(hash, started)
-
-  return true
+  return answer
 }
 
-/** A query function that keeps to the read order. */
-const inReadOrder =
+/** A query function whose answers keep to the read order. */
+const readInOrder =
   <T>(read: () => Promise<T>) =>
-  async ({ client, queryKey }: QueryFunctionContext): Promise<T> => {
+  async () => {
     const started = startRead()
-    const answer = await read()
 
-    if (isLatestRead(client, queryKey, started)) return answer
-
-    return client.getQueryData<T>(queryKey) ?? answer
+    return answerOfRead(await read(), started)
   }
+
+const readStartOf = <T>(answer: T) =>
+  Predicate.isObject(answer) ? readStarts.get(answer) : undefined
+
+/**
+ * Runs as the cache stores an answer, read or filled, and keeps the stored
+ * one if its read started later. An answer with no recorded read, such as
+ * one the server rendered into the page, counts as the oldest when stored
+ * and the newest when arriving.
+ */
+const keepLatestRead = <T>(stored: T | undefined, arriving: T): T => {
+  const arrivingStart = readStartOf(arriving)
+
+  if (
+    stored !== undefined &&
+    arrivingStart !== undefined &&
+    (readStartOf(stored) ?? 0) > arrivingStart
+  ) {
+    return stored
+  }
+
+  const kept = replaceEqualDeep(stored, arriving)
+
+  return arrivingStart === undefined ? kept : answerOfRead(kept, arrivingStart)
+}
 
 export const homeQuery = queryOptions({
   queryKey: keys.home,
@@ -166,13 +219,15 @@ export const useHome = () => {
 export const dayQuery = (date: IsoDate) =>
   queryOptions({
     queryKey: [...keys.days, date],
-    queryFn: inReadOrder(() => getDay({ data: { date } })),
+    queryFn: readInOrder(() => getDay({ data: { date } })),
+    structuralSharing: keepLatestRead,
     refetchOnMount: false,
   })
 
 export const schedulesQuery = queryOptions({
   queryKey: keys.schedules,
-  queryFn: inReadOrder(() => getSchedules()),
+  queryFn: readInOrder(() => getSchedules()),
+  structuralSharing: keepLatestRead,
   refetchOnMount: false,
 })
 
@@ -185,7 +240,8 @@ export const scheduleByIdQuery = (scheduleId: string) =>
 
 export const checklistQuery = queryOptions({
   queryKey: keys.checklist,
-  queryFn: inReadOrder(() => getChecklist()),
+  queryFn: readInOrder(() => getChecklist()),
+  structuralSharing: keepLatestRead,
   refetchOnMount: false,
 })
 
@@ -200,7 +256,9 @@ type SnapshotAnswer = Awaited<ReturnType<typeof getScheduleSnapshot>>
 
 /**
  * Stores the Schedules, every Day page and the Checklist from a snapshot
- * whose read started `started`, each unless a later read is stored.
+ * whose read started `started`, each unless a later read is stored. It
+ * builds each query with its own options first, so a Day never read on its
+ * own keeps to the read order too.
  */
 const storeSnapshot = (
   queryClient: QueryClient,
@@ -209,22 +267,19 @@ const storeSnapshot = (
 ) => {
   if (snapshot === null) return
 
-  const isLatest = (queryKey: QueryKey) =>
-    isLatestRead(queryClient, queryKey, started)
-
-  if (isLatest(schedulesQuery.queryKey)) {
-    queryClient.setQueryData(schedulesQuery.queryKey, snapshot.schedules)
+  const store = <T, K extends QueryKey>(
+    options: FetchQueryOptions<T, Error, T, K>,
+    data: T,
+  ) => {
+    queryClient.getQueryCache().build(queryClient, options)
+    queryClient.setQueryData<T>(options.queryKey, answerOfRead(data, started))
   }
 
-  for (const page of snapshot.days) {
-    const { queryKey } = dayQuery(page.day.date)
+  store(schedulesQuery, snapshot.schedules)
 
-    if (isLatest(queryKey)) queryClient.setQueryData(queryKey, page)
-  }
+  for (const page of snapshot.days) store(dayQuery(page.day.date), page)
 
-  if (isLatest(checklistQuery.queryKey)) {
-    queryClient.setQueryData(checklistQuery.queryKey, snapshot.checklist)
-  }
+  store(checklistQuery, snapshot.checklist)
 }
 
 const scheduleSnapshotQuery = queryOptions({
