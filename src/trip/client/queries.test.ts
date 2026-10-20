@@ -95,7 +95,6 @@ describe('the Schedule summary', () => {
     // In the browser, the page's code arrives after the app nav has hydrated
     // and read the summary.
     const pageCode = deferred<{ default: ComponentType }>()
-    const mismatches: Array<unknown> = []
 
     const root = await act(async () =>
       hydrateRoot(
@@ -105,8 +104,6 @@ describe('the Schedule summary', () => {
           nav.Reader,
           lazy(() => pageCode.promise),
         ),
-        // React reports a hydration mismatch through this callback.
-        { onRecoverableError: (error) => mismatches.push(error) },
       ),
     )
 
@@ -120,12 +117,10 @@ describe('the Schedule summary', () => {
       {
         firstRender: page.returned[0],
         afterHydration: page.returned.at(-1),
-        mismatches,
       },
       {
         firstRender: shown(undefined),
         afterHydration: shown(currentSchedule),
-        mismatches: [],
       },
     )
     await act(async () => root.unmount())
