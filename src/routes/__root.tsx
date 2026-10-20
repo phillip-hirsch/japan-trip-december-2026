@@ -6,6 +6,7 @@ import {
 import type { QueryClient } from '@tanstack/react-query'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { useEffect } from 'react'
 
 import { AppSidebar, BottomTabBar } from '@/components/app-nav'
 import { ConnectionBanner } from '@/components/connection-banner'
@@ -16,6 +17,7 @@ import displayFont from '@/fonts/shippori-mincho-600-display.woff2?url'
 import appleTouchIcon from '@/icons/apple-touch-icon.png?inline'
 import { appName, appShortName, ink } from '@/lib/app-identity'
 import type { StyleWithVariables } from '@/lib/utils'
+import { registerServiceWorker } from '@/offline/register-service-worker'
 import appCss from '@/styles.css?url'
 
 const inkStyle: StyleWithVariables = { '--ink': ink }
@@ -76,6 +78,8 @@ export const Route = createRootRouteWithContext<{
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
+  useEffect(registerServiceWorker, [])
+
   return (
     <html lang="en" className="dark" style={inkStyle}>
       <head>

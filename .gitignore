@@ -27,3 +27,6 @@ todos.json
 
 # Map tile extracts; scripts/build-map-tiles.ts rebuilds them
 /tiles
+
+# The service worker bundle, before scripts/service-worker.ts injects its precache list
+/.service-worker

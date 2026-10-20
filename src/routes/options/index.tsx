@@ -4,9 +4,11 @@ import { ComparisonMap } from '@/components/comparison-map'
 import { ComparisonRows } from '@/components/itinerary-comparison'
 import { getItineraries } from '@/trip/trip/trip.functions'
 import { pageTitle } from '@/lib/app-identity'
+import { readPrerenderedPage } from '@/offline/prerendered-page'
 
 export const Route = createFileRoute('/options/')({
-  loader: () => getItineraries(),
+  loader: ({ location }) =>
+    readPrerenderedPage(location.href, () => getItineraries()),
   head: () => ({ meta: [{ title: pageTitle('Options') }] }),
   component: Options,
 })
