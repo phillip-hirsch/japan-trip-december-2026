@@ -39,9 +39,60 @@ const openDay = async (storage: BrowserIndexedDB, outOfReach = false) => {
   const queryClient = testQueryClient()
   const kept = keepCacheOnDevice(queryClient)
 
+  const loadDay = () => loadQuery(queryClient, dayQuery(december(14)))
+
+  return { page: loadDay(), loadDay, saved: kept.saved }
+}
+
+/**
+ * IndexedDB from `storage` on a full disk, which refuses every write until
+ * `free` makes room.
+ */
+const fullDisk = (storage: IDBFactory) => {
+  let full = true
+
+  // The part of a database the storage module uses.
+  const refusingWrites = (database: IDBDatabase) => ({
+    transaction: (name: string, mode: IDBTransactionMode) => {
+      if (full && mode === 'readwrite') {
+        throw new DOMException('The disk is full', 'QuotaExceededError')
+      }
+
+      return database.transaction(name, mode)
+    },
+    createObjectStore: (name: string) => database.createObjectStore(name),
+    set onclose(listener: Listener) {
+      database.onclose = listener
+    },
+  })
+
   return {
-    page: loadQuery(queryClient, dayQuery(december(14))),
-    saved: kept.saved,
+    open: (name: string) => {
+      const request = storage.open(name)
+
+      return {
+        get result() {
+          return refusingWrites(request.result)
+        },
+        get error() {
+          return request.error
+        },
+        set onupgradeneeded(listener: Listener) {
+          request.onupgradeneeded = listener
+        },
+        set onsuccess(listener: Listener) {
+          request.onsuccess = listener
+        },
+        set onerror(listener: Listener) {
+          request.onerror = listener
+        },
+        set oncomplete(_listener: Listener) {},
+        set onabort(_listener: Listener) {},
+      }
+    },
+    free: () => {
+      full = false
+    },
   }
 }
 
@@ -142,6 +193,23 @@ describe('the app on a device whose IndexedDB fails or is slow', () => {
 
     const { page } = await openDay(openingLate(storage, 3500), true)
     await vi.advanceTimersByTimeAsync(4000)
+
+    assert.strictEqual((await page)?.day.note, 'Onsen at 18:00.')
+  })
+
+  it('keeps a Day once the disk has room again, though reading it again finds it unchanged', async () => {
+    const storage = new IDBFactory()
+    const disk = fullDisk(storage)
+    getDay.mockResolvedValue(dayPage(december(14), 'Onsen at 18:00.'))
+    const online = await openDay(disk)
+    await online.page
+    await online.saved()
+
+    disk.free()
+    await online.loadDay()
+    await online.saved()
+    onlineManager.setOnline(false)
+    const { page } = await openDay(storage)
 
     assert.strictEqual((await page)?.day.note, 'Onsen at 18:00.')
   })

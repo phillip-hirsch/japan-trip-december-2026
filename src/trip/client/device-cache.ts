@@ -229,20 +229,20 @@ export const keepCacheOnDevice = (
 
   // Notes every query given new data from the start, so nothing read while
   // the restore runs goes unsaved. What the restore itself puts back is
-  // already on the device.
+  // already on the device. Any read also retries changes a failed save left
+  // unwritten, even when it finds the data unchanged.
   const noteNewData = ({ type, query }: QueryCacheNotifyEvent) => {
     if (type !== 'added' && type !== 'updated') return
 
     const { data } = query.state
 
-    if (data === undefined || noted.get(query.queryHash) === data) return
+    if (data !== undefined && noted.get(query.queryHash) !== data) {
+      noted.set(query.queryHash, data)
 
-    noted.set(query.queryHash, data)
+      if (!restoring) changed.add(query.queryHash)
+    }
 
-    if (restoring) return
-
-    changed.add(query.queryHash)
-    save()
+    if (changed.size > 0) save()
   }
 
   queryClient.getQueryCache().subscribe(noteNewData)
