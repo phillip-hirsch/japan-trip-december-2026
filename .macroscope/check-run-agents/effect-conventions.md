@@ -10,6 +10,8 @@ tools:
 include:
   - 'src/**/*.ts'
   - 'src/**/*.tsx'
+  - 'wrangler.jsonc'
+  - 'cloudflare.config.ts'
 exclude:
   - '**/*.gen.ts'
 maxBudgetPerRun: 1
@@ -34,7 +36,7 @@ Schema and the Effect runtime cost about 75 KB gzip in the browser bundle, so th
 
 ## Imports and placement
 
-- Imports from another folder under `src/` use the `@/` alias, not `../` paths.
+- Every import of a module under `src/` uses the `@/` alias, including same-folder siblings (`@/trip/trip/Trip.shared`, not `./Trip.shared`).
 - `src/trip` has one folder per service (`trip`, `trip-store`, `schedule-store`, `itineraries`, `detail-tiles`, `location-links`) plus `domain`, `catalogue` and `client`. Flag a new module loose in `src/trip` or in a folder whose service does not own it.
 
 ## Split modules
@@ -52,6 +54,7 @@ Every Trip write to the Schedule store is its own input checks plus one call to 
 
 - Flag a write that opens its own transaction, checks that the Schedule is current itself, records or replays an operation id itself, or writes to the Schedule store outside that unit.
 - Flag a write that catches storage failures and turns them into typed errors; the unit turns them into defects.
+- A new write is added to `src/trip/trip/Trip.schedule-writes.test.ts`, which covers the unit for every write; its feature test then needs just one Schedule changed case.
 
 ## Services, functions and errors
 
@@ -59,6 +62,7 @@ Every Trip write to the Schedule store is its own input checks plus one call to 
 - A service operation that names a span, through `Effect.fn` or `Effect.withSpan`, names it `'Service.operation'`, such as `'Trip.writeDayNote'`. Flag a name that does not match the operation. Plain effect-returning functions and `Effect.fnUntraced` helpers are fine.
 - Domain failures are `Schema.TaggedError` classes.
 - Server code reads Cloudflare bindings with `import { env } from 'cloudflare:workers'`. Flag other ways of reaching the Worker environment.
+- `wrangler.jsonc` and `cloudflare.config.ts` declare the same bindings. When a PR changes the bindings in one, flag it unless the other matches and the PR also regenerates `worker-configuration.d.ts`.
 
 ## Change discipline
 
