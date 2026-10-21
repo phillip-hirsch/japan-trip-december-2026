@@ -39,14 +39,19 @@ const refetchOnReturn = (queryClient: QueryClient) => {
   })
 }
 
+/**
+ * Offline, a page opens on stored data, such as a Day the Schedule snapshot
+ * filled but never shown. So the cache keeps unused queries, however long the
+ * app stays open.
+ */
+export const queryDefaults = { gcTime: Infinity } as const
+
 export const createQueryClient = () => {
-  // Offline, a page opens on stored data, such as a Day the Schedule snapshot
-  // filled but never shown. So the cache keeps unused queries, and in the
-  // browser it outlasts the app on the device.
   const queryClient = new QueryClient({
-    defaultOptions: { queries: { gcTime: Infinity } },
+    defaultOptions: { queries: queryDefaults },
   })
 
+  // In the browser the cache also outlasts the app, on the device.
   if (typeof window !== 'undefined') {
     refetchOnReturn(queryClient)
     keepCacheOnDevice(queryClient)

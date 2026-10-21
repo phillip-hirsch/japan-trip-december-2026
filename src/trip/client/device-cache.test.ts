@@ -21,7 +21,12 @@ import {
   reportConnection,
 } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
-import { testQueryClient } from '@/trip/client/hook-testing'
+import {
+  outcomeOf,
+  serverOutOfReach,
+  settle,
+  testQueryClient,
+} from '@/trip/client/hook-testing'
 import {
   dayQuery,
   loadQuery,
@@ -35,7 +40,11 @@ import {
 } from '@/trip/client/snapshot-testing'
 import { december } from '@/trip/domain/domain'
 import type { IsoDate } from '@/trip/domain/domain'
-import { getDay, getScheduleSnapshot } from '@/trip/trip/trip.functions'
+import {
+  getDay,
+  getSchedules,
+  getScheduleSnapshot,
+} from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({
   getDay: vi.fn(),
@@ -43,13 +52,9 @@ vi.mock('@/trip/trip/trip.functions', () => ({
   getScheduleSnapshot: vi.fn(),
 }))
 
-/** Lets pending reads answer and the renders they cause finish. */
-const settle = () =>
-  act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
-
 interface Opening {
   /** The version of the data the app keeps. */
-  readonly version?: string
+  readonly version?: number
   /** What a page the server rendered carries. */
   readonly serverRendered?: DehydratedState
   /** The Day on screen, if any. */
@@ -98,29 +103,38 @@ const openApp = async ({ version, serverRendered, shownDay }: Opening = {}) => {
     queryClient,
     /** Closes the app fully, once what it keeps is on the device. */
     close: async () => {
-      await kept.saved()
+      await act(() => kept.saved())
       await act(async () => root.unmount())
     },
   }
 }
 
-/** A read that never reaches the server, as the transport reports it. */
-const serverOutOfReach = async (): Promise<never> => {
-  reportConnection(offline)
-  throw new TypeError('Failed to fetch')
-}
+type App = Awaited<ReturnType<typeof openApp>>
 
 const goOffline = () => {
   onlineManager.setOnline(false)
   reportConnection(offline)
 }
 
-/** Whether a loader's read answers or fails. */
-const outcomeOf = (read: Promise<unknown>) =>
-  read.then(
-    () => 'answered',
-    () => 'failed',
+/** The Day note December 14 opens with, offline. */
+const dayNoteOffline = async (app: App) =>
+  (await loadQuery(app.queryClient, dayQuery(december(14))))?.day.note
+
+/** A server-rendered page that carries December 14 with `note`. */
+const serverRenderedWith = (note: string) => {
+  const server = testQueryClient()
+  server.setQueryData(
+    dayQuery(december(14)).queryKey,
+    dayPage(december(14), note),
   )
+
+  return dehydrate(server)
+}
+
+const answerNoSnapshot = () =>
+  vi.mocked(getScheduleSnapshot).mockImplementation(() => new Promise(() => {}))
+
+const tokyoTime = (iso: string) => new Date(`${iso}+09:00`)
 
 afterEach(async () => {
   vi.useRealTimers()
@@ -131,7 +145,7 @@ afterEach(async () => {
   vi.mocked(getDay).mockReset()
 })
 
-describe('the cache kept on the device', () => {
+describe('what the device keeps', () => {
   it('opens the Schedules and any Day offline after the app was closed', async () => {
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
     await (await openApp()).close()
@@ -142,49 +156,70 @@ describe('the cache kept on the device', () => {
     assert.deepStrictEqual(
       {
         tripNote: (await loadQuery(app.queryClient, schedulesQuery)).tripNote,
-        dayNote: (await loadQuery(app.queryClient, dayQuery(december(14))))?.day
-          .note,
+        dayNote: await dayNoteOffline(app),
       },
       { tripNote: 'Pack light.', dayNote: 'Onsen at 18:00.' },
     )
     await app.close()
   })
 
-  it('still opens any Day offline on the last evening of the Trip, kept since October', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date('2026-10-21T09:00:00+09:00'))
+  it('still opens any Day offline on the last evening of the Trip, with the app open unused since October and after it was closed', async () => {
+    vi.useFakeTimers({
+      toFake: ['Date', 'setTimeout', 'clearTimeout'],
+      shouldAdvanceTime: true,
+    })
+    vi.setSystemTime(tokyoTime('2026-10-21T09:00:00'))
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
-    await (await openApp()).close()
+    const october = await openApp()
 
-    vi.setSystemTime(new Date('2026-12-20T23:30:00+09:00'))
     goOffline()
-    const app = await openApp()
-
-    assert.strictEqual(
-      (await loadQuery(app.queryClient, dayQuery(december(14))))?.day.note,
-      'Onsen at 18:00.',
+    await act(() =>
+      vi.advanceTimersByTimeAsync(
+        tokyoTime('2026-12-20T23:30:00').getTime() - Date.now(),
+      ),
     )
-    await app.close()
+    const whileOpen = await dayNoteOffline(october)
+    await october.close()
+    const reopened = await openApp()
+
+    assert.deepStrictEqual(
+      { whileOpen, reopened: await dayNoteOffline(reopened) },
+      { whileOpen: 'Onsen at 18:00.', reopened: 'Onsen at 18:00.' },
+    )
+    await reopened.close()
   })
 
   it('keeps the Day the first server-rendered page carried, though no snapshot answered', async () => {
-    vi.mocked(getScheduleSnapshot).mockImplementation(
-      () => new Promise(() => {}),
-    )
-    const server = testQueryClient()
-    server.setQueryData(
-      dayQuery(december(7)).queryKey,
-      dayPage(december(7), 'Arrive at Haneda.'),
-    )
-    await (await openApp({ serverRendered: dehydrate(server) })).close()
+    answerNoSnapshot()
+    await (
+      await openApp({ serverRendered: serverRenderedWith('Arrive at Haneda.') })
+    ).close()
 
     goOffline()
     const app = await openApp()
 
-    assert.strictEqual(
-      (await loadQuery(app.queryClient, dayQuery(december(7))))?.day.note,
-      'Arrive at Haneda.',
-    )
+    assert.strictEqual(await dayNoteOffline(app), 'Arrive at Haneda.')
+    await app.close()
+  })
+
+  it('opens the Day the server rendered, not an older kept one, though the device clock runs ahead', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    // The device's clock runs two hours fast.
+    vi.setSystemTime(tokyoTime('2026-10-22T09:00:00'))
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+    await (await openApp()).close()
+
+    // An hour later, the server renders December 14 by its own clock.
+    vi.setSystemTime(tokyoTime('2026-10-22T08:00:00'))
+    answerNoSnapshot()
+
+    const app = await openApp({
+      serverRendered: serverRenderedWith('Onsen moved to 20:00.'),
+    })
+
+    goOffline()
+
+    assert.strictEqual(await dayNoteOffline(app), 'Onsen moved to 20:00.')
     await app.close()
   })
 
@@ -206,24 +241,65 @@ describe('the cache kept on the device', () => {
     goOffline()
     const app = await openApp()
 
-    assert.strictEqual(
-      (await loadQuery(app.queryClient, dayQuery(december(14))))?.day.note,
-      'Onsen at 18:00.',
+    assert.strictEqual(await dayNoteOffline(app), 'Onsen at 18:00.')
+    await app.close()
+  })
+
+  it('keeps the Day a later app saved when an earlier one, still open in another tab, saves after it', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(tokyoTime('2026-10-21T09:00:00'))
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+    const earlier = await openApp()
+
+    vi.setSystemTime(tokyoTime('2026-10-21T10:00:00'))
+    answerSnapshot(snapshotWith('Onsen moved to 20:00.'))
+    await (await openApp()).close()
+
+    vi.setSystemTime(tokyoTime('2026-10-21T11:00:00'))
+    vi.mocked(getSchedules).mockResolvedValue(
+      snapshotWith('Onsen at 18:00.').schedules,
     )
+    await loadQuery(earlier.queryClient, schedulesQuery)
+    await earlier.close()
+
+    goOffline()
+    const app = await openApp()
+
+    assert.strictEqual(await dayNoteOffline(app), 'Onsen moved to 20:00.')
     await app.close()
   })
 
   it('discards what an older version of the app kept, instead of reading it', async () => {
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
-    await (await openApp({ version: '1' })).close()
+    await (await openApp({ version: 1 })).close()
 
     goOffline()
-    const app = await openApp({ version: '2' })
+    const app = await openApp({ version: 2 })
 
     assert.strictEqual(
       await outcomeOf(loadQuery(app.queryClient, dayQuery(december(14)))),
       'failed',
     )
+    await app.close()
+  })
+
+  it('keeps what a newer version kept when an older version, still open in another tab, saves after it', async () => {
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+    const older = await openApp({ version: 1 })
+
+    answerSnapshot(snapshotWith('Onsen moved to 20:00.'))
+    await (await openApp({ version: 2 })).close()
+
+    vi.mocked(getSchedules).mockResolvedValue(
+      snapshotWith('Onsen at 18:00.').schedules,
+    )
+    await loadQuery(older.queryClient, schedulesQuery)
+    await older.close()
+
+    goOffline()
+    const app = await openApp({ version: 2 })
+
+    assert.strictEqual(await dayNoteOffline(app), 'Onsen moved to 20:00.')
     await app.close()
   })
 })

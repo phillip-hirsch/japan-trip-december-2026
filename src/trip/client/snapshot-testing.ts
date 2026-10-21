@@ -1,8 +1,8 @@
 import { vi } from 'vite-plus/test'
 
-import { scheduleId } from '@/trip/client/editor-testing'
+import { currentSchedule, scheduleId } from '@/trip/client/editor-testing'
 import { tripDates } from '@/trip/domain/calendar'
-import { december, IsoInstant } from '@/trip/domain/domain'
+import { december } from '@/trip/domain/domain'
 import type { DayPage, IsoDate, ScheduleSnapshot } from '@/trip/domain/domain'
 import { getScheduleSnapshot } from '@/trip/trip/trip.functions'
 
@@ -28,20 +28,7 @@ export const snapshotWith = (dayNote: string): ScheduleSnapshot => {
 
   return {
     schedules: {
-      current: {
-        id: scheduleId,
-        status: 'current',
-        sourceOptionNumber: 1,
-        sourceContentVersion: 'v1',
-        chosenAt: IsoInstant.make('2026-10-01T00:00:00.000Z'),
-        archivedAt: null,
-        birthdayOutline: '',
-        sourceItinerary: 'unchanged',
-        verifyClaims: [],
-        stays: [],
-        days: days.map(({ day }) => day),
-        anchorWarnings: [],
-      },
+      current: currentSchedule({ days: days.map(({ day }) => day) }),
       archived: [],
       tripNote: 'Pack light.',
     },

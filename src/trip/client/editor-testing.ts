@@ -24,6 +24,7 @@ import {
 } from '@/trip/domain/domain'
 import type {
   AnchorWarning,
+  ScheduleDetail,
   ScheduleStayDetail,
   StayEditOffers,
 } from '@/trip/domain/domain'
@@ -176,10 +177,32 @@ export const openEditor = async <P extends object, F>(
   }
 }
 
-/** The Schedule shown, in the Stay edit tests. */
+/** Phillip's current Schedule, in the hook tests. */
 export const scheduleId = ScheduleId.make(
   '00000000-0000-4000-8000-00000000000a',
 )
+
+/**
+ * Phillip's current Schedule, copied from Option 1, with no Stays, Days or
+ * Anchor warnings unless `fields` gives them.
+ */
+export const currentSchedule = (
+  fields: Partial<ScheduleDetail> = {},
+): ScheduleDetail => ({
+  id: scheduleId,
+  status: 'current',
+  sourceOptionNumber: 1,
+  sourceContentVersion: 'v1',
+  chosenAt: IsoInstant.make('2026-10-01T00:00:00.000Z'),
+  archivedAt: null,
+  birthdayOutline: '',
+  sourceItinerary: 'unchanged',
+  verifyClaims: [],
+  stays: [],
+  days: [],
+  anchorWarnings: [],
+  ...fields,
+})
 
 /**
  * A Stay of the Schedule shown, in `base` from December `checkIn` to
@@ -210,18 +233,5 @@ export const staysEdited = (
   anchorWarnings: ReadonlyArray<AnchorWarning> = [],
 ): StayEditOutcome =>
   StayEditOutcome.cases.Edited.make({
-    schedule: {
-      id: scheduleId,
-      status: 'current',
-      sourceOptionNumber: 1,
-      sourceContentVersion: 'v1',
-      chosenAt: IsoInstant.make('2026-10-01T00:00:00.000Z'),
-      archivedAt: null,
-      birthdayOutline: '',
-      sourceItinerary: 'unchanged',
-      verifyClaims: [],
-      stays: [],
-      days: [],
-      anchorWarnings,
-    },
+    schedule: currentSchedule({ anchorWarnings }),
   })

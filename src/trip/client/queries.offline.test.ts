@@ -11,7 +11,12 @@ import {
 } from '@/access/connection-status'
 import { useDayNote } from '@/components/notes'
 import { deferred, openEditor, scheduleId } from '@/trip/client/editor-testing'
-import { testQueryClient } from '@/trip/client/hook-testing'
+import {
+  outcomeOf,
+  serverOutOfReach,
+  settle,
+  testQueryClient,
+} from '@/trip/client/hook-testing'
 import {
   dayQuery,
   loadQuery,
@@ -40,14 +45,7 @@ vi.mock('@/trip/trip/trip.functions', () => ({
 
 /** A Day read that never reaches the server, as the transport reports it. */
 const answerDayOffline = () =>
-  vi.mocked(getDay).mockImplementation(async () => {
-    reportConnection(offline)
-    throw new TypeError('Failed to fetch')
-  })
-
-/** Lets pending reads answer and the renders they cause finish. */
-const settle = () =>
-  act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
+  vi.mocked(getDay).mockImplementation(serverOutOfReach)
 
 /**
  * The app keeping the Schedule snapshot, as its root does, on December 7's
@@ -84,13 +82,6 @@ const saveDayNote = async (app: App) => {
   await act(() => app.field().save())
   await settle()
 }
-
-/** Whether a loader's read answers or fails. */
-const outcomeOf = (read: Promise<unknown>) =>
-  read.then(
-    () => 'answered',
-    () => 'failed',
-  )
 
 afterEach(() => {
   localStorage.clear()
