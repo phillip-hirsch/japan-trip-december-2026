@@ -51,7 +51,7 @@ export const createQueryClient = () => {
     defaultOptions: { queries: queryDefaults },
   })
 
-  // In the browser the cache also outlasts the app, on the device.
+  // In the browser the device also keeps the cache after the app closes.
   if (typeof window !== 'undefined') {
     refetchOnReturn(queryClient)
     keepCacheOnDevice(queryClient)

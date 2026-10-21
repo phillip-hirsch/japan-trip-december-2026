@@ -322,8 +322,8 @@ const storeSnapshot = (
 
 const scheduleSnapshotQuery = queryOptions({
   queryKey: keys.scheduleSnapshot,
-  // The device keeps what it stores, so keeping the snapshot too would be a
-  // second copy.
+  // The device keeps the Schedules, Days and Checklist the snapshot stores,
+  // so keeping the snapshot too would store a second copy.
   meta: { kept: false },
   queryFn: async ({ client, signal }) => {
     const started = startRead()

@@ -65,10 +65,10 @@ interface Opening {
 }
 
 /**
- * Opens the app from cold, as the Home Screen app does: a new cache that
- * keeps what it holds on the device, and a root that keeps the Schedule
- * snapshot. The router puts what a server-rendered page carries in the
- * cache before the app renders.
+ * Opens the app from cold, as the Home Screen app does. It makes a new cache
+ * that keeps what it holds on the device, and renders a root that keeps the
+ * Schedule snapshot. The router puts what a server-rendered page carries in
+ * the cache before the app renders.
  */
 const openApp = async ({
   version,
@@ -270,7 +270,7 @@ describe('what the device keeps', () => {
   })
 
   it('keeps the Day a later app saved when an earlier one, still open in another tab, saves after it, even in the same millisecond', async () => {
-    // Every read in this test is dated the same moment.
+    // The clock stands still, so every read in this test gets the same date.
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(tokyoTime('2026-10-21T09:00:00'))
     answerSnapshot(snapshotWith('Onsen at 18:00.'))

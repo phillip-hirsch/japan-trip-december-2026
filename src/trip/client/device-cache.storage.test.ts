@@ -7,7 +7,7 @@ import { vi } from 'vite-plus/test'
 import { dayPage } from '@/trip/client/snapshot-testing'
 import { december } from '@/trip/domain/domain'
 
-// The same mock on every fresh page, so each page reads December 14 here.
+// Every fresh page gets this same mock, so each page reads December 14 here.
 const { getDay } = vi.hoisted(() => ({ getDay: vi.fn() }))
 
 vi.mock('@/trip/trip/trip.functions', () => ({
@@ -15,7 +15,7 @@ vi.mock('@/trip/trip/trip.functions', () => ({
   getScheduleSnapshot: vi.fn(),
 }))
 
-/** The part of the browser's IndexedDB the app uses: opening a database. */
+/** The one part of the browser's IndexedDB the app calls, `open`. */
 interface BrowserIndexedDB {
   readonly open: (name: string) => object
 }

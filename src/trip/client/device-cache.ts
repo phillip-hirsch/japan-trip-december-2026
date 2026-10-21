@@ -19,7 +19,7 @@ declare module '@tanstack/react-query' {
 
 /**
  * The version of the data the app keeps on the device. Bump it whenever a
- * kept query's key or data changes shape: the app then discards what an
+ * kept query's key or data changes shape. The app then discards what an
  * older version kept instead of reading it.
  */
 export const keptDataVersion = 1
@@ -30,14 +30,14 @@ const storageKey = 'query-cache'
 let database: UseStore | undefined
 
 /**
- * The IndexedDB store, opened on first use. A browser that refuses
- * IndexedDB throws here, so the next use tries again.
+ * The IndexedDB store, which the app opens on first use. A browser that
+ * refuses IndexedDB throws here, so the next use tries again.
  */
 const keptStore = () => (database ??= createStore('keyval-store', 'keyval'))
 
 /**
  * How long a loader waits for the restore. Reading IndexedDB takes
- * milliseconds, and one that hasn't answered in time may never answer.
+ * milliseconds, and a read that hasn't answered by then may never answer.
  * Online the network can answer instead, so a loader waits briefly. Offline
  * only the restore can, so it waits longer.
  */
@@ -65,10 +65,11 @@ const within = (done: Promise<void>, ms: number) =>
   })
 
 /**
- * While `queryClient` is restoring what the device kept, resolves once it
- * holds it, or once a loader has waited long enough, `offline` or not.
- * Undefined once restored, or when the cache isn't kept. A loader waits for
- * it before reading the cache.
+ * While `queryClient` restores what the device kept, a promise that resolves
+ * when the restore ends or when a loader has waited as long as it may,
+ * whichever comes first. `offline` picks the longer wait. Undefined once the
+ * restore has ended, or when the app doesn't keep this cache. A loader waits
+ * for it before it reads the cache.
  */
 export const deviceCacheRestoring = (
   queryClient: QueryClient,
@@ -91,9 +92,9 @@ const isKept = (query: Query) =>
   query.state.data !== undefined && query.meta?.kept !== false
 
 /**
- * Each kept query's data as last read, without any failed read since, whose
- * error IndexedDB may not store. Writes aren't kept, because none is sent
- * offline.
+ * Each kept query's data as last read. It leaves out any failed read since
+ * then, because IndexedDB may refuse to store its error. The device keeps no
+ * writes, because the app sends none offline.
  */
 const keptQueries = (queryClient: QueryClient): ReadonlyArray<KeptQuery> =>
   dehydrate(queryClient, {
@@ -110,14 +111,17 @@ const keptQueries = (queryClient: QueryClient): ReadonlyArray<KeptQuery> =>
   }))
 
 /**
- * What the device keeps after this app saves `queries` over `stored`, which
- * another tab may have saved since. A newer version's data stays as it is,
- * and an older version's is discarded. Otherwise the app writes the queries
- * it `changed` since its last save, and the rest only where the device
- * keeps nothing for them, so it never undoes another tab's newer save. Two
- * tabs reading the same query from the network at about the same time, such
- * as one opening while the other saves, keep whichever saves last; the next
- * read of it settles that.
+ * What the device keeps after this app saves `queries` over `stored`.
+ * Another tab may have saved `stored` since this app last read it.
+ *
+ * The app leaves a newer version's data as it is and discards an older
+ * version's. Otherwise it writes the queries it `changed` since its last
+ * save, and the others only where the device keeps nothing for them. So it
+ * never undoes another tab's newer save.
+ *
+ * When two tabs read the same query from the network at about the same
+ * time, such as one opening while the other saves, the device keeps the copy
+ * saved last. The next read of that query replaces it.
  */
 const savedOver = (
   stored: KeptCache | undefined,
@@ -157,7 +161,7 @@ const askForPersistentStorage = async () => {
  * Day open offline after the app was closed. It first restores what the
  * device kept under `version`, then saves what changes. Nothing kept
  * expires. Without IndexedDB, the app works as it would online. Call it on
- * a new cache, before anything is stored in it.
+ * a new cache, before the app stores anything in it.
  */
 export const keepCacheOnDevice = (
   queryClient: QueryClient,
@@ -165,14 +169,14 @@ export const keepCacheOnDevice = (
 ) => {
   // The queries this app gave new data since its last save.
   let changed = new Set<string>()
-  // The data each query held when last noted, so an answer that leaves it
-  // as it was, such as a read the read order turned down, changes nothing.
+  // The data each query held when last noted. An answer that leaves the data
+  // as it was, such as a read the read order turned down, is no change.
   const noted = new Map<string, unknown>()
   let restoring = false
   let saveQueued = false
 
-  // Started in a callback, so a browser that refuses IndexedDB outright
-  // fails the restore instead of the app.
+  // The restore starts in a callback, so a browser that refuses IndexedDB
+  // outright fails the restore instead of the app.
   const restored = Promise.resolve()
     .then(() => get<KeptCache>(storageKey, keptStore()))
     .then((stored) => {
@@ -193,7 +197,8 @@ export const keepCacheOnDevice = (
         restoring = false
       }
     })
-    // Unreadable, it counts as nothing kept.
+    // If IndexedDB can't read what the device kept, the app treats it as
+    // nothing kept.
     .catch(() => undefined)
 
   // Saves start once the restore ends, so the first one merges with what the
