@@ -21,6 +21,7 @@ import {
   reportConnection,
 } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
+import { deferred } from '@/trip/client/editor-testing'
 import {
   outcomeOf,
   serverOutOfReach,
@@ -39,7 +40,7 @@ import {
   snapshotWith,
 } from '@/trip/client/snapshot-testing'
 import { december } from '@/trip/domain/domain'
-import type { IsoDate } from '@/trip/domain/domain'
+import type { DayPage, IsoDate, ScheduleSnapshot } from '@/trip/domain/domain'
 import {
   getDay,
   getSchedules,
@@ -59,6 +60,8 @@ interface Opening {
   readonly serverRendered?: DehydratedState
   /** The Day on screen, if any. */
   readonly shownDay?: IsoDate
+  /** Runs as the restore puts the first kept Day back. */
+  readonly onRestoringDay?: () => void
 }
 
 /**
@@ -67,8 +70,23 @@ interface Opening {
  * snapshot. The router puts what a server-rendered page carries in the
  * cache before the app renders.
  */
-const openApp = async ({ version, serverRendered, shownDay }: Opening = {}) => {
+const openApp = async ({
+  version,
+  serverRendered,
+  shownDay,
+  onRestoringDay,
+}: Opening = {}) => {
   const queryClient = testQueryClient()
+
+  if (onRestoringDay !== undefined) {
+    const stop = queryClient.getQueryCache().subscribe(({ type, query }) => {
+      if (type !== 'added' || query.queryKey[0] !== 'days') return
+
+      stop()
+      onRestoringDay()
+    })
+  }
+
   const kept = keepCacheOnDevice(queryClient, version)
 
   if (serverRendered !== undefined) hydrate(queryClient, serverRendered)
@@ -266,6 +284,55 @@ describe('what the device keeps', () => {
     )
     await loadQuery(earlier.queryClient, schedulesQuery)
     await earlier.close()
+
+    goOffline()
+    const app = await openApp()
+
+    assert.strictEqual(await dayNoteOffline(app), 'Onsen moved to 20:00.')
+    await app.close()
+  })
+
+  it('keeps the Day another tab saved when a read of that Day from before answers late here', async () => {
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+    const earlier = await openApp()
+    const lateRead = deferred<DayPage>()
+    vi.mocked(getDay).mockImplementation(() => lateRead.promise)
+    const reading = loadQuery(earlier.queryClient, dayQuery(december(14)))
+    // Focus reads the snapshot after that read started, so its Day counts
+    // as the later read.
+    await act(async () => {
+      focusManager.setFocused(false)
+      focusManager.setFocused(true)
+    })
+    await settle()
+
+    answerSnapshot(snapshotWith('Onsen moved to 20:00.'))
+    await (await openApp()).close()
+    await act(async () =>
+      lateRead.resolve(dayPage(december(14), 'Onsen at 17:00.')),
+    )
+    await reading
+    await earlier.close()
+
+    goOffline()
+    const app = await openApp()
+
+    assert.strictEqual(await dayNoteOffline(app), 'Onsen moved to 20:00.')
+    await app.close()
+  })
+
+  it('keeps what a snapshot stores as the restore puts kept Days back', async () => {
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+    await (await openApp()).close()
+
+    const snapshot = deferred<ScheduleSnapshot>()
+    vi.mocked(getScheduleSnapshot).mockImplementation(() => snapshot.promise)
+    await (
+      await openApp({
+        onRestoringDay: () =>
+          snapshot.resolve(snapshotWith('Onsen moved to 20:00.')),
+      })
+    ).close()
 
     goOffline()
     const app = await openApp()

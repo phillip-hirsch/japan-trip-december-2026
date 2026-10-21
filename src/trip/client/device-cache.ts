@@ -109,18 +109,15 @@ const keptQueries = (queryClient: QueryClient): ReadonlyArray<KeptQuery> =>
     },
   }))
 
-/** Whether `event` gives a query data: a read, a write or a restore. */
-const storesData = (event: QueryCacheNotifyEvent) =>
-  event.type === 'added' ||
-  (event.type === 'updated' &&
-    (event.action.type === 'success' || event.action.type === 'setState'))
-
 /**
  * What the device keeps after this app saves `queries` over `stored`, which
  * another tab may have saved since. A newer version's data stays as it is,
  * and an older version's is discarded. Otherwise the app writes the queries
  * it `changed` since its last save, and the rest only where the device
- * keeps nothing for them, so it never undoes another tab's newer save.
+ * keeps nothing for them, so it never undoes another tab's newer save. Two
+ * tabs reading the same query from the network at about the same time, such
+ * as one opening while the other saves, keep whichever saves last; the next
+ * read of it settles that.
  */
 const savedOver = (
   stored: KeptCache | undefined,
@@ -159,16 +156,49 @@ const askForPersistentStorage = async () => {
  * Keeps the cache of `queryClient` in IndexedDB, so the Schedule and every
  * Day open offline after the app was closed. It first restores what the
  * device kept under `version`, then saves what changes. Nothing kept
- * expires. Without IndexedDB, the app works as it would online.
+ * expires. Without IndexedDB, the app works as it would online. Call it on
+ * a new cache, before anything is stored in it.
  */
 export const keepCacheOnDevice = (
   queryClient: QueryClient,
   version = keptDataVersion,
 ) => {
-  let saving = Promise.resolve()
-  let saveQueued = false
-  // The queries this app gave data since its last save.
+  // The queries this app gave new data since its last save.
   let changed = new Set<string>()
+  // The data each query held when last noted, so an answer that leaves it
+  // as it was, such as a read the read order turned down, changes nothing.
+  const noted = new Map<string, unknown>()
+  let restoring = false
+  let saveQueued = false
+
+  // Started in a callback, so a browser that refuses IndexedDB outright
+  // fails the restore instead of the app.
+  const restored = Promise.resolve()
+    .then(() => get<KeptCache>(storageKey, keptStore()))
+    .then((stored) => {
+      if (stored?.version !== version) return
+
+      // What the app read before the restore ended, such as the data the
+      // server rendered into the page, is newer than anything kept, so the
+      // restore fills only queries without data.
+      restoring = true
+
+      try {
+        hydrate(queryClient, {
+          queries: stored.cache.queries.filter(
+            (query) => queryClient.getQueryData(query.queryKey) === undefined,
+          ),
+        })
+      } finally {
+        restoring = false
+      }
+    })
+    // Unreadable, it counts as nothing kept.
+    .catch(() => undefined)
+
+  // Saves start once the restore ends, so the first one merges with what the
+  // device kept instead of replacing it.
+  let saving = restored
 
   // One save holds every change made before it starts, so a burst of
   // changes, such as a snapshot storing every Day, is one write.
@@ -197,42 +227,28 @@ export const keepCacheOnDevice = (
     })
   }
 
-  // What the app holds when the restore ends, such as the data the server
-  // rendered into the page, is newer than anything kept, whichever clock
-  // dated each. So the restore fills only queries without data, and the
-  // first save writes the rest over what the device keeps.
-  const markHeld = () => {
-    for (const query of queryClient.getQueryCache().getAll()) {
-      if (isKept(query)) changed.add(query.queryHash)
-    }
+  // Notes every query given new data from the start, so nothing read while
+  // the restore runs goes unsaved. What the restore itself puts back is
+  // already on the device.
+  const noteNewData = ({ type, query }: QueryCacheNotifyEvent) => {
+    if (type !== 'added' && type !== 'updated') return
+
+    const { data } = query.state
+
+    if (data === undefined || noted.get(query.queryHash) === data) return
+
+    noted.set(query.queryHash, data)
+
+    if (restoring) return
+
+    changed.add(query.queryHash)
+    save()
   }
 
-  // Started in a callback, so a browser that refuses IndexedDB outright
-  // fails the restore instead of the app.
-  const restored = Promise.resolve()
-    .then(() => get<KeptCache>(storageKey, keptStore()))
-    .then((stored) => {
-      markHeld()
-
-      if (stored?.version !== version) return
-
-      hydrate(queryClient, {
-        queries: stored.cache.queries.filter(
-          (query) => queryClient.getQueryData(query.queryKey) === undefined,
-        ),
-      })
-    })
-    // Unreadable, it counts as nothing kept.
-    .catch(markHeld)
-    .then(() => {
-      queryClient.getQueryCache().subscribe((event) => {
-        if (!storesData(event)) return
-
-        changed.add(event.query.queryHash)
-        save()
-      })
-      save()
-    })
+  queryClient.getQueryCache().subscribe(noteNewData)
+  // Also writes what the device keeps nothing for, such as after a new
+  // version discarded what an older one kept.
+  save()
 
   restores.set(queryClient, restored)
   void restored.then(() => restores.delete(queryClient))
@@ -240,6 +256,6 @@ export const keepCacheOnDevice = (
 
   return {
     /** Resolves once every change made so far is on the device. */
-    saved: () => restored.then(() => saving),
+    saved: () => saving,
   }
 }

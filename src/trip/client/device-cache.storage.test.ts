@@ -22,14 +22,20 @@ interface BrowserIndexedDB {
 
 /**
  * Opens the app on a fresh page, as a reload does, on a browser whose
- * IndexedDB is `storage`, and loads December 14 as its page does.
+ * IndexedDB is `storage`, and loads December 14 as its page does. With
+ * `outOfReach`, the page's reads never reach the server.
  */
-const openDay = async (storage: BrowserIndexedDB) => {
+const openDay = async (storage: BrowserIndexedDB, outOfReach = false) => {
   vi.stubGlobal('indexedDB', storage)
   vi.resetModules()
   const { keepCacheOnDevice } = await import('@/trip/client/device-cache')
-  const { testQueryClient } = await import('@/trip/client/hook-testing')
+
+  const { serverOutOfReach, testQueryClient } =
+    await import('@/trip/client/hook-testing')
+
   const { dayQuery, loadQuery } = await import('@/trip/client/queries')
+
+  if (outOfReach) getDay.mockImplementation(serverOutOfReach)
   const queryClient = testQueryClient()
   const kept = keepCacheOnDevice(queryClient)
 
@@ -118,6 +124,23 @@ describe('the app on a device whose IndexedDB fails or is slow', () => {
 
     onlineManager.setOnline(false)
     const { page } = await openDay(openingLate(storage, 3500))
+    await vi.advanceTimersByTimeAsync(4000)
+
+    assert.strictEqual((await page)?.day.note, 'Onsen at 18:00.')
+  })
+
+  it('opens a kept Day from cold offline when IndexedDB answers late, though the app learns it is offline only when its read fails', async () => {
+    vi.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout'],
+      shouldAdvanceTime: true,
+    })
+    const storage = new IDBFactory()
+    getDay.mockResolvedValue(dayPage(december(14), 'Onsen at 18:00.'))
+    const online = await openDay(storage)
+    await online.page
+    await online.saved()
+
+    const { page } = await openDay(openingLate(storage, 3500), true)
     await vi.advanceTimersByTimeAsync(4000)
 
     assert.strictEqual((await page)?.day.note, 'Onsen at 18:00.')
