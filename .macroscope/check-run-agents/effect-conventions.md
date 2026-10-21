@@ -10,7 +10,6 @@ include:
   - 'src/**/*.ts'
   - 'src/**/*.tsx'
 exclude:
-  - 'src/components/ui/**'
   - '**/*.gen.ts'
 maxBudgetPerRun: 1
 maxBudgetPerPR: 3
@@ -23,7 +22,7 @@ Review changed TypeScript under `src/` for the conventions below. Authors read t
 
 ## Browser bundle
 
-Browser code is everything under `src/components/`, `src/routes/`, `src/hooks/`, `src/offline/`, `src/trip/client/` and `src/lib/`, plus anything they import. Schema and the Effect runtime cost about 75 KB gzip there.
+Browser code is everything under `src/components/` (including the owned shadcn/ui components in `src/components/ui/`), `src/routes/`, `src/hooks/`, `src/offline/`, `src/trip/client/` and `src/lib/`, plus anything they import. Test files (`*.test.ts`) never ship and are not browser code. Schema and the Effect runtime cost about 75 KB gzip there.
 
 - Flag a value import from `effect` other than `Predicate`, `Data` or `Match` in browser code. `import type` of anything is fine.
 - Flag a value import of `@/trip/domain/domain` in browser code; it must be `import type`.
