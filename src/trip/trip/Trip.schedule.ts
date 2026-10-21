@@ -25,12 +25,14 @@ import type {
   RestoreSchedule,
   ScheduleDetail,
   ScheduleMap,
+  ScheduleSnapshot,
 } from '@/trip/domain/domain'
 import { Itineraries } from '@/trip/itineraries/Itineraries'
 import { stayForNight } from '@/trip/domain/schedule-copy'
 import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
 import { scheduleStore } from '@/trip/schedule-store/schedule-store'
 import type { ScheduleStore } from '@/trip/schedule-store/schedule-store'
+import { checklistIn } from '@/trip/trip/Trip.checklist'
 import { scheduleWrite } from '@/trip/trip/Trip.guards'
 import { mapOf, summaryOf } from '@/trip/trip/Trip.itinerary'
 import {
@@ -100,34 +102,39 @@ const firstMoveOnOrAfter = (days: ScheduleDetail['days'], date: IsoDate) =>
     )
     .at(0)
 
-const dayPageOf = (schedule: ScheduleDetail, date: IsoDate) =>
+const dayPageFor = (
+  schedule: ScheduleDetail,
+  day: ScheduleDetail['days'][number],
+): DayPage => {
+  const tonight = isDepartureDay(day.date)
+    ? undefined
+    : stayForNight(schedule.stays, day.date)
+
+  const nextMove = firstMoveOnOrAfter(schedule.days, day.date)
+
+  return {
+    scheduleId: schedule.id,
+    day,
+    ...(tonight && {
+      tonight: {
+        id: tonight.id,
+        ...Struct.pick(tonight, [
+          'base',
+          'checkIn',
+          'checkOut',
+          'nights',
+          'hotel',
+        ]),
+      },
+    }),
+    ...(nextMove && { nextMove }),
+  }
+}
+
+const findDayPage = (schedule: ScheduleDetail, date: IsoDate) =>
   Option.map(
     Option.fromUndefinedOr(schedule.days.find((day) => day.date === date)),
-    (day): DayPage => {
-      const tonight = isDepartureDay(date)
-        ? undefined
-        : stayForNight(schedule.stays, date)
-
-      const nextMove = firstMoveOnOrAfter(schedule.days, date)
-
-      return {
-        scheduleId: schedule.id,
-        day,
-        ...(tonight && {
-          tonight: {
-            id: tonight.id,
-            ...Struct.pick(tonight, [
-              'base',
-              'checkIn',
-              'checkOut',
-              'nights',
-              'hotel',
-            ]),
-          },
-        }),
-        ...(nextMove && { nextMove }),
-      }
-    },
+    (day) => dayPageFor(schedule, day),
   )
 
 const homeStateOf = (
@@ -157,14 +164,15 @@ const homeStateOf = (
     ...shared,
     date,
     today: Option.getOrNull(
-      Option.flatMap(schedule, (schedule) => dayPageOf(schedule, date)),
+      Option.flatMap(schedule, (schedule) => findDayPage(schedule, date)),
     ),
   })
 }
 
 /**
  * Choosing and restoring a Schedule, and the reads of the Schedules: one
- * Schedule, every Schedule, the Schedule map and summary, Home and a Day page.
+ * Schedule, every Schedule, the Schedule snapshot, the Schedule map and
+ * summary, Home and a Day page.
  */
 export const scheduleMethods = Effect.gen(function* () {
   const { all } = yield* Itineraries
@@ -252,18 +260,18 @@ export const scheduleMethods = Effect.gen(function* () {
     Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
   )
 
-  const schedules = Effect.gen(function* () {
-    const store = yield* scheduleStore
+  /**
+   * Reads the Schedules inside the caller's transaction. It also returns the
+   * current Schedule as stored, for reads that derive more from it.
+   */
+  const schedulesIn = Effect.fnUntraced(function* (store: ScheduleStore) {
+    const { current, archived, tripNote } = yield* Effect.all({
+      current: store.current,
+      archived: store.archived,
+      tripNote: store.tripNote,
+    })
 
-    const { current, archived, tripNote } = yield* store.transaction(
-      Effect.all({
-        current: store.current,
-        archived: store.archived,
-        tripNote: store.tripNote,
-      }),
-    )
-
-    return {
+    const schedules = {
       current: Option.map(current, scheduleDetail),
       archived,
       ...Option.match(tripNote, {
@@ -271,9 +279,38 @@ export const scheduleMethods = Effect.gen(function* () {
         onSome: (tripNote) => ({ tripNote }),
       }),
     }
+
+    return { schedules, storedCurrent: current }
+  })
+
+  const schedules = Effect.gen(function* () {
+    const store = yield* scheduleStore
+    const { schedules } = yield* store.transaction(schedulesIn(store))
+
+    return schedules
   }).pipe(
     Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
     Effect.withSpan('Trip.schedules'),
+  )
+
+  const scheduleSnapshot = Effect.gen(function* () {
+    const store = yield* scheduleStore
+
+    return yield* store.transaction(
+      Effect.gen(function* () {
+        const { schedules, storedCurrent } = yield* schedulesIn(store)
+        const checklist = yield* checklistIn(store, storedCurrent)
+
+        return Option.map(schedules.current, (current): ScheduleSnapshot => ({
+          schedules: { ...schedules, current },
+          days: current.days.map((day) => dayPageFor(current, day)),
+          checklist,
+        }))
+      }),
+    )
+  }).pipe(
+    Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
+    Effect.withSpan('Trip.scheduleSnapshot'),
   )
 
   const scheduleMap = Effect.gen(function* () {
@@ -315,7 +352,7 @@ export const scheduleMethods = Effect.gen(function* () {
     if (!isTripDate(date)) return yield* new DayNotFound({ date })
     const schedule = yield* currentSchedule
 
-    return Option.flatMap(schedule, (schedule) => dayPageOf(schedule, date))
+    return Option.flatMap(schedule, (schedule) => findDayPage(schedule, date))
   })
 
   return {
@@ -325,6 +362,7 @@ export const scheduleMethods = Effect.gen(function* () {
     restore,
     schedule,
     schedules,
+    scheduleSnapshot,
     scheduleMap,
     scheduleSummary,
   }

@@ -49,6 +49,7 @@ import type {
   ScheduleMap,
   ScheduleNotFound,
   ScheduleRestored,
+  ScheduleSnapshot,
   ScheduleSummary,
   SetPin,
   SplitStay,
@@ -157,6 +158,17 @@ export interface TripContract {
       readonly archived: ReadonlyArray<ArchivedScheduleSummary>
       readonly tripNote?: string
     },
+    never,
+    SqlClient.SqlClient
+  >
+  /**
+   * The current Schedule whole. It holds the Schedules as `schedules` reads
+   * them, every Day page in Trip order and the Checklist with its Ticks, read
+   * as one transaction so nothing in it comes from two moments. None before a
+   * Schedule is chosen.
+   */
+  readonly scheduleSnapshot: Effect.Effect<
+    Option.Option<ScheduleSnapshot>,
     never,
     SqlClient.SqlClient
   >

@@ -189,6 +189,14 @@ export const getSchedules = createServerFn({ method: 'GET' }).handler(
   tripOperationHandler('schedules'),
 )
 
+/**
+ * The current Schedule whole, or null before Phillip chooses one. The browser
+ * fills the Schedule and every Day page from it, so they read offline.
+ */
+export const getScheduleSnapshot = createServerFn({ method: 'GET' }).handler(
+  tripOperationHandler('scheduleSnapshot'),
+)
+
 export const getScheduleMap = createServerFn({ method: 'GET' }).handler(
   tripOperationHandler('scheduleMap'),
 )

@@ -11,12 +11,12 @@ import {
 } from '@/components/schedule-sections'
 import { VerifyClaims } from '@/components/verify-claims'
 import { formatMoment } from '@/trip/domain/calendar'
-import { schedulesQuery } from '@/trip/client/queries'
+import { loadQuery, schedulesQuery } from '@/trip/client/queries'
 import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/schedule/')({
   loader: {
-    handler: ({ context }) => context.queryClient.fetchQuery(schedulesQuery),
+    handler: ({ context }) => loadQuery(context.queryClient, schedulesQuery),
     staleReloadMode: 'blocking',
   },
   head: () => ({ meta: [{ title: pageTitle('Schedule') }] }),

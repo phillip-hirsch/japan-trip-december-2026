@@ -14,6 +14,8 @@ export * from '@/trip/domain/domain.activities'
 
 export * from '@/trip/domain/domain.checklist'
 
+export * from '@/trip/domain/domain.shared'
+
 /** A tile of the web map: its zoom, then its column and row at that zoom. */
 export interface TileCoordinates {
   readonly z: number
