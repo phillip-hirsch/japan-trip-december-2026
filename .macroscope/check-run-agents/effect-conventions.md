@@ -67,7 +67,7 @@ Every Trip write to the Schedule store is its own input checks plus one call to 
 ## Change discipline
 
 - Every new or broadened directive that disables a lint, type-checker or static-analysis diagnostic needs an adjacent comment explaining why. A missing one is a finding.
-- A new or changed behaviour needs a test through a public seam: the Trip service, `runTripOperation` or the Access gate. Behaviour the browser lifecycle owns (mount, unmount, query-cache listeners) is tested through the exported React hook, and a route loader's read through `loadQuery` from `@/trip/client/queries`. Do not require tests for mechanical refactors or import-only changes.
+- A source change that adds or changes behaviour comes with a test through a public seam (check with `browse_code`; test files are out of this check's review scope, to keep its cost down): the Trip service, `runTripOperation` or the Access gate. Behaviour the browser lifecycle owns (mount, unmount, query-cache listeners) is tested through the exported React hook, and a route loader's read through `loadQuery` from `@/trip/client/queries`. Do not require tests for mechanical refactors or import-only changes.
 
 ## Reporting
 
