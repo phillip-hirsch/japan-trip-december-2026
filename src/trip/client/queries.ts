@@ -114,7 +114,7 @@ export const loadQuery = async <TData, TKey extends QueryKey>(
   queryClient: QueryClient,
   options: FetchQueryOptions<TData, Error, TData, TKey>,
 ): Promise<TData> => {
-  const restoring = deviceCacheRestoring(queryClient)
+  const restoring = deviceCacheRestoring(queryClient, isOffline())
 
   if (restoring !== undefined) await restoring
 

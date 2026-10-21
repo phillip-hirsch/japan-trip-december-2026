@@ -202,7 +202,7 @@ describe('what the device keeps', () => {
     await app.close()
   })
 
-  it('opens the Day the server rendered, not an older kept one, though the device clock runs ahead', async () => {
+  it('opens the Day the server rendered, not an older kept one, though the device clock runs ahead, and after the app was closed', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     // The device's clock runs two hours fast.
     vi.setSystemTime(tokyoTime('2026-10-22T09:00:00'))
@@ -213,14 +213,20 @@ describe('what the device keeps', () => {
     vi.setSystemTime(tokyoTime('2026-10-22T08:00:00'))
     answerNoSnapshot()
 
-    const app = await openApp({
+    const rendered = await openApp({
       serverRendered: serverRenderedWith('Onsen moved to 20:00.'),
     })
 
     goOffline()
+    const whileOpen = await dayNoteOffline(rendered)
+    await rendered.close()
+    const reopened = await openApp()
 
-    assert.strictEqual(await dayNoteOffline(app), 'Onsen moved to 20:00.')
-    await app.close()
+    assert.deepStrictEqual(
+      { whileOpen, reopened: await dayNoteOffline(reopened) },
+      { whileOpen: 'Onsen moved to 20:00.', reopened: 'Onsen moved to 20:00.' },
+    )
+    await reopened.close()
   })
 
   it('still opens a shown Day offline after reading it again failed', async () => {
@@ -245,17 +251,16 @@ describe('what the device keeps', () => {
     await app.close()
   })
 
-  it('keeps the Day a later app saved when an earlier one, still open in another tab, saves after it', async () => {
+  it('keeps the Day a later app saved when an earlier one, still open in another tab, saves after it, even in the same millisecond', async () => {
+    // Every read in this test is dated the same moment.
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(tokyoTime('2026-10-21T09:00:00'))
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
     const earlier = await openApp()
 
-    vi.setSystemTime(tokyoTime('2026-10-21T10:00:00'))
     answerSnapshot(snapshotWith('Onsen moved to 20:00.'))
     await (await openApp()).close()
 
-    vi.setSystemTime(tokyoTime('2026-10-21T11:00:00'))
     vi.mocked(getSchedules).mockResolvedValue(
       snapshotWith('Onsen at 18:00.').schedules,
     )
