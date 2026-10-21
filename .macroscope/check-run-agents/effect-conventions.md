@@ -5,6 +5,7 @@ reasoning: medium
 input: incremental
 tools:
   - browse_code
+  - git_tools
   - modify_pr
 include:
   - 'src/**/*.ts'
