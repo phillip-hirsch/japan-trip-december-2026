@@ -23,7 +23,7 @@ Review changed TypeScript under `src/` for the conventions below. Authors read t
 
 ## Browser bundle
 
-Browser code is everything under `src/components/` (including the owned shadcn/ui components in `src/components/ui/`), `src/routes/`, `src/hooks/`, `src/offline/`, `src/trip/client/` and `src/lib/`, the client entry modules `src/router.tsx` and `src/start.ts`, plus anything they import. `src/server.ts` is the Worker entry and is server code. Test files (`*.test.ts`) never ship and are not browser code. Schema and the Effect runtime cost about 75 KB gzip there.
+Browser code is everything under `src/components/` (including the owned shadcn/ui components in `src/components/ui/`), `src/routes/`, `src/hooks/`, `src/offline/`, `src/trip/client/` and `src/lib/`, the client entry modules `src/router.tsx` and `src/start.ts`, plus anything they import. `src/server.ts` is the Worker entry and is server code. `src/trip/trip/trip.functions.ts` is the boundary, not browser code: TanStack Start strips its inline validators and handlers from the client build, so it may value-import `effect`, the domain schemas and server-only modules. Test files (`*.test.ts`) never ship and are not browser code. Schema and the Effect runtime cost about 75 KB gzip there.
 
 - Flag a value import from `effect` other than `Predicate`, `Data` or `Match` in browser code. `import type` of anything is fine.
 - Flag a value import of `@/trip/domain/domain` in browser code; it must be `import type`.
