@@ -5,6 +5,7 @@ import {
   currentConnection,
   subscribeToConnection,
 } from '@/access/connection-status'
+import { keepCacheOnDevice } from '@/trip/client/device-cache'
 
 /**
  * Refetches on more returns than TanStack Query notices alone. There is no
@@ -40,12 +41,16 @@ const refetchOnReturn = (queryClient: QueryClient) => {
 
 export const createQueryClient = () => {
   // Offline, a page opens on stored data, such as a Day the Schedule snapshot
-  // filled but never shown. So the cache keeps unused queries.
+  // filled but never shown. So the cache keeps unused queries, and in the
+  // browser it outlasts the app on the device.
   const queryClient = new QueryClient({
     defaultOptions: { queries: { gcTime: Infinity } },
   })
 
-  if (typeof window !== 'undefined') refetchOnReturn(queryClient)
+  if (typeof window !== 'undefined') {
+    refetchOnReturn(queryClient)
+    keepCacheOnDevice(queryClient)
+  }
 
   return queryClient
 }

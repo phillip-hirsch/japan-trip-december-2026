@@ -23,6 +23,7 @@ import {
   currentConnection,
   subscribeToConnection,
 } from '@/access/connection-status'
+import { deviceCacheRestoring } from '@/trip/client/device-cache'
 import { millisecondsUntilTokyoMidnight } from '@/trip/domain/calendar'
 import type { IsoDate } from '@/trip/domain/domain'
 import {
@@ -106,12 +107,17 @@ const storedOnceOffline = <TData>(
  * has instead of waiting for the network. That includes going offline in
  * the middle of the read. With nothing stored, it fails. It fails at once
  * when the browser knows it is offline, where `fetchQuery` would wait for
- * the network, and otherwise fails as the read does.
+ * the network, and otherwise fails as the read does. It first waits for
+ * the data the device kept, so a page opened from cold offline has it.
  */
 export const loadQuery = async <TData, TKey extends QueryKey>(
   queryClient: QueryClient,
   options: FetchQueryOptions<TData, Error, TData, TKey>,
 ): Promise<TData> => {
+  const restoring = deviceCacheRestoring(queryClient)
+
+  if (restoring !== undefined) await restoring
+
   const stored = () => queryClient.getQueryData<TData>(options.queryKey)
   const before = stored()
 
@@ -305,6 +311,9 @@ const storeSnapshot = (
 
 const scheduleSnapshotQuery = queryOptions({
   queryKey: keys.scheduleSnapshot,
+  // The device keeps what it stores, so keeping the snapshot too would be a
+  // second copy.
+  meta: { kept: false },
   queryFn: async ({ client, signal }) => {
     const started = startRead()
     const snapshot = await getScheduleSnapshot()
