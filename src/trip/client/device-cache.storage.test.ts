@@ -162,6 +162,28 @@ describe('the app on a device whose IndexedDB fails or is slow', () => {
     assert.strictEqual((await page)?.day.note, 'Onsen at 18:00.')
   })
 
+  it('opens later pages online at once when IndexedDB never answers', async () => {
+    vi.useFakeTimers({
+      toFake: ['setTimeout', 'clearTimeout', 'performance'],
+      shouldAdvanceTime: true,
+    })
+    getDay.mockResolvedValue(dayPage(december(14), 'Onsen at 18:00.'))
+    const { page, loadDay } = await openDay({ open: () => ({}) })
+    await vi.advanceTimersByTimeAsync(10_000)
+    await page
+
+    const later = Promise.race([
+      loadDay().then((day) => day?.day.note),
+      new Promise((resolve) =>
+        setTimeout(() => resolve('still waiting'), 1000),
+      ),
+    ])
+
+    await vi.advanceTimersByTimeAsync(1000)
+
+    assert.strictEqual(await later, 'Onsen at 18:00.')
+  })
+
   it('opens a kept Day offline when IndexedDB answers later than an online page waits', async () => {
     vi.useFakeTimers({
       toFake: ['setTimeout', 'clearTimeout'],

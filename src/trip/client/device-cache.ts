@@ -36,10 +36,10 @@ let database: UseStore | undefined
 const keptStore = () => (database ??= createStore('keyval-store', 'keyval'))
 
 /**
- * How long a loader waits for the restore. Reading IndexedDB takes
- * milliseconds, and a read that hasn't answered by then may never answer.
- * Online the network can answer instead, so a loader waits briefly. Offline
- * only the restore can, so it waits longer.
+ * How long after the restore starts loaders stop waiting for it. Reading
+ * IndexedDB takes milliseconds, and a read that hasn't answered by then may
+ * never answer. Online the network can answer instead, so loaders wait
+ * briefly. Offline only the restore can, so they wait longer.
  */
 const restoreWaitMs = { online: 3000, offline: 30_000 }
 
@@ -51,7 +51,13 @@ interface KeptCache {
 
 type KeptQuery = DehydratedState['queries'][number]
 
-const restores = new WeakMap<QueryClient, Promise<void>>()
+interface Restore {
+  readonly restored: Promise<void>
+  /** When it started, by `performance.now()`. */
+  readonly startedAt: number
+}
+
+const restores = new WeakMap<QueryClient, Restore>()
 
 /** Resolves once `done` does, or after `ms`, whichever comes first. */
 const within = (done: Promise<void>, ms: number) =>
@@ -66,21 +72,23 @@ const within = (done: Promise<void>, ms: number) =>
 
 /**
  * While `queryClient` restores what the device kept, a promise that resolves
- * when the restore ends or when a loader has waited as long as it may,
- * whichever comes first. `offline` picks the longer wait. Undefined once the
- * restore has ended, or when the app doesn't keep this cache. A loader waits
- * for it before it reads the cache.
+ * when the restore ends or when loaders stop waiting for it, whichever comes
+ * first. `offline` picks the later time to stop. Undefined after either, or
+ * when the app doesn't keep this cache. A loader waits for it before it reads
+ * the cache.
  */
 export const deviceCacheRestoring = (
   queryClient: QueryClient,
   offline: boolean,
 ) => {
-  const restoring = restores.get(queryClient)
+  const restore = restores.get(queryClient)
 
-  return (
-    restoring &&
-    within(restoring, offline ? restoreWaitMs.offline : restoreWaitMs.online)
-  )
+  if (restore === undefined) return undefined
+
+  const wait = offline ? restoreWaitMs.offline : restoreWaitMs.online
+  const left = restore.startedAt + wait - performance.now()
+
+  return left > 0 ? within(restore.restored, left) : undefined
 }
 
 /**
@@ -255,7 +263,7 @@ export const keepCacheOnDevice = (
   // version discarded what an older one kept.
   save()
 
-  restores.set(queryClient, restored)
+  restores.set(queryClient, { restored, startedAt: performance.now() })
   void restored.then(() => restores.delete(queryClient))
   void askForPersistentStorage().catch(() => undefined)
 
