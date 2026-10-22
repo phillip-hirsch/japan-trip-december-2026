@@ -10,21 +10,26 @@ import {
   reportConnection,
 } from '@/access/connection-status'
 import { useDayNote } from '@/components/notes'
-import { deferred, openEditor } from '@/trip/client/editor-testing'
-import { testQueryClient } from '@/trip/client/hook-testing'
+import { deferred, openEditor, scheduleId } from '@/trip/client/editor-testing'
+import {
+  outcomeOf,
+  serverOutOfReach,
+  settle,
+  testQueryClient,
+} from '@/trip/client/hook-testing'
 import {
   dayQuery,
   loadQuery,
   schedulesQuery,
   useScheduleSnapshot,
 } from '@/trip/client/queries'
-import { tripDates } from '@/trip/domain/calendar'
 import {
-  december,
-  IsoInstant,
-  ScheduleId,
-  WriteDayNoteOutcome,
-} from '@/trip/domain/domain'
+  answerSnapshot,
+  dayPage,
+  snapshotWith,
+} from '@/trip/client/snapshot-testing'
+import { tripDates } from '@/trip/domain/calendar'
+import { december, WriteDayNoteOutcome } from '@/trip/domain/domain'
 import type { DayPage, IsoDate, ScheduleSnapshot } from '@/trip/domain/domain'
 import {
   getDay,
@@ -38,64 +43,9 @@ vi.mock('@/trip/trip/trip.functions', () => ({
   writeDayNote: vi.fn(),
 }))
 
-const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
-
-const dayPage = (date: IsoDate, note?: string): DayPage => ({
-  scheduleId,
-  day: {
-    date,
-    anchors: [],
-    dayTrips: [],
-    verifyClaims: [],
-    freeDay: false,
-    activities: [],
-    ...(note !== undefined && { note }),
-  },
-})
-
-/** A snapshot of Phillip's Schedule whose December 14 has `dayNote`. */
-const snapshotWith = (dayNote: string): ScheduleSnapshot => {
-  const days = tripDates.map((date) =>
-    dayPage(date, date === december(14) ? dayNote : undefined),
-  )
-
-  return {
-    schedules: {
-      current: {
-        id: scheduleId,
-        status: 'current',
-        sourceOptionNumber: 1,
-        sourceContentVersion: 'v1',
-        chosenAt: IsoInstant.make('2026-10-01T00:00:00.000Z'),
-        archivedAt: null,
-        birthdayOutline: '',
-        sourceItinerary: 'unchanged',
-        verifyClaims: [],
-        stays: [],
-        days: days.map(({ day }) => day),
-        anchorWarnings: [],
-      },
-      archived: [],
-      tripNote: 'Pack light.',
-    },
-    days,
-    checklist: { scheduleId, items: [] },
-  }
-}
-
-const answerSnapshot = (snapshot: ScheduleSnapshot) =>
-  vi.mocked(getScheduleSnapshot).mockImplementation(async () => snapshot)
-
 /** A Day read that never reaches the server, as the transport reports it. */
 const answerDayOffline = () =>
-  vi.mocked(getDay).mockImplementation(async () => {
-    reportConnection(offline)
-    throw new TypeError('Failed to fetch')
-  })
-
-/** Lets pending reads answer and the renders they cause finish. */
-const settle = () =>
-  act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
+  vi.mocked(getDay).mockImplementation(serverOutOfReach)
 
 /**
  * The app keeping the Schedule snapshot, as its root does, on December 7's
@@ -132,13 +82,6 @@ const saveDayNote = async (app: App) => {
   await act(() => app.field().save())
   await settle()
 }
-
-/** Whether a loader's read answers or fails. */
-const outcomeOf = (read: Promise<unknown>) =>
-  read.then(
-    () => 'answered',
-    () => 'failed',
-  )
 
 afterEach(() => {
   localStorage.clear()

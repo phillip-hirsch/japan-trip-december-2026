@@ -9,7 +9,7 @@ import { createRoot, hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 
 import { deferred } from '@/trip/client/editor-testing'
-import { testQueryClient } from '@/trip/client/hook-testing'
+import { settle, testQueryClient } from '@/trip/client/hook-testing'
 import { useScheduleSummary } from '@/trip/client/queries'
 import { ScheduleId } from '@/trip/domain/domain'
 import type { ScheduleSummary } from '@/trip/domain/domain'
@@ -62,10 +62,6 @@ const app = (
     createElement(nav),
     createElement(Suspense, { fallback: null }, createElement(page)),
   )
-
-/** Lets pending reads answer and the renders they cause finish. */
-const settle = () =>
-  act(() => new Promise<void>((resolve) => setTimeout(resolve, 0)))
 
 /** A query client the app nav has already read the Schedule summary into. */
 const withSummaryRead = async () => {

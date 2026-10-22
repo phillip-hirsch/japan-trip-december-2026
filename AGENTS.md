@@ -102,6 +102,10 @@ A module over the pre-commit token limit splits into `<Module>.<area>.ts` siblin
 
 Every Trip write to the Schedule store is its own input checks plus one call to the Schedule-write unit in `src/trip/trip/Trip.guards.ts`: `scheduleWrite`, or `tripWrite` for a write that names no Schedule, such as the Trip note. The unit replays a repeated operation id, refuses a Schedule that isn't current with Schedule changed, runs the write in one transaction, records its result, and turns storage failures into defects. A write never opens its own transaction or checks the Schedule itself. Its target declares once whether it takes an operation id. `Trip.schedule-writes.test.ts` covers this for every write, so a feature test keeps just one Schedule changed case.
 
+### Kept data version
+
+The browser keeps the Query cache on the device across sessions (`src/trip/client/device-cache.ts`). When a change alters a query's key or the shape of the data it holds, bump `keptDataVersion` in that file, so the app discards what an older version kept instead of reading it.
+
 ### Cloudflare bindings
 
 Dev and build use `cf dev` and `cf build`, which read `cloudflare.config.ts`. Deploy is `cf build`, then `cf deploy --prebuilt --mode production` ([ADR 0005](docs/adr/0005-use-cf-cli-for-dev-and-build.md)). `wrangler.jsonc` stays for `wrangler tail`, `wrangler secret put`, and `wrangler types`. Keep the two files in step. `worker-configuration.d.ts` is generated: run `vp run cf-typegen` after a `wrangler.jsonc` change and commit the result. Server code reads the typed environment with `import { env } from 'cloudflare:workers'`.
@@ -129,7 +133,7 @@ Router integration (Base UI, so no `asChild`):
 
 Tests are colocated with the modules they exercise (`*.test.ts` under `src/`), written with `@effect/vitest` and run by `vp test`. Every test honours this contract:
 
-- Drive behaviour only through a public seam: the Trip service, `runTripOperation` (for a Trip store operation's result or outcome) or the Access gate. Behaviour the browser lifecycle owns (mount, unmount, query-cache listeners), which neither seam reaches, goes through the exported React hook instead, rendered under `// @vitest-environment happy-dom` and asserting on what the hook returns and on the query cache. A hook test mocks out the server-function transport, `@/trip/trip/trip.functions`, and nothing else. A route loader's read goes through `loadQuery` (`@/trip/client/queries`) the same way.
+- Drive behaviour only through a public seam: the Trip service, `runTripOperation` (for a Trip store operation's result or outcome) or the Access gate. Behaviour the browser lifecycle owns (mount, unmount, query-cache listeners), which neither seam reaches, goes through the exported React hook instead, rendered under `// @vitest-environment happy-dom` and asserting on what the hook returns and on the query cache. A hook test mocks out the server-function transport, `@/trip/trip/trip.functions`, and nothing else. A route loader's read goes through `loadQuery` (`@/trip/client/queries`) the same way. What the device keeps after the app closes goes through `keepCacheOnDevice` (`@/trip/client/device-cache`), the call that turns it on at app start. These tests may also replace the browser's IndexedDB, with `fake-indexeddb` or a wrapper of it that fails or answers late.
 - Assert only on returned values, described in glossary terms (`GLOSSARY.md`).
 - Build the module under test for real; substitute only its dependencies (Itinerary catalogue, Clock, SQL client, configuration, key-set transport, link resolver, Detail tiles archive) through layers or `Effect.provideService`.
 - Read state back through the seam; tables, internal helpers and component internals stay uninspected.

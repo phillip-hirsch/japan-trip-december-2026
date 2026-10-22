@@ -23,6 +23,7 @@ import {
   currentConnection,
   subscribeToConnection,
 } from '@/access/connection-status'
+import { deviceCacheRestoring } from '@/trip/client/device-cache'
 import { millisecondsUntilTokyoMidnight } from '@/trip/domain/calendar'
 import type { IsoDate } from '@/trip/domain/domain'
 import {
@@ -106,12 +107,20 @@ const storedOnceOffline = <TData>(
  * has instead of waiting for the network. That includes going offline in
  * the middle of the read. With nothing stored, it fails. It fails at once
  * when the browser knows it is offline, where `fetchQuery` would wait for
- * the network, and otherwise fails as the read does.
+ * the network, and otherwise fails as the read does. It first waits for
+ * the data the device kept, so a page opened from cold offline has it, and
+ * waits longer when the read finds the app offline.
  */
 export const loadQuery = async <TData, TKey extends QueryKey>(
   queryClient: QueryClient,
   options: FetchQueryOptions<TData, Error, TData, TKey>,
 ): Promise<TData> => {
+  // Waits only while a restore runs, so a read starts in the same tick as
+  // before once the app holds what the device kept.
+  const restoring = deviceCacheRestoring(queryClient, isOffline())
+
+  if (restoring !== undefined) await restoring
+
   const stored = () => queryClient.getQueryData<TData>(options.queryKey)
   const before = stored()
 
@@ -129,6 +138,14 @@ export const loadQuery = async <TData, TKey extends QueryKey>(
       offline.answer,
     ])
   } catch (error) {
+    // A cold start can learn it is offline only here, while the restore
+    // still runs.
+    const stillRestoring = isOffline()
+      ? deviceCacheRestoring(queryClient, true)
+      : undefined
+
+    if (stillRestoring !== undefined) await stillRestoring
+
     const after = stored()
 
     if (after !== undefined && isOffline()) return after
@@ -305,6 +322,9 @@ const storeSnapshot = (
 
 const scheduleSnapshotQuery = queryOptions({
   queryKey: keys.scheduleSnapshot,
+  // The device keeps the Schedules, Days and Checklist the snapshot stores,
+  // so keeping the snapshot too would store a second copy.
+  meta: { kept: false },
   queryFn: async ({ client, signal }) => {
     const started = startRead()
     const snapshot = await getScheduleSnapshot()
