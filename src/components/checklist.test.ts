@@ -21,6 +21,8 @@ import { SaveState } from '@/trip/client/drafts'
 import {
   answeringOnly,
   answeringOnlyUnderAnyOperation,
+  comeBackOnline,
+  goOffline,
   losingFirstAnswer,
   notSavedProblem,
   openEditor,
@@ -111,6 +113,38 @@ describe('a Tick', () => {
     assert.strictEqual(
       notSavedProblem(editor.field().state),
       'Your Schedule changed on another device. This page now shows it as it is.',
+    )
+    await editor.close()
+  })
+
+  it('sends no Tick while offline, and ticks once the connection returns', async () => {
+    vi.mocked(tickOwnChecklistItem).mockImplementation(
+      answeringOnly(
+        { itemId: 'item-jr-pass', ticked: true },
+        TickOwnChecklistItemOutcome.cases.Ticked.make({}),
+        TickOwnChecklistItemOutcome.cases.ChecklistItemNotFound.make({
+          itemId: 'item-jr-pass',
+        }),
+      ),
+    )
+    const editor = await openTick(jrPass, null)
+
+    await goOffline()
+    await act(() => editor.field().send(true))
+    const offline = editor.field()
+    await comeBackOnline()
+    await act(() => editor.field().send(true))
+    const online = editor.field()
+
+    assert.deepStrictEqual(
+      [
+        { paused: offline.paused, state: offline.state },
+        { paused: online.paused, state: online.state },
+      ],
+      [
+        { paused: true, state: SaveState.Clean({ justSaved: false }) },
+        { paused: false, state: sentTicked },
+      ],
     )
     await editor.close()
   })

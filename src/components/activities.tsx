@@ -357,6 +357,7 @@ function ActivityRow({
   settling,
   removing,
   removed,
+  paused,
   alerts,
 }: {
   activity: Activity
@@ -374,6 +375,8 @@ function ActivityRow({
   removing: boolean
   /** Its removal is saved. */
   removed: boolean
+  /** Offline: nothing moves or is removed until the connection returns. */
+  paused: boolean
   alerts: ReactNode
 }) {
   const titleId = useId()
@@ -383,7 +386,7 @@ function ActivityRow({
     if (removed) editing.discard()
   }, [removed])
 
-  const orderLocked = unmovable || settling || removing
+  const orderLocked = unmovable || settling || removing || paused
   const { title, time, note } = editing.value
 
   return (
@@ -460,7 +463,7 @@ function ActivityRow({
                   size="icon-sm"
                   aria-label="Edit"
                   aria-describedby={titleId}
-                  disabled={frame.busy || settling || removing}
+                  disabled={frame.locked || settling || removing}
                   onClick={editing.edit}
                   className="text-muted-foreground"
                 >
@@ -485,7 +488,7 @@ function ActivityRow({
           <Button
             type="button"
             variant="ghost"
-            disabled={frame.busy || removing}
+            disabled={frame.locked || removing}
             onClick={onRemove}
             className="ml-auto text-muted-foreground"
           >
@@ -607,6 +610,7 @@ export function Activities({
                   }
                   removing={isRemovalTarget}
                   removed={isRemovalTarget && removalFrame.justSaved}
+                  paused={moveFrame.paused}
                   alerts={
                     <>
                       {isMoveTarget && <SendNotSaved field={moving} />}

@@ -1,15 +1,12 @@
-import { useServerFn } from '@tanstack/react-start'
-
 import { ButtonLink } from '@/components/button-link'
 import {
-  replacementAnswerOf,
   ReplaceScheduleDialog,
+  useChooseItinerary,
 } from '@/components/replace-schedule-dialog'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { ScheduleSummary } from '@/trip/domain/domain'
 import { useScheduleSummary } from '@/trip/client/queries'
-import { chooseItinerary } from '@/trip/trip/trip.functions'
 
 export function ChooseItinerary({ optionNumber }: { optionNumber: number }) {
   const summary = useScheduleSummary()
@@ -53,21 +50,13 @@ function ChooseItineraryButton({
   optionNumber: number
   current: ScheduleSummary | null
 }) {
-  const choose = useServerFn(chooseItinerary)
+  const replacement = useChooseItinerary({ optionNumber, current })
   const again = current?.sourceOptionNumber === optionNumber
   const label = `Choose Option ${optionNumber}${again ? ' again' : ''}`
 
   return (
     <ReplaceScheduleDialog
-      write="choose"
-      target={`Option ${optionNumber}`}
-      run={async (operationId) =>
-        replacementAnswerOf(
-          await choose({
-            data: { operationId, optionNumber, replacing: current?.id ?? null },
-          }),
-        )
-      }
+      replacement={replacement}
       trigger={<Button size="lg" variant={again ? 'outline' : 'default'} />}
       triggerLabel={label}
       title={`${label}?`}

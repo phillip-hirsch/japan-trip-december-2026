@@ -5,13 +5,12 @@ import {
   notFound,
   redirect,
 } from '@tanstack/react-router'
-import { useServerFn } from '@tanstack/react-start'
 
 import { ButtonLink } from '@/components/button-link'
 import { NotFound } from '@/components/not-found'
 import {
-  replacementAnswerOf,
   ReplaceScheduleDialog,
+  useRestoreSchedule,
 } from '@/components/replace-schedule-dialog'
 import { AnchorWarnings } from '@/components/schedule-rules'
 import {
@@ -21,14 +20,13 @@ import {
 import { Button } from '@/components/ui/button'
 import { VerifyClaims } from '@/components/verify-claims'
 import { formatMoment } from '@/trip/domain/calendar'
-import type { ScheduleDetail } from '@/trip/domain/domain'
+import type { ScheduleDetail, ScheduleSummary } from '@/trip/domain/domain'
 import {
   loadQuery,
   scheduleByIdQuery,
   useScheduleSummary,
 } from '@/trip/client/queries'
 import { parseScheduleId } from '@/trip/client/params'
-import { restoreSchedule } from '@/trip/trip/trip.functions'
 import { pageTitle } from '@/lib/app-identity'
 
 export const Route = createFileRoute('/schedule/archived/$scheduleId')({
@@ -111,7 +109,6 @@ function ArchivedSchedulePage() {
 }
 
 function RestoreButton({ schedule }: { schedule: ScheduleDetail }) {
-  const restore = useServerFn(restoreSchedule)
   const current = useScheduleSummary()
 
   if (current === undefined) {
@@ -122,21 +119,21 @@ function RestoreButton({ schedule }: { schedule: ScheduleDetail }) {
     )
   }
 
+  return <RestoreDialog schedule={schedule} current={current} />
+}
+
+function RestoreDialog({
+  schedule,
+  current,
+}: {
+  schedule: ScheduleDetail
+  current: ScheduleSummary | null
+}) {
+  const replacement = useRestoreSchedule({ scheduleId: schedule.id, current })
+
   return (
     <ReplaceScheduleDialog
-      write="restore"
-      target={schedule.id}
-      run={async (operationId) =>
-        replacementAnswerOf(
-          await restore({
-            data: {
-              operationId,
-              scheduleId: schedule.id,
-              replacing: current?.id ?? null,
-            },
-          }),
-        )
-      }
+      replacement={replacement}
       trigger={<Button size="lg" />}
       triggerLabel="Restore this Schedule"
       title="Restore this Schedule?"

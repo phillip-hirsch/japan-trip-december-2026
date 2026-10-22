@@ -3,6 +3,7 @@ import { Match, Predicate } from 'effect'
 import { MapPinIcon, MapPinPlusIcon } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 
+import { editingPaused } from '@/access/connection-status'
 import { EditorFrame, frameOf, saveVerb } from '@/components/editor-frame'
 import { SavedStatus } from '@/components/not-saved-alert'
 import { OpenInGoogleMaps } from '@/components/open-in-google-maps'
@@ -200,7 +201,7 @@ export function PinField({
   const find = async (link: string) => {
     const isCurrent = beginLookup()
 
-    if (link.trim() === '') return
+    if (link.trim() === '' || editingPaused()) return
 
     const refusal = linkRefusalOf(link.trim())
 
@@ -277,7 +278,7 @@ export function PinField({
               variant="ghost"
               size="sm"
               aria-describedby={labelledBy}
-              disabled={frame.busy}
+              disabled={frame.locked}
               onClick={() => {
                 stopFinding()
                 field.edit()
@@ -296,7 +297,7 @@ export function PinField({
           <Button
             type="button"
             variant="ghost"
-            disabled={frame.busy || looking}
+            disabled={frame.locked || looking}
             onClick={() => void field.send(noPin)}
             className="ml-auto text-muted-foreground"
           >
@@ -352,7 +353,7 @@ export function PinField({
                   onPaste={(event) => {
                     const pasted = event.clipboardData.getData('text')
 
-                    if (busy || pasted.trim() === '') return
+                    if (busy || frame.paused || pasted.trim() === '') return
                     event.preventDefault()
                     field.change({ link: pasted, coordinates: null })
                     void find(pasted)
@@ -362,7 +363,7 @@ export function PinField({
                 <Button
                   type="submit"
                   variant="outline"
-                  disabled={busy || value.link.trim() === ''}
+                  disabled={busy || frame.paused || value.link.trim() === ''}
                   className="h-10"
                 >
                   {looking ? 'Finding…' : 'Find'}

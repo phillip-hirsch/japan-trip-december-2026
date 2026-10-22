@@ -22,7 +22,7 @@ export function ConnectionBanner() {
         <p>
           <span className="font-semibold">Offline.</span>{' '}
           <span className="text-muted-foreground">
-            Waiting for a connection.
+            Editing is paused until the connection returns.
           </span>
         </p>
       </div>

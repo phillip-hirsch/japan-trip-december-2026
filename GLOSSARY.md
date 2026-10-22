@@ -152,3 +152,7 @@ _Avoid_: autosave, unsaved changes
 **Operation**:
 One attempt at a save that must happen once, such as adding an Activity, splitting a Stay or choosing an Itinerary. A Retry of the same Operation never saves twice, even when the first answer was lost. An edit, or a send for another Schedule or Itinerary, starts a new one.
 _Avoid_: request, idempotency key
+
+**Offline**:
+The app is offline when a request to the server got no answer, until a later one does. Offline, editing is paused: every control that saves is off, and a Draft stays where it is, to save once the connection returns. A login that expired is different: Access answered and refused the request.
+_Avoid_: disconnected, network error

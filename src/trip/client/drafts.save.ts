@@ -2,7 +2,12 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Data, Predicate } from 'effect'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { ConnectionStatus, currentConnection } from '@/access/connection-status'
+import {
+  ConnectionStatus,
+  currentConnection,
+  editingPaused,
+  useEditingPaused,
+} from '@/access/connection-status'
 import { toast } from '@/components/ui/toast'
 import type { ScheduleId } from '@/trip/domain/domain'
 import { answerOf, SaveAnswer } from '@/trip/client/drafts.answers'
@@ -223,12 +228,14 @@ export interface SaveField<V, S = V> {
   readonly shown: boolean
   /** An open edit the Schedule shown no longer offers. */
   readonly withdrawn: boolean
+  /** Offline: nothing is sent until the connection returns. */
+  readonly paused: boolean
   readonly edit: () => void
   readonly change: (next: V) => void
   readonly discard: () => void
-  /** Sends the value being edited or not saved, unless withdrawn. */
+  /** Sends the value being edited or not saved, unless withdrawn or paused. */
   readonly save: () => Promise<void>
-  /** Sends `next` at once, such as a Pin removed. */
+  /** Sends `next` at once, such as a Pin removed, unless paused. */
   readonly send: (next: V) => Promise<void>
 }
 
@@ -239,7 +246,8 @@ export interface SaveField<V, S = V> {
  * visit or a login reload is restored marked not saved, and is sent only by
  * Save or Retry. A "Schedule changed" refusal refetches the data and keeps
  * the value, and so does an answer that what it was for is gone. Every other
- * refusal keeps the value without refetching.
+ * refusal keeps the value without refetching. Offline, it sends nothing and
+ * keeps the value open, so it can be saved once the connection returns.
  *
  * Without `saved`, the value is undefined while Clean. Split and merge work
  * this way, since no choice of theirs is ever saved.
@@ -263,6 +271,7 @@ export function useSave<V>({
   readonly saved?: V
 }): SaveField<V, V | undefined> {
   const queryClient = useQueryClient()
+  const paused = useEditingPaused()
 
   const [held, setHeld] = useState<{
     readonly target: string
@@ -535,13 +544,13 @@ export function useSave<V>({
   }
 
   const save = async () => {
-    if (withdrawn) return
+    if (withdrawn || editingPaused()) return
 
     if (isOpen(state)) await saveValue(state.value)
   }
 
   const send = async (next: V) => {
-    if (SaveState.$is('Saving')(state)) return
+    if (SaveState.$is('Saving')(state) || editingPaused()) return
 
     operation.current = undefined
     await saveValue(next)
@@ -552,6 +561,7 @@ export function useSave<V>({
     value,
     shown: stillOffered || open,
     withdrawn,
+    paused,
     edit,
     change,
     discard,
@@ -579,12 +589,12 @@ export const useSend = <V>({
    */
   readonly moot?: (value: V) => boolean
 }) => {
-  const { state, value, save, send, discard } = useSave<V>(options)
+  const { state, value, paused, save, send, discard } = useSave<V>(options)
   const mooted = SaveState.$is('NotSaved')(state) && moot(state.value)
 
   useEffect(() => {
     if (mooted) discard()
   }, [mooted])
 
-  return { state, sent: value, save, send, discard }
+  return { state, sent: value, paused, save, send, discard }
 }
