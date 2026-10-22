@@ -16,6 +16,8 @@ export interface PinMapProps {
   pin: Coordinates
   frame: Coordinates
   onMove: (pin: Coordinates) => void
+  /** The pin can't move, such as offline. */
+  locked: boolean
 }
 
 function Framing({ frame }: { frame: Coordinates }) {
@@ -50,7 +52,12 @@ function TapToMove({ onMove }: { onMove: (pin: Coordinates) => void }) {
   return null
 }
 
-export default function PinMapCanvas({ pin, frame, onMove }: PinMapProps) {
+export default function PinMapCanvas({
+  pin,
+  frame,
+  onMove,
+  locked,
+}: PinMapProps) {
   return (
     <TripMapView
       points={[frame]}
@@ -58,18 +65,23 @@ export default function PinMapCanvas({ pin, frame, onMove }: PinMapProps) {
       railAttribution={undefined}
     >
       <Framing frame={frame} />
-      <TapToMove onMove={onMove} />
+      {!locked && <TapToMove onMove={onMove} />}
+      {/* Locking remounts the marker at the pin, ending any drag under way,
+          so it never shows a place the pin doesn't hold. */}
       <MapMarker
+        key={locked ? 'locked' : 'movable'}
         latitude={pin.latitude}
         longitude={pin.longitude}
         anchor="bottom"
-        draggable
+        draggable={!locked}
         onDragEnd={(lngLat) => onMove(coordinatesOfLngLat(lngLat))}
       >
-        <MarkerContent className="cursor-grab active:cursor-grabbing">
+        <MarkerContent
+          className={locked ? undefined : 'cursor-grab active:cursor-grabbing'}
+        >
           <MapPinIcon
             role="img"
-            aria-label="Pin. Drag it into place."
+            aria-label={locked ? 'Pin' : 'Pin. Drag it into place.'}
             className="size-10 fill-foreground stroke-background drop-shadow-md"
             strokeWidth={1.5}
           />

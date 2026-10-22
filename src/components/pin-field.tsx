@@ -214,19 +214,24 @@ export function PinField({
     setFinding({ state: 'finding' })
     let outcome: ResolveLocationLinkOutcome
 
-    try {
-      outcome = await resolve({ data: { link } })
-    } catch {
-      if (!isCurrent()) return
+    const unreachable = () =>
       setFinding({
         state: 'problem',
         note: 'The app couldn’t reach the server. Try again when you’re back online.',
       })
 
+    try {
+      outcome = await resolve({ data: { link } })
+    } catch {
+      if (isCurrent()) unreachable()
+
       return
     }
 
     if (!isCurrent()) return
+
+    // Offline by the time it answered, the Pin can't take what it found.
+    if (editingPaused()) return unreachable()
     Match.value(outcome).pipe(
       Match.tagsExhaustive({
         Resolved: ({ coordinates }) => {
@@ -307,7 +312,7 @@ export function PinField({
       }
     >
       {(frame) => {
-        const busy = frame.busy || looking
+        const locked = frame.locked || looking
 
         return (
           <>
@@ -336,7 +341,7 @@ export function PinField({
                     ].join(' ') || undefined
                   }
                   autoFocus={frame.autoFocus && placed === null}
-                  readOnly={busy}
+                  readOnly={locked}
                   value={value.link}
                   maxLength={locationLinkMaxLength}
                   autoComplete="off"
@@ -353,7 +358,7 @@ export function PinField({
                   onPaste={(event) => {
                     const pasted = event.clipboardData.getData('text')
 
-                    if (busy || frame.paused || pasted.trim() === '') return
+                    if (locked || pasted.trim() === '') return
                     event.preventDefault()
                     field.change({ link: pasted, coordinates: null })
                     void find(pasted)
@@ -363,7 +368,7 @@ export function PinField({
                 <Button
                   type="submit"
                   variant="outline"
-                  disabled={busy || frame.paused || value.link.trim() === ''}
+                  disabled={locked || value.link.trim() === ''}
                   className="h-10"
                 >
                   {looking ? 'Finding…' : 'Find'}
@@ -399,7 +404,7 @@ export function PinField({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  disabled={busy}
+                  disabled={locked}
                   onClick={dropByHand}
                   className="-mx-2.5 text-muted-foreground"
                 >
@@ -408,7 +413,12 @@ export function PinField({
                 </Button>
               </div>
             ) : (
-              <PinMap pin={placed} frame={mapFrame ?? placed} onMove={place} />
+              <PinMap
+                pin={placed}
+                frame={mapFrame ?? placed}
+                onMove={place}
+                locked={frame.locked}
+              />
             )}
           </>
         )

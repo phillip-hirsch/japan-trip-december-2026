@@ -246,8 +246,8 @@ export interface SaveField<V, S = V> {
  * visit or a login reload is restored marked not saved, and is sent only by
  * Save or Retry. A "Schedule changed" refusal refetches the data and keeps
  * the value, and so does an answer that what it was for is gone. Every other
- * refusal keeps the value without refetching. Offline, it sends nothing and
- * keeps the value open, so it can be saved once the connection returns.
+ * refusal keeps the value without refetching. Offline, it neither changes
+ * nor sends the value, and keeps it open to save once the connection returns.
  *
  * Without `saved`, the value is undefined while Clean. Split and merge work
  * this way, since no choice of theirs is ever saved.
@@ -441,7 +441,7 @@ export function useSave<V>({
   }
 
   const change = (next: V) => {
-    if (SaveState.$is('Saving')(state)) return
+    if (SaveState.$is('Saving')(state) || editingPaused()) return
 
     operation.current = undefined
 

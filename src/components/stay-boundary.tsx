@@ -94,7 +94,7 @@ export function StayBoundaryField(props: StayEditorProps) {
                 <DateChoice
                   dates={checkOuts}
                   value={chosen}
-                  disabled={frame.busy}
+                  disabled={frame.locked}
                   onChange={field.change}
                 />
                 <p id={hintId} className="text-sm text-muted-foreground">

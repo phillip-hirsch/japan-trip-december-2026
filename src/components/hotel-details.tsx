@@ -148,7 +148,7 @@ export function HotelDetailsField({
               id={`${fieldId}-${key}`}
               aria-describedby={frame.describedBy}
               autoFocus={index === 0 && frame.autoFocus}
-              readOnly={frame.busy}
+              readOnly={frame.locked}
               value={value[key]}
               onChange={(event) =>
                 field.change({ ...value, [key]: event.target.value })

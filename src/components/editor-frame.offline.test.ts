@@ -54,7 +54,7 @@ describe('the editor frame while offline', () => {
     await editor.close()
   })
 
-  it('keeps a Draft open when the connection drops, unsaved, and saves it once the connection returns', async () => {
+  it('keeps a Draft open but locked when the connection drops, and saves it once the connection returns', async () => {
     localStorage.clear()
     vi.mocked(writeDayNote).mockImplementation(
       answeringOnly(
@@ -68,6 +68,7 @@ describe('the editor frame while offline', () => {
     await act(async () => editor.field().field.change('Tsukiji at six.'))
 
     await goOffline()
+    await act(async () => editor.field().field.change('Tsukiji at seven.'))
     await act(() => editor.field().field.save())
     assert.deepStrictEqual(
       { state: editor.field().field.state, view: editor.field().frame.view },

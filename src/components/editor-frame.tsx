@@ -71,9 +71,9 @@ type EditorView = 'summary' | 'form' | 'withdrawn'
  * - A value is busy while it is on its way, and while Saved if its form
  *   still shows it, so an add can't be sent twice. Once the summary shows
  *   it, it can be edited again, even if the read that confirms it fails.
- * - Offline, editing is paused: nothing opens the form or sends, but the
- *   form stays open with its value, and Cancel and Discard still work. A
- *   value busy or paused is locked: no control may open or send it.
+ * - Offline, editing is paused: an open form keeps its value, but only
+ *   Cancel and Discard still work. A value busy or paused is locked: no
+ *   control may open, change or send it.
  * - A Clean value has nothing to discard.
  * - Opening the form focuses it; a restored Draft opens unfocused.
  */

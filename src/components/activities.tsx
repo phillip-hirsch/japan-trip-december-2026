@@ -307,7 +307,7 @@ function ActivityInputs({
             autoFocus={frame.autoFocus}
             value={value.title}
             onChange={(event) => onChange({ title: event.target.value })}
-            readOnly={frame.busy}
+            readOnly={frame.locked}
             required
             maxLength={activityTitleMaxLength}
             className="h-10"
@@ -322,7 +322,7 @@ function ActivityInputs({
             type="time"
             value={value.time}
             onChange={(event) => onChange({ time: event.target.value })}
-            readOnly={frame.busy}
+            readOnly={frame.locked}
             className="h-10"
           />
         </div>
@@ -335,7 +335,7 @@ function ActivityInputs({
           id={noteId}
           value={value.note}
           onChange={(event) => onChange({ note: event.target.value })}
-          readOnly={frame.busy}
+          readOnly={frame.locked}
           maxLength={noteMaxLength}
           rows={3}
           className="min-h-20 text-base md:text-base"

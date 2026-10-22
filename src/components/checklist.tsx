@@ -360,7 +360,7 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
             placeholder="Something to book or confirm"
             value={value.text}
             onChange={(event) => change({ text: event.target.value })}
-            readOnly={frame.busy}
+            readOnly={frame.locked}
             required
             maxLength={checklistTextMaxLength}
             className="h-10 sm:flex-1"
@@ -374,7 +374,7 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
               type="date"
               value={value.reminderDate}
               onChange={(event) => change({ reminderDate: event.target.value })}
-              readOnly={frame.busy}
+              readOnly={frame.locked}
               className="h-10"
             />
           </div>
