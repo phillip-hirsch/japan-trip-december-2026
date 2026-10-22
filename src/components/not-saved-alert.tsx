@@ -33,7 +33,7 @@ export function RetryOrDismiss({
 }: {
   onRetry: () => void
   onDismiss: () => void
-  /** Offline: Retry waits for the connection to return. */
+  /** The app is offline, so Retry is off until the connection returns. */
   paused: boolean
 }) {
   return (
@@ -68,8 +68,9 @@ export function SavedStatus({
 }
 
 /**
- * Says editing is paused while offline, beside the controls it turned off.
- * The offline banner already announces it, so this is no live region.
+ * Says editing is paused while offline, next to the controls the pause turned
+ * off. The offline banner already announces the pause, so this note is not a
+ * live region.
  */
 export function EditingPausedNote() {
   return (

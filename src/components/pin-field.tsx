@@ -230,7 +230,8 @@ export function PinField({
 
     if (!isCurrent()) return
 
-    // Offline by the time it answered, the Pin can't take what it found.
+    // The app went offline before the answer came. The field ignores changes
+    // while offline, so drop the place found instead of showing it on the map.
     if (editingPaused()) return unreachable()
     Match.value(outcome).pipe(
       Match.tagsExhaustive({

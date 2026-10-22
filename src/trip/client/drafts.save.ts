@@ -228,7 +228,7 @@ export interface SaveField<V, S = V> {
   readonly shown: boolean
   /** An open edit the Schedule shown no longer offers. */
   readonly withdrawn: boolean
-  /** Offline: nothing is sent until the connection returns. */
+  /** The app is offline, so nothing is sent until the connection returns. */
   readonly paused: boolean
   readonly edit: () => void
   readonly change: (next: V) => void

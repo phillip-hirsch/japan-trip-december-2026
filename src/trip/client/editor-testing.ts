@@ -44,7 +44,7 @@ export const deferred = <A>() => {
   return { promise, resolve }
 }
 
-/** The transport reports the app offline: a request got no answer. */
+/** The transport reports the app offline, as when a request gets no answer. */
 export const goOffline = () => act(async () => reportConnection(offline))
 
 /** A request answers again, so the transport reports the app connected. */

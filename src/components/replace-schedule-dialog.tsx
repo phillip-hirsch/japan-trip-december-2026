@@ -89,16 +89,17 @@ interface Replacement {
 }
 
 /**
- * A write that replaces the current Schedule (choosing or restoring), confirmed
- * in a dialog. On success it closes the dialog and opens the Schedule.
+ * A write that replaces the current Schedule by choosing an Itinerary or
+ * restoring a Schedule. Phillip confirms it in a dialog. On success the dialog
+ * closes and the Schedule opens.
  *
  * Each attempt goes under an operation for its target, by the rule a save
  * uses for its Schedule. A retry after a lost answer returns the first
  * result instead of writing again. A refusal writes nothing, so the same id
  * can confirm again once Phillip has read the refreshed confirmation. When
  * the page shows another Itinerary or Schedule, its target gets a new id, so
- * it never returns another target's result. Offline, it is paused: confirming
- * sends nothing until the connection returns.
+ * it never returns another target's result. While the app is offline,
+ * confirming sends nothing until the connection returns.
  */
 const useScheduleReplacement = ({ write, target, run }: Replacement) => {
   const queryClient = useQueryClient()

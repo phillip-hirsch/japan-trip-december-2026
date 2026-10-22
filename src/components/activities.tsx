@@ -375,7 +375,7 @@ function ActivityRow({
   removing: boolean
   /** Its removal is saved. */
   removed: boolean
-  /** Offline: nothing moves or is removed until the connection returns. */
+  /** The app is offline, so no Activity can move or be removed. */
   paused: boolean
   alerts: ReactNode
 }) {

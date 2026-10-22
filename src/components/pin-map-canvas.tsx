@@ -16,7 +16,7 @@ export interface PinMapProps {
   pin: Coordinates
   frame: Coordinates
   onMove: (pin: Coordinates) => void
-  /** The pin can't move, such as offline. */
+  /** The pin can't move, for example while the app is offline. */
   locked: boolean
 }
 
@@ -66,8 +66,8 @@ export default function PinMapCanvas({
     >
       <Framing frame={frame} />
       {!locked && <TapToMove onMove={onMove} />}
-      {/* Locking remounts the marker at the pin, ending any drag under way,
-          so it never shows a place the pin doesn't hold. */}
+      {/* Locking remounts the marker at the pin. The remount ends any drag in
+          progress, so the marker never shows a place the pin doesn't hold. */}
       <MapMarker
         key={locked ? 'locked' : 'movable'}
         latitude={pin.latitude}

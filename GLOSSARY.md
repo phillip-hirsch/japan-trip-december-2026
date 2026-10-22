@@ -154,5 +154,5 @@ One attempt at a save that must happen once, such as adding an Activity, splitti
 _Avoid_: request, idempotency key
 
 **Offline**:
-The app is offline when a request to the server got no answer, until a later one does. Offline, editing is paused: every control that saves is off, and a Draft stays where it is, to save once the connection returns. A login that expired is different: Access answered and refused the request.
+The app is offline from the moment a request to the server gets no answer until a later request gets one. While it is offline, editing is paused. Every control that saves is off, and the app keeps an open Draft to save once the connection returns. A login that expired is not offline, because Access answered the request and refused it.
 _Avoid_: disconnected, network error

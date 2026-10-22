@@ -52,8 +52,8 @@ export const useConnectionStatus = () =>
   )
 
 /**
- * Whether editing is paused: offline, nothing can be saved, so every control
- * that sends is off until a request gets an answer again.
+ * Whether editing is paused, which it is while the app is offline. Every
+ * control that sends stays off until a request gets an answer again.
  */
 export const editingPaused = (current: ConnectionStatus = status) =>
   ConnectionStatus.$is('Offline')(current)

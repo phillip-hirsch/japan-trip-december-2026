@@ -43,7 +43,7 @@ const shown = ({
 
 /**
  * Confirms `useReplacement` while offline and again once the connection
- * returns, and gives what the confirmation showed each time.
+ * returns, and returns what the confirmation showed each time.
  */
 const confirmOfflineThenOnline = async (
   useReplacement: () => ScheduleReplacement,
