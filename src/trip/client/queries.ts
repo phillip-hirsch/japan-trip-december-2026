@@ -578,11 +578,25 @@ const invalidate = (
 
   // Home isn't in the snapshot, and offline it opens as last read, so a
   // save on another page must reach the Home the device keeps.
-  if (queryKeys.includes(keys.home)) {
-    void queryClient.refetchQueries({ queryKey: keys.home, type: 'inactive' })
-  }
+  if (queryKeys.includes(keys.home)) void refreshUnshownHome(queryClient)
 
   return invalidated
+}
+
+/**
+ * Reads Home again when the app holds it but doesn't show it, first
+ * cancelling a read under way, which may predate the write. It reads through
+ * Home's options, since a Home the device restored has no read of its own
+ * until a page shows it.
+ */
+const refreshUnshownHome = async (queryClient: QueryClient) => {
+  const home = queryClient
+    .getQueryCache()
+    .find({ queryKey: keys.home, exact: true })
+
+  if (home === undefined || home.isActive()) return
+  await queryClient.cancelQueries({ queryKey: keys.home, exact: true })
+  await queryClient.prefetchQuery(homeQuery)
 }
 
 /**

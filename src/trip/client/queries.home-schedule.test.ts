@@ -6,6 +6,7 @@ import { vi } from 'vite-plus/test'
 import { act } from 'react'
 
 import { connected, reportConnection } from '@/access/connection-status'
+import { keepCacheOnDevice } from '@/trip/client/device-cache'
 import { currentSchedule } from '@/trip/client/editor-testing'
 import {
   loseConnection,
@@ -18,6 +19,7 @@ import {
   closeHome,
   homeDuringTrip,
   openHome,
+  openHomeFromCold,
   openRoot,
   option1Archived,
   option2Snapshot,
@@ -53,6 +55,38 @@ vi.mock('@/trip/trip/trip.functions', () => ({
 afterEach(closeHome)
 
 describe('Home after a save away from it', () => {
+  it('opens offline with a Day note saved after a restart straight onto another page', async () => {
+    clockAt('2026-12-14T20:00:00')
+    answerSnapshot(snapshot)
+    answerHome(homeDuringTrip('2026-12-14T20:00:00'))
+    await (await openHomeFromCold()).close()
+
+    // The app restarts on December 14's page, so Home is only what the
+    // device kept, and Phillip saves its Day note there.
+    const queryClient = testQueryClient()
+    const kept = keepCacheOnDevice(queryClient)
+    await act(() => kept.saved())
+    await timePassesTo('2026-12-14T20:30:00')
+
+    const withNote = HomeState.cases.DuringTrip.make({
+      ...homeDuringTrip('2026-12-14T20:30:00'),
+      today: dayPage(december(14), 'Tsukiji at dawn.'),
+    })
+
+    answerHome(withNote)
+    await act(() => invalidateAfter(queryClient, 'dayNote'))
+    await settle()
+    loseConnection()
+    vi.mocked(getHome).mockImplementation(serverOutOfReach)
+    const app = await openHome(queryClient)
+
+    assert.deepStrictEqual(app.shown(), {
+      home: withNote,
+      from: hashKey(homeQuery.queryKey),
+    })
+    await app.close()
+  })
+
   it('opens offline with a Day note saved on another page while Home was closed', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
