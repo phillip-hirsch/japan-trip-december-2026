@@ -78,11 +78,21 @@ export const millisecondsUntilTokyoMidnight = (now: number) => {
   return Math.ceil((tokyo + 1) / dayInMilliseconds) * dayInMilliseconds - tokyo
 }
 
+/** The date in Tokyo at `instant`, in milliseconds since the epoch. */
+export const tokyoDateAt = (instant: number) =>
+  calendarDate(
+    new Date(instant + tokyoOffsetInMilliseconds).toISOString().slice(0, 10),
+  )
+
 export const isTripDate = (date: string): date is IsoDate =>
   tripDates.some((tripDate) => tripDate === date)
 
 export const previousTripDate = (date: IsoDate) =>
   tripDates[tripDates.indexOf(date) - 1]
+
+/** Whole calendar dates from `from` to `to`. */
+export const daysBetween = (from: IsoDate, to: IsoDate) =>
+  (midnightUtc(to) - midnightUtc(from)) / dayInMilliseconds
 
 export const nightsBetween = (checkIn: IsoDate, checkOut: IsoDate) =>
   tripDates.indexOf(checkOut) - tripDates.indexOf(checkIn)

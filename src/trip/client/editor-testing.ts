@@ -30,6 +30,7 @@ import {
 import type {
   AnchorWarning,
   ScheduleDetail,
+  Schedules,
   ScheduleStayDetail,
   StayEditOffers,
 } from '@/trip/domain/domain'
@@ -131,7 +132,7 @@ export const losingFirstAnswer = <W, R>(
 export const openEditor = async <P extends object, F>(
   useField: (props: P) => F,
   props: P,
-  read: () => Promise<string> = async () => 'schedules',
+  read: () => Promise<string | Schedules> = async () => 'schedules',
 ) => {
   const queryClient = testQueryClient()
 
@@ -180,7 +181,8 @@ export const openEditor = async <P extends object, F>(
     listening: () => queryClient.getQueryCache().hasListeners(),
     /** The Schedules the page shows, as last read. */
     schedulesShown: () =>
-      // `read` returns strings, not Schedules, so the key drops its data type.
+      // `read` usually returns strings, not Schedules, so the key drops its
+      // data type.
       queryClient.getQueryData<string>([...schedulesQuery.queryKey]),
     schedulesRefreshDue: () =>
       queryClient.getQueryState(schedulesQuery.queryKey)?.isInvalidated,

@@ -4,8 +4,6 @@ import {
   partialMatchKey,
   queryOptions,
   useQuery,
-  useQueryClient,
-  useSuspenseQuery,
 } from '@tanstack/react-query'
 import type {
   FetchQueryOptions,
@@ -14,7 +12,6 @@ import type {
   QueryKey,
 } from '@tanstack/react-query'
 import { useHydrated } from '@tanstack/react-router'
-import { useEffect } from 'react'
 
 import {
   ConnectionStatus,
@@ -22,40 +19,32 @@ import {
   subscribeToConnection,
 } from '@/access/connection-status'
 import { deviceCacheRestoring } from '@/trip/client/device-cache'
-import {
-  answerOfRead,
-  keepLatestRead,
-  readInOrder,
-  startRead,
-} from '@/trip/client/read-order'
+import { answerOfRead, startRead } from '@/trip/client/read-order'
 import type { Read } from '@/trip/client/read-order'
-import { millisecondsUntilTokyoMidnight } from '@/trip/domain/calendar'
-import type { IsoDate } from '@/trip/domain/domain'
 import {
-  getChecklist,
-  getDay,
-  getHome,
-  getScheduleById,
-  getScheduleMap,
-  getSchedules,
+  checklistQuery,
+  dayQuery,
+  homeQuery,
+  keys,
+  schedulesQuery,
+  subscribeToQuery,
+} from '@/trip/client/queries.reads'
+import {
   getScheduleSnapshot,
   getScheduleSummary,
 } from '@/trip/trip/trip.functions'
 
-/**
- * One key per query, none a prefix of another, so invalidating one never
- * reaches the rest.
- */
-const keys = {
-  home: ['home'],
-  schedules: ['schedules'],
-  days: ['days'],
-  scheduleSummary: ['schedule-summary'],
-  scheduleById: ['schedule-by-id'],
-  checklist: ['checklist'],
-  scheduleMap: ['schedule-map'],
-  scheduleSnapshot: ['schedule-snapshot'],
-} as const satisfies Record<string, QueryKey>
+export { useHome } from '@/trip/client/queries.home'
+
+export {
+  checklistQuery,
+  dayQuery,
+  homeQuery,
+  scheduleByIdQuery,
+  scheduleMapQuery,
+  schedulesQuery,
+  subscribeToQuery,
+} from '@/trip/client/queries.reads'
 
 // A page shown again must not open on data another device has since changed,
 // and only shown queries refetch on focus and reconnect. So loaders read
@@ -63,19 +52,6 @@ const keys = {
 // stale, and set `staleReloadMode: 'blocking'`, so the router waits for that
 // too instead of rendering its cached match first. The page then mounts on
 // what its loader just read, so mounting never fetches again.
-
-/**
- * Calls `listener` whenever the query with `queryHash` changes, and returns a
- * function that stops it. `hashKey` gives a query's hash.
- */
-export const subscribeToQuery = (
-  queryClient: QueryClient,
-  queryHash: string,
-  listener: () => void,
-) =>
-  queryClient.getQueryCache().subscribe((event) => {
-    if (event.query.queryHash === queryHash) listener()
-  })
 
 const isOffline = () =>
   !onlineManager.isOnline() ||
@@ -173,77 +149,6 @@ export const loadQuery = async <TData, TKey extends QueryKey>(
     offline.stop()
   }
 }
-
-export const homeQuery = queryOptions({
-  queryKey: keys.home,
-  queryFn: () => getHome(),
-  refetchOnMount: false,
-})
-
-const homeRetryDelay = 60_000
-
-const nextTokyoMidnightDeadline = (readAt: number) =>
-  readAt + millisecondsUntilTokyoMidnight(readAt) + 1000
-
-export const useHome = () => {
-  const queryClient = useQueryClient()
-  const { data, dataUpdatedAt, errorUpdatedAt } = useSuspenseQuery(homeQuery)
-  const readAt = Date.parse(data.readAt)
-  useEffect(() => {
-    const deadline = nextTokyoMidnightDeadline(readAt)
-    const overdue = Date.now() >= deadline
-    const lastRefetchFailed = errorUpdatedAt > dataUpdatedAt
-
-    const delay =
-      overdue && lastRefetchFailed
-        ? homeRetryDelay
-        : Math.max(deadline - Date.now(), 0)
-
-    const timer = setTimeout(
-      () => void queryClient.invalidateQueries({ queryKey: keys.home }),
-      delay,
-    )
-
-    return () => clearTimeout(timer)
-  }, [queryClient, readAt, dataUpdatedAt, errorUpdatedAt])
-
-  return data
-}
-
-export const dayQuery = (date: IsoDate) =>
-  queryOptions({
-    queryKey: [...keys.days, date],
-    queryFn: readInOrder(() => getDay({ data: { date } })),
-    structuralSharing: keepLatestRead,
-    refetchOnMount: false,
-  })
-
-export const schedulesQuery = queryOptions({
-  queryKey: keys.schedules,
-  queryFn: readInOrder(() => getSchedules()),
-  structuralSharing: keepLatestRead,
-  refetchOnMount: false,
-})
-
-export const scheduleByIdQuery = (scheduleId: string) =>
-  queryOptions({
-    queryKey: [...keys.scheduleById, scheduleId],
-    queryFn: () => getScheduleById({ data: { scheduleId } }),
-    refetchOnMount: false,
-  })
-
-export const checklistQuery = queryOptions({
-  queryKey: keys.checklist,
-  queryFn: readInOrder(() => getChecklist()),
-  structuralSharing: keepLatestRead,
-  refetchOnMount: false,
-})
-
-export const scheduleMapQuery = queryOptions({
-  queryKey: keys.scheduleMap,
-  queryFn: () => getScheduleMap(),
-  refetchOnMount: false,
-})
 
 /** What the snapshot's server function returns, as plain data. */
 type SnapshotAnswer = Awaited<ReturnType<typeof getScheduleSnapshot>>
@@ -387,7 +292,7 @@ export type TripWrite = keyof typeof affectedBy
 
 /**
  * Invalidates the queries given. It also reads the Schedule snapshot again,
- * without waiting for it.
+ * and Home when it's among them and not shown, without waiting for either.
  */
 const invalidate = (
   queryClient: QueryClient,
@@ -395,16 +300,72 @@ const invalidate = (
 ) => {
   void refreshSnapshot(queryClient)
 
-  return Promise.all(
+  const invalidated = Promise.all(
     queryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
   )
+
+  // Home isn't in the snapshot, and offline it opens as last read, so a
+  // save on another page must reach the Home the device keeps.
+  if (queryKeys.includes(keys.home)) void refreshUnshownHome(queryClient)
+
+  return invalidated
+}
+
+/**
+ * Reads Home again when the app holds it but doesn't show it. A read under
+ * way may predate the write, so it waits for that read, then reads again.
+ * Cancelling it instead would fail a page loader waiting on it. It marks
+ * Home stale first, so the read goes ahead whatever the device clock says,
+ * and reads through Home's options, since a Home the device restored has no
+ * read of its own until a page shows it. A read that fails goes again on
+ * reconnect.
+ */
+const refreshUnshownHome = async (queryClient: QueryClient) => {
+  const home = queryClient
+    .getQueryCache()
+    .find({ queryKey: keys.home, exact: true })
+
+  if (home === undefined || home.isActive()) return
+
+  if (home.state.fetchStatus !== 'idle') {
+    await queryClient.prefetchQuery(homeQuery)
+  }
+
+  await queryClient.invalidateQueries({
+    queryKey: keys.home,
+    exact: true,
+    refetchType: 'none',
+  })
+
+  await queryClient.prefetchQuery(homeQuery)
+
+  // A read that failed, as when the signal drops right after the save, goes
+  // again once the connection returns, since nothing shown will read Home.
+  if (queryClient.getQueryState(homeQuery.queryKey)?.isInvalidated) {
+    refreshHomeOnReconnect(queryClient)
+  }
+}
+
+const awaitingReconnect = new WeakSet<QueryClient>()
+
+/** Reads an unshown Home again the next time a request gets an answer. */
+const refreshHomeOnReconnect = (queryClient: QueryClient) => {
+  if (awaitingReconnect.has(queryClient)) return
+  awaitingReconnect.add(queryClient)
+
+  const stop = subscribeToConnection(() => {
+    if (!ConnectionStatus.$is('Connected')(currentConnection())) return
+    stop()
+    awaitingReconnect.delete(queryClient)
+    void refreshUnshownHome(queryClient)
+  })
 }
 
 /**
  * Invalidates exactly the queries a successful write affects, and resolves
  * once the shown ones have refetched. The rest refetch when next shown.
- * Meanwhile it reads the Schedule snapshot again, without waiting for it, and
- * the snapshot stores them.
+ * Meanwhile it reads the Schedule snapshot again, which stores them, and an
+ * unshown Home, without waiting for either.
  */
 export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) =>
   invalidate(queryClient, affectedBy[write])

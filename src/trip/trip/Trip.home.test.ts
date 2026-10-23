@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { DateTime, Effect, Option, Struct } from 'effect'
+import { DateTime, Effect, Option, Predicate, Struct } from 'effect'
 
 import { december, HomeState, Hotel, IsoDate } from '@/trip/domain/domain'
 import {
@@ -222,6 +222,49 @@ describe('Trip.home Today', () => {
         }),
       )
     }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+  )
+})
+
+describe('Trip.home Today across Tokyo midnight', () => {
+  const todayAt = (instant: string) =>
+    Effect.map(homeAt(instant), (home) =>
+      Predicate.isTagged(home, 'DuringTrip') ? home.today?.day.date : home._tag,
+    )
+
+  it.effect(
+    'is December 14 at its last moment and December 15 at the first moment after, in Tokyo',
+    () =>
+      Effect.gen(function* () {
+        yield* chooseOption1
+
+        assert.deepStrictEqual(
+          [
+            yield* todayAt(inTokyo('2026-12-14T23:59:59.999')),
+            yield* todayAt(inTokyo('2026-12-15T00:00:00.000')),
+          ],
+          [december(14), december(15)],
+        )
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+  )
+
+  it.effect(
+    'follows the Tokyo date while the UTC date is still the day before',
+    () =>
+      Effect.gen(function* () {
+        yield* chooseOption1
+        const shared = yield* expectedHomeFields('2026-12-14T16:30:00.000Z')
+        const home = yield* homeAt(shared.readAt)
+        const today = yield* dayPage(december(15))
+
+        assert.deepStrictEqual(
+          home,
+          HomeState.cases.DuringTrip.make({
+            ...shared,
+            date: december(15),
+            today,
+          }),
+        )
+      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
 })
 

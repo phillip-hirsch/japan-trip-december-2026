@@ -13,6 +13,7 @@ import type {
   ItinerarySummary,
   ScheduleDetail,
 } from '@/trip/domain/domain'
+import type { ScreenQuery } from '@/trip/client/last-updated'
 import { homeQuery, loadQuery, useHome } from '@/trip/client/queries'
 
 export const Route = createFileRoute('/')({
@@ -24,21 +25,18 @@ export const Route = createFileRoute('/')({
 })
 
 function Home() {
-  const home = useHome()
+  const { home, query } = useHome()
 
   return Match.value(home).pipe(
     Match.tagsExhaustive({
-      BeforeTrip: (home) => <BeforeTrip home={home} />,
+      BeforeTrip: (home) => <BeforeTrip home={home} query={query} />,
       DuringTrip: (home) =>
         home.today ? (
-          <ScheduleDayView
-            page={home.today}
-            eyebrow="Today"
-            query={homeQuery}
-          />
+          <ScheduleDayView page={home.today} eyebrow="Today" query={query} />
         ) : (
           <Hero
             eyebrow="Today"
+            query={query}
             title={<HeroTitle>{formatDay(home.date)}</HeroTitle>}
             lede="No Schedule yet. Choose an Itinerary, and Today appears here."
           >
@@ -48,6 +46,7 @@ function Home() {
       AfterTrip: (home) => (
         <Hero
           eyebrow="After the Trip"
+          query={query}
           title={<HeroTitle>Welcome home</HeroTitle>}
           lede={
             home.schedule
@@ -64,11 +63,14 @@ function Home() {
 
 function Hero({
   eyebrow,
+  query,
   title,
   lede,
   children,
 }: {
   eyebrow: string
+  /** The query Home's data came from, to show when it was last updated. */
+  query: ScreenQuery
   title: ReactNode
   lede: ReactNode
   children: ReactNode
@@ -87,7 +89,7 @@ function Hero({
         <p className="mt-10 max-w-sm text-sm leading-relaxed text-muted-foreground">
           {lede}
         </p>
-        <LastUpdated query={homeQuery} className="mt-2" />
+        <LastUpdated query={query} className="mt-2" />
         <div className="mt-12">{children}</div>
       </section>
     </div>
@@ -100,12 +102,15 @@ function HeroTitle({ children }: { children: ReactNode }) {
 
 function BeforeTrip({
   home: { daysToGo, schedule, itineraries },
+  query,
 }: {
   home: Extract<HomeState, { _tag: 'BeforeTrip' }>
+  query: ScreenQuery
 }) {
   return (
     <Hero
       eyebrow="Countdown to Tokyo"
+      query={query}
       title={
         <>
           <h1 className="mt-6 flex items-baseline gap-4 font-semibold">
