@@ -61,6 +61,35 @@ vi.mock('@/trip/trip/trip.functions', () => ({
 afterEach(closeHome)
 
 describe('Home after a save away from it', () => {
+  it("holds the saved Day note once the connection returns, though Home's read after the save failed", async () => {
+    clockAt('2026-12-14T20:00:00')
+    answerSnapshot(snapshot)
+    answerHome(homeDuringTrip('2026-12-14T20:00:00'))
+    const dayNote = await openDayNote()
+    const { queryClient } = dayNote
+    await (await openHome(queryClient)).close()
+
+    // The signal drops right after the save, before Home's read answers.
+    vi.mocked(getHome).mockImplementation(serverOutOfReach)
+    await saveDayNote(dayNote, 'Tsukiji at dawn.')
+
+    const withNote = HomeState.cases.DuringTrip.make({
+      ...homeDuringTrip('2026-12-14T20:00:00'),
+      today: dayPage(december(14), 'Tsukiji at dawn.'),
+    })
+
+    answerHome(withNote)
+    await act(async () => reportConnection(connected))
+    await settle()
+    loseConnection()
+    vi.mocked(getHome).mockImplementation(serverOutOfReach)
+    const app = await openHome(queryClient)
+
+    assert.deepStrictEqual(app.shown()?.home, withNote)
+    await app.close()
+    await dayNote.close()
+  })
+
   it('opens Home online while a save lands during its read, then holds the saved Day note', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)

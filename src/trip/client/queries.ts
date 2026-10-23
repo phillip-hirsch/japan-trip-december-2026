@@ -317,7 +317,8 @@ const invalidate = (
  * Cancelling it instead would fail a page loader waiting on it. It marks
  * Home stale first, so the read goes ahead whatever the device clock says,
  * and reads through Home's options, since a Home the device restored has no
- * read of its own until a page shows it.
+ * read of its own until a page shows it. A read that fails goes again on
+ * reconnect.
  */
 const refreshUnshownHome = async (queryClient: QueryClient) => {
   const home = queryClient
@@ -337,6 +338,27 @@ const refreshUnshownHome = async (queryClient: QueryClient) => {
   })
 
   await queryClient.prefetchQuery(homeQuery)
+
+  // A read that failed, as when the signal drops right after the save, goes
+  // again once the connection returns, since nothing shown will read Home.
+  if (queryClient.getQueryState(homeQuery.queryKey)?.isInvalidated) {
+    refreshHomeOnReconnect(queryClient)
+  }
+}
+
+const awaitingReconnect = new WeakSet<QueryClient>()
+
+/** Reads an unshown Home again the next time a request gets an answer. */
+const refreshHomeOnReconnect = (queryClient: QueryClient) => {
+  if (awaitingReconnect.has(queryClient)) return
+  awaitingReconnect.add(queryClient)
+
+  const stop = subscribeToConnection(() => {
+    if (!ConnectionStatus.$is('Connected')(currentConnection())) return
+    stop()
+    awaitingReconnect.delete(queryClient)
+    void refreshUnshownHome(queryClient)
+  })
 }
 
 /**
