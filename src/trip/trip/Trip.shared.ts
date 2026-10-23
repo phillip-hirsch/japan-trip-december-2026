@@ -1,7 +1,8 @@
-import { Context, DateTime, Duration, Effect, Predicate, Struct } from 'effect'
+import { Context, Effect, Predicate, Struct } from 'effect'
 
 import {
   birthdayDate,
+  daysBetween,
   shigeharuEveDate,
   tripEndDate,
   tripStartDate,
@@ -39,13 +40,6 @@ import {
   stayEditOffersOf,
 } from '@/trip/domain/schedule-copy'
 import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
-
-export const daysBetween = (from: IsoDate, to: IsoDate) =>
-  Math.round(
-    Duration.toDays(
-      DateTime.distance(DateTime.makeUnsafe(from), DateTime.makeUnsafe(to)),
-    ),
-  )
 
 export const nightsOf = (stay: Stay) => daysBetween(stay.checkIn, stay.checkOut)
 

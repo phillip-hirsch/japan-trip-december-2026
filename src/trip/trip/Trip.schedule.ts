@@ -1,16 +1,9 @@
 import { DateTime, Effect, Option, Struct } from 'effect'
 
-import {
-  isTripDate,
-  tripEndDate,
-  tripStartDate,
-  tripTimeZone,
-} from '@/trip/domain/calendar'
+import { isTripDate, tokyoDateAt, tripEndDate } from '@/trip/domain/calendar'
 import {
   DayNotFound,
-  HomeState,
   Hotel,
-  IsoDate,
   IsoInstant,
   ScheduleChosen,
   ScheduleId,
@@ -20,6 +13,8 @@ import {
 import type {
   ChooseItinerary,
   DayPage,
+  HomeState,
+  IsoDate,
   Itinerary,
   ItinerarySummary,
   RestoreSchedule,
@@ -27,6 +22,7 @@ import type {
   ScheduleMap,
   ScheduleSnapshot,
 } from '@/trip/domain/domain'
+import { homeStateOn } from '@/trip/domain/home-state'
 import { Itineraries } from '@/trip/itineraries/Itineraries'
 import { stayForNight } from '@/trip/domain/schedule-copy'
 import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
@@ -38,20 +34,12 @@ import { mapOf, summaryOf } from '@/trip/trip/Trip.itinerary'
 import {
   anchorsOf,
   CatalogueLookups,
-  daysBetween,
   find,
   staySummaryOf,
 } from '@/trip/trip/Trip.shared'
 
 const isoInstantOf = (now: DateTime.DateTime) =>
   IsoInstant.make(DateTime.formatIso(now))
-
-const tokyoDateOf = (now: DateTime.DateTime) =>
-  IsoDate.make(
-    DateTime.formatIsoDate(
-      DateTime.removeTime(DateTime.setZoneNamedUnsafe(now, tripTimeZone)),
-    ),
-  )
 
 const scheduleMapOf = (copy: ScheduleCopy): ScheduleMap => ({
   ...mapOf(copy),
@@ -142,27 +130,12 @@ const homeStateOf = (
   schedule: Option.Option<ScheduleDetail>,
   itineraries: ReadonlyArray<ItinerarySummary>,
 ): HomeState => {
-  const date = tokyoDateOf(now)
-  const shared = { readAt: DateTime.formatIso(now), itineraries }
+  const date = tokyoDateAt(DateTime.toEpochMillis(now))
 
-  if (date < tripStartDate) {
-    return HomeState.cases.BeforeTrip.make({
-      ...shared,
-      daysToGo: daysBetween(date, tripStartDate),
-      schedule: Option.getOrNull(schedule),
-    })
-  }
-
-  if (date > tripEndDate) {
-    return HomeState.cases.AfterTrip.make({
-      ...shared,
-      schedule: Option.getOrNull(schedule),
-    })
-  }
-
-  return HomeState.cases.DuringTrip.make({
-    ...shared,
-    date,
+  return homeStateOn(date, {
+    readAt: DateTime.formatIso(now),
+    itineraries,
+    schedule: Option.getOrNull(schedule),
     today: Option.getOrNull(
       Option.flatMap(schedule, (schedule) => findDayPage(schedule, date)),
     ),
