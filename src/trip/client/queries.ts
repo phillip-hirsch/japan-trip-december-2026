@@ -564,7 +564,7 @@ export type TripWrite = keyof typeof affectedBy
 
 /**
  * Invalidates the queries given. It also reads the Schedule snapshot again,
- * without waiting for it.
+ * and Home when it's among them and not shown, without waiting for either.
  */
 const invalidate = (
   queryClient: QueryClient,
@@ -572,16 +572,24 @@ const invalidate = (
 ) => {
   void refreshSnapshot(queryClient)
 
-  return Promise.all(
+  const invalidated = Promise.all(
     queryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
   )
+
+  // Home isn't in the snapshot, and offline it opens as last read, so a
+  // save on another page must reach the Home the device keeps.
+  if (queryKeys.includes(keys.home)) {
+    void queryClient.refetchQueries({ queryKey: keys.home, type: 'inactive' })
+  }
+
+  return invalidated
 }
 
 /**
  * Invalidates exactly the queries a successful write affects, and resolves
  * once the shown ones have refetched. The rest refetch when next shown.
- * Meanwhile it reads the Schedule snapshot again, without waiting for it, and
- * the snapshot stores them.
+ * Meanwhile it reads the Schedule snapshot again, which stores them, and an
+ * unshown Home, without waiting for either.
  */
 export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) =>
   invalidate(queryClient, affectedBy[write])
