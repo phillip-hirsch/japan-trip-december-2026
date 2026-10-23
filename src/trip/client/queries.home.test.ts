@@ -183,6 +183,33 @@ describe('Home offline during the Trip', () => {
 })
 
 describe('Home offline at the Trip boundaries', () => {
+  it('counts down a day at Tokyo midnight offline though no snapshot answered, from the Schedule Home was read with', async () => {
+    clockAt('2026-12-04T22:00:00')
+    vi.mocked(getScheduleSnapshot).mockImplementation(
+      () => new Promise(() => {}),
+    )
+
+    const withSchedule = HomeState.cases.BeforeTrip.make({
+      readAt: tokyoTime('2026-12-04T22:00:00').toISOString(),
+      itineraries: [],
+      daysToGo: 2,
+      schedule: snapshot.schedules.current,
+    })
+
+    answerHome(withSchedule)
+    const app = await openHome(testQueryClient())
+
+    loseConnection()
+    vi.mocked(getHome).mockImplementation(serverOutOfReach)
+    await timePassesTo('2026-12-05T00:00:00')
+
+    assert.deepStrictEqual(app.shown(), {
+      home: HomeState.cases.BeforeTrip.make({ ...withSchedule, daysToGo: 1 }),
+      from: hashKey(homeQuery.queryKey),
+    })
+    await app.close()
+  })
+
   it('counts down a day at Tokyo midnight offline before a Schedule is chosen', async () => {
     clockAt('2026-12-04T22:00:00')
     vi.mocked(getScheduleSnapshot).mockResolvedValue(null)

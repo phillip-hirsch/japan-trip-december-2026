@@ -260,10 +260,10 @@ export const useHome = () => {
   )
 
   const movedOn = today > readOn
-  const readWith = scheduleIdIn(data)
+  const readWith = scheduleIn(data)
 
   const schedules = useStored(
-    movedOn && readWith !== null ? schedulesQuery : undefined,
+    movedOn && readWith.id !== null ? schedulesQuery : undefined,
   )
 
   const page = useStored(
@@ -291,14 +291,19 @@ export const useHome = () => {
   const asRead = { home: data, query: homeQuery }
 
   if (!movedOn) return asRead
-  const schedule = readWith === null ? null : schedules?.current
+  const stored = schedules?.current
 
   // Stored Schedules that disagree with Home as last read may predate it,
-  // such as ones from before a Schedule was chosen on another device.
-  if (schedule === undefined || (schedule?.id ?? null) !== readWith) {
-    return asRead
-  }
+  // such as ones from before a Schedule was chosen on another device. Then
+  // only the Schedule Home carries will do.
+  const schedule =
+    readWith.id === null
+      ? null
+      : stored?.id === readWith.id
+        ? stored
+        : readWith.detail
 
+  if (schedule === undefined) return asRead
   const showsDay = schedule !== null && isTripDate(today)
 
   // A Day stored from another Schedule, such as one replaced on another
@@ -312,17 +317,33 @@ export const useHome = () => {
       schedule,
       today: page ?? null,
     }),
-    query: showsDay ? dayQuery(today) : schedule ? schedulesQuery : homeQuery,
+    query: showsDay
+      ? dayQuery(today)
+      : schedule !== null && schedule === stored
+        ? schedulesQuery
+        : homeQuery,
   }
 }
 
-/** The id of the Schedule Home was read with, null when there was none. */
-const scheduleIdIn = (home: HomeState) =>
+/**
+ * The Schedule Home was read with: its id, null for none, and its detail.
+ * During the Trip Home carries only the id, so its detail is undefined.
+ */
+const scheduleIn = (home: HomeState) =>
   Match.value(home).pipe(
     Match.tagsExhaustive({
-      BeforeTrip: ({ schedule }) => schedule?.id ?? null,
-      DuringTrip: ({ today }) => today?.scheduleId ?? null,
-      AfterTrip: ({ schedule }) => schedule?.id ?? null,
+      BeforeTrip: ({ schedule }) => ({
+        id: schedule?.id ?? null,
+        detail: schedule,
+      }),
+      DuringTrip: ({ today }) => ({
+        id: today?.scheduleId ?? null,
+        detail: undefined,
+      }),
+      AfterTrip: ({ schedule }) => ({
+        id: schedule?.id ?? null,
+        detail: schedule,
+      }),
     }),
   )
 
