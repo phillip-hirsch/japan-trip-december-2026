@@ -311,7 +311,7 @@ export const useHome = () => {
       readAt: data.readAt,
       itineraries: data.itineraries,
       schedule,
-      today: page ?? null,
+      today: showsDay ? (page ?? null) : null,
     }),
     query: showsDay ? dayQuery(today) : from,
   }

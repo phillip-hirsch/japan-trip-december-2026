@@ -311,6 +311,38 @@ describe('Home offline at the Trip boundaries', () => {
 })
 
 describe('Home after it moved on offline', () => {
+  it('shows no Day as Today when Home was last read with no Schedule, though a Day is stored', async () => {
+    clockAt('2026-12-14T20:00:00')
+    answerSnapshot(snapshot)
+    answerHome(homeDuringTrip('2026-12-14T20:00:00'))
+    const queryClient = testQueryClient()
+    const app = await openHome(queryClient)
+
+    vi.mocked(getScheduleSnapshot).mockImplementation(serverOutOfReach)
+
+    const noSchedule = HomeState.cases.DuringTrip.make({
+      ...homeDuringTrip('2026-12-14T21:00:00'),
+      today: null,
+    })
+
+    answerHome(noSchedule)
+    await timePassesTo('2026-12-14T21:00:00')
+    await act(() => loadQuery(queryClient, homeQuery))
+    loseConnection()
+    vi.mocked(getHome).mockImplementation(serverOutOfReach)
+    await timePassesTo('2026-12-15T00:00:00')
+
+    assert.deepStrictEqual(app.shown(), {
+      home: HomeState.cases.DuringTrip.make({
+        ...noSchedule,
+        date: december(15),
+        today: null,
+      }),
+      from: hashKey(homeQuery.queryKey),
+    })
+    await app.close()
+  })
+
   it('shows the new Day of a Schedule chosen here after Home was last read, opened offline after Tokyo midnight', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
