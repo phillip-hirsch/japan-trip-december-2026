@@ -337,9 +337,9 @@ const scheduleIn = (home: HomeState) =>
 
 /**
  * The Schedule Home moves on with offline, and the query it came from:
- * whichever of Home and the stored Schedules the server answered later.
- * Undefined when the later one lacks it, as Home during the Trip carries only
- * its Schedule's id.
+ * whichever of Home and the stored Schedules the server answered later, else
+ * Home's own. Undefined when that lacks it, as Home during the Trip carries
+ * only its Schedule's id.
  */
 const scheduleToMoveOnWith = (
   readWith: ReturnType<typeof scheduleIn>,
@@ -357,7 +357,11 @@ const scheduleToMoveOnWith = (
     return { schedule: readWith.detail ?? null, from: homeQuery }
   }
 
-  return { schedule: undefined, from: homeQuery }
+  // During the Trip Home carries only its Schedule's id, so the stored
+  // Schedule stands in for it when it's the same one.
+  return schedules?.current?.id === readWith.id
+    ? { schedule: schedules.current, from: schedulesQuery }
+    : { schedule: undefined, from: homeQuery }
 }
 
 /**
@@ -365,10 +369,10 @@ const scheduleToMoveOnWith = (
  * `readAt` with the Schedule `homeScheduleId`. Both times are the server's,
  * so a device clock set wrong can't reorder them. A Schedule never goes back
  * to none, and choosing or restoring archives the Schedule it replaces. So
- * the stored Schedules are later when they hold the same Schedule as Home,
- * when Home had none and they have one, or when they archived Home's at or
- * after the moment Home was read: Home saw it current, so it was archived
- * later.
+ * the stored Schedules are later when Home had none and they have one, or
+ * when they archived Home's at or after the moment Home was read: Home saw
+ * it current, so it was archived later. Holding the same Schedule as Home
+ * proves neither is later.
  */
 const storedAreLater = (
   homeScheduleId: string | null,
@@ -376,8 +380,6 @@ const storedAreLater = (
   { current, archived }: Schedules,
 ) => {
   if (homeScheduleId === null) return current !== null
-
-  if (current?.id === homeScheduleId) return true
 
   return archived.some(
     ({ id, archivedAt }) =>
