@@ -366,8 +366,9 @@ const scheduleToMoveOnWith = (
  * so a device clock set wrong can't reorder them. A Schedule never goes back
  * to none, and choosing or restoring archives the Schedule it replaces. So
  * the stored Schedules are later when they hold the same Schedule as Home,
- * when Home had none and they have one, or when they archived Home's after
- * Home was read.
+ * when Home had none and they have one, or when they archived Home's at or
+ * after the moment Home was read: Home saw it current, so it was archived
+ * later.
  */
 const storedAreLater = (
   homeScheduleId: string | null,
@@ -380,7 +381,7 @@ const storedAreLater = (
 
   return archived.some(
     ({ id, archivedAt }) =>
-      id === homeScheduleId && Date.parse(archivedAt) > Date.parse(readAt),
+      id === homeScheduleId && Date.parse(archivedAt) >= Date.parse(readAt),
   )
 }
 

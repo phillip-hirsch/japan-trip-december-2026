@@ -7,6 +7,7 @@ import { clear } from 'idb-keyval'
 import { vi } from 'vite-plus/test'
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
+import type { Root } from 'react-dom/client'
 
 import { connected, reportConnection } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
@@ -71,6 +72,23 @@ const timePassesTo = (iso: string) =>
 /** Lets pending reads answer and the renders they cause finish. */
 const settle = () => act(() => vi.advanceTimersByTimeAsync(0))
 
+// Roots still open when a test ends, such as after a failed assertion, so
+// one failure can't spill into the next test.
+const openRoots = new Set<Root>()
+
+const openedRoot = () => {
+  const root = createRoot(document.createElement('div'))
+  openRoots.add(root)
+
+  return root
+}
+
+const closeRoot = (root: Root) =>
+  act(async () => {
+    openRoots.delete(root)
+    root.unmount()
+  })
+
 const snapshot = snapshotWith('Onsen at 18:00.')
 
 /** Home as the server reads it during the Trip, at `iso` Tokyo time. */
@@ -110,7 +128,7 @@ const openHome = async (queryClient: QueryClient) => {
     return null
   }
 
-  const root = createRoot(document.createElement('div'))
+  const root = openedRoot()
   await act(async () =>
     root.render(withClient(queryClient, createElement(App))),
   )
@@ -123,7 +141,7 @@ const openHome = async (queryClient: QueryClient) => {
 
       return last && { home: last.home, from: hashKey(last.query.queryKey) }
     },
-    close: () => act(async () => root.unmount()),
+    close: () => closeRoot(root),
   }
 }
 
@@ -153,13 +171,13 @@ const openRoot = async (queryClient: QueryClient) => {
     return null
   }
 
-  const root = createRoot(document.createElement('div'))
+  const root = openedRoot()
   await act(async () =>
     root.render(withClient(queryClient, createElement(Root))),
   )
   await settle()
 
-  return { close: () => act(async () => root.unmount()) }
+  return { close: () => closeRoot(root) }
 }
 
 /** The snapshot of the Schedule chosen from Option 2, with every Day. */
@@ -190,6 +208,10 @@ const option2Snapshot = {
 }
 
 afterEach(async () => {
+  await act(async () => {
+    openRoots.forEach((root) => root.unmount())
+    openRoots.clear()
+  })
   vi.useRealTimers()
   await clear()
   reportConnection(connected)
@@ -331,6 +353,54 @@ describe('Home offline at the Trip boundaries', () => {
 })
 
 describe('Home after it moved on offline', () => {
+  it("shows the new Day of a Schedule that replaced Home's at the very moment Home was read", async () => {
+    clockAt('2026-12-14T20:00:00')
+    answerSnapshot(snapshot)
+    answerHome(homeDuringTrip('2026-12-14T20:00:00'))
+    const queryClient = testQueryClient()
+    const root = await openRoot(queryClient)
+    await (await openHome(queryClient)).close()
+
+    // Home saw Option 1's Schedule current, so the server archived it after
+    // that read, though in the same millisecond.
+    const archivedAsHomeWasRead = {
+      ...option2Snapshot,
+      schedules: {
+        ...option2Snapshot.schedules,
+        archived: [
+          {
+            ...option1Archived,
+            archivedAt: IsoInstant.make(
+              tokyoTime('2026-12-14T20:00:00').toISOString(),
+            ),
+          },
+        ],
+      },
+    }
+
+    await timePassesTo('2026-12-14T20:30:00')
+    answerSnapshot(archivedAsHomeWasRead)
+    await act(() => invalidateAfter(queryClient, 'choose'))
+    await settle()
+    loseConnection()
+    vi.mocked(getHome).mockImplementation(serverOutOfReach)
+    await timePassesTo('2026-12-15T07:00:00')
+    const app = await openHome(queryClient)
+
+    assert.deepStrictEqual(
+      app.shown()?.home,
+      HomeState.cases.DuringTrip.make({
+        ...homeDuringTrip('2026-12-14T20:00:00'),
+        date: december(15),
+        today:
+          option2Snapshot.days.find((page) => page.day.date === december(15)) ??
+          null,
+      }),
+    )
+    await app.close()
+    await root.close()
+  })
+
   it('shows the new Day of a Schedule chosen here after Home was last read, though the device clock runs behind the server', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
@@ -467,7 +537,14 @@ describe('Home after it moved on offline', () => {
     vi.mocked(getScheduleSnapshot).mockImplementation(serverOutOfReach)
     vi.mocked(getSchedules).mockResolvedValue({
       current: currentSchedule({ id: otherScheduleId, sourceOptionNumber: 2 }),
-      archived: [option1Archived],
+      archived: [
+        {
+          ...option1Archived,
+          archivedAt: IsoInstant.make(
+            tokyoTime('2026-12-14T21:30:00').toISOString(),
+          ),
+        },
+      ],
     })
     await act(() => loadQuery(queryClient, schedulesQuery))
     loseConnection()
