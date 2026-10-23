@@ -1,6 +1,7 @@
 import { Predicate } from 'effect'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { BedIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
+import type { QueryKey } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
 import { Activities } from '@/components/activities'
@@ -14,6 +15,7 @@ import {
   MoveTravel,
 } from '@/components/day-details'
 import { HotelDetailsList } from '@/components/hotel-details'
+import { LastUpdated } from '@/components/last-updated'
 import { DayNote } from '@/components/notes'
 import { DisplayJa } from '@/components/display-ja'
 import { NewPlaceBadge } from '@/components/new-place-badge'
@@ -191,9 +193,12 @@ const noteHeadingId = 'note'
 export function ScheduleDayView({
   page: { scheduleId, day, tonight, nextMove },
   eyebrow,
+  query,
 }: {
   page: DayPage
   eyebrow: ReactNode
+  /** The query the page was read with, for when it was last updated. */
+  query: { readonly queryKey: QueryKey }
 }) {
   const navigate = useNavigate()
 
@@ -241,6 +246,7 @@ export function ScheduleDayView({
         <div className="mt-2 flex flex-col gap-1">
           <AnchorNotes anchors={day.anchors} />
         </div>
+        <LastUpdated query={query} className="mt-3" />
         <DayPager date={day.date} className="mt-8" />
       </header>
       <DaySection id="the-day" title="The day">

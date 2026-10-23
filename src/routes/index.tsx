@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 
 import { DisplayJa } from '@/components/display-ja'
 import { ItineraryList } from '@/components/itinerary-list'
+import { LastUpdated } from '@/components/last-updated'
 import { ScheduleDayView } from '@/components/schedule-day'
 import { ScheduleSections } from '@/components/schedule-sections'
 import { formatDay, tripEndDate, tripStartDate } from '@/trip/domain/calendar'
@@ -30,7 +31,11 @@ function Home() {
       BeforeTrip: (home) => <BeforeTrip home={home} />,
       DuringTrip: (home) =>
         home.today ? (
-          <ScheduleDayView page={home.today} eyebrow="Today" />
+          <ScheduleDayView
+            page={home.today}
+            eyebrow="Today"
+            query={homeQuery}
+          />
         ) : (
           <Hero
             eyebrow="Today"
@@ -82,6 +87,7 @@ function Hero({
         <p className="mt-10 max-w-sm text-sm leading-relaxed text-muted-foreground">
           {lede}
         </p>
+        <LastUpdated query={homeQuery} className="mt-2" />
         <div className="mt-12">{children}</div>
       </section>
     </div>

@@ -40,5 +40,7 @@ function DayPage() {
 
   if (page === null) return <NoSchedule />
 
-  return <ScheduleDayView page={page} eyebrow="Schedule" />
+  return (
+    <ScheduleDayView page={page} eyebrow="Schedule" query={dayQuery(date)} />
+  )
 }

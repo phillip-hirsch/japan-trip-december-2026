@@ -6,6 +6,7 @@ import {
   ChecklistItems,
   ChooseItineraryPrompt,
 } from '@/components/checklist'
+import { LastUpdated } from '@/components/last-updated'
 import { checklistQuery, loadQuery } from '@/trip/client/queries'
 import { pageTitle } from '@/lib/app-identity'
 
@@ -31,6 +32,7 @@ function ChecklistPage() {
           What to book or confirm, the next thing to do on top. Reminder dates
           show here only; nothing is sent.
         </p>
+        <LastUpdated query={checklistQuery} className="mt-2" />
       </header>
       {scheduleId === null && (
         <div className="mt-8">
