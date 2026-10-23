@@ -11,7 +11,11 @@ import { renderToString } from 'react-dom/server'
 
 import { connected, reportConnection } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
-import { deferred } from '@/trip/client/editor-testing'
+import {
+  currentSchedule,
+  deferred,
+  scheduleId,
+} from '@/trip/client/editor-testing'
 import {
   loseConnection,
   serverOutOfReach,
@@ -21,7 +25,13 @@ import {
 } from '@/trip/client/hook-testing'
 import { useLastUpdated } from '@/trip/client/last-updated'
 import type { ScreenQuery } from '@/trip/client/last-updated'
-import { dayQuery, loadQuery, useScheduleSnapshot } from '@/trip/client/queries'
+import {
+  dayQuery,
+  loadQuery,
+  scheduleByIdQuery,
+  useScheduleSnapshot,
+} from '@/trip/client/queries'
+import { pageHydrateOptions } from '@/trip/client/query-client'
 import {
   answerSnapshot,
   dayPage,
@@ -29,10 +39,15 @@ import {
 } from '@/trip/client/snapshot-testing'
 import { december } from '@/trip/domain/domain'
 import type { DayPage, ScheduleSnapshot } from '@/trip/domain/domain'
-import { getDay, getScheduleSnapshot } from '@/trip/trip/trip.functions'
+import {
+  getDay,
+  getScheduleById,
+  getScheduleSnapshot,
+} from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({
   getDay: vi.fn(),
+  getScheduleById: vi.fn(),
   getScheduleSnapshot: vi.fn(),
 }))
 
@@ -289,6 +304,56 @@ describe('when a screen was last updated', () => {
 
     assert.strictEqual(screen.shown(), 'Updated 30 minutes ago')
     await screen.close()
+  })
+
+  it('reads as just now for a Day the server rendered into the page, though the device clock runs 10 minutes fast', async () => {
+    clockAt('2026-12-14T09:00:00')
+    const server = testQueryClient()
+    await readDay(server)
+    const page = structuredClone(dehydrate(server))
+
+    vi.setSystemTime(tokyoTime('2026-12-14T09:10:00'))
+    const browser = testQueryClient()
+    hydrate(browser, page, pageHydrateOptions(browser))
+    const screen = await showLastUpdated(browser, dayQuery(december(14)))
+
+    assert.strictEqual(screen.shown(), 'Updated just now')
+    await screen.close()
+  })
+
+  it('counts from when the browser read a Schedule the server rendered into the page again unchanged, and after a restart', async () => {
+    clockAt('2026-12-14T09:00:00')
+    vi.mocked(getScheduleById).mockResolvedValue(currentSchedule())
+    const schedule = scheduleByIdQuery(scheduleId)
+    const server = testQueryClient()
+    await loadQuery(server, schedule)
+    const page = structuredClone(dehydrate(server))
+
+    const browser = testQueryClient()
+    const kept = keepCacheOnDevice(browser)
+    hydrate(browser, page, pageHydrateOptions(browser))
+    await timePassesTo('2026-12-14T09:30:00')
+    await loadQuery(browser, schedule)
+    await kept.saved()
+    const screen = await showLastUpdated(browser, schedule)
+    const readAgain = screen.shown()
+    await screen.close()
+
+    await timePassesTo('2026-12-14T09:45:00')
+    loseConnection()
+    const reopened = testQueryClient()
+    keepCacheOnDevice(reopened)
+    await loadQuery(reopened, schedule)
+    const afterRestart = await showLastUpdated(reopened, schedule)
+
+    assert.deepStrictEqual(
+      { readAgain, afterRestart: afterRestart.shown() },
+      {
+        readAgain: 'Updated just now',
+        afterRestart: 'Updated 15 minutes ago',
+      },
+    )
+    await afterRestart.close()
   })
 
   it('is not shown in a server render or the render hydrating it, though the browser read the Day again before hydrating', async () => {

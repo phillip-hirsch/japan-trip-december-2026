@@ -1,4 +1,9 @@
-import { hashKey, onlineManager } from '@tanstack/react-query'
+import {
+  dehydrate,
+  hashKey,
+  hydrate,
+  onlineManager,
+} from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { clear } from 'idb-keyval'
 import { vi } from 'vite-plus/test'
@@ -16,9 +21,11 @@ import {
   scheduleId,
 } from '@/trip/client/editor-testing'
 import { testQueryClient, withClient } from '@/trip/client/hook-testing'
+import { pageHydrateOptions } from '@/trip/client/query-client'
 import {
   homeQuery,
   loadQuery,
+  shouldDehydrateQuery,
   useHome,
   useScheduleSnapshot,
 } from '@/trip/client/queries'
@@ -32,6 +39,7 @@ import {
   WriteDayNoteOutcome,
 } from '@/trip/domain/domain'
 import type { ScheduleSnapshot } from '@/trip/domain/domain'
+import { tokyoDateAt } from '@/trip/domain/calendar'
 import {
   chooseItinerary,
   getHome,
@@ -50,18 +58,46 @@ export const otherScheduleId = ScheduleId.make(
 
 export const tokyoTime = (iso: string) => new Date(`${iso}+09:00`)
 
-/** Sets the device's clock to `iso`, Tokyo time, and lets it run. */
-export const clockAt = (iso: string) => {
+// How far the device's clock runs ahead of the server's, negative for behind.
+let deviceAhead = 0
+
+/**
+ * Sets the server's clock to `iso`, Tokyo time, and the device's `ahead`
+ * milliseconds ahead of it, or behind when negative, and lets both run.
+ */
+export const clockAt = (iso: string, ahead = 0) => {
   vi.useFakeTimers({
     toFake: ['Date', 'setTimeout', 'clearTimeout'],
     shouldAdvanceTime: true,
   })
-  vi.setSystemTime(tokyoTime(iso))
+  deviceAhead = ahead
+  vi.setSystemTime(tokyoTime(iso).getTime() + ahead)
 }
 
-/** Lets the device's clock run on to `iso`, Tokyo time. */
+/** Lets both clocks run on until the server's reads `iso`, Tokyo time. */
 export const timePassesTo = (iso: string) =>
-  act(() => vi.advanceTimersByTimeAsync(tokyoTime(iso).getTime() - Date.now()))
+  act(() =>
+    vi.advanceTimersByTimeAsync(
+      tokyoTime(iso).getTime() + deviceAhead - Date.now(),
+    ),
+  )
+
+/** The server's clock now, which runs `deviceAhead` behind the device's. */
+const serverNow = () => new Date(Date.now() - deviceAhead)
+
+/** Runs `render` as the server does, with the time by its own clock. */
+const onServer = async <T>(render: () => Promise<T>) => {
+  const ahead = deviceAhead
+  vi.setSystemTime(serverNow())
+  deviceAhead = 0
+
+  try {
+    return await render()
+  } finally {
+    deviceAhead = ahead
+    vi.setSystemTime(Date.now() + ahead)
+  }
+}
 
 /** Lets pending reads answer and the renders they cause finish. */
 export const settle = () => act(() => vi.advanceTimersByTimeAsync(0))
@@ -85,16 +121,17 @@ const closeRoot = (root: Root) =>
 
 export const snapshot = snapshotWith('Onsen at 18:00.')
 
-/** Home as the server reads it during the Trip, at `iso` Tokyo time. */
-export const homeDuringTrip = (iso: string) => {
-  const readAt = tokyoTime(iso)
-
-  return HomeState.cases.DuringTrip.make({
+/** Home as the server reads it during the Trip, at `readAt`. */
+const homeReadDuringTrip = (readAt: Date) =>
+  HomeState.cases.DuringTrip.make({
     readAt: readAt.toISOString(),
     itineraries: [],
-    ...todayOn(Number(iso.slice(8, 10))),
+    ...todayOn(Number(tokyoDateAt(readAt.getTime()).slice(8, 10))),
   })
-}
+
+/** Home as the server reads it during the Trip, at `iso` Tokyo time. */
+export const homeDuringTrip = (iso: string) =>
+  homeReadDuringTrip(tokyoTime(iso))
 
 /** Home as the server reads it on December 5, the day before the Trip. */
 export const homeBeforeTrip = HomeState.cases.BeforeTrip.make({
@@ -107,13 +144,15 @@ export const homeBeforeTrip = HomeState.cases.BeforeTrip.make({
 export const answerHome = (home: HomeState) =>
   vi.mocked(getHome).mockResolvedValue(home)
 
-/**
- * Opens Home as the app does: its loader reads Home, and the root keeps the
- * Schedule snapshot. The hook's answer is kept per render.
- */
-export const openHome = async (queryClient: QueryClient) => {
+/** The server answers each read of Home during the Trip by its own clock. */
+export const serverReadsHome = () =>
+  vi
+    .mocked(getHome)
+    .mockImplementation(async () => homeReadDuringTrip(serverNow()))
+
+/** Shows Home on `queryClient`, keeping the hook's answer per render. */
+const showHome = async (queryClient: QueryClient) => {
   const renders: Array<ReturnType<typeof useHome>> = []
-  await loadQuery(queryClient, homeQuery)
 
   const App = () => {
     useScheduleSnapshot()
@@ -140,21 +179,57 @@ export const openHome = async (queryClient: QueryClient) => {
 }
 
 /**
+ * Opens Home as the app does: its loader reads Home, and the root keeps the
+ * Schedule snapshot. The hook's answer is kept per render.
+ */
+export const openHome = async (queryClient: QueryClient) => {
+  await loadQuery(queryClient, homeQuery)
+
+  return showHome(queryClient)
+}
+
+/** `app` with a `close` that first waits until what `kept` keeps is saved. */
+const closingFully = <App extends { close: () => Promise<void> }>(
+  app: App,
+  kept: ReturnType<typeof keepCacheOnDevice>,
+) => ({
+  ...app,
+  close: async () => {
+    await act(() => kept.saved())
+    await app.close()
+  },
+})
+
+/**
  * Opens Home from cold, as the Home Screen app does, on a cache the device
  * keeps. `close` closes the app fully, once what it keeps is on the device.
  */
 export const openHomeFromCold = async () => {
   const queryClient = testQueryClient()
   const kept = keepCacheOnDevice(queryClient)
-  const app = await openHome(queryClient)
 
-  return {
-    ...app,
-    close: async () => {
-      await act(() => kept.saved())
-      await app.close()
-    },
-  }
+  return closingFully(await openHome(queryClient), kept)
+}
+
+/**
+ * Opens a page the server rendered with Home in it, read by the server's
+ * clock, on a cache the device keeps. The browser takes in the page's Home as
+ * the router does, and shows it without reading Home again.
+ */
+export const openHomeRenderedIntoPage = async () => {
+  const page = await onServer(async () => {
+    const server = testQueryClient()
+    await loadQuery(server, homeQuery)
+
+    // The page carries a copy, as it does across the network.
+    return structuredClone(dehydrate(server, { shouldDehydrateQuery }))
+  })
+
+  const queryClient = testQueryClient()
+  const kept = keepCacheOnDevice(queryClient)
+  hydrate(queryClient, page, pageHydrateOptions(queryClient))
+
+  return closingFully(await showHome(queryClient), kept)
 }
 
 /** The app's root, which keeps the Schedule snapshot, on no page. */
@@ -279,6 +354,7 @@ export const closeHome = async () => {
     openRoots.clear()
   })
   vi.useRealTimers()
+  deviceAhead = 0
   await clear()
   reportConnection(connected)
   onlineManager.setOnline(true)
