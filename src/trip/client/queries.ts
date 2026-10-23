@@ -12,6 +12,7 @@ import type {
   Query,
   QueryClient,
   QueryKey,
+  QueryState,
 } from '@tanstack/react-query'
 import { useHydrated } from '@tanstack/react-router'
 import { Match } from 'effect'
@@ -24,6 +25,7 @@ import {
 } from '@/access/connection-status'
 import { deviceCacheRestoring } from '@/trip/client/device-cache'
 import {
+  answeredAt,
   answerOfRead,
   keepLatestRead,
   readInOrder,
@@ -35,7 +37,7 @@ import {
   millisecondsUntilTokyoMidnight,
   tokyoDateAt,
 } from '@/trip/domain/calendar'
-import type { HomeState, IsoDate } from '@/trip/domain/domain'
+import type { HomeState, IsoDate, Schedules } from '@/trip/domain/domain'
 import { homeStateOn } from '@/trip/domain/home-state'
 import {
   getChecklist,
@@ -215,8 +217,9 @@ const subscribeToTokyoMidnight = (onChange: () => void) => {
 }
 
 /**
- * The data the app stores for `query`, updated as the cache changes. It never
- * fetches, and doesn't count as showing the query. Undefined for no query.
+ * The state of `query` as the app stores it, with its data, updated as the
+ * cache changes. It never fetches, and doesn't count as showing the query.
+ * Undefined for no query.
  */
 const useStored = <TData, TKey extends QueryKey>(
   query: FetchQueryOptions<TData, Error, TData, TKey> | undefined,
@@ -232,7 +235,8 @@ const useStored = <TData, TKey extends QueryKey>(
     [queryClient, queryHash],
   )
 
-  const held = () => query && queryClient.getQueryData<TData>(query.queryKey)
+  const held = () =>
+    query && queryClient.getQueryState<TData, Error>(query.queryKey)
 
   return useSyncExternalStore(subscribe, held, held)
 }
@@ -260,15 +264,12 @@ export const useHome = () => {
   )
 
   const movedOn = today > readOn
-  const readWith = scheduleIn(data)
 
-  const schedules = useStored(
-    movedOn && readWith.id !== null ? schedulesQuery : undefined,
-  )
+  const schedules = useStored(movedOn ? schedulesQuery : undefined)
 
   const page = useStored(
     movedOn && isTripDate(today) ? dayQuery(today) : undefined,
-  )
+  )?.data
 
   useEffect(() => {
     const deadline = nextTokyoMidnightDeadline(readAt)
@@ -291,17 +292,12 @@ export const useHome = () => {
   const asRead = { home: data, query: homeQuery }
 
   if (!movedOn) return asRead
-  const stored = schedules?.current
 
-  // Stored Schedules that disagree with Home as last read may predate it,
-  // such as ones from before a Schedule was chosen on another device. Then
-  // only the Schedule Home carries will do.
-  const schedule =
-    readWith.id === null
-      ? null
-      : stored?.id === readWith.id
-        ? stored
-        : readWith.detail
+  const { schedule, from } = scheduleToMoveOnWith(
+    scheduleIn(data),
+    dataUpdatedAt,
+    schedules,
+  )
 
   if (schedule === undefined) return asRead
   const showsDay = schedule !== null && isTripDate(today)
@@ -317,11 +313,7 @@ export const useHome = () => {
       schedule,
       today: page ?? null,
     }),
-    query: showsDay
-      ? dayQuery(today)
-      : schedule !== null && schedule === stored
-        ? schedulesQuery
-        : homeQuery,
+    query: showsDay ? dayQuery(today) : from,
   }
 }
 
@@ -346,6 +338,38 @@ const scheduleIn = (home: HomeState) =>
       }),
     }),
   )
+
+/**
+ * The Schedule Home moves on with offline, and the query it came from:
+ * whichever of Home and the stored Schedules the server answered later. A
+ * Schedule chosen here away from Home leaves Home older, and one chosen on
+ * another device can leave the stored Schedules older. Undefined when the
+ * later one lacks it, as Home during the Trip carries only its Schedule's id.
+ */
+const scheduleToMoveOnWith = (
+  readWith: ReturnType<typeof scheduleIn>,
+  homeAnsweredAt: number,
+  schedules: QueryState<Schedules> | undefined,
+) => {
+  const stored = schedules?.data?.current
+  const storedAnsweredAt = schedules && answeredAt(schedules)
+
+  if (
+    stored !== undefined &&
+    storedAnsweredAt !== undefined &&
+    storedAnsweredAt > homeAnsweredAt
+  ) {
+    return { schedule: stored, from: schedulesQuery }
+  }
+
+  if (readWith.id === null || readWith.detail !== undefined) {
+    return { schedule: readWith.detail ?? null, from: homeQuery }
+  }
+
+  return stored?.id === readWith.id
+    ? { schedule: stored, from: schedulesQuery }
+    : { schedule: undefined, from: homeQuery }
+}
 
 export const dayQuery = (date: IsoDate) =>
   queryOptions({

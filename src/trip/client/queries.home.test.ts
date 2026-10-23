@@ -20,6 +20,7 @@ import {
 import {
   dayQuery,
   homeQuery,
+  invalidateAfter,
   schedulesQuery,
   loadQuery,
   useHome,
@@ -135,6 +136,37 @@ const openHomeFromCold = async () => {
       await app.close()
     },
   }
+}
+
+/** The app's root, which keeps the Schedule snapshot, on no page. */
+const openRoot = async (queryClient: QueryClient) => {
+  const Root = () => {
+    useScheduleSnapshot()
+
+    return null
+  }
+
+  const root = createRoot(document.createElement('div'))
+  await act(async () =>
+    root.render(withClient(queryClient, createElement(Root))),
+  )
+  await settle()
+
+  return { close: () => act(async () => root.unmount()) }
+}
+
+/** The snapshot of the Schedule chosen from Option 2, with every Day. */
+const option2Snapshot = {
+  ...snapshot,
+  schedules: {
+    ...snapshot.schedules,
+    current: currentSchedule({
+      id: otherScheduleId,
+      sourceOptionNumber: 2,
+      days: snapshot.days.map(({ day }) => day),
+    }),
+  },
+  days: snapshot.days.map((page) => ({ ...page, scheduleId: otherScheduleId })),
 }
 
 afterEach(async () => {
@@ -279,6 +311,39 @@ describe('Home offline at the Trip boundaries', () => {
 })
 
 describe('Home after it moved on offline', () => {
+  it('shows the new Day of a Schedule chosen here after Home was last read, opened offline after Tokyo midnight', async () => {
+    clockAt('2026-12-14T20:00:00')
+    answerSnapshot(snapshot)
+    answerHome(homeDuringTrip('2026-12-14T20:00:00'))
+    const queryClient = testQueryClient()
+    const root = await openRoot(queryClient)
+    await (await openHome(queryClient)).close()
+
+    // Phillip chooses Option 2 from its page, away from Home, and the
+    // snapshot stores its Schedules and every Day.
+    await timePassesTo('2026-12-14T20:30:00')
+    answerSnapshot(option2Snapshot)
+    await act(() => invalidateAfter(queryClient, 'choose'))
+    await settle()
+    loseConnection()
+    vi.mocked(getHome).mockImplementation(serverOutOfReach)
+    await timePassesTo('2026-12-15T07:00:00')
+    const app = await openHome(queryClient)
+
+    assert.deepStrictEqual(app.shown(), {
+      home: HomeState.cases.DuringTrip.make({
+        ...homeDuringTrip('2026-12-14T20:00:00'),
+        date: december(15),
+        today:
+          option2Snapshot.days.find((page) => page.day.date === december(15)) ??
+          null,
+      }),
+      from: hashKey(dayQuery(december(15)).queryKey),
+    })
+    await app.close()
+    await root.close()
+  })
+
   it('stays as last read rather than go back to a Schedule a later Home read replaced', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
