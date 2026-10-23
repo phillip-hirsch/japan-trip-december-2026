@@ -22,7 +22,7 @@ export const Route = createFileRoute('/map')({
 function MapPage() {
   const map = useSuspenseQuery(scheduleMapQuery).data
 
-  if (map === null) return <NoSchedule />
+  if (map === null) return <NoSchedule query={scheduleMapQuery} />
 
   return (
     <div className={cn('relative', mapViewport)}>

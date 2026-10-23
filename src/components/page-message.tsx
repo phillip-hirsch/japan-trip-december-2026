@@ -9,11 +9,14 @@ export function PageMessage({
   title,
   children,
   actions,
+  footer,
 }: {
   eyebrow: string
   title: string
   children: ReactNode
   actions: ReactNode
+  /** Shown under the actions, such as when the page's data was updated. */
+  footer?: ReactNode
 }) {
   return (
     <section className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center px-6 py-16 md:px-12">
@@ -25,6 +28,7 @@ export function PageMessage({
         {children}
       </p>
       <div className="mt-8 flex gap-2">{actions}</div>
+      {footer}
     </section>
   )
 }

@@ -31,7 +31,7 @@ function SchedulePage() {
     tripNote,
   } = useSuspenseQuery(schedulesQuery).data
 
-  if (schedule === null) return <NoSchedule />
+  if (schedule === null) return <NoSchedule query={schedulesQuery} />
 
   return (
     <article className="mx-auto w-full max-w-3xl px-6 py-10 md:px-12 md:py-16">
