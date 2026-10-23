@@ -148,7 +148,7 @@ describe('the screens a save affects', () => {
     const { queryClient } = dayNote
     const root = await openRoot(queryClient)
 
-    // The signal drops right after the save, before the snapshot answers.
+    // The connection drops right after the save, before the snapshot answers.
     vi.mocked(getScheduleSnapshot).mockImplementation(serverOutOfReach)
     await saveDayNote(dayNote, 'Tsukiji at dawn.')
     await timePassesTo('2026-12-14T20:30:00')
@@ -221,7 +221,7 @@ describe('the screens a save affects', () => {
     await dayNote.close()
   })
 
-  it('hold the save offline though the snapshot read after it was still waiting for an answer when the connection briefly returned', async () => {
+  it("hold the save offline though the snapshot's read after the save hung while the connection dropped and returned", async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
     const dayNote = await openDayNote()
@@ -250,7 +250,7 @@ describe('the screens a save affects', () => {
     await dayNote.close()
   })
 
-  it('hold the save offline when the snapshot read after it answers just as the connection returns', async () => {
+  it("hold the save offline when the snapshot's read after the save is the request that brings the connection back", async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
     const dayNote = await openDayNote()
@@ -298,8 +298,8 @@ describe('the screens a save affects', () => {
     await saveDayNote(dayNote, 'Tsukiji at dawn.')
     await timePassesTo('2026-12-14T20:30:00')
 
-    // Only the transport sees a read that goes again and again, so this test
-    // counts its calls.
+    // Only the transport can see a read that repeats, so this test counts
+    // its calls.
     assert.strictEqual(vi.mocked(getScheduleSnapshot).mock.calls.length, 1)
     await root.close()
     await dayNote.close()
@@ -310,7 +310,8 @@ describe('the Schedule snapshot', () => {
   it('stores every Day to open offline though its first read met a server error', async () => {
     clockAt('2026-12-14T20:00:00')
 
-    // The app's own client, which tries a failed read again after a pause.
+    // This is the app's own client, which tries a failed read again after a
+    // pause.
     const queryClient = new QueryClient({
       defaultOptions: { queries: queryDefaults },
     })
@@ -333,7 +334,7 @@ describe('the Schedule snapshot', () => {
   })
 })
 
-describe('Home after a save away from it', () => {
+describe('Home after a save', () => {
   it('holds the save offline once the connection returns, though it was shown during the save and its read failed', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
@@ -343,7 +344,7 @@ describe('Home after a save away from it', () => {
     const home = await openHome(queryClient)
     await timePassesTo('2026-12-14T20:30:00')
 
-    // Phillip saves Today's Day note on Home, and the signal drops at once.
+    // Phillip saves Today's Day note on Home, and the connection drops at once.
     vi.mocked(getHome).mockImplementation(serverOutOfReach)
     await saveDayNote(dayNote, 'Tsukiji at dawn.')
     await home.close()
@@ -365,7 +366,7 @@ describe('Home after a save away from it', () => {
     await dayNote.close()
   })
 
-  it('holds the save offline though its read after the save was still waiting for an answer when the connection briefly returned', async () => {
+  it('holds the save offline though its read after the save hung while the connection dropped and returned', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
     answerHome(homeDuringTrip('2026-12-14T20:00:00'))
@@ -516,7 +517,7 @@ describe('Home after a save away from it', () => {
     await saveDayNote(dayNote, 'Tsukiji at dawn.')
     await timePassesTo('2026-12-14T20:30:00')
 
-    // Only the transport sees a read that goes again and again.
+    // Only the transport can see a read that repeats.
     assert.strictEqual(vi.mocked(getHome).mock.calls.length, 1)
     await dayNote.close()
   })

@@ -30,9 +30,9 @@ export const answerOfRead = <T>(answer: T, read: Read) => {
 }
 
 /**
- * The number of the latest read each query's own function started. It stays
- * through a failure, since the query may try again after a pause, and goes
- * once the read answers.
+ * The number of the latest read each query's own function started. A failure
+ * leaves the entry in place, since the query may try again after a pause. An
+ * answer removes it.
  */
 const latestTried = new Map<string, number>()
 
@@ -51,9 +51,9 @@ export const readInOrder =
   }
 
 /**
- * The number of the read a loader of `queryKey` waits on. While the query
- * is fetching, the loader joins that fetch, even between its tries, so it's
- * the fetch's latest try; otherwise it's the next read to start.
+ * The number of the read a loader of `queryKey` waits on. While the query is
+ * fetching, the loader joins that fetch, even in a pause between tries, so
+ * this is the fetch's latest try. Otherwise it is the next read to start.
  */
 export const readAwaited = (queryKey: QueryKey, fetching: boolean) =>
   (fetching ? latestTried.get(hashKey(queryKey)) : undefined) ??

@@ -7,19 +7,23 @@ import {
 } from '@/access/connection-status'
 
 /**
- * A read a save leaves owed. It stores what it reads in read order, so it can
- * run beside any other read of the same data, and resolves once it answered.
+ * A read that a save still needs. It stores its answer in read order, so it
+ * can run alongside other reads of the same data. It resolves once the server
+ * answers.
  */
 type OwedRead = (queryClient: QueryClient) => Promise<void>
 
-/** Owes the read for another save, and starts an attempt at it. */
+/** Records another save that needs the read, and starts a new attempt. */
 type Owe = () => Promise<void>
 
 const owedReads = new WeakMap<QueryClient, Map<OwedRead, Owe>>()
 
 const isConnected = () => ConnectionStatus.$is('Connected')(currentConnection())
 
-/** Starts owing `read` on `queryClient`, and returns how to owe it again. */
+/**
+ * Starts tracking `read` on `queryClient`, and returns the function a later
+ * save calls.
+ */
 const startOwing = (
   queryClient: QueryClient,
   read: OwedRead,
@@ -37,7 +41,7 @@ const startOwing = (
       () => false,
     )
 
-    // An attempt from before the latest save can't settle what it owes.
+    // An attempt that started before the latest save doesn't count for it.
     if (!answered || settled || number < owedFrom) return
     settled = true
     stop()
@@ -62,11 +66,11 @@ const startOwing = (
 }
 
 /**
- * Runs `read` after a save, and again each time a request gets an answer
- * after none did, until a read started after the save answers. A read that
- * fails while the app stays connected, as on a server error, waits for the
- * next reconnect, so it never runs in a loop. Resolves once this attempt
- * answers or fails.
+ * Runs `read` after a save. Each time a request gets an answer after none
+ * did, it runs `read` again, until a read started after the save answers. A
+ * read that fails while the app stays connected, as on a server error, waits
+ * for the next reconnect, so it never runs in a loop. The returned promise
+ * settles once this attempt answers or fails.
  */
 export const readUntilAnswered = (queryClient: QueryClient, read: OwedRead) => {
   const owed = owedReads.get(queryClient) ?? new Map<OwedRead, Owe>()

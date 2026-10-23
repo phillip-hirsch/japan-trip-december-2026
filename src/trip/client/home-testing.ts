@@ -356,8 +356,9 @@ export const closeHome = async () => {
   vi.useRealTimers()
   deviceAhead = 0
   await clear()
-  // A read this test still owes runs again when the connection returns, so
-  // reset Home's answer first, or that read gets this test's answer.
+  // A read still pending from this test runs again when the connection
+  // returns. Reset Home's answer first, so that read can't call this test's
+  // mock and report the app offline.
   vi.mocked(getHome).mockReset()
   reportConnection(connected)
   onlineManager.setOnline(true)

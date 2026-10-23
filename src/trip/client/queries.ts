@@ -65,11 +65,11 @@ const isOffline = () =>
   ConnectionStatus.$is('Offline')(currentConnection())
 
 /**
- * Resolves with the data stored for `queryKey` as soon as the app is offline
- * and has data stored for it, or once it holds data from read number `read`
- * or a later one, which may already be the case. The two can happen in either
- * order, such as a snapshot storing a Day after the connection dropped.
- * `stop` removes the listeners.
+ * Resolves with the data stored for `queryKey` once the app is offline and
+ * holds data for it, in either order, such as a snapshot storing a Day after
+ * the connection dropped. It also resolves once the stored data comes from
+ * read number `read` or a later one, which may already be true when it
+ * starts. `stop` removes the listeners.
  */
 const storedOnceCurrent = <TData>(
   queryClient: QueryClient,
@@ -174,9 +174,10 @@ export const loadQuery = async <TData, TKey extends QueryKey>(
 }
 
 /**
- * Stores `data`, which `read` answered, in the query of `options`, unless an
- * answer from a later read is stored there. It builds the query with its own
- * options first, so one never read on its own still checks the read numbers.
+ * Stores `data`, which `read` answered, in the query of `options`, unless the
+ * query holds an answer from a later read. It builds the query with its own
+ * options first, so a query that never read on its own still checks the read
+ * numbers.
  */
 const storeRead = <T, K extends QueryKey>(
   queryClient: QueryClient,
@@ -314,9 +315,9 @@ const readKeptSnapshot = async (queryClient: QueryClient) => {
 
 /**
  * Invalidates the queries given. It also reads the Schedule snapshot again,
- * without waiting for it, and Home when it's among them, waiting only while
- * Home is shown. Each goes again once the connection returns, until it
- * answers.
+ * without waiting for it. When Home is among them, it reads Home too, and
+ * waits for that read only while Home is shown. Each read runs again when the
+ * connection returns, until it answers.
  */
 const invalidate = (
   queryClient: QueryClient,
@@ -329,8 +330,8 @@ const invalidate = (
   )
 
   // Home isn't in the snapshot, and offline it opens as last read, so a save
-  // must reach the Home the device keeps, shown or not. It has its own read
-  // in place of the refetch the invalidation would start.
+  // must reach the Home the device keeps, shown or not. The invalidation
+  // doesn't refetch Home, because readHome reads it.
   if (queryKeys.includes(keys.home)) {
     const shown = queryClient
       .getQueryCache()
@@ -350,9 +351,10 @@ const invalidate = (
 }
 
 /**
- * Reads Home and stores it in read order, while the app holds Home, shown or
- * not. A read of Home under way, such as a page loader's, may predate the
- * write, but the read order keeps it from replacing this one.
+ * Reads Home and stores it in read order while the app holds Home, shown or
+ * not. A read of Home already under way, such as a page loader's, may
+ * predate the write. The read order stops its answer from replacing this
+ * one.
  */
 const readHome = async (queryClient: QueryClient) => {
   const held = queryClient
@@ -369,9 +371,9 @@ const readHome = async (queryClient: QueryClient) => {
 /**
  * Invalidates exactly the queries a successful write affects, and resolves
  * once the shown ones have refetched. The rest refetch when next shown.
- * Meanwhile it reads the Schedule snapshot again, which stores them, and
- * reads Home, waiting for Home only while it's shown. A read that fails goes
- * again once a request gets an answer, until it answers.
+ * Meanwhile it reads the Schedule snapshot again, which stores them. It
+ * also reads Home, and waits for that read only while Home is shown. A read
+ * that fails runs again once a request gets an answer, until it answers.
  */
 export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) =>
   invalidate(queryClient, affectedBy[write])
