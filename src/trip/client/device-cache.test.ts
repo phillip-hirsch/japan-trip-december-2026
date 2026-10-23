@@ -15,14 +15,11 @@ import { vi } from 'vite-plus/test'
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 
-import {
-  connected,
-  offline,
-  reportConnection,
-} from '@/access/connection-status'
+import { connected, reportConnection } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
 import { deferred } from '@/trip/client/editor-testing'
 import {
+  loseConnection,
   outcomeOf,
   serverOutOfReach,
   settle,
@@ -129,11 +126,6 @@ const openApp = async ({
 
 type App = Awaited<ReturnType<typeof openApp>>
 
-const goOffline = () => {
-  onlineManager.setOnline(false)
-  reportConnection(offline)
-}
-
 /** The Day note December 14 opens with, offline. */
 const dayNoteOffline = async (app: App) =>
   (await loadQuery(app.queryClient, dayQuery(december(14))))?.day.note
@@ -168,7 +160,7 @@ describe('what the device keeps', () => {
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
     await (await openApp()).close()
 
-    goOffline()
+    loseConnection()
     const app = await openApp()
 
     assert.deepStrictEqual(
@@ -190,7 +182,7 @@ describe('what the device keeps', () => {
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
     const october = await openApp()
 
-    goOffline()
+    loseConnection()
     await act(() =>
       vi.advanceTimersByTimeAsync(
         tokyoTime('2026-12-20T23:30:00').getTime() - Date.now(),
@@ -213,7 +205,7 @@ describe('what the device keeps', () => {
       await openApp({ serverRendered: serverRenderedWith('Arrive at Haneda.') })
     ).close()
 
-    goOffline()
+    loseConnection()
     const app = await openApp()
 
     assert.strictEqual(await dayNoteOffline(app), 'Arrive at Haneda.')
@@ -235,7 +227,7 @@ describe('what the device keeps', () => {
       serverRendered: serverRenderedWith('Onsen moved to 20:00.'),
     })
 
-    goOffline()
+    loseConnection()
     const whileOpen = await dayNoteOffline(rendered)
     await rendered.close()
     const reopened = await openApp()
@@ -262,7 +254,7 @@ describe('what the device keeps', () => {
     await settle()
     await shown.close()
 
-    goOffline()
+    loseConnection()
     const app = await openApp()
 
     assert.strictEqual(await dayNoteOffline(app), 'Onsen at 18:00.')
@@ -285,7 +277,7 @@ describe('what the device keeps', () => {
     await loadQuery(earlier.queryClient, schedulesQuery)
     await earlier.close()
 
-    goOffline()
+    loseConnection()
     const app = await openApp()
 
     assert.strictEqual(await dayNoteOffline(app), 'Onsen moved to 20:00.')
@@ -314,7 +306,7 @@ describe('what the device keeps', () => {
     await reading
     await earlier.close()
 
-    goOffline()
+    loseConnection()
     const app = await openApp()
 
     assert.strictEqual(await dayNoteOffline(app), 'Onsen moved to 20:00.')
@@ -334,7 +326,7 @@ describe('what the device keeps', () => {
       })
     ).close()
 
-    goOffline()
+    loseConnection()
     const app = await openApp()
 
     assert.strictEqual(await dayNoteOffline(app), 'Onsen moved to 20:00.')
@@ -345,7 +337,7 @@ describe('what the device keeps', () => {
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
     await (await openApp({ version: 1 })).close()
 
-    goOffline()
+    loseConnection()
     const app = await openApp({ version: 2 })
 
     assert.strictEqual(
@@ -368,7 +360,7 @@ describe('what the device keeps', () => {
     await loadQuery(older.queryClient, schedulesQuery)
     await older.close()
 
-    goOffline()
+    loseConnection()
     const app = await openApp({ version: 2 })
 
     assert.strictEqual(await dayNoteOffline(app), 'Onsen moved to 20:00.')

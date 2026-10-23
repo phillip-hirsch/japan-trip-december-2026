@@ -4,14 +4,11 @@ import { focusManager, onlineManager, useQuery } from '@tanstack/react-query'
 import { vi } from 'vite-plus/test'
 import { act } from 'react'
 
-import {
-  connected,
-  offline,
-  reportConnection,
-} from '@/access/connection-status'
+import { connected, reportConnection } from '@/access/connection-status'
 import { useDayNote } from '@/components/notes'
 import { deferred, openEditor, scheduleId } from '@/trip/client/editor-testing'
 import {
+  loseConnection,
   outcomeOf,
   serverOutOfReach,
   settle,
@@ -230,8 +227,7 @@ describe('a loader', () => {
     vi.mocked(getDay).mockImplementation(() => deferred<DayPage>().promise)
     const loading = loadQuery(app.queryClient, dayQuery(december(14)))
 
-    onlineManager.setOnline(false)
-    reportConnection(offline)
+    loseConnection()
     await act(async () => snapshot.resolve(snapshotWith('Onsen at 18:00.')))
 
     assert.strictEqual((await loading)?.day.note, 'Onsen at 18:00.')
@@ -262,8 +258,7 @@ describe('a loader', () => {
     })
     const loading = loadQuery(app.queryClient, dayQuery(december(14)))
 
-    onlineManager.setOnline(false)
-    reportConnection(offline)
+    loseConnection()
     failRead(new TypeError('Failed to fetch'))
 
     assert.strictEqual((await loading)?.day.note, 'Onsen at 18:00.')

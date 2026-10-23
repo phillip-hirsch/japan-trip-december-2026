@@ -38,7 +38,9 @@ function DayPage() {
   const { date } = Route.useParams()
   const page = useSuspenseQuery(dayQuery(date)).data
 
-  if (page === null) return <NoSchedule />
+  if (page === null) return <NoSchedule query={dayQuery(date)} />
 
-  return <ScheduleDayView page={page} eyebrow="Schedule" />
+  return (
+    <ScheduleDayView page={page} eyebrow="Schedule" query={dayQuery(date)} />
+  )
 }

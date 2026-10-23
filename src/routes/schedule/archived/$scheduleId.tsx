@@ -7,6 +7,7 @@ import {
 } from '@tanstack/react-router'
 
 import { ButtonLink } from '@/components/button-link'
+import { LastUpdated } from '@/components/last-updated'
 import { NotFound } from '@/components/not-found'
 import {
   ReplaceScheduleDialog,
@@ -93,6 +94,7 @@ function ArchivedSchedulePage() {
           )}
           . Read-only until you restore it.
         </p>
+        <LastUpdated query={scheduleByIdQuery(scheduleId)} className="mt-2" />
         <AnchorWarnings warnings={schedule.anchorWarnings} className="mt-6" />
         <RevisionNotice schedule={schedule} className="mt-6" />
         <div className="mt-8 flex flex-wrap gap-2">

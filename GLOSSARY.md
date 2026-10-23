@@ -153,6 +153,10 @@ _Avoid_: autosave, unsaved changes
 One attempt at a save that must happen once, such as adding an Activity, splitting a Stay or choosing an Itinerary. A Retry of the same Operation never saves twice, even when the first answer was lost. An edit, or a send for another Schedule or Itinerary, starts a new one.
 _Avoid_: request, idempotency key
 
+**Last updated**:
+When the server last answered for the data a screen shows. A Day the Schedule snapshot filled carries the snapshot's time. Every read that answers moves it, even one that finds the data unchanged. Offline it stays at the last answer, so Phillip knows how fresh what he reads is.
+_Avoid_: synced, refreshed, fetched
+
 **Offline**:
 The app is offline from the moment a request to the server gets no answer until a later request gets one. While it is offline, editing is paused. Every control that saves is off, and the app keeps an open Draft to save once the connection returns. A login that expired is not offline, because Access answered the request and refused it.
 _Avoid_: disconnected, network error
