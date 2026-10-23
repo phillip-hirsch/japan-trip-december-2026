@@ -44,10 +44,7 @@ export const withClient = (
   ...children: Array<ReactNode>
 ) => createElement(QueryClientProvider, { client: queryClient }, ...children)
 
-/**
- * The network drops: the browser reports it offline, and so does the
- * transport.
- */
+/** The network drops. The browser and the transport both report it offline. */
 export const loseConnection = () => {
   onlineManager.setOnline(false)
   reportConnection(offline)

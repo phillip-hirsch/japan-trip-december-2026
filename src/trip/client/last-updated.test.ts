@@ -127,7 +127,7 @@ describe('when a screen was last updated', () => {
     await screen.close()
   })
 
-  it('ages while the screen stays open, in its largest whole unit', async () => {
+  it('moves on while the screen stays open, in its largest whole unit', async () => {
     clockAt('2026-12-14T09:00:00')
     const queryClient = testQueryClient()
     await readDay(queryClient)

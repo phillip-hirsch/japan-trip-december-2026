@@ -184,8 +184,8 @@ export const keepCacheOnDevice = (
 
   // The data each query held when last noted, and when the server answered
   // with it. An answer that leaves both as they were, such as a read the read
-  // order turned down, is no change. A read answering with the same data is
-  // one, since it moves the time.
+  // order turned down, is no change. A read that answers with the same data
+  // is a change, because it moves the time.
   const noted = new Map<
     string,
     { readonly data: unknown; readonly answeredAt: number | undefined }

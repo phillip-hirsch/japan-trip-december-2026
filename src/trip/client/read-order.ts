@@ -2,7 +2,7 @@ import { replaceEqualDeep } from '@tanstack/react-query'
 import type { QueryState } from '@tanstack/react-query'
 import { Predicate } from 'effect'
 
-/** One read of the server: when it started, by number, and when it answered. */
+/** One read of the server, with its number and the time it answered. */
 export interface Read {
   readonly started: number
   readonly answeredAt: number

@@ -65,8 +65,8 @@ const keys = {
 // what its loader just read, so mounting never fetches again.
 
 /**
- * Calls back whenever the query with `queryHash`, as `hashKey` gives it,
- * changes; returns how to stop.
+ * Calls `listener` whenever the query with `queryHash` changes, and returns a
+ * function that stops it. `hashKey` gives a query's hash.
  */
 export const subscribeToQuery = (
   queryClient: QueryClient,

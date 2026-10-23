@@ -197,7 +197,7 @@ export function ScheduleDayView({
 }: {
   page: DayPage
   eyebrow: ReactNode
-  /** The query the page was read with, for when it was last updated. */
+  /** The query the page read its Day with, to show when it was last updated. */
   query: ScreenQuery
 }) {
   const navigate = useNavigate()

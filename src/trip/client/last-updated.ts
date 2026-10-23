@@ -26,12 +26,12 @@ const howLongAgo = (updatedAt: number, now: number) => {
   return ago.format(-Math.floor(elapsed / day), 'day')
 }
 
-/** How often a shown time ages. */
+/** How often the clock ticks, in milliseconds. */
 const tickMs = 15_000
 
 /**
- * Ticks the clock the shown times age by. It also ticks when the app is shown
- * again, since a hidden page's timers may not run.
+ * Ticks the clock that shown times count from. It also ticks when the app is
+ * shown again, because a hidden page's timers may not run.
  */
 const subscribeToClock = (onTick: () => void) => {
   const timer = setInterval(onTick, tickMs)
@@ -43,7 +43,10 @@ const subscribeToClock = (onTick: () => void) => {
   }
 }
 
-/** The time to the second, so React reads the same time twice in a render. */
+/**
+ * The time, rounded down to the second, so React gets the same value both
+ * times it reads it in one render.
+ */
 const currentSecond = () => Math.floor(Date.now() / 1000) * 1000
 
 /**

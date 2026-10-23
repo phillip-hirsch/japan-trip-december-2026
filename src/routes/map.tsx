@@ -29,7 +29,7 @@ function MapPage() {
       <h1 className="sr-only">Map</h1>
       <ScheduleMap map={map} />
       {/* Bottom left, where the offline banner never covers it. On narrower
-          maps it sits above the attribution, which wraps across them. */}
+          maps it sits above the attribution, which wraps onto two lines there. */}
       <LastUpdated
         query={scheduleMapQuery}
         className="absolute bottom-16 left-2.5 z-10 rounded-md border bg-background px-2 py-1 shadow-sm lg:bottom-2.5"
