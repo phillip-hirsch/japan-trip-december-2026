@@ -1,4 +1,4 @@
-import { CheckIcon } from 'lucide-react'
+import { CheckIcon, WifiOffIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { Badge } from '@/components/ui/badge'
@@ -29,13 +29,16 @@ export function NotSavedAlert({
 export function RetryOrDismiss({
   onRetry,
   onDismiss,
+  paused,
 }: {
   onRetry: () => void
   onDismiss: () => void
+  /** The app is offline, so Retry is off until the connection returns. */
+  paused: boolean
 }) {
   return (
     <div className="flex gap-2">
-      <Button type="button" size="sm" onClick={onRetry}>
+      <Button type="button" size="sm" disabled={paused} onClick={onRetry}>
         Retry
       </Button>
       <Button type="button" size="sm" variant="ghost" onClick={onDismiss}>
@@ -60,6 +63,20 @@ export function SavedStatus({
           {children}
         </span>
       )}
+    </p>
+  )
+}
+
+/**
+ * Says editing is paused while offline, next to the controls the pause turned
+ * off. The offline banner already announces the pause, so this note is not a
+ * live region.
+ */
+export function EditingPausedNote() {
+  return (
+    <p className="flex items-start gap-1.5 text-sm text-muted-foreground">
+      <WifiOffIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+      Offline. Editing is paused until the connection returns.
     </p>
   )
 }

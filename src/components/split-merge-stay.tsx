@@ -181,7 +181,7 @@ export function SplitMergeStay(props: StayEditorProps) {
                 <DateChoice
                   dates={splitDates}
                   value={splitDate}
-                  disabled={frame.busy}
+                  disabled={frame.locked}
                   onChange={(date) => field.change({ kind: 'split', date })}
                 />
                 <p id={hintId} className="text-sm text-muted-foreground">

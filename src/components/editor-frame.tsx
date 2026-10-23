@@ -3,6 +3,7 @@ import { useId } from 'react'
 import type { ReactNode } from 'react'
 
 import {
+  EditingPausedNote,
   NotSavedAlert,
   RetryOrDismiss,
   SavedStatus,
@@ -45,6 +46,8 @@ interface FramedField<V> {
   readonly state: SaveState<V>
   /** An open edit the Schedule shown no longer offers, as useSave says. */
   readonly withdrawn?: boolean
+  /** The app is offline, so nothing can be sent, as useSave says. */
+  readonly paused: boolean
 }
 
 interface FramedEditor<V> extends FramedField<V> {
@@ -68,6 +71,9 @@ type EditorView = 'summary' | 'form' | 'withdrawn'
  * - A value is busy while it is on its way, and while Saved if its form
  *   still shows it, so an add can't be sent twice. Once the summary shows
  *   it, it can be edited again, even if the read that confirms it fails.
+ * - Offline, editing is paused. An open form keeps its value, and only
+ *   Cancel and Discard still work. A value that is busy or paused is locked,
+ *   so no control may open, change or send it.
  * - A Clean value has nothing to discard.
  * - Opening the form focuses it; a restored Draft opens unfocused.
  */
@@ -88,6 +94,8 @@ export const frameOf = <V,>(
   const summaryShown =
     form === 'always' ? false : clean || (saved && form === 'untilSaved')
 
+  const busy = saving || (saved && !summaryShown)
+
   const view: EditorView = field.withdrawn
     ? 'withdrawn'
     : summaryShown
@@ -97,7 +105,9 @@ export const frameOf = <V,>(
   return {
     view,
     justSaved: saved || (clean && state.justSaved),
-    busy: saving || (saved && !summaryShown),
+    busy,
+    paused: field.paused,
+    locked: busy || field.paused,
     submitLabel: saving ? verb.submitting : notSaved ? 'Retry' : verb.submit,
     discardLabel: clean ? undefined : notSaved ? 'Discard' : 'Cancel',
     autoFocus: SaveState.$is('Editing')(state),
@@ -131,12 +141,13 @@ export type EditorFrameView = ReturnType<typeof useEditorFrame>
  * why, with Retry and Dismiss. Otherwise it shows nothing.
  */
 export function SendNotSaved<V>({ field }: { field: FramedEditor<V> }) {
-  const { problem } = frameOf(field)
+  const { problem, paused } = frameOf(field)
 
   return (
     problem !== undefined && (
       <NotSavedAlert problem={problem}>
         <RetryOrDismiss
+          paused={paused}
           onRetry={() => void field.save()}
           onDismiss={field.discard}
         />
@@ -233,7 +244,7 @@ export function EditorFrame<V>({
               variant="outline"
               size="sm"
               aria-describedby={labelledBy}
-              disabled={disabled}
+              disabled={disabled || frame.locked}
               onClick={onClick}
             >
               <Icon data-icon="inline-start" aria-hidden />
@@ -276,7 +287,7 @@ export function EditorFrame<V>({
         <Button
           type={formless ? 'button' : 'submit'}
           size={buttonSize}
-          disabled={frame.busy || !ready}
+          disabled={frame.locked || !ready}
           onClick={formless ? () => void field.save() : undefined}
         >
           {frame.submitLabel}
@@ -297,6 +308,7 @@ export function EditorFrame<V>({
           <SavedStatus saved={frame.justSaved}>{verb.done}</SavedStatus>
         )}
       </div>
+      {frame.paused && <EditingPausedNote />}
     </>
   )
 

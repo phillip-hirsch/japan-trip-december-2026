@@ -1,9 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { useServerFn } from '@tanstack/react-start'
 import { Data, Match } from 'effect'
 import { useRef, useState } from 'react'
 import type { ReactElement, ReactNode } from 'react'
 
+import { editingPaused, useEditingPaused } from '@/access/connection-status'
+import { EditingPausedNote } from '@/components/not-saved-alert'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,11 +18,17 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog'
-import type { ChooseOutcome, RestoreOutcome } from '@/trip/domain/domain'
+import type {
+  ChooseOutcome,
+  RestoreOutcome,
+  ScheduleId,
+  ScheduleSummary,
+} from '@/trip/domain/domain'
 import { operationFor } from '@/trip/client/operations'
 import type { Operation } from '@/trip/client/operations'
 import { invalidateAfter } from '@/trip/client/queries'
 import type { TripWrite } from '@/trip/client/queries'
+import { chooseItinerary, restoreSchedule } from '@/trip/trip/trip.functions'
 
 type Refusal = { readonly problem: string; readonly final: boolean }
 
@@ -68,51 +77,41 @@ const DialogState = Data.taggedEnum<DialogState>()
 
 const confirming: DialogState = DialogState.Confirming()
 
+/** What a write that replaces the current Schedule needs. */
+interface Replacement {
+  readonly write: TripWrite
+  /**
+   * What the write acts on, such as the Itinerary chosen; not the Schedule it
+   * replaces, which a retry may see change.
+   */
+  readonly target: string
+  readonly run: (operationId: string) => Promise<ReplaceAnswer>
+}
+
 /**
- * A write that replaces the current Schedule (choosing or restoring), after
- * a confirmation saying what happens. On success it opens the Schedule.
+ * A write that replaces the current Schedule by choosing an Itinerary or
+ * restoring a Schedule. Phillip confirms it in a dialog. On success the dialog
+ * closes and the Schedule opens.
  *
  * Each attempt goes under an operation for its target, by the rule a save
  * uses for its Schedule. A retry after a lost answer returns the first
  * result instead of writing again. A refusal writes nothing, so the same id
  * can confirm again once Phillip has read the refreshed confirmation. When
  * the page shows another Itinerary or Schedule, its target gets a new id, so
- * it never returns another target's result.
+ * it never returns another target's result. While the app is offline,
+ * confirming sends nothing until the connection returns.
  */
-export function ReplaceScheduleDialog({
-  write,
-  target,
-  run,
-  trigger,
-  triggerLabel,
-  title,
-  description,
-  action,
-  working,
-  failed,
-}: {
-  write: TripWrite
-  /**
-   * What the write acts on, such as the Itinerary chosen; not the Schedule it
-   * replaces, which a retry may see change.
-   */
-  target: string
-  run: (operationId: string) => Promise<ReplaceAnswer>
-  trigger: ReactElement
-  triggerLabel: ReactNode
-  title: string
-  description: ReactNode
-  action: string
-  working: string
-  failed: string
-}) {
+const useScheduleReplacement = ({ write, target, run }: Replacement) => {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const paused = useEditingPaused()
   const operation = useRef<Operation>(undefined)
   const [open, setOpen] = useState(false)
   const [state, setState] = useState<DialogState>(confirming)
 
   const confirm = async () => {
+    if (editingPaused()) return
+
     operation.current = operationFor(operation.current, target)
     const operationId = operation.current.id
     setState(DialogState.Working())
@@ -134,24 +133,99 @@ export function ReplaceScheduleDialog({
     }
   }
 
-  const problem = DialogState.$match(state, {
-    Confirming: () => undefined,
-    Working: () => undefined,
-    Refused: ({ problem }) => problem,
-    Failed: () => failed,
-  })
+  const openChange = (next: boolean) => {
+    if (next) setState(confirming)
+    setOpen(next)
+  }
 
-  const final = DialogState.$is('Refused')(state) && state.final
+  return {
+    open,
+    openChange,
+    paused,
+    working: DialogState.$is('Working')(state),
+    /** Why the Trip refused the last attempt, if it did. */
+    refusal: DialogState.$is('Refused')(state) ? state.problem : undefined,
+    /** The last attempt got no answer. */
+    failed: DialogState.$is('Failed')(state),
+    /** A refusal no retry can change, so only Close is left. */
+    final: DialogState.$is('Refused')(state) && state.final,
+    confirm,
+  }
+}
+
+export type ScheduleReplacement = ReturnType<typeof useScheduleReplacement>
+
+/** Choosing Option `optionNumber`, replacing the Schedule `current`, if any. */
+export const useChooseItinerary = ({
+  optionNumber,
+  current,
+}: {
+  optionNumber: number
+  current: ScheduleSummary | null
+}) => {
+  const choose = useServerFn(chooseItinerary)
+
+  return useScheduleReplacement({
+    write: 'choose',
+    target: `Option ${optionNumber}`,
+    run: async (operationId) =>
+      replacementAnswerOf(
+        await choose({
+          data: { operationId, optionNumber, replacing: current?.id ?? null },
+        }),
+      ),
+  })
+}
+
+/** Restoring the archived Schedule `scheduleId`, replacing `current`, if any. */
+export const useRestoreSchedule = ({
+  scheduleId,
+  current,
+}: {
+  scheduleId: ScheduleId
+  current: ScheduleSummary | null
+}) => {
+  const restore = useServerFn(restoreSchedule)
+
+  return useScheduleReplacement({
+    write: 'restore',
+    target: scheduleId,
+    run: async (operationId) =>
+      replacementAnswerOf(
+        await restore({
+          data: { operationId, scheduleId, replacing: current?.id ?? null },
+        }),
+      ),
+  })
+}
+
+/** The confirmation of a Schedule replacement, saying what happens. */
+export function ReplaceScheduleDialog({
+  replacement: dialog,
+  trigger,
+  triggerLabel,
+  title,
+  description,
+  action,
+  working,
+  failed,
+}: {
+  replacement: ScheduleReplacement
+  trigger: ReactElement
+  triggerLabel: ReactNode
+  title: string
+  description: ReactNode
+  action: string
+  working: string
+  failed: string
+}) {
+  const problem = dialog.failed ? failed : dialog.refusal
 
   return (
-    <AlertDialog
-      open={open}
-      onOpenChange={(open) => {
-        if (open) setState(confirming)
-        setOpen(open)
-      }}
-    >
-      <AlertDialogTrigger render={trigger}>{triggerLabel}</AlertDialogTrigger>
+    <AlertDialog open={dialog.open} onOpenChange={dialog.openChange}>
+      <AlertDialogTrigger render={trigger} disabled={dialog.paused}>
+        {triggerLabel}
+      </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
@@ -167,14 +241,17 @@ export function ReplaceScheduleDialog({
             {problem}
           </p>
         )}
+        {dialog.paused && <EditingPausedNote />}
         <AlertDialogFooter>
-          <AlertDialogCancel>{final ? 'Close' : 'Cancel'}</AlertDialogCancel>
-          {!final && (
+          <AlertDialogCancel>
+            {dialog.final ? 'Close' : 'Cancel'}
+          </AlertDialogCancel>
+          {!dialog.final && (
             <AlertDialogAction
-              onClick={confirm}
-              disabled={DialogState.$is('Working')(state)}
+              onClick={dialog.confirm}
+              disabled={dialog.working || dialog.paused}
             >
-              {DialogState.$is('Working')(state) ? working : action}
+              {dialog.working ? working : action}
             </AlertDialogAction>
           )}
         </AlertDialogFooter>

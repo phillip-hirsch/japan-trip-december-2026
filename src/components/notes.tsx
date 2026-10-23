@@ -149,7 +149,7 @@ function NoteFrame({
           aria-labelledby={labelledBy}
           aria-describedby={frame.describedBy}
           autoFocus={frame.autoFocus}
-          readOnly={frame.busy}
+          readOnly={frame.locked}
           value={value}
           onChange={(event) => field.change(event.target.value)}
           maxLength={noteMaxLength}

@@ -23,6 +23,8 @@ import { SaveState } from '@/trip/client/drafts'
 import {
   answeringOnly,
   answeringOnlyUnderAnyOperation,
+  comeBackOnline,
+  goOffline,
   losingFirstAnswer,
   notSavedProblem,
   openEditor,
@@ -406,6 +408,36 @@ describe('moving an Activity', () => {
     assert.deepStrictEqual(
       editor.field().state,
       SaveState.Clean({ justSaved: true }),
+    )
+    await editor.close()
+  })
+
+  it('moves nothing while offline, and moves the Activity once the connection returns', async () => {
+    vi.mocked(moveActivity).mockImplementation(
+      answeringOnly(
+        { scheduleId: scheduleA, ...moveTsukiji },
+        MoveActivityOutcome.cases.Moved.make({}),
+        MoveActivityOutcome.cases.ScheduleChanged.make({}),
+      ),
+    )
+    const editor = await openMove()
+
+    await goOffline()
+    await act(() => editor.field().send(moveTsukiji))
+    const offline = editor.field()
+    await comeBackOnline()
+    await act(() => editor.field().send(moveTsukiji))
+    const online = editor.field()
+
+    assert.deepStrictEqual(
+      [
+        { paused: offline.paused, state: offline.state },
+        { paused: online.paused, state: online.state },
+      ],
+      [
+        { paused: true, state: SaveState.Clean({ justSaved: false }) },
+        { paused: false, state: SaveState.Clean({ justSaved: true }) },
+      ],
     )
     await editor.close()
   })

@@ -75,7 +75,7 @@ export function StayBaseField(props: Omit<StayEditorProps, 'stays'>) {
                   label: places[place].romaji,
                 }))}
                 value={field.value}
-                disabled={frame.busy}
+                disabled={frame.locked}
                 onChange={field.change}
               />
               <p id={hintId} className="text-sm text-muted-foreground">

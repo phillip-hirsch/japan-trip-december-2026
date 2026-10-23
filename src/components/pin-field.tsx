@@ -3,6 +3,7 @@ import { Match, Predicate } from 'effect'
 import { MapPinIcon, MapPinPlusIcon } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 
+import { editingPaused } from '@/access/connection-status'
 import { EditorFrame, frameOf, saveVerb } from '@/components/editor-frame'
 import { SavedStatus } from '@/components/not-saved-alert'
 import { OpenInGoogleMaps } from '@/components/open-in-google-maps'
@@ -200,7 +201,7 @@ export function PinField({
   const find = async (link: string) => {
     const isCurrent = beginLookup()
 
-    if (link.trim() === '') return
+    if (link.trim() === '' || editingPaused()) return
 
     const refusal = linkRefusalOf(link.trim())
 
@@ -213,19 +214,25 @@ export function PinField({
     setFinding({ state: 'finding' })
     let outcome: ResolveLocationLinkOutcome
 
-    try {
-      outcome = await resolve({ data: { link } })
-    } catch {
-      if (!isCurrent()) return
+    const unreachable = () =>
       setFinding({
         state: 'problem',
         note: 'The app couldn’t reach the server. Try again when you’re back online.',
       })
 
+    try {
+      outcome = await resolve({ data: { link } })
+    } catch {
+      if (isCurrent()) unreachable()
+
       return
     }
 
     if (!isCurrent()) return
+
+    // The app went offline before the answer came. The field ignores changes
+    // while offline, so drop the place found instead of showing it on the map.
+    if (editingPaused()) return unreachable()
     Match.value(outcome).pipe(
       Match.tagsExhaustive({
         Resolved: ({ coordinates }) => {
@@ -277,7 +284,7 @@ export function PinField({
               variant="ghost"
               size="sm"
               aria-describedby={labelledBy}
-              disabled={frame.busy}
+              disabled={frame.locked}
               onClick={() => {
                 stopFinding()
                 field.edit()
@@ -296,7 +303,7 @@ export function PinField({
           <Button
             type="button"
             variant="ghost"
-            disabled={frame.busy || looking}
+            disabled={frame.locked || looking}
             onClick={() => void field.send(noPin)}
             className="ml-auto text-muted-foreground"
           >
@@ -306,7 +313,7 @@ export function PinField({
       }
     >
       {(frame) => {
-        const busy = frame.busy || looking
+        const locked = frame.locked || looking
 
         return (
           <>
@@ -335,7 +342,7 @@ export function PinField({
                     ].join(' ') || undefined
                   }
                   autoFocus={frame.autoFocus && placed === null}
-                  readOnly={busy}
+                  readOnly={locked}
                   value={value.link}
                   maxLength={locationLinkMaxLength}
                   autoComplete="off"
@@ -352,7 +359,7 @@ export function PinField({
                   onPaste={(event) => {
                     const pasted = event.clipboardData.getData('text')
 
-                    if (busy || pasted.trim() === '') return
+                    if (locked || pasted.trim() === '') return
                     event.preventDefault()
                     field.change({ link: pasted, coordinates: null })
                     void find(pasted)
@@ -362,7 +369,7 @@ export function PinField({
                 <Button
                   type="submit"
                   variant="outline"
-                  disabled={busy || value.link.trim() === ''}
+                  disabled={locked || value.link.trim() === ''}
                   className="h-10"
                 >
                   {looking ? 'Finding…' : 'Find'}
@@ -398,7 +405,7 @@ export function PinField({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  disabled={busy}
+                  disabled={locked}
                   onClick={dropByHand}
                   className="-mx-2.5 text-muted-foreground"
                 >
@@ -407,7 +414,12 @@ export function PinField({
                 </Button>
               </div>
             ) : (
-              <PinMap pin={placed} frame={mapFrame ?? placed} onMove={place} />
+              <PinMap
+                pin={placed}
+                frame={mapFrame ?? placed}
+                onMove={place}
+                locked={frame.locked}
+              />
             )}
           </>
         )

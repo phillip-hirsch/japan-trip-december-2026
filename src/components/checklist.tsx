@@ -198,7 +198,10 @@ function ChecklistRow({
         aria-labelledby={titleId}
         checked={ticked}
         readOnly={tickFrame.busy}
-        disabled={removing && !SaveState.$is('NotSaved')(removal.state)}
+        disabled={
+          tickFrame.paused ||
+          (removing && !SaveState.$is('NotSaved')(removal.state))
+        }
         onCheckedChange={(checked) => void tick.send(checked)}
         className="mt-0.5 size-5"
       />
@@ -246,7 +249,7 @@ function ChecklistRow({
           size="icon-sm"
           aria-label="Remove"
           aria-describedby={titleId}
-          disabled={removing}
+          disabled={removing || removalFrame.paused}
           onClick={() => void removal.send(item.id)}
           className="-my-1 text-muted-foreground"
         >
@@ -357,7 +360,7 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
             placeholder="Something to book or confirm"
             value={value.text}
             onChange={(event) => change({ text: event.target.value })}
-            readOnly={frame.busy}
+            readOnly={frame.locked}
             required
             maxLength={checklistTextMaxLength}
             className="h-10 sm:flex-1"
@@ -371,7 +374,7 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
               type="date"
               value={value.reminderDate}
               onChange={(event) => change({ reminderDate: event.target.value })}
-              readOnly={frame.busy}
+              readOnly={frame.locked}
               className="h-10"
             />
           </div>

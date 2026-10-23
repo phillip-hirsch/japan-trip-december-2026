@@ -9,6 +9,11 @@ import { isDeepStrictEqual } from 'node:util'
 import { act, createElement } from 'react'
 import { createRoot } from 'react-dom/client'
 
+import {
+  connected,
+  offline,
+  reportConnection,
+} from '@/access/connection-status'
 import type { PlaceId } from '@/trip/catalogue/catalogue-ids'
 import { places } from '@/trip/catalogue/places'
 import { SaveState } from '@/trip/client/drafts'
@@ -38,6 +43,12 @@ export const deferred = <A>() => {
 
   return { promise, resolve }
 }
+
+/** The transport reports the app offline, as when a request gets no answer. */
+export const goOffline = () => act(async () => reportConnection(offline))
+
+/** A request answers again, so the transport reports the app connected. */
+export const comeBackOnline = () => act(async () => reportConnection(connected))
 
 /** Why a NotSaved value isn't saved; nothing for any other state. */
 export const notSavedProblem = <V>(state: SaveState<V>) =>
