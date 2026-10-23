@@ -14,6 +14,7 @@ import type {
   QueryKey,
 } from '@tanstack/react-query'
 import { useHydrated } from '@tanstack/react-router'
+import { Match } from 'effect'
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 
 import {
@@ -34,7 +35,7 @@ import {
   millisecondsUntilTokyoMidnight,
   tokyoDateAt,
 } from '@/trip/domain/calendar'
-import type { IsoDate } from '@/trip/domain/domain'
+import type { HomeState, IsoDate } from '@/trip/domain/domain'
 import { homeStateOn } from '@/trip/domain/home-state'
 import {
   getChecklist,
@@ -259,7 +260,11 @@ export const useHome = () => {
   )
 
   const movedOn = today > readOn
-  const schedules = useStored(movedOn ? schedulesQuery : undefined)
+  const readWith = scheduleIdIn(data)
+
+  const schedules = useStored(
+    movedOn && readWith !== null ? schedulesQuery : undefined,
+  )
 
   const page = useStored(
     movedOn && isTripDate(today) ? dayQuery(today) : undefined,
@@ -285,8 +290,15 @@ export const useHome = () => {
 
   const asRead = { home: data, query: homeQuery }
 
-  if (!movedOn || schedules === undefined) return asRead
-  const schedule = schedules.current
+  if (!movedOn) return asRead
+  const schedule = readWith === null ? null : schedules?.current
+
+  // Stored Schedules that disagree with Home as last read may predate it,
+  // such as ones from before a Schedule was chosen on another device.
+  if (schedule === undefined || (schedule?.id ?? null) !== readWith) {
+    return asRead
+  }
+
   const showsDay = schedule !== null && isTripDate(today)
 
   // A Day stored from another Schedule, such as one replaced on another
@@ -300,9 +312,19 @@ export const useHome = () => {
       schedule,
       today: page ?? null,
     }),
-    query: showsDay ? dayQuery(today) : schedulesQuery,
+    query: showsDay ? dayQuery(today) : schedule ? schedulesQuery : homeQuery,
   }
 }
+
+/** The id of the Schedule Home was read with, null when there was none. */
+const scheduleIdIn = (home: HomeState) =>
+  Match.value(home).pipe(
+    Match.tagsExhaustive({
+      BeforeTrip: ({ schedule }) => schedule?.id ?? null,
+      DuringTrip: ({ today }) => today?.scheduleId ?? null,
+      AfterTrip: ({ schedule }) => schedule?.id ?? null,
+    }),
+  )
 
 export const dayQuery = (date: IsoDate) =>
   queryOptions({
