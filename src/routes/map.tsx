@@ -6,6 +6,7 @@ import { NoSchedule } from '@/components/no-schedule'
 import { ScheduleMap } from '@/components/schedule-map'
 import { loadQuery, scheduleMapQuery } from '@/trip/client/queries'
 import { pageTitle } from '@/lib/app-identity'
+import { cn } from '@/lib/utils'
 
 const mapViewport = 'h-[calc(100svh-var(--tab-bar-height))] md:h-svh'
 
@@ -24,7 +25,7 @@ function MapPage() {
   if (map === null) return <NoSchedule />
 
   return (
-    <div className={`relative ${mapViewport}`}>
+    <div className={cn('relative', mapViewport)}>
       <h1 className="sr-only">Map</h1>
       <ScheduleMap map={map} />
       {/* Bottom left, where the offline banner never covers it. On narrower

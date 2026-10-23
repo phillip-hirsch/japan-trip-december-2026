@@ -8,6 +8,8 @@ import type {
 import { createStore, get, update } from 'idb-keyval'
 import type { UseStore } from 'idb-keyval'
 
+import { answeredAt } from '@/trip/client/read-order'
+
 declare module '@tanstack/react-query' {
   interface Register {
     queryMeta: {
@@ -100,9 +102,10 @@ const isKept = (query: Query) =>
   query.state.data !== undefined && query.meta?.kept !== false
 
 /**
- * Each kept query's data as last read. It leaves out any failed read since
- * then, because IndexedDB may refuse to store its error. The device keeps no
- * writes, because the app sends none offline.
+ * Each kept query's data as last read, with the time the server answered with
+ * it. It leaves out any failed read since then, because IndexedDB may refuse
+ * to store its error. The device keeps no writes, because the app sends none
+ * offline.
  */
 const keptQueries = (queryClient: QueryClient): ReadonlyArray<KeptQuery> =>
   dehydrate(queryClient, {
@@ -112,6 +115,7 @@ const keptQueries = (queryClient: QueryClient): ReadonlyArray<KeptQuery> =>
     ...query,
     state: {
       ...query.state,
+      dataUpdatedAt: answeredAt(query.state) ?? query.state.dataUpdatedAt,
       status: 'success',
       error: null,
       fetchFailureReason: null,
@@ -177,9 +181,16 @@ export const keepCacheOnDevice = (
 ) => {
   // The queries this app gave new data since its last save.
   let changed = new Set<string>()
-  // The data each query held when last noted. An answer that leaves the data
-  // as it was, such as a read the read order turned down, is no change.
-  const noted = new Map<string, unknown>()
+
+  // The data each query held when last noted, and when the server answered
+  // with it. An answer that leaves both as they were, such as a read the read
+  // order turned down, is no change. A read answering with the same data is
+  // one, since it moves the time.
+  const noted = new Map<
+    string,
+    { readonly data: unknown; readonly answeredAt: number | undefined }
+  >()
+
   let restoring = false
   let saveQueued = false
 
@@ -248,9 +259,14 @@ export const keepCacheOnDevice = (
     if (type !== 'added' && type !== 'updated') return
 
     const { data } = query.state
+    const last = noted.get(query.queryHash)
+    const time = answeredAt(query.state)
 
-    if (data !== undefined && noted.get(query.queryHash) !== data) {
-      noted.set(query.queryHash, data)
+    if (
+      data !== undefined &&
+      (last?.data !== data || last?.answeredAt !== time)
+    ) {
+      noted.set(query.queryHash, { data, answeredAt: time })
 
       if (!restoring) changed.add(query.queryHash)
     }

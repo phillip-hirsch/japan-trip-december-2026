@@ -1,14 +1,13 @@
-import type { QueryKey } from '@tanstack/react-query'
-
 import { cn } from '@/lib/utils'
 import { useLastUpdated } from '@/trip/client/last-updated'
+import type { ScreenQuery } from '@/trip/client/last-updated'
 
 /** When the data of the screen's `query` was last updated. */
 export function LastUpdated({
   query,
   className,
 }: {
-  query: { readonly queryKey: QueryKey }
+  query: ScreenQuery
   className?: string
 }) {
   const lastUpdated = useLastUpdated(query)

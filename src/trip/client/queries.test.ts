@@ -1,15 +1,14 @@
 // @vitest-environment happy-dom
 import { assert, describe, it } from '@effect/vitest'
-import { QueryClientProvider } from '@tanstack/react-query'
 import type { QueryClient } from '@tanstack/react-query'
 import { vi } from 'vite-plus/test'
 import { act, createElement, lazy, Suspense } from 'react'
-import type { ComponentType, ReactNode } from 'react'
+import type { ComponentType } from 'react'
 import { createRoot, hydrateRoot } from 'react-dom/client'
 import { renderToString } from 'react-dom/server'
 
 import { deferred } from '@/trip/client/editor-testing'
-import { settle, testQueryClient } from '@/trip/client/hook-testing'
+import { settle, testQueryClient, withClient } from '@/trip/client/hook-testing'
 import { useScheduleSummary } from '@/trip/client/queries'
 import { ScheduleId } from '@/trip/domain/domain'
 import type { ScheduleSummary } from '@/trip/domain/domain'
@@ -47,9 +46,6 @@ const reader = () => {
 
   return { returned, Reader }
 }
-
-const withClient = (queryClient: QueryClient, ...children: Array<ReactNode>) =>
-  createElement(QueryClientProvider, { client: queryClient }, ...children)
 
 /** The app nav, and a page below it in a Suspense boundary. */
 const app = (

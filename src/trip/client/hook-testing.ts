@@ -1,5 +1,10 @@
-import { QueryClient } from '@tanstack/react-query'
-import { act } from 'react'
+import {
+  onlineManager,
+  QueryClient,
+  QueryClientProvider,
+} from '@tanstack/react-query'
+import { act, createElement } from 'react'
+import type { ReactNode } from 'react'
 
 import { offline, reportConnection } from '@/access/connection-status'
 import { queryDefaults } from '@/trip/client/query-client'
@@ -31,4 +36,19 @@ export const outcomeOf = (read: Promise<unknown>) =>
 export const serverOutOfReach = async (): Promise<never> => {
   reportConnection(offline)
   throw new TypeError('Failed to fetch')
+}
+
+/** `children` rendered with `queryClient`, as the app's root provides it. */
+export const withClient = (
+  queryClient: QueryClient,
+  ...children: Array<ReactNode>
+) => createElement(QueryClientProvider, { client: queryClient }, ...children)
+
+/**
+ * The network drops: the browser reports it offline, and so does the
+ * transport.
+ */
+export const loseConnection = () => {
+  onlineManager.setOnline(false)
+  reportConnection(offline)
 }

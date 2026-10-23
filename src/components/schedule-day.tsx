@@ -1,7 +1,6 @@
 import { Predicate } from 'effect'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { BedIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
-import type { QueryKey } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 
 import { Activities } from '@/components/activities'
@@ -48,6 +47,7 @@ import type {
   TonightsHotel,
 } from '@/trip/domain/domain'
 import { places } from '@/trip/catalogue/places'
+import type { ScreenQuery } from '@/trip/client/last-updated'
 
 function DayStep({
   date,
@@ -198,7 +198,7 @@ export function ScheduleDayView({
   page: DayPage
   eyebrow: ReactNode
   /** The query the page was read with, for when it was last updated. */
-  query: { readonly queryKey: QueryKey }
+  query: ScreenQuery
 }) {
   const navigate = useNavigate()
 
