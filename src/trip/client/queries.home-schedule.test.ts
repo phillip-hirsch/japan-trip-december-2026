@@ -7,9 +7,10 @@ import { act } from 'react'
 
 import { connected, reportConnection } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
-import { currentSchedule } from '@/trip/client/editor-testing'
+import { currentSchedule, deferred } from '@/trip/client/editor-testing'
 import {
   loseConnection,
+  outcomeOf,
   serverOutOfReach,
   testQueryClient,
 } from '@/trip/client/hook-testing'
@@ -28,6 +29,7 @@ import {
   option2Snapshot,
   otherScheduleId,
   saveDayNote,
+  settle,
   snapshot,
   timePassesTo,
   tokyoTime,
@@ -59,6 +61,77 @@ vi.mock('@/trip/trip/trip.functions', () => ({
 afterEach(closeHome)
 
 describe('Home after a save away from it', () => {
+  it('opens Home online while a save lands during its read, then holds the saved Day note', async () => {
+    clockAt('2026-12-14T20:00:00')
+    answerSnapshot(snapshot)
+    answerHome(homeDuringTrip('2026-12-14T20:00:00'))
+    const dayNote = await openDayNote()
+    const { queryClient } = dayNote
+
+    // Phillip opens Home for the first time this session, and his Day note
+    // save lands during its read, which started before the save.
+    const beforeSave = deferred<HomeState>()
+    vi.mocked(getHome).mockImplementation(() => beforeSave.promise)
+    const opening = outcomeOf(loadQuery(queryClient, homeQuery))
+
+    const withNote = HomeState.cases.DuringTrip.make({
+      ...homeDuringTrip('2026-12-14T20:00:00'),
+      today: dayPage(december(14), 'Tsukiji at dawn.'),
+    })
+
+    vi.mocked(getHome).mockResolvedValue(withNote)
+    await saveDayNote(dayNote, 'Tsukiji at dawn.')
+    await act(async () =>
+      beforeSave.resolve(homeDuringTrip('2026-12-14T20:00:00')),
+    )
+    await settle()
+    const opened = await opening
+    loseConnection()
+    vi.mocked(getHome).mockImplementation(serverOutOfReach)
+    const app = await openHome(queryClient)
+
+    assert.deepStrictEqual(
+      { opened, home: app.shown()?.home },
+      { opened: 'answered', home: withNote },
+    )
+    await app.close()
+    await dayNote.close()
+  })
+
+  it('holds the saved Day note though the device clock went back during a read of Home', async () => {
+    clockAt('2026-12-14T20:00:00')
+    answerSnapshot(snapshot)
+    answerHome(homeDuringTrip('2026-12-14T20:00:00'))
+    const dayNote = await openDayNote()
+    const { queryClient } = dayNote
+    await (await openHome(queryClient)).close()
+
+    const beforeSave = deferred<HomeState>()
+    vi.mocked(getHome).mockImplementation(() => beforeSave.promise)
+    const opening = loadQuery(queryClient, homeQuery)
+    vi.setSystemTime(tokyoTime('2026-12-14T19:50:00'))
+
+    const withNote = HomeState.cases.DuringTrip.make({
+      ...homeDuringTrip('2026-12-14T20:00:00'),
+      today: dayPage(december(14), 'Tsukiji at dawn.'),
+    })
+
+    vi.mocked(getHome).mockResolvedValue(withNote)
+    await saveDayNote(dayNote, 'Tsukiji at dawn.')
+    await act(async () =>
+      beforeSave.resolve(homeDuringTrip('2026-12-14T20:00:00')),
+    )
+    await settle()
+    await opening
+    loseConnection()
+    vi.mocked(getHome).mockImplementation(serverOutOfReach)
+    const app = await openHome(queryClient)
+
+    assert.deepStrictEqual(app.shown()?.home, withNote)
+    await app.close()
+    await dayNote.close()
+  })
+
   it('opens offline with a Day note saved after a restart straight onto another page', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
