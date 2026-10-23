@@ -114,6 +114,9 @@ const lastUpdated = async (
   return shown
 }
 
+/** 20:00 on December 14, to the minute, as `lastUpdated` gives it. */
+const atEight = tokyoTime('2026-12-14T20:00:00').toISOString().slice(0, 16)
+
 /** 20:30 on December 14, to the minute, as `lastUpdated` gives it. */
 const atHalfPast = tokyoTime('2026-12-14T20:30:00').toISOString().slice(0, 16)
 
@@ -284,23 +287,28 @@ describe('the screens a save affects', () => {
     await dayNote.close()
   })
 
-  it('read the snapshot only once after a save whose read the server refuses', async () => {
+  it('keep their state from before the save, rather than read again and again, when the server refuses the read after it', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
     const dayNote = await openDayNote()
     const { queryClient } = dayNote
     const root = await openRoot(queryClient)
 
-    vi.mocked(getScheduleSnapshot).mockReset()
-    vi.mocked(getScheduleSnapshot).mockRejectedValue(
+    // The server refuses the first read after the save and would answer any
+    // later one with the save, so a read that repeats would store it.
+    answerSnapshot(saved)
+    vi.mocked(getScheduleSnapshot).mockRejectedValueOnce(
       new Error('Internal Server Error'),
     )
     await saveDayNote(dayNote, 'Tsukiji at dawn.')
     await timePassesTo('2026-12-14T20:30:00')
 
-    // Only the transport can see a read that repeats, so this test counts
-    // its calls.
-    assert.strictEqual(vi.mocked(getScheduleSnapshot).mock.calls.length, 1)
+    assert.deepStrictEqual(await openedOffline(queryClient), {
+      schedules: snapshot.schedules,
+      days: [...snapshot.days],
+      checklist: snapshot.checklist,
+      updated: tripDates.map(() => atEight).concat(atEight, atEight),
+    })
     await root.close()
     await dayNote.close()
   })
@@ -504,7 +512,7 @@ describe('Home after a save', () => {
     await dayNote.close()
   })
 
-  it('reads Home only once after a save whose read the server refuses', async () => {
+  it('keeps its state from before the save, rather than read again and again, when the server refuses the read after it', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
     answerHome(homeDuringTrip('2026-12-14T20:00:00'))
@@ -512,13 +520,24 @@ describe('Home after a save', () => {
     const { queryClient } = dayNote
     await (await openHome(queryClient)).close()
 
-    vi.mocked(getHome).mockReset()
-    vi.mocked(getHome).mockRejectedValue(new Error('Internal Server Error'))
+    // The server refuses the first read after the save and would answer any
+    // later one with the save, so a read that repeats would store it.
+    answerHome(homeWithNote)
+    vi.mocked(getHome).mockRejectedValueOnce(new Error('Internal Server Error'))
     await saveDayNote(dayNote, 'Tsukiji at dawn.')
     await timePassesTo('2026-12-14T20:30:00')
+    loseConnection()
+    vi.mocked(getHome).mockImplementation(serverOutOfReach)
+    const app = await openHome(queryClient)
 
-    // Only the transport can see a read that repeats.
-    assert.strictEqual(vi.mocked(getHome).mock.calls.length, 1)
+    assert.deepStrictEqual(
+      {
+        home: app.shown()?.home,
+        updated: await lastUpdated(queryClient, [homeQuery]),
+      },
+      { home: homeDuringTrip('2026-12-14T20:00:00'), updated: [atEight] },
+    )
+    await app.close()
     await dayNote.close()
   })
 })
