@@ -8,7 +8,13 @@ import type { Root } from 'react-dom/client'
 
 import { connected, reportConnection } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
-import { currentSchedule, scheduleId } from '@/trip/client/editor-testing'
+import { useDayNote } from '@/components/notes'
+import { useChooseItinerary } from '@/components/replace-schedule-dialog'
+import {
+  currentSchedule,
+  openEditor,
+  scheduleId,
+} from '@/trip/client/editor-testing'
 import { testQueryClient, withClient } from '@/trip/client/hook-testing'
 import {
   homeQuery,
@@ -16,18 +22,27 @@ import {
   useHome,
   useScheduleSnapshot,
 } from '@/trip/client/queries'
-import { snapshotWith } from '@/trip/client/snapshot-testing'
+import { answerSnapshot, snapshotWith } from '@/trip/client/snapshot-testing'
 import {
+  ChooseOutcome,
   december,
   HomeState,
   IsoInstant,
   ScheduleId,
+  WriteDayNoteOutcome,
 } from '@/trip/domain/domain'
-import { getHome } from '@/trip/trip/trip.functions'
+import type { ScheduleSnapshot } from '@/trip/domain/domain'
+import {
+  chooseItinerary,
+  getHome,
+  getSchedules,
+  writeDayNote,
+} from '@/trip/trip/trip.functions'
 
 // What Home's hook tests share: the device's clock, the app's roots, and Home
 // and the Schedule snapshot as the server answers them. A test file using it
 // mocks `@/trip/trip/trip.functions` and runs `closeHome` after each test.
+// Saves go through the editors' own hooks, as they do on their pages.
 
 export const otherScheduleId = ScheduleId.make(
   '00000000-0000-4000-8000-00000000000b',
@@ -193,6 +208,65 @@ export const todayOn = (day: number) => {
     date,
     today: snapshot.days.find((page) => page.day.date === date) ?? null,
   }
+}
+
+/**
+ * Opens December 14's Day note editor, as its Day page does, on a new query
+ * client. The page reads the Schedules of `snapshot`.
+ */
+export const openDayNote = () => {
+  vi.mocked(getSchedules).mockResolvedValue(snapshot.schedules)
+
+  return openEditor(
+    useDayNote,
+    { scheduleId, date: december(14), note: undefined },
+    () => getSchedules(),
+  )
+}
+
+/** Saves `note` in the Day note editor, as Phillip does, and the server takes it. */
+export const saveDayNote = async (
+  editor: Awaited<ReturnType<typeof openDayNote>>,
+  note: string,
+) => {
+  vi.mocked(writeDayNote).mockResolvedValue(
+    WriteDayNoteOutcome.cases.Written.make({}),
+  )
+  await act(async () => editor.field().change(note))
+  await act(() => editor.field().save())
+  await settle()
+}
+
+/**
+ * Opens the choice of Option 2 over Option 1's Schedule on a new query
+ * client, on a page that reads the Schedules of `snapshot`.
+ */
+export const openChoiceOfOption2 = () => {
+  vi.mocked(getSchedules).mockResolvedValue(snapshot.schedules)
+
+  return openEditor(
+    useChooseItinerary,
+    { optionNumber: 2, current: { id: scheduleId, sourceOptionNumber: 1 } },
+    () => getSchedules(),
+  )
+}
+
+/**
+ * Chooses Option 2, as Phillip confirms it. The server takes it, and from
+ * then on answers the Schedules and the snapshot with `chosen`.
+ */
+export const chooseOption2 = async (
+  choice: Awaited<ReturnType<typeof openChoiceOfOption2>>,
+  chosen: ScheduleSnapshot,
+) => {
+  vi.mocked(chooseItinerary).mockResolvedValue(
+    ChooseOutcome.cases.Chosen.make({ scheduleId: otherScheduleId }),
+  )
+  answerSnapshot(chosen)
+  vi.mocked(getSchedules).mockResolvedValue(chosen.schedules)
+  await act(async () => choice.field().openChange(true))
+  await act(() => choice.field().confirm())
+  await settle()
 }
 
 /**

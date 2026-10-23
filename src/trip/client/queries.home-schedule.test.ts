@@ -15,16 +15,19 @@ import {
 } from '@/trip/client/hook-testing'
 import {
   answerHome,
+  chooseOption2,
   clockAt,
   closeHome,
   homeDuringTrip,
+  openChoiceOfOption2,
+  openDayNote,
   openHome,
   openHomeFromCold,
   openRoot,
   option1Archived,
   option2Snapshot,
   otherScheduleId,
-  settle,
+  saveDayNote,
   snapshot,
   timePassesTo,
   tokyoTime,
@@ -32,7 +35,6 @@ import {
 import {
   dayQuery,
   homeQuery,
-  invalidateAfter,
   loadQuery,
   schedulesQuery,
 } from '@/trip/client/queries'
@@ -46,10 +48,12 @@ import {
 } from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({
+  chooseItinerary: vi.fn(),
   getDay: vi.fn(),
   getHome: vi.fn(),
   getSchedules: vi.fn(),
   getScheduleSnapshot: vi.fn(),
+  writeDayNote: vi.fn(),
 }))
 
 afterEach(closeHome)
@@ -63,7 +67,8 @@ describe('Home after a save away from it', () => {
 
     // The app restarts on December 14's page, so Home is only what the
     // device kept, and Phillip saves its Day note there.
-    const queryClient = testQueryClient()
+    const dayNote = await openDayNote()
+    const { queryClient } = dayNote
     const kept = keepCacheOnDevice(queryClient)
     await act(() => kept.saved())
     await timePassesTo('2026-12-14T20:30:00')
@@ -74,8 +79,7 @@ describe('Home after a save away from it', () => {
     })
 
     answerHome(withNote)
-    await act(() => invalidateAfter(queryClient, 'dayNote'))
-    await settle()
+    await saveDayNote(dayNote, 'Tsukiji at dawn.')
     loseConnection()
     vi.mocked(getHome).mockImplementation(serverOutOfReach)
     const app = await openHome(queryClient)
@@ -85,13 +89,15 @@ describe('Home after a save away from it', () => {
       from: hashKey(homeQuery.queryKey),
     })
     await app.close()
+    await dayNote.close()
   })
 
   it('opens offline with a Day note saved on another page while Home was closed', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
     answerHome(homeDuringTrip('2026-12-14T20:00:00'))
-    const queryClient = testQueryClient()
+    const dayNote = await openDayNote()
+    const { queryClient } = dayNote
     const root = await openRoot(queryClient)
     await (await openHome(queryClient)).close()
 
@@ -104,8 +110,7 @@ describe('Home after a save away from it', () => {
     })
 
     answerHome(withNote)
-    await act(() => invalidateAfter(queryClient, 'dayNote'))
-    await settle()
+    await saveDayNote(dayNote, 'Tsukiji at dawn.')
     loseConnection()
     vi.mocked(getHome).mockImplementation(serverOutOfReach)
     const app = await openHome(queryClient)
@@ -116,6 +121,7 @@ describe('Home after a save away from it', () => {
     })
     await app.close()
     await root.close()
+    await dayNote.close()
   })
 })
 
@@ -124,7 +130,8 @@ describe('Home after it moved on offline', () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
     answerHome(homeDuringTrip('2026-12-14T20:00:00'))
-    const queryClient = testQueryClient()
+    const choice = await openChoiceOfOption2()
+    const { queryClient } = choice
     const root = await openRoot(queryClient)
     await (await openHome(queryClient)).close()
 
@@ -146,11 +153,9 @@ describe('Home after it moved on offline', () => {
     }
 
     await timePassesTo('2026-12-14T20:30:00')
-    answerSnapshot(archivedAsHomeWasRead)
     // Home's own read after the choice never answers before the signal goes.
     vi.mocked(getHome).mockImplementation(() => new Promise(() => {}))
-    await act(() => invalidateAfter(queryClient, 'choose'))
-    await settle()
+    await chooseOption2(choice, archivedAsHomeWasRead)
     loseConnection()
     vi.mocked(getHome).mockImplementation(serverOutOfReach)
     await timePassesTo('2026-12-15T07:00:00')
@@ -168,24 +173,24 @@ describe('Home after it moved on offline', () => {
     )
     await app.close()
     await root.close()
+    await choice.close()
   })
 
   it('shows the new Day of a Schedule chosen here after Home was last read, though the device clock runs behind the server', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
     answerHome(homeDuringTrip('2026-12-14T20:00:00'))
-    const queryClient = testQueryClient()
+    const choice = await openChoiceOfOption2()
+    const { queryClient } = choice
     const root = await openRoot(queryClient)
     await (await openHome(queryClient)).close()
 
     // The device's clock is set back ten minutes, so the snapshot that
     // stores Option 2's choice answers before Home did by its clock.
     vi.setSystemTime(tokyoTime('2026-12-14T19:50:00'))
-    answerSnapshot(option2Snapshot)
     // Home's own read after the choice never answers before the signal goes.
     vi.mocked(getHome).mockImplementation(() => new Promise(() => {}))
-    await act(() => invalidateAfter(queryClient, 'choose'))
-    await settle()
+    await chooseOption2(choice, option2Snapshot)
     loseConnection()
     vi.mocked(getHome).mockImplementation(serverOutOfReach)
     await timePassesTo('2026-12-15T07:00:00')
@@ -203,6 +208,7 @@ describe('Home after it moved on offline', () => {
     })
     await app.close()
     await root.close()
+    await choice.close()
   })
 
   it('shows no Day as Today when Home was last read with no Schedule, though a Day is stored', async () => {
@@ -238,18 +244,17 @@ describe('Home after it moved on offline', () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
     answerHome(homeDuringTrip('2026-12-14T20:00:00'))
-    const queryClient = testQueryClient()
+    const choice = await openChoiceOfOption2()
+    const { queryClient } = choice
     const root = await openRoot(queryClient)
     await (await openHome(queryClient)).close()
 
     // Phillip chooses Option 2 from its page, away from Home, and the
     // snapshot stores its Schedules and every Day.
     await timePassesTo('2026-12-14T20:30:00')
-    answerSnapshot(option2Snapshot)
     // Home's own read after the choice never answers before the signal goes.
     vi.mocked(getHome).mockImplementation(() => new Promise(() => {}))
-    await act(() => invalidateAfter(queryClient, 'choose'))
-    await settle()
+    await chooseOption2(choice, option2Snapshot)
     loseConnection()
     vi.mocked(getHome).mockImplementation(serverOutOfReach)
     await timePassesTo('2026-12-15T07:00:00')
@@ -267,6 +272,7 @@ describe('Home after it moved on offline', () => {
     })
     await app.close()
     await root.close()
+    await choice.close()
   })
 
   it('stays as last read rather than go back to a Schedule a later Home read replaced', async () => {
