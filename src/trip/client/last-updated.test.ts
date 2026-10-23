@@ -56,15 +56,17 @@ const timePassesTo = (iso: string) =>
  */
 const lastUpdatedOf = (query: ScreenQuery) => {
   const renders: Array<string | undefined> = []
+  const dateTimes: Array<string | undefined> = []
 
   const Shown = () => {
-    const text = useLastUpdated(query)?.text
-    renders.push(text)
+    const lastUpdated = useLastUpdated(query)
+    renders.push(lastUpdated?.text)
+    dateTimes.push(lastUpdated?.dateTime)
 
-    return text
+    return lastUpdated?.text
   }
 
-  return { renders, Shown }
+  return { renders, dateTimes, Shown }
 }
 
 /** Opens a screen showing when the data of `query` was last updated. */
@@ -72,7 +74,7 @@ const showLastUpdated = async (
   queryClient: QueryClient,
   query: ScreenQuery,
 ) => {
-  const { renders, Shown } = lastUpdatedOf(query)
+  const { renders, dateTimes, Shown } = lastUpdatedOf(query)
   const root = createRoot(document.createElement('div'))
   await act(async () =>
     root.render(withClient(queryClient, createElement(Shown))),
@@ -80,6 +82,8 @@ const showLastUpdated = async (
 
   return {
     shown: () => renders.at(-1),
+    /** The instant the screen's `<time>` carries. */
+    dateTime: () => dateTimes.at(-1),
     close: () => act(async () => root.unmount()),
   }
 }
@@ -123,7 +127,10 @@ describe('when a screen was last updated', () => {
 
     const screen = await showLastUpdated(queryClient, dayQuery(december(14)))
 
-    assert.strictEqual(screen.shown(), 'Updated just now')
+    assert.deepStrictEqual(
+      { shown: screen.shown(), dateTime: screen.dateTime() },
+      { shown: 'Updated just now', dateTime: '2026-12-14T00:00:00.000Z' },
+    )
     await screen.close()
   })
 
@@ -167,7 +174,10 @@ describe('when a screen was last updated', () => {
     await timePassesTo('2026-12-14T09:30:00')
     const screen = await showLastUpdated(queryClient, dayQuery(december(14)))
 
-    assert.strictEqual(screen.shown(), 'Updated 30 minutes ago')
+    assert.deepStrictEqual(
+      { shown: screen.shown(), dateTime: screen.dateTime() },
+      { shown: 'Updated 30 minutes ago', dateTime: '2026-12-14T00:00:00.000Z' },
+    )
     await screen.close()
     await app.close()
   })
