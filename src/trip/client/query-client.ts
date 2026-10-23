@@ -1,4 +1,6 @@
 import { focusManager, QueryClient } from '@tanstack/react-query'
+import type { HydrateOptions } from '@tanstack/react-query'
+import { Predicate } from 'effect'
 
 import {
   ConnectionStatus,
@@ -37,6 +39,38 @@ const refetchOnReturn = (queryClient: QueryClient) => {
 
     wasOffline = ConnectionStatus.$is('Offline')(connection)
   })
+}
+
+/**
+ * How `queryClient` takes in the queries the server rendered into the page.
+ * Each query arrives with `dataUpdatedAt` by the server's clock. This moves it
+ * once to when the page arrived, by the device's clock. Every time the cache
+ * holds, and the device keeps, is then the device's, however far its clock is
+ * from the server's.
+ */
+export const pageHydrateOptions = (
+  queryClient: QueryClient,
+): HydrateOptions => {
+  const arrivals = new WeakMap<object, number>()
+
+  queryClient.getQueryCache().subscribe(({ query }) => {
+    const { data } = query.state
+    const arrivedAt = Predicate.isObject(data) ? arrivals.get(data) : undefined
+
+    if (arrivedAt === undefined) return
+    arrivals.delete(data)
+    query.setState({ dataUpdatedAt: arrivedAt })
+  })
+
+  return {
+    defaultOptions: {
+      deserializeData: <T>(answer: T) => {
+        if (Predicate.isObject(answer)) arrivals.set(answer, Date.now())
+
+        return answer
+      },
+    },
+  }
 }
 
 /**

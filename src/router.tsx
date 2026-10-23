@@ -4,7 +4,10 @@ import { NotFound } from '@/components/not-found'
 import { PageError } from '@/components/page-error'
 import { routeTree } from '@/routeTree.gen'
 import { shouldDehydrateQuery } from '@/trip/client/queries'
-import { createQueryClient } from '@/trip/client/query-client'
+import {
+  createQueryClient,
+  pageHydrateOptions,
+} from '@/trip/client/query-client'
 
 export function getRouter() {
   const queryClient = createQueryClient()
@@ -26,6 +29,7 @@ export function getRouter() {
     router,
     queryClient,
     dehydrateOptions: { shouldDehydrateQuery },
+    hydrateOptions: pageHydrateOptions(queryClient),
   })
 
   return router

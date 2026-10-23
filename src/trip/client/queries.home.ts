@@ -24,21 +24,34 @@ import { homeStateOn } from '@/trip/domain/home-state'
 
 const homeRetryDelay = 60_000
 
-const nextTokyoMidnightDeadline = (readAt: number) =>
-  readAt + millisecondsUntilTokyoMidnight(readAt) + 1000
+/**
+ * How far the device's clock may differ from the server's and still count as
+ * right. A gap this small is the time Home took to arrive. Home is read again
+ * this long after the server's Tokyo midnight, so a device clock up to this
+ * far ahead still reads it after that midnight.
+ */
+const clockTolerance = 1000
 
 /**
- * Calls `onChange` at each Tokyo midnight, and when the page is shown again,
- * because a hidden page's timers may not run. Returns how to stop.
+ * How far the server's clock runs ahead of the device's, from Home read by the
+ * server at `readAt` and arrived on the device at `arrivedAt`. Zero within
+ * `clockTolerance`.
  */
-const subscribeToTokyoMidnight = (onChange: () => void) => {
+const serverClockOffset = (readAt: number, arrivedAt: number) =>
+  Math.abs(readAt - arrivedAt) > clockTolerance ? readAt - arrivedAt : 0
+
+/**
+ * Calls `onChange` at each Tokyo midnight by `now`, and when the page is shown
+ * again, because a hidden page's timers may not run. Returns how to stop.
+ */
+const subscribeToTokyoMidnight = (now: () => number, onChange: () => void) => {
   let timer: ReturnType<typeof setTimeout> | undefined
 
   const waitForMidnight = () => {
     timer = setTimeout(() => {
       onChange()
       waitForMidnight()
-    }, millisecondsUntilTokyoMidnight(Date.now()))
+    }, millisecondsUntilTokyoMidnight(now()))
   }
 
   waitForMidnight()
@@ -78,20 +91,33 @@ const useStored = <TData, TKey extends QueryKey>(
  * "last updated" time. It is Home as last read until the Tokyo date passes
  * the date Home was read on. From then until Home is read again, it is built
  * for the new date from the stored Schedules and Day page, so it moves on
- * offline too. It never moves back when the device clock runs behind the
- * server's, and it stays as last read when the new date's Day isn't stored.
+ * offline too. It never moves back when the device clock is set back, and
+ * it stays as last read when the new date's Day isn't stored.
+ *
+ * The Tokyo date follows the server's clock. It counts from the moment the
+ * server read Home, plus the time passed on the device since Home arrived. So
+ * a device clock set fast or slow moves Home on neither early nor late, and
+ * Home is read again once, just after the server's midnight.
  */
 export const useHome = () => {
   const queryClient = useQueryClient()
   const { data, dataUpdatedAt, errorUpdatedAt } = useSuspenseQuery(homeQuery)
   const readAt = Date.parse(data.readAt)
   const readOn = tokyoDateAt(readAt)
+  // Home has no read numbers, so it arrived at `dataUpdatedAt`.
+  const offset = serverClockOffset(readAt, dataUpdatedAt)
+  const now = useCallback(() => Date.now() + offset, [offset])
+
+  const subscribe = useCallback(
+    (onChange: () => void) => subscribeToTokyoMidnight(now, onChange),
+    [now],
+  )
 
   // A server render and the render hydrating it show Home as read, so the
   // two match.
   const today = useSyncExternalStore(
-    subscribeToTokyoMidnight,
-    () => tokyoDateAt(Date.now()),
+    subscribe,
+    () => tokyoDateAt(now()),
     () => readOn,
   )
 
@@ -104,14 +130,16 @@ export const useHome = () => {
   )
 
   useEffect(() => {
-    const deadline = nextTokyoMidnightDeadline(readAt)
-    const overdue = Date.now() >= deadline
+    const deadline =
+      readAt + millisecondsUntilTokyoMidnight(readAt) + clockTolerance
+
+    const overdue = now() >= deadline
     const lastRefetchFailed = errorUpdatedAt > dataUpdatedAt
 
     const delay =
       overdue && lastRefetchFailed
         ? homeRetryDelay
-        : Math.max(deadline - Date.now(), 0)
+        : Math.max(deadline - now(), 0)
 
     const timer = setTimeout(
       () => void queryClient.invalidateQueries({ queryKey: keys.home }),
@@ -119,7 +147,7 @@ export const useHome = () => {
     )
 
     return () => clearTimeout(timer)
-  }, [queryClient, readAt, dataUpdatedAt, errorUpdatedAt])
+  }, [queryClient, readAt, now, dataUpdatedAt, errorUpdatedAt])
 
   const asRead = { home: data, query: homeQuery }
 
