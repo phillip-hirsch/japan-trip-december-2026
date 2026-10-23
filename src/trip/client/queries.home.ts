@@ -14,6 +14,7 @@ import {
   schedulesQuery,
   subscribeToQuery,
 } from '@/trip/client/queries.reads'
+import { answeredAt } from '@/trip/client/read-order'
 import {
   isTripDate,
   millisecondsUntilTokyoMidnight,
@@ -104,8 +105,14 @@ export const useHome = () => {
   const { data, dataUpdatedAt, errorUpdatedAt } = useSuspenseQuery(homeQuery)
   const readAt = Date.parse(data.readAt)
   const readOn = tokyoDateAt(readAt)
-  // Home has no read numbers, so it arrived at `dataUpdatedAt`.
-  const offset = serverClockOffset(readAt, dataUpdatedAt)
+
+  // `dataUpdatedAt` moves even for an answer the read order turned down, so
+  // the time Home arrived comes from the read that answered it.
+  const offset = serverClockOffset(
+    readAt,
+    answeredAt({ data, dataUpdatedAt }) ?? dataUpdatedAt,
+  )
+
   const now = useCallback(() => Date.now() + offset, [offset])
 
   const subscribe = useCallback(

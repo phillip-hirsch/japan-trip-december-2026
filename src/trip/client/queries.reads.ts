@@ -42,7 +42,8 @@ export const subscribeToQuery = (
 
 export const homeQuery = queryOptions({
   queryKey: keys.home,
-  queryFn: () => getHome(),
+  queryFn: readInOrder(() => getHome()),
+  structuralSharing: keepLatestRead,
   refetchOnMount: false,
 })
 

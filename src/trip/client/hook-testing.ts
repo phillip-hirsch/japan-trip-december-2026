@@ -6,7 +6,11 @@ import {
 import { act, createElement } from 'react'
 import type { ReactNode } from 'react'
 
-import { offline, reportConnection } from '@/access/connection-status'
+import {
+  connected,
+  offline,
+  reportConnection,
+} from '@/access/connection-status'
 import { queryDefaults } from '@/trip/client/query-client'
 
 // Tells React that this test renders through `act`, so it doesn't warn.
@@ -35,6 +39,17 @@ export const outcomeOf = (read: Promise<unknown>) =>
 /** A read that never reaches the server, as the transport reports it. */
 export const serverOutOfReach = async (): Promise<never> => {
   reportConnection(offline)
+  throw new TypeError('Failed to fetch')
+}
+
+/**
+ * A read that never reaches the server, though another request gets an answer
+ * before this read's failure settles. The transport reports the app offline,
+ * then connected again.
+ */
+export const outOfReachAsAnotherRequestAnswers = async (): Promise<never> => {
+  reportConnection(offline)
+  queueMicrotask(() => reportConnection(connected))
   throw new TypeError('Failed to fetch')
 }
 
