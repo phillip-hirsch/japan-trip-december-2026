@@ -10,7 +10,7 @@ import { createRoot } from 'react-dom/client'
 
 import { connected, reportConnection } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
-import { currentSchedule } from '@/trip/client/editor-testing'
+import { currentSchedule, scheduleId } from '@/trip/client/editor-testing'
 import {
   loseConnection,
   serverOutOfReach,
@@ -31,14 +31,21 @@ import {
   dayPage,
   snapshotWith,
 } from '@/trip/client/snapshot-testing'
-import { december, HomeState, ScheduleId } from '@/trip/domain/domain'
 import {
+  december,
+  HomeState,
+  IsoInstant,
+  ScheduleId,
+} from '@/trip/domain/domain'
+import {
+  getDay,
   getHome,
   getSchedules,
   getScheduleSnapshot,
 } from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({
+  getDay: vi.fn(),
   getHome: vi.fn(),
   getSchedules: vi.fn(),
   getScheduleSnapshot: vi.fn(),
@@ -156,6 +163,18 @@ const openRoot = async (queryClient: QueryClient) => {
 }
 
 /** The snapshot of the Schedule chosen from Option 2, with every Day. */
+/**
+ * Option 1's Schedule as the Schedules list it once Option 2 replaced it at
+ * 20:30 on December 14 in Tokyo, by the server's clock.
+ */
+const option1Archived = {
+  id: scheduleId,
+  sourceOptionNumber: 1,
+  chosenAt: currentSchedule().chosenAt,
+  archivedAt: IsoInstant.make(tokyoTime('2026-12-14T20:30:00').toISOString()),
+}
+
+/** The snapshot once the Schedule chosen from Option 2 replaced Option 1's. */
 const option2Snapshot = {
   ...snapshot,
   schedules: {
@@ -165,6 +184,7 @@ const option2Snapshot = {
       sourceOptionNumber: 2,
       days: snapshot.days.map(({ day }) => day),
     }),
+    archived: [option1Archived],
   },
   days: snapshot.days.map((page) => ({ ...page, scheduleId: otherScheduleId })),
 }
@@ -311,23 +331,54 @@ describe('Home offline at the Trip boundaries', () => {
 })
 
 describe('Home after it moved on offline', () => {
-  it('shows no Day as Today when Home was last read with no Schedule, though a Day is stored', async () => {
+  it('shows the new Day of a Schedule chosen here after Home was last read, though the device clock runs behind the server', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
     answerHome(homeDuringTrip('2026-12-14T20:00:00'))
     const queryClient = testQueryClient()
+    const root = await openRoot(queryClient)
+    await (await openHome(queryClient)).close()
+
+    // The device's clock is set back ten minutes, so the snapshot that
+    // stores Option 2's choice answers before Home did by its clock.
+    vi.setSystemTime(tokyoTime('2026-12-14T19:50:00'))
+    answerSnapshot(option2Snapshot)
+    await act(() => invalidateAfter(queryClient, 'choose'))
+    await settle()
+    loseConnection()
+    vi.mocked(getHome).mockImplementation(serverOutOfReach)
+    await timePassesTo('2026-12-15T07:00:00')
     const app = await openHome(queryClient)
 
-    vi.mocked(getScheduleSnapshot).mockImplementation(serverOutOfReach)
+    assert.deepStrictEqual(app.shown(), {
+      home: HomeState.cases.DuringTrip.make({
+        ...homeDuringTrip('2026-12-14T20:00:00'),
+        date: december(15),
+        today:
+          option2Snapshot.days.find((page) => page.day.date === december(15)) ??
+          null,
+      }),
+      from: hashKey(dayQuery(december(15)).queryKey),
+    })
+    await app.close()
+    await root.close()
+  })
+
+  it('shows no Day as Today when Home was last read with no Schedule, though a Day is stored', async () => {
+    clockAt('2026-12-14T20:00:00')
+    vi.mocked(getScheduleSnapshot).mockResolvedValue(null)
 
     const noSchedule = HomeState.cases.DuringTrip.make({
-      ...homeDuringTrip('2026-12-14T21:00:00'),
+      ...homeDuringTrip('2026-12-14T20:00:00'),
       today: null,
     })
 
     answerHome(noSchedule)
-    await timePassesTo('2026-12-14T21:00:00')
-    await act(() => loadQuery(queryClient, homeQuery))
+    const queryClient = testQueryClient()
+    vi.mocked(getDay).mockResolvedValue(dayPage(december(15)))
+    await loadQuery(queryClient, dayQuery(december(15)))
+    const app = await openHome(queryClient)
+
     loseConnection()
     vi.mocked(getHome).mockImplementation(serverOutOfReach)
     await timePassesTo('2026-12-15T00:00:00')
@@ -336,7 +387,6 @@ describe('Home after it moved on offline', () => {
       home: HomeState.cases.DuringTrip.make({
         ...noSchedule,
         date: december(15),
-        today: null,
       }),
       from: hashKey(homeQuery.queryKey),
     })
@@ -417,7 +467,7 @@ describe('Home after it moved on offline', () => {
     vi.mocked(getScheduleSnapshot).mockImplementation(serverOutOfReach)
     vi.mocked(getSchedules).mockResolvedValue({
       current: currentSchedule({ id: otherScheduleId, sourceOptionNumber: 2 }),
-      archived: [],
+      archived: [option1Archived],
     })
     await act(() => loadQuery(queryClient, schedulesQuery))
     loseConnection()

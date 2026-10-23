@@ -12,7 +12,6 @@ import type {
   Query,
   QueryClient,
   QueryKey,
-  QueryState,
 } from '@tanstack/react-query'
 import { useHydrated } from '@tanstack/react-router'
 import { Match } from 'effect'
@@ -25,7 +24,6 @@ import {
 } from '@/access/connection-status'
 import { deviceCacheRestoring } from '@/trip/client/device-cache'
 import {
-  answeredAt,
   answerOfRead,
   keepLatestRead,
   readInOrder,
@@ -217,9 +215,8 @@ const subscribeToTokyoMidnight = (onChange: () => void) => {
 }
 
 /**
- * The state of `query` as the app stores it, with its data, updated as the
- * cache changes. It never fetches, and doesn't count as showing the query.
- * Undefined for no query.
+ * The data the app stores for `query`, updated as the cache changes. It never
+ * fetches, and doesn't count as showing the query. Undefined for no query.
  */
 const useStored = <TData, TKey extends QueryKey>(
   query: FetchQueryOptions<TData, Error, TData, TKey> | undefined,
@@ -235,8 +232,7 @@ const useStored = <TData, TKey extends QueryKey>(
     [queryClient, queryHash],
   )
 
-  const held = () =>
-    query && queryClient.getQueryState<TData, Error>(query.queryKey)
+  const held = () => query && queryClient.getQueryData<TData>(query.queryKey)
 
   return useSyncExternalStore(subscribe, held, held)
 }
@@ -269,7 +265,7 @@ export const useHome = () => {
 
   const page = useStored(
     movedOn && isTripDate(today) ? dayQuery(today) : undefined,
-  )?.data
+  )
 
   useEffect(() => {
     const deadline = nextTokyoMidnightDeadline(readAt)
@@ -295,7 +291,7 @@ export const useHome = () => {
 
   const { schedule, from } = scheduleToMoveOnWith(
     scheduleIn(data),
-    dataUpdatedAt,
+    data.readAt,
     schedules,
   )
 
@@ -341,34 +337,51 @@ const scheduleIn = (home: HomeState) =>
 
 /**
  * The Schedule Home moves on with offline, and the query it came from:
- * whichever of Home and the stored Schedules the server answered later. A
- * Schedule chosen here away from Home leaves Home older, and one chosen on
- * another device can leave the stored Schedules older. Undefined when the
- * later one lacks it, as Home during the Trip carries only its Schedule's id.
+ * whichever of Home and the stored Schedules the server answered later.
+ * Undefined when the later one lacks it, as Home during the Trip carries only
+ * its Schedule's id.
  */
 const scheduleToMoveOnWith = (
   readWith: ReturnType<typeof scheduleIn>,
-  homeAnsweredAt: number,
-  schedules: QueryState<Schedules> | undefined,
+  readAt: string,
+  schedules: Schedules | undefined,
 ) => {
-  const stored = schedules?.data?.current
-  const storedAnsweredAt = schedules && answeredAt(schedules)
-
   if (
-    stored !== undefined &&
-    storedAnsweredAt !== undefined &&
-    storedAnsweredAt > homeAnsweredAt
+    schedules !== undefined &&
+    storedAreLater(readWith.id, readAt, schedules)
   ) {
-    return { schedule: stored, from: schedulesQuery }
+    return { schedule: schedules.current, from: schedulesQuery }
   }
 
   if (readWith.id === null || readWith.detail !== undefined) {
     return { schedule: readWith.detail ?? null, from: homeQuery }
   }
 
-  return stored?.id === readWith.id
-    ? { schedule: stored, from: schedulesQuery }
-    : { schedule: undefined, from: homeQuery }
+  return { schedule: undefined, from: homeQuery }
+}
+
+/**
+ * Whether the server answered the stored Schedules later than Home, read at
+ * `readAt` with the Schedule `homeScheduleId`. Both times are the server's,
+ * so a device clock set wrong can't reorder them. A Schedule never goes back
+ * to none, and choosing or restoring archives the Schedule it replaces. So
+ * the stored Schedules are later when they hold the same Schedule as Home,
+ * when Home had none and they have one, or when they archived Home's after
+ * Home was read.
+ */
+const storedAreLater = (
+  homeScheduleId: string | null,
+  readAt: string,
+  { current, archived }: Schedules,
+) => {
+  if (homeScheduleId === null) return current !== null
+
+  if (current?.id === homeScheduleId) return true
+
+  return archived.some(
+    ({ id, archivedAt }) =>
+      id === homeScheduleId && Date.parse(archivedAt) > Date.parse(readAt),
+  )
 }
 
 export const dayQuery = (date: IsoDate) =>
