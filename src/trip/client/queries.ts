@@ -19,7 +19,13 @@ import {
   subscribeToConnection,
 } from '@/access/connection-status'
 import { deviceCacheRestoring } from '@/trip/client/device-cache'
-import { answerOfRead, startRead } from '@/trip/client/read-order'
+import { readUntilAnswered } from '@/trip/client/owed-reads'
+import {
+  answeredSince,
+  answerOfRead,
+  readAwaited,
+  startRead,
+} from '@/trip/client/read-order'
 import type { Read } from '@/trip/client/read-order'
 import {
   checklistQuery,
@@ -30,6 +36,7 @@ import {
   subscribeToQuery,
 } from '@/trip/client/queries.reads'
 import {
+  getHome,
   getScheduleSnapshot,
   getScheduleSummary,
 } from '@/trip/trip/trip.functions'
@@ -58,31 +65,37 @@ const isOffline = () =>
   ConnectionStatus.$is('Offline')(currentConnection())
 
 /**
- * Resolves with the data stored for `queryKey` as soon as the app is offline
- * and has data stored for it. The two can happen in either order, such as a
- * snapshot storing a Day after the connection dropped. `stop` removes the
- * listeners.
+ * Resolves with the data stored for `queryKey` once the app is offline and
+ * holds data for it, in either order, such as a snapshot storing a Day after
+ * the connection dropped. It also resolves once the stored data comes from
+ * read number `read` or a later one, which may already be true when it
+ * starts. `stop` removes the listeners.
  */
-const storedOnceOffline = <TData>(
+const storedOnceCurrent = <TData>(
   queryClient: QueryClient,
   queryKey: QueryKey,
+  read: number,
 ) => {
   let stop = () => {}
 
   const answer = new Promise<TData>((resolve) => {
-    const answerIfOffline = () => {
+    const answerIfCurrent = () => {
       const data = queryClient.getQueryData<TData>(queryKey)
 
-      if (data !== undefined && isOffline()) resolve(data)
+      if (data !== undefined && (isOffline() || answeredSince(data, read))) {
+        resolve(data)
+      }
     }
 
-    const stopOnline = onlineManager.subscribe(answerIfOffline)
-    const stopConnection = subscribeToConnection(answerIfOffline)
+    answerIfCurrent()
+
+    const stopOnline = onlineManager.subscribe(answerIfCurrent)
+    const stopConnection = subscribeToConnection(answerIfCurrent)
 
     const stopStoring = subscribeToQuery(
       queryClient,
       hashKey(queryKey),
-      answerIfOffline,
+      answerIfCurrent,
     )
 
     stop = () => {
@@ -98,7 +111,8 @@ const storedOnceOffline = <TData>(
 /**
  * Reads a query for a loader. Online, it fetches fresh data, as
  * `fetchQuery` does with a zero stale time, and answers with what the app
- * then stores. Offline, it answers at once with the data the app already
+ * then stores, or sooner with what a later read stores, such as a save's own
+ * read. Offline, it answers at once with the data the app already
  * has instead of waiting for the network. That includes going offline in
  * the middle of the read. With nothing stored, it fails. It fails at once
  * when the browser knows it is offline, where `fetchQuery` would wait for
@@ -125,12 +139,21 @@ export const loadQuery = async <TData, TKey extends QueryKey>(
     throw new Error('Offline, with nothing stored for this page')
   }
 
-  const offline = storedOnceOffline<TData>(queryClient, options.queryKey)
+  // A save's own read, or any read started after the one this loader waits
+  // on, may store first. The loader then answers with that.
+  const current = storedOnceCurrent<TData>(
+    queryClient,
+    options.queryKey,
+    readAwaited(
+      options.queryKey,
+      queryClient.getQueryState(options.queryKey)?.fetchStatus !== 'idle',
+    ),
+  )
 
   try {
     return await Promise.race([
       queryClient.fetchQuery(options).then((fetched) => stored() ?? fetched),
-      offline.answer,
+      current.answer,
     ])
   } catch (error) {
     // A cold start can learn it is offline only here, while the restore
@@ -146,41 +169,47 @@ export const loadQuery = async <TData, TKey extends QueryKey>(
     if (after !== undefined && isOffline()) return after
     throw error
   } finally {
-    offline.stop()
+    current.stop()
   }
 }
 
-/** What the snapshot's server function returns, as plain data. */
-type SnapshotAnswer = Awaited<ReturnType<typeof getScheduleSnapshot>>
-
 /**
- * Stores the Schedules, every Day page and the Checklist from the snapshot
- * that `read` answered. It skips any of them already stored from a later
- * read. It builds each query with its own options first, so a Day that was
- * never read on its own still checks the read numbers.
+ * Stores `data`, which `read` answered, in the query of `options`, unless the
+ * query holds an answer from a later read. It builds the query with its own
+ * options first, so a query that never read on its own still checks the read
+ * numbers.
  */
-const storeSnapshot = (
+const storeRead = <T, K extends QueryKey>(
   queryClient: QueryClient,
-  snapshot: SnapshotAnswer,
+  options: FetchQueryOptions<T, Error, T, K>,
+  data: T,
   read: Read,
 ) => {
-  if (snapshot === null) return
+  queryClient.getQueryCache().build(queryClient, options)
+  queryClient.setQueryData<T>(options.queryKey, answerOfRead(data, read), {
+    updatedAt: read.answeredAt,
+  })
+}
 
-  const store = <T, K extends QueryKey>(
-    options: FetchQueryOptions<T, Error, T, K>,
-    data: T,
-  ) => {
-    queryClient.getQueryCache().build(queryClient, options)
-    queryClient.setQueryData<T>(options.queryKey, answerOfRead(data, read), {
-      updatedAt: read.answeredAt,
-    })
+/**
+ * Reads the Schedule snapshot, and stores the Schedules, every Day page and
+ * the Checklist from it, skipping any already stored from a later read.
+ */
+const readSnapshot = async (queryClient: QueryClient) => {
+  const started = startRead()
+  const snapshot = await getScheduleSnapshot()
+  const read = { started, answeredAt: Date.now() }
+
+  if (snapshot === null) return snapshot
+  storeRead(queryClient, schedulesQuery, snapshot.schedules, read)
+
+  for (const page of snapshot.days) {
+    storeRead(queryClient, dayQuery(page.day.date), page, read)
   }
 
-  store(schedulesQuery, snapshot.schedules)
+  storeRead(queryClient, checklistQuery, snapshot.checklist, read)
 
-  for (const page of snapshot.days) store(dayQuery(page.day.date), page)
-
-  store(checklistQuery, snapshot.checklist)
+  return snapshot
 }
 
 const scheduleSnapshotQuery = queryOptions({
@@ -188,38 +217,18 @@ const scheduleSnapshotQuery = queryOptions({
   // The device keeps the Schedules, Days and Checklist the snapshot stores,
   // so keeping the snapshot too would store a second copy.
   meta: { kept: false },
-  queryFn: async ({ client, signal }) => {
-    const started = startRead()
-    const snapshot = await getScheduleSnapshot()
-    const read = { started, answeredAt: Date.now() }
-
-    // A read cancelled for a write may predate it, so it stores nothing.
-    if (!signal.aborted) storeSnapshot(client, snapshot, read)
-
-    return snapshot
-  },
+  queryFn: ({ client }) => readSnapshot(client),
 })
 
 /**
  * Stores the Schedules, every Day page and the Checklist from the Schedule
  * snapshot, so any Day opens offline, even one never opened on this device.
  * They all come from one snapshot, except any stored from a later read. It reads
- * the snapshot after hydration, on focus, on reconnect and after every write.
- * It never re-renders its component.
+ * the snapshot after hydration, on focus and on reconnect, and every write
+ * reads it too. It never re-renders its component.
  */
 export const useScheduleSnapshot = () => {
   useQuery({ ...scheduleSnapshotQuery, notifyOnChangeProps: [] })
-}
-
-/**
- * Reads the snapshot again while the app keeps it. It first cancels a read
- * already under way, which may predate the write, even when no snapshot has
- * answered yet.
- */
-const refreshSnapshot = async (queryClient: QueryClient) => {
-  const queryKey = keys.scheduleSnapshot
-  await queryClient.cancelQueries({ queryKey })
-  await queryClient.invalidateQueries({ queryKey })
 }
 
 const scheduleSummaryQuery = queryOptions({
@@ -291,81 +300,80 @@ const affectedBy = {
 export type TripWrite = keyof typeof affectedBy
 
 /**
+ * Reads the Schedule snapshot after a write while the app keeps it. With
+ * nothing keeping it, the write owes no read, since the root reads the
+ * snapshot when it mounts.
+ */
+const readKeptSnapshot = async (queryClient: QueryClient) => {
+  const kept = queryClient
+    .getQueryCache()
+    .find({ queryKey: keys.scheduleSnapshot, exact: true })
+    ?.isActive()
+
+  if (kept === true) await readSnapshot(queryClient)
+}
+
+/**
  * Invalidates the queries given. It also reads the Schedule snapshot again,
- * and Home when it's among them and not shown, without waiting for either.
+ * without waiting for it. When Home is among them, it reads Home too, and
+ * waits for that read only while Home is shown. Each read runs again when the
+ * connection returns, until it answers.
  */
 const invalidate = (
   queryClient: QueryClient,
   queryKeys: ReadonlyArray<QueryKey>,
 ) => {
-  void refreshSnapshot(queryClient)
+  void readUntilAnswered(queryClient, readKeptSnapshot)
 
-  const invalidated = Promise.all(
-    queryKeys.map((queryKey) => queryClient.invalidateQueries({ queryKey })),
+  const refetched = queryKeys.flatMap((queryKey) =>
+    queryKey === keys.home ? [] : [queryClient.invalidateQueries({ queryKey })],
   )
 
-  // Home isn't in the snapshot, and offline it opens as last read, so a
-  // save on another page must reach the Home the device keeps.
-  if (queryKeys.includes(keys.home)) void refreshUnshownHome(queryClient)
+  // Home isn't in the snapshot, and offline it opens as last read, so a save
+  // must reach the Home the device keeps, shown or not. The invalidation
+  // doesn't refetch Home, because readHome reads it.
+  if (queryKeys.includes(keys.home)) {
+    const shown = queryClient
+      .getQueryCache()
+      .find({ queryKey: keys.home, exact: true })
+      ?.isActive()
 
-  return invalidated
+    void queryClient.invalidateQueries({
+      queryKey: keys.home,
+      refetchType: 'none',
+    })
+    const reading = readUntilAnswered(queryClient, readHome)
+
+    if (shown === true) refetched.push(reading)
+  }
+
+  return Promise.all(refetched)
 }
 
 /**
- * Reads Home again when the app holds it but doesn't show it. A read under
- * way may predate the write, so it waits for that read, then reads again.
- * Cancelling it instead would fail a page loader waiting on it. It marks
- * Home stale first, so the read goes ahead whatever the device clock says,
- * and reads through Home's options, since a Home the device restored has no
- * read of its own until a page shows it. A read that fails goes again on
- * reconnect.
+ * Reads Home and stores it in read order while the app holds Home, shown or
+ * not. A read of Home already under way, such as a page loader's, may
+ * predate the write. The read order stops its answer from replacing this
+ * one.
  */
-const refreshUnshownHome = async (queryClient: QueryClient) => {
-  const home = queryClient
+const readHome = async (queryClient: QueryClient) => {
+  const held = queryClient
     .getQueryCache()
     .find({ queryKey: keys.home, exact: true })
 
-  if (home === undefined || home.isActive()) return
+  if (held === undefined) return
 
-  if (home.state.fetchStatus !== 'idle') {
-    await queryClient.prefetchQuery(homeQuery)
-  }
-
-  await queryClient.invalidateQueries({
-    queryKey: keys.home,
-    exact: true,
-    refetchType: 'none',
-  })
-
-  await queryClient.prefetchQuery(homeQuery)
-
-  // A read that failed, as when the signal drops right after the save, goes
-  // again once the connection returns, since nothing shown will read Home.
-  if (queryClient.getQueryState(homeQuery.queryKey)?.isInvalidated) {
-    refreshHomeOnReconnect(queryClient)
-  }
-}
-
-const awaitingReconnect = new WeakSet<QueryClient>()
-
-/** Reads an unshown Home again the next time a request gets an answer. */
-const refreshHomeOnReconnect = (queryClient: QueryClient) => {
-  if (awaitingReconnect.has(queryClient)) return
-  awaitingReconnect.add(queryClient)
-
-  const stop = subscribeToConnection(() => {
-    if (!ConnectionStatus.$is('Connected')(currentConnection())) return
-    stop()
-    awaitingReconnect.delete(queryClient)
-    void refreshUnshownHome(queryClient)
-  })
+  const started = startRead()
+  const home = await getHome()
+  storeRead(queryClient, homeQuery, home, { started, answeredAt: Date.now() })
 }
 
 /**
  * Invalidates exactly the queries a successful write affects, and resolves
  * once the shown ones have refetched. The rest refetch when next shown.
- * Meanwhile it reads the Schedule snapshot again, which stores them, and an
- * unshown Home, without waiting for either.
+ * Meanwhile it reads the Schedule snapshot again, which stores them. It
+ * also reads Home, and waits for that read only while Home is shown. A read
+ * that fails runs again once a request gets an answer, until it answers.
  */
 export const invalidateAfter = (queryClient: QueryClient, write: TripWrite) =>
   invalidate(queryClient, affectedBy[write])
