@@ -92,7 +92,7 @@ Import from `src/` with the `@/` alias (`@/routes/...` for `src/routes/...`).
 
 ### Trip modules
 
-`src/trip` has one folder per service (`trip`, `trip-store`, `schedule-store`, `itineraries`, `detail-tiles`, `location-links`), plus `domain`, `catalogue` and `client` for what they share. A new module goes in the folder of the service that owns it, never loose in `src/trip`.
+`src/trip` has one folder per service (`trip`, `trip-store`, `schedule-store`, `itinerary`, `detail-tiles`, `location-links`), plus `domain`, `catalogue` and `client` for what they share. A new module goes in the folder of the service that owns it, never loose in `src/trip`.
 
 ### Splitting a module
 
@@ -135,7 +135,7 @@ Tests are colocated with the modules they exercise (`*.test.ts` under `src/`), w
 
 - Drive behaviour only through a public seam: the Trip service, `runTripOperation` (for a Trip store operation's result or outcome) or the Access gate. Behaviour the browser lifecycle owns (mount, unmount, query-cache listeners), which neither seam reaches, goes through the exported React hook instead, rendered under `// @vitest-environment happy-dom` and asserting on what the hook returns and on the query cache. A hook test mocks out the server-function transport, `@/trip/trip/trip.functions`, and nothing else. A route loader's read goes through `loadQuery` (`@/trip/client/queries`) the same way. What the device keeps after the app closes goes through `keepCacheOnDevice` (`@/trip/client/device-cache`), the call that turns it on at app start. These tests may also replace the browser's IndexedDB, with `fake-indexeddb` or a wrapper of it that fails or answers late.
 - Assert only on returned values, described in glossary terms (`GLOSSARY.md`).
-- Build the module under test for real; substitute only its dependencies (Itinerary catalogue, Clock, SQL client, configuration, key-set transport, link resolver, Detail tiles archive) through layers or `Effect.provideService`.
+- Build the module under test for real; substitute only its dependencies (the Itinerary, Clock, SQL client, configuration, key-set transport, link resolver, Detail tiles archive) through layers or `Effect.provideService`.
 - Read state back through the seam; tables, internal helpers and component internals stay uninspected.
 
 Scripts under `scripts/` are the exception. Their tests run the script as its own process against temporary inputs (for the pre-commit size check, a throwaway Git repository) and assert only on its exit status and output.
@@ -150,9 +150,9 @@ Issues and specs are tracked in GitHub Issues using the `gh` CLI. See `docs/agen
 
 Triage uses the default mattpocock/skills label vocabulary. See `docs/agents/triage-labels.md`.
 
-### Itineraries
+### Places
 
-To add or revise an Itinerary from gpt-6-astra's markdown, follow `docs/agents/itineraries.md`.
+To add a place, station or line, such as a new Base Phillip asks for, follow `docs/agents/places.md`.
 
 ### Domain docs
 
