@@ -10,12 +10,10 @@ import type {
   IsoDate,
   OperationId,
   ScheduleDetail,
-  ScheduleId,
   SplitStay,
 } from '@/trip/domain/domain'
 import {
   currentSchedule,
-  currentScheduleId,
   operation,
   option1WithTwoKyotoStays,
   storageStartingFrom,
@@ -62,7 +60,6 @@ interface Candidate {
   readonly name: string
   readonly offered: boolean
   readonly edit: (
-    scheduleId: ScheduleId,
     stayAt: (position: number) => string,
     operationId: OperationId,
   ) => StayEditRun
@@ -79,9 +76,8 @@ const candidatesOf = (schedule: ScheduleDetail): Array<Candidate> => {
     tripDates.map((date): Candidate => ({
       name: `split Stay ${position} on ${date}`,
       offered: splitDates.includes(date),
-      edit: (scheduleId, stayAt, operationId) =>
+      edit: (stayAt, operationId) =>
         splitStay({
-          scheduleId,
           operationId,
           stayId: stayAt(position),
           date,
@@ -95,10 +91,9 @@ const candidatesOf = (schedule: ScheduleDetail): Array<Candidate> => {
       : tripDates.map((checkOut: IsoDate): Candidate => ({
           name: `move Stay ${position}'s check-out to ${checkOut}`,
           offered: boundary?.checkOuts.includes(checkOut) ?? false,
-          edit: (scheduleId, stayAt) =>
+          edit: (stayAt) =>
             Trip.use((trip) =>
               trip.moveStayBoundary({
-                scheduleId,
                 stayId: stayAt(position),
                 checkOut,
               }),
@@ -113,10 +108,9 @@ const candidatesOf = (schedule: ScheduleDetail): Array<Candidate> => {
       return {
         name: `merge Stays ${earlier} and ${later}`,
         offered: mergeWith === later,
-        edit: (scheduleId, stayAt, operationId) =>
+        edit: (stayAt, operationId) =>
           Trip.use((trip) =>
             trip.mergeStays({
-              scheduleId,
               operationId,
               stayIds: [stayAt(earlier), stayAt(later)],
             }),
@@ -179,12 +173,12 @@ describe('Offered Stay edits', () => {
           // Each edit starts from a fresh store, so an accepted one never
           // changes the Schedule the next one tries.
           const answer = yield* Effect.gen(function* () {
-            const { id, stays } = yield* currentSchedule
+            const { stays } = yield* currentSchedule
 
             const stayAt = (position: number) =>
               stays[position]?.id ?? assert.fail(`No Stay ${position}`)
 
-            const outcome = yield* Effect.result(edit(id, stayAt, operation(1)))
+            const outcome = yield* Effect.result(edit(stayAt, operation(1)))
 
             return Result.isSuccess(outcome) ? 'accepted' : outcome.failure._tag
           }).pipe(Effect.provide(Layer.fresh(sampleStorage)))
@@ -211,11 +205,9 @@ describe('Offered Stay edits', () => {
     'are empty when a retry returns a Stay edit recorded before the Schedule had them',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
         const kyotoId = (yield* currentSchedule).stays[1]?.id ?? ''
 
         const split = splitStay({
-          scheduleId,
           operationId: operation(2),
           stayId: kyotoId,
           date: december(10),

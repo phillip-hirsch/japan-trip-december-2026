@@ -4,7 +4,7 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query'
 import type { FetchQueryOptions, QueryKey } from '@tanstack/react-query'
-import { Match } from 'effect'
+import { Predicate } from 'effect'
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 
 import {
@@ -20,7 +20,7 @@ import {
   millisecondsUntilTokyoMidnight,
   tokyoDateAt,
 } from '@/trip/domain/calendar'
-import type { HomeState, ScheduleDetail, Schedules } from '@/trip/domain/domain'
+import type { HomeState, Schedules } from '@/trip/domain/domain'
 import { homeStateOn } from '@/trip/domain/home-state'
 
 const homeRetryDelay = 60_000
@@ -160,16 +160,14 @@ export const useHome = () => {
 
   if (!movedOn) return asRead
 
-  const { schedule, from } = scheduleToMoveOnWith(scheduleIn(data), schedules)
+  const { schedule, from } = scheduleToMoveOnWith(data, schedules)
 
   if (schedule === undefined) return asRead
 
   const home = homeStateOn(today, {
     readAt: data.readAt,
     schedule,
-    // A Day stored from another Schedule, such as one replaced on another
-    // device before the last snapshot answered, isn't Today.
-    today: page?.scheduleId === schedule.id ? page : undefined,
+    today: page,
   })
 
   if (home === undefined) return asRead
@@ -178,38 +176,14 @@ export const useHome = () => {
 }
 
 /**
- * The Schedule Home was read with: its id and its detail. During the Trip
- * Home carries only the id, so its detail is undefined.
- */
-const scheduleIn = (home: HomeState) =>
-  Match.value(home).pipe(
-    Match.withReturnType<{
-      readonly id: string
-      readonly detail: ScheduleDetail | undefined
-    }>(),
-    Match.tagsExhaustive({
-      BeforeTrip: ({ schedule }) => ({ id: schedule.id, detail: schedule }),
-      DuringTrip: ({ today }) => ({ id: today.scheduleId, detail: undefined }),
-      AfterTrip: ({ schedule }) => ({ id: schedule.id, detail: schedule }),
-    }),
-  )
-
-/**
  * The Schedule Home moves on with offline, and the query it came from:
- * Home's own. Undefined when Home lacks it, as Home during the Trip carries
- * only its Schedule's id and the stored Schedule is another.
+ * Home's own, except during the Trip, when Home carries only Today's page and
+ * the stored Schedules stand in. Undefined when they aren't stored.
  */
 const scheduleToMoveOnWith = (
-  readWith: ReturnType<typeof scheduleIn>,
+  home: HomeState,
   schedules: Schedules | undefined,
-) => {
-  if (readWith.detail !== undefined) {
-    return { schedule: readWith.detail, from: homeQuery }
-  }
-
-  // During the Trip Home carries only its Schedule's id, so the stored
-  // Schedule stands in for it when it's the same one.
-  return schedules?.current.id === readWith.id
-    ? { schedule: schedules.current, from: schedulesQuery }
-    : { schedule: undefined, from: homeQuery }
-}
+) =>
+  Predicate.isTagged(home, 'DuringTrip')
+    ? { schedule: schedules?.current, from: schedulesQuery }
+    : { schedule: home.schedule, from: homeQuery }

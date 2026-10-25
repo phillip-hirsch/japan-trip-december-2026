@@ -182,7 +182,6 @@ export const checklistIn = Effect.fnUntraced(function* (
   const derived = derivedChecklistOf(copy, yield* store.ticks(schedule.id))
 
   return {
-    scheduleId: schedule.id,
     items: checklistOf(derived, yield* store.ownItems),
   }
 })
@@ -199,11 +198,10 @@ const checklist = Effect.gen(function* () {
 )
 
 const tickChecklistItem = Effect.fn('Trip.tickChecklistItem')(function* ({
-  scheduleId,
   itemId,
   ticked,
 }: TickChecklistItem) {
-  yield* scheduleWrite({ naming: scheduleId }, (store) =>
+  yield* scheduleWrite({}, (store, scheduleId) =>
     Effect.gen(function* () {
       const { copy } = yield* currentIn(store)
 

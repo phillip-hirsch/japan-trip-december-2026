@@ -100,7 +100,7 @@ A module over the pre-commit token limit splits into `<Module>.<area>.ts` siblin
 
 ### Trip writes
 
-Every Trip write to the Schedule store is its own input checks plus one call to the Schedule-write unit in `src/trip/trip/Trip.guards.ts`: `scheduleWrite`, or `tripWrite` for a write that names no Schedule, such as the Trip note. The unit replays a repeated operation id, refuses a Schedule that isn't current with Schedule changed, runs the write in one transaction, records its result, and turns storage failures into defects. A write never opens its own transaction or checks the Schedule itself. Its target declares once whether it takes an operation id. `Trip.schedule-writes.test.ts` covers this for every write, so a feature test keeps just one Schedule changed case.
+Every Trip write to the Schedule store is its own input checks plus one call to the Schedule-write unit in `src/trip/trip/Trip.guards.ts`: `scheduleWrite`, which hands the write the Schedule's id, or `tripWrite` for a write to the Trip itself, such as the Trip note. A write's input names only what it changes, such as a Day, Stay or Activity; the unit supplies the one Schedule. In one transaction, which the unit owns, it replays a repeated operation id, runs the write and records its result. It turns storage failures into defects. Its target declares once whether it takes an operation id. `Trip.schedule-writes.test.ts` covers replay for every write that takes one, so feature tests leave replay to it.
 
 ### Kept data version
 

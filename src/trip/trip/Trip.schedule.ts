@@ -85,7 +85,6 @@ const dayPageFor = (
   const nextMove = firstMoveOnOrAfter(schedule.days, day.date)
 
   return {
-    scheduleId: schedule.id,
     day,
     ...(tonight && {
       tonight: {

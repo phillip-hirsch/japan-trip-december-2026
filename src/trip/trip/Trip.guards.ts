@@ -7,7 +7,6 @@ import {
   ActivityTitleInvalid,
   ChecklistTextInvalid,
   NoteTooLong,
-  ScheduleChanged,
   StayNotFound,
 } from '@/trip/domain/domain'
 import type { OperationId, ScheduleId } from '@/trip/domain/domain'
@@ -30,20 +29,16 @@ interface Recorded<A> {
 
 type Write<A, E, R> = (store: ScheduleStore) => Effect.Effect<A, E, R>
 
-const requireCurrent = Effect.fnUntraced(function* (
-  store: ScheduleStore,
-  believedCurrent: ScheduleId | null,
-) {
-  const current = yield* store.currentRecord
-  const currentId = Option.getOrNull(Option.map(current, ({ id }) => id))
-
-  if (currentId !== believedCurrent) return yield* new ScheduleChanged()
-})
+/** The Schedule `found`, which store start always creates. */
+const theSchedule = <A>(found: Option.Option<A>) =>
+  Option.match(found, {
+    onNone: () => Effect.die(new Error('The store has no Schedule')),
+    onSome: Effect.succeed,
+  })
 
 const storeWrite = Effect.fnUntraced(
-  function* <A, E, R, C, RC>(
+  function* <A, E, R>(
     recorded: Recorded<A> | undefined,
-    check: Write<void, C, RC>,
     write: Write<A, E, R>,
   ) {
     const store = yield* scheduleStore
@@ -58,7 +53,6 @@ const storeWrite = Effect.fnUntraced(
           if (Option.isSome(replayed)) return replayed.value.result
         }
 
-        yield* check(store)
         const result = yield* write(store)
 
         if (recorded !== undefined) {
@@ -76,52 +70,43 @@ const storeWrite = Effect.fnUntraced(
 )
 
 /**
- * The one way the Trip service writes to a Schedule. In order, it:
+ * The one way the Trip service writes to the Schedule. In one transaction, it:
  *
  * 1. returns the recorded result when the operation id repeats,
- * 2. refuses with ScheduleChanged when the Schedule named isn't current,
- * 3. runs the write in one transaction, and
- * 4. records the result with its operation id in that transaction.
+ * 2. otherwise runs the write on the Schedule's id, and
+ * 3. records the result with its operation id.
  *
- * `naming` is the Schedule the write believes current, or null for none.
  * `recorded` is there only for a write that takes an operation id. Storage
  * failures become defects. A write checks its request on its own before
- * calling this, so bad input is refused as such even from an out-of-date
- * screen. A lookup in the store or the catalogue belongs to the
- * write, after replay, so a retry still returns its first result.
+ * calling this, so bad input is refused as such. A lookup in the store or
+ * the catalogue belongs to the write, after replay, so a retry still returns
+ * its first result.
  */
 export const scheduleWrite = <A, E, R>(
-  {
-    naming,
-    recorded,
-  }: {
-    readonly naming: ScheduleId | null
-    readonly recorded?: Recorded<A>
-  },
-  write: Write<A, E, R>,
-) => storeWrite(recorded, (store) => requireCurrent(store, naming), write)
+  { recorded }: { readonly recorded?: Recorded<A> },
+  write: (
+    store: ScheduleStore,
+    scheduleId: ScheduleId,
+  ) => Effect.Effect<A, E, R>,
+) =>
+  storeWrite(recorded, (store) =>
+    Effect.flatMap(Effect.flatMap(store.currentRecord, theSchedule), ({ id }) =>
+      write(store, id),
+    ),
+  )
 
 /**
  * The same for a write to the Trip itself, such as the Trip note or an own
- * Checklist item: it names no Schedule, so it skips step 2.
+ * Checklist item, which belongs to no Schedule.
  */
 export const tripWrite = <A, E, R>(
   { recorded }: { readonly recorded?: Recorded<A> },
   write: Write<A, E, R>,
-) => storeWrite(recorded, () => Effect.void, write)
+) => storeWrite(recorded, write)
 
-/**
- * The current Schedule, with its copy. Store start creates it, so it is
- * always there. A write reads it after the Schedule-write unit has found the
- * Schedule it names current.
- */
+/** The Schedule, with its copy. Store start creates it, so it is always there. */
 export const currentIn = (store: ScheduleStore) =>
-  Effect.flatMap(store.current, (found) =>
-    Option.match(found, {
-      onNone: () => Effect.die(new Error('The store has no Schedule')),
-      onSome: Effect.succeed,
-    }),
-  )
+  Effect.flatMap(store.current, theSchedule)
 
 export const requireStay = Effect.fnUntraced(function* (
   store: ScheduleStore,

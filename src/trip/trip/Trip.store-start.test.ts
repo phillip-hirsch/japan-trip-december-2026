@@ -159,7 +159,6 @@ describe('Store start', () => {
       const before = yield* currentSchedule
       yield* Trip.use((trip) =>
         trip.writeDayNote({
-          scheduleId: before.id,
           date: december(15),
           note: 'Dinner at 19:00.',
         }),

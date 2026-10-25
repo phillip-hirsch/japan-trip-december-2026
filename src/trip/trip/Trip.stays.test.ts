@@ -12,7 +12,6 @@ import { option1 } from '@/trip/itinerary/option-1'
 import {
   checklistItems,
   currentSchedule,
-  currentScheduleId,
   operation,
   stayIdAt,
   storage,
@@ -117,19 +116,17 @@ describe('Stay edits', () => {
     'drop the Checklist items and ticks of the Stay and Move they remove, keeping the ticks of the rest',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
         const before = yield* currentSchedule
         const [kyotoId, kanazawaId] = [stayIdAt(before, 1), stayIdAt(before, 2)]
         const into = moveIdOn(before, december(13))
         const outOf = moveIdOn(before, december(17))
 
         for (const itemId of [kyotoId, kanazawaId, into, outOf]) {
-          yield* tick(scheduleId, itemId)
+          yield* tick(itemId)
         }
 
         yield* Trip.use((trip) =>
           trip.changeStayBase({
-            scheduleId,
             stayId: kanazawaId,
             place: 'kyoto',
           }),
@@ -137,7 +134,6 @@ describe('Stay edits', () => {
 
         const { schedule } = yield* Trip.use((trip) =>
           trip.mergeStays({
-            scheduleId,
             operationId: operation(2),
             stayIds: [kyotoId, kanazawaId],
           }),

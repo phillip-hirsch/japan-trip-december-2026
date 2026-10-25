@@ -6,7 +6,7 @@ import { act } from 'react'
 
 import { connected, reportConnection } from '@/access/connection-status'
 import { useDayNote } from '@/components/notes'
-import { deferred, openEditor, scheduleId } from '@/trip/client/editor-testing'
+import { deferred, openEditor } from '@/trip/client/editor-testing'
 import {
   loseConnection,
   outcomeOf,
@@ -54,7 +54,7 @@ const openApp = async (readSchedules?: () => Promise<string>) => {
     () => {
       useScheduleSnapshot()
 
-      return useDayNote({ scheduleId, date: december(7), note: undefined })
+      return useDayNote({ date: december(7), note: undefined })
     },
     {},
     readSchedules,

@@ -16,7 +16,7 @@ export const Route = createFileRoute('/checklist')({
 })
 
 function ChecklistPage() {
-  const { scheduleId, items } = useSuspenseQuery(checklistQuery).data
+  const { items } = useSuspenseQuery(checklistQuery).data
   const done = items.filter((item) => item.ticked).length
 
   return (
@@ -31,7 +31,7 @@ function ChecklistPage() {
         <LastUpdated query={checklistQuery} className="mt-2" />
       </header>
       <section aria-label="Items" className="mt-8">
-        <ChecklistItems items={items} scheduleId={scheduleId} />
+        <ChecklistItems items={items} />
       </section>
       <section aria-labelledby="add-item" className="mt-12">
         <h2 id="add-item" className="mb-4 text-xl font-semibold">

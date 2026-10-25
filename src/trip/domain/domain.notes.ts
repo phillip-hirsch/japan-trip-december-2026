@@ -1,16 +1,15 @@
 import { Schema } from 'effect'
 
 import { IsoDate } from '@/trip/domain/domain.itinerary'
-import { CopyId, DayNotFound, ScheduleId } from '@/trip/domain/domain.schedule'
+import { CopyId, DayNotFound } from '@/trip/domain/domain.schedule'
 import { StayNotFound } from '@/trip/domain/domain.stays'
-import { ScheduleChanged, operationOutcome } from '@/trip/domain/domain.writes'
+import { operationOutcome } from '@/trip/domain/domain.writes'
 
 /**
- * Write the Day note on a Day of the Schedule named, as a whole value: an
+ * Write the Day note on a Day, as a whole value: an
  * empty note removes it. The last write wins.
  */
 export const WriteDayNote = Schema.Struct({
-  scheduleId: ScheduleId,
   date: IsoDate,
   note: Schema.String,
 })
@@ -24,7 +23,6 @@ export class NoteTooLong extends Schema.TaggedError<NoteTooLong>()(
 ) {}
 
 export const WriteDayNoteOutcome = operationOutcome('Written', {}, [
-  ScheduleChanged,
   DayNotFound,
   NoteTooLong,
 ])
@@ -32,11 +30,10 @@ export const WriteDayNoteOutcome = operationOutcome('Written', {}, [
 export type WriteDayNoteOutcome = typeof WriteDayNoteOutcome.Type
 
 /**
- * Write the Stay note on a Stay of the Schedule named, as a whole value: an
+ * Write the Stay note on a Stay, as a whole value: an
  * empty note removes it. The last write wins.
  */
 export const WriteStayNote = Schema.Struct({
-  scheduleId: ScheduleId,
   stayId: CopyId,
   note: Schema.String,
 })
@@ -44,7 +41,6 @@ export const WriteStayNote = Schema.Struct({
 export type WriteStayNote = typeof WriteStayNote.Type
 
 export const WriteStayNoteOutcome = operationOutcome('Written', {}, [
-  ScheduleChanged,
   StayNotFound,
   NoteTooLong,
 ])

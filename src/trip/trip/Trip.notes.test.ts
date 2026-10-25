@@ -2,22 +2,15 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect, Predicate } from 'effect'
 
 import { december, IsoDate } from '@/trip/domain/domain'
-import type { ScheduleId } from '@/trip/domain/domain'
-import {
-  currentScheduleId,
-  setTime,
-  staleScheduleId,
-  currentStays,
-  storage,
-  testTrip,
-} from '@/trip/trip/testing'
+
+import { setTime, currentStays, storage, testTrip } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
-const writeDayNote = (scheduleId: ScheduleId, date: IsoDate, note: string) =>
-  Trip.use((trip) => trip.writeDayNote({ scheduleId, date, note }))
+const writeDayNote = (date: IsoDate, note: string) =>
+  Trip.use((trip) => trip.writeDayNote({ date, note }))
 
-const writeStayNote = (scheduleId: ScheduleId, stayId: string, note: string) =>
-  Trip.use((trip) => trip.writeStayNote({ scheduleId, stayId, note }))
+const writeStayNote = (stayId: string, note: string) =>
+  Trip.use((trip) => trip.writeStayNote({ stayId, note }))
 
 const writeTripNote = (note: string) =>
   Trip.use((trip) => trip.writeTripNote({ note }))
@@ -44,9 +37,8 @@ const dayNote = (date: IsoDate) =>
 describe('Trip.writeDayNote', () => {
   it.effect('leaves the last of two successive writes', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
-      yield* writeDayNote(scheduleId, december(14), 'Book the onsen.')
-      yield* writeDayNote(scheduleId, december(14), 'Onsen booked for 18:00.')
+      yield* writeDayNote(december(14), 'Book the onsen.')
+      yield* writeDayNote(december(14), 'Onsen booked for 18:00.')
       assert.strictEqual(
         yield* dayNote(december(14)),
         'Onsen booked for 18:00.',
@@ -54,34 +46,10 @@ describe('Trip.writeDayNote', () => {
     }).pipe(Effect.provide([testTrip, storage])),
   )
 
-  it.effect(
-    'refuses a write naming a stale Schedule id with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const current = yield* currentScheduleId
-        yield* writeDayNote(current, december(14), 'Pack for the Alps.')
-
-        const error = yield* Effect.flip(
-          writeDayNote(
-            staleScheduleId,
-            december(14),
-            'Written on an old screen.',
-          ),
-        )
-
-        assert.deepStrictEqual(
-          { tag: error._tag, note: yield* dayNote(december(14)) },
-          { tag: 'ScheduleChanged', note: 'Pack for the Alps.' },
-        )
-      }).pipe(Effect.provide([testTrip, storage])),
-  )
-
   it.effect('fails with DayNotFound for a Day the Schedule lacks', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
-
       const error = yield* Effect.flip(
-        writeDayNote(scheduleId, IsoDate.make('2026-12-21'), 'After the Trip.'),
+        writeDayNote(IsoDate.make('2026-12-21'), 'After the Trip.'),
       )
 
       assert.deepStrictEqual(
@@ -98,12 +66,11 @@ describe('Trip.writeDayNote', () => {
 
   it.effect('accepts 10,000 characters and rejects one more', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
       const longest = 'あ'.repeat(10_000)
-      yield* writeDayNote(scheduleId, december(14), longest)
+      yield* writeDayNote(december(14), longest)
 
       const error = yield* Effect.flip(
-        writeDayNote(scheduleId, december(14), `${longest}!`),
+        writeDayNote(december(14), `${longest}!`),
       )
 
       assert.deepStrictEqual(
@@ -121,24 +88,22 @@ describe('Trip.writeDayNote', () => {
 
   it.effect('removes the Day note when written empty', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
-      yield* writeDayNote(scheduleId, december(14), 'Book the onsen.')
-      yield* writeDayNote(scheduleId, december(14), '')
+      yield* writeDayNote(december(14), 'Book the onsen.')
+      yield* writeDayNote(december(14), '')
       assert.isUndefined(yield* dayNote(december(14)))
     }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('shows the Day note on Today on Home for that date', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
-      yield* writeDayNote(scheduleId, december(14), 'Book the onsen.')
+      yield* writeDayNote(december(14), 'Book the onsen.')
       yield* setTime('2026-12-14T01:00:00Z')
       const home = yield* Trip.use((trip) => trip.home)
       assert.deepStrictEqual(
         Predicate.isTagged('DuringTrip')(home)
-          ? { scheduleId: home.today.scheduleId, note: home.today.day.note }
+          ? { note: home.today.day.note }
           : undefined,
-        { scheduleId, note: 'Book the onsen.' },
+        { note: 'Book the onsen.' },
       )
     }).pipe(Effect.provide([testTrip, storage])),
   )
@@ -147,21 +112,19 @@ describe('Trip.writeDayNote', () => {
 describe('Trip.writeStayNote', () => {
   it.effect('leaves the last of two successive writes', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
       const stayId = yield* firstStayId
-      yield* writeStayNote(scheduleId, stayId, 'Asakusa is quiet at night.')
-      yield* writeStayNote(scheduleId, stayId, 'Try the kissaten by Exit 3.')
+      yield* writeStayNote(stayId, 'Asakusa is quiet at night.')
+      yield* writeStayNote(stayId, 'Try the kissaten by Exit 3.')
       assert.strictEqual(yield* firstStayNote, 'Try the kissaten by Exit 3.')
     }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('fails with StayNotFound for a Stay the Schedule lacks', () =>
     Effect.gen(function* () {
-      const current = yield* currentScheduleId
       const goneStayId = 'no-such-stay'
 
       const error = yield* Effect.flip(
-        writeStayNote(current, goneStayId, 'For a Stay no longer shown.'),
+        writeStayNote(goneStayId, 'For a Stay no longer shown.'),
       )
 
       assert.deepStrictEqual(
@@ -179,14 +142,11 @@ describe('Trip.writeStayNote', () => {
 
   it.effect('accepts 10,000 characters and rejects one more', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
       const stayId = yield* firstStayId
       const longest = 'あ'.repeat(10_000)
-      yield* writeStayNote(scheduleId, stayId, longest)
+      yield* writeStayNote(stayId, longest)
 
-      const error = yield* Effect.flip(
-        writeStayNote(scheduleId, stayId, `${longest}!`),
-      )
+      const error = yield* Effect.flip(writeStayNote(stayId, `${longest}!`))
 
       assert.deepStrictEqual(
         {
@@ -203,10 +163,9 @@ describe('Trip.writeStayNote', () => {
 
   it.effect('removes the Stay note when written empty', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
       const stayId = yield* firstStayId
-      yield* writeStayNote(scheduleId, stayId, 'Asakusa is quiet at night.')
-      yield* writeStayNote(scheduleId, stayId, '')
+      yield* writeStayNote(stayId, 'Asakusa is quiet at night.')
+      yield* writeStayNote(stayId, '')
       assert.isUndefined(yield* firstStayNote)
     }).pipe(Effect.provide([testTrip, storage])),
   )

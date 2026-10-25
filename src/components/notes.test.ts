@@ -6,7 +6,6 @@ import { act } from 'react'
 import { useDayNote, useStayNote, useTripNote } from '@/components/notes'
 import {
   IsoDate,
-  ScheduleId,
   WriteDayNoteOutcome,
   WriteStayNoteOutcome,
   WriteTripNoteOutcome,
@@ -31,8 +30,6 @@ vi.mock('@/trip/trip/trip.functions', () => ({
   writeTripNote: vi.fn(),
 }))
 
-const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
-
 const date = IsoDate.make('2026-12-07')
 
 /** Types `note` into the editor's field and presses Save, awaiting the answer. */
@@ -49,17 +46,13 @@ const typeAndSave = async (
 
 describe('the Day note', () => {
   const openDayNote = (read?: () => Promise<string>) =>
-    openEditor(
-      () => useDayNote({ scheduleId, date, note: undefined }),
-      {},
-      read,
-    )
+    openEditor(() => useDayNote({ date, note: undefined }), {}, read)
 
-  it('is saved once it sends the note to its Day of the Schedule shown', async () => {
+  it('is saved once it sends the note to its Day', async () => {
     localStorage.clear()
     vi.mocked(writeDayNote).mockImplementation(
       answeringOnly(
-        { scheduleId, date, note: 'Tsukiji at dawn.' },
+        { date, note: 'Tsukiji at dawn.' },
         WriteDayNoteOutcome.cases.Written.make({}),
         WriteDayNoteOutcome.cases.DayNotFound.make({ date }),
       ),
@@ -126,10 +119,7 @@ describe('the Day note', () => {
     const december7: DayShown = { date, note: undefined }
 
     const openOnDecember7 = () =>
-      openEditor(
-        (shown: DayShown) => useDayNote({ scheduleId, ...shown }),
-        december7,
-      )
+      openEditor((shown: DayShown) => useDayNote({ ...shown }), december7)
 
     it('starts afresh on the other Day, and restores the first Day’s Draft on returning', async () => {
       localStorage.clear()
@@ -211,16 +201,16 @@ describe('the Day note', () => {
 describe('the Stay note', () => {
   const openStayNote = (read?: () => Promise<string>) =>
     openEditor(
-      () => useStayNote({ scheduleId, stayId: 'stay-kyoto', note: undefined }),
+      () => useStayNote({ stayId: 'stay-kyoto', note: undefined }),
       {},
       read,
     )
 
-  it('is saved once it sends the note to its Stay of the Schedule shown', async () => {
+  it('is saved once it sends the note to its Stay', async () => {
     localStorage.clear()
     vi.mocked(writeStayNote).mockImplementation(
       answeringOnly(
-        { scheduleId, stayId: 'stay-kyoto', note: 'Near Gion.' },
+        { stayId: 'stay-kyoto', note: 'Near Gion.' },
         WriteStayNoteOutcome.cases.Written.make({}),
         WriteStayNoteOutcome.cases.StayNotFound.make({ stayId: 'stay-kyoto' }),
       ),
@@ -294,7 +284,7 @@ describe('the Trip note', () => {
     return startSaving(() => editor.field().save())
   }
 
-  it('is saved once it sends the note to the Trip, naming no Schedule', async () => {
+  it('is saved once it sends the note to the Trip', async () => {
     localStorage.clear()
     vi.mocked(writeTripNote).mockImplementation(
       answeringOnly(

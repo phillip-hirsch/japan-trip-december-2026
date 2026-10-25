@@ -14,12 +14,11 @@ import {
 } from '@/trip/trip/Trip.guards'
 
 const writeDayNote = Effect.fn('Trip.writeDayNote')(function* ({
-  scheduleId,
   date,
   note,
 }: WriteDayNote) {
   yield* requireNoteLength(note)
-  yield* scheduleWrite({ naming: scheduleId }, (store) =>
+  yield* scheduleWrite({}, (store, scheduleId) =>
     Effect.gen(function* () {
       if (!(yield* store.hasDay(scheduleId, date))) {
         return yield* new DayNotFound({ date })
@@ -31,12 +30,11 @@ const writeDayNote = Effect.fn('Trip.writeDayNote')(function* ({
 })
 
 const writeStayNote = Effect.fn('Trip.writeStayNote')(function* ({
-  scheduleId,
   stayId,
   note,
 }: WriteStayNote) {
   yield* requireNoteLength(note)
-  yield* scheduleWrite({ naming: scheduleId }, (store) =>
+  yield* scheduleWrite({}, (store, scheduleId) =>
     Effect.andThen(
       requireStay(store, scheduleId, stayId),
       store.writeStayNote(scheduleId, stayId, note),

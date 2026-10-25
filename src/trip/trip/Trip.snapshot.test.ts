@@ -8,7 +8,6 @@ import { option1 } from '@/trip/itinerary/option-1'
 import { add } from '@/trip/trip/Trip.activities.testing'
 import {
   checklistItems,
-  currentScheduleId,
   kyotoStayId,
   operation,
   storage,
@@ -53,37 +52,33 @@ describe('Trip.scheduleSnapshot', () => {
     'reads the whole current Schedule: every Day page, the Checklist with its Ticks, and every note and address',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
         const kyoto = yield* kyotoStayId
 
         yield* Trip.use((trip) =>
           trip.writeDayNote({
-            scheduleId,
             date: december(14),
             note: 'Onsen at 18:00.',
           }),
         )
         yield* Trip.use((trip) =>
-          trip.writeStayNote({ scheduleId, stayId: kyoto, note: 'Near Gion.' }),
+          trip.writeStayNote({ stayId: kyoto, note: 'Near Gion.' }),
         )
         yield* Trip.use((trip) =>
           trip.writeHotelDetails({
-            scheduleId,
             stayId: kyoto,
             details: { name: 'Ryokan Example', address: '1 Example-cho' },
           }),
         )
-        yield* add(3, scheduleId, december(15), 'Kiyomizu-dera')
+        yield* add(3, december(15), 'Kiyomizu-dera')
         yield* writeTripNote
         yield* addOwnItem
         const firstItem = (yield* checklistItems)[0]?.id ?? ''
-        yield* tick(scheduleId, firstItem)
+        yield* tick(firstItem)
 
         const snapshot = yield* scheduleSnapshot
 
         assert.deepStrictEqual(
           {
-            schedule: snapshot.schedules.current.id,
             days: snapshot.days.map(({ day }) => day.date),
             ...notesAndAddressesOf(snapshot),
             ticked: snapshot.checklist.items
@@ -94,7 +89,6 @@ describe('Trip.scheduleSnapshot', () => {
             ),
           },
           {
-            schedule: scheduleId,
             days: [...tripDates],
             tripNote: 'Pack light.',
             stayNotes: ['Near Gion.'],
@@ -116,8 +110,7 @@ describe('Trip.scheduleSnapshot', () => {
     'matches the Schedules, every Day page and the Checklist as each is read on its own',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
-        yield* add(2, scheduleId, december(9), 'Senso-ji')
+        yield* add(2, december(9), 'Senso-ji')
 
         const snapshot = yield* scheduleSnapshot
 

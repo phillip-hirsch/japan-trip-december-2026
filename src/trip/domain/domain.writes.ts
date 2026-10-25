@@ -10,15 +10,6 @@ export const OperationId = Schema.String.check(Schema.isUUID()).pipe(
 
 export type OperationId = typeof OperationId.Type
 
-/**
- * A write named a Schedule that isn't current, or none while one is: it was
- * made on an out-of-date screen. Nothing is written.
- */
-export class ScheduleChanged extends Schema.TaggedError<ScheduleChanged>()(
-  'ScheduleChanged',
-  {},
-) {}
-
 /** The `Schema.TaggedError` class of a Trip operation's typed failure. */
 interface OperationFailure {
   readonly Type: { readonly _tag: string }

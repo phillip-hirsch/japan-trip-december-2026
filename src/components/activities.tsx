@@ -33,7 +33,6 @@ import type {
   IsoDate,
   MoveActivityOutcome,
   RemoveActivityOutcome,
-  ScheduleId,
 } from '@/trip/domain/domain'
 import {
   activityMovesTarget,
@@ -116,13 +115,7 @@ interface ActivityEdit extends ActivityFields {
  * on a value just saved starts from what was sent, not from the Activity as
  * last read, so changing a field back still sends it.
  */
-export const useActivityEdit = ({
-  scheduleId,
-  activity,
-}: {
-  scheduleId: ScheduleId
-  activity: Activity
-}) => {
+export const useActivityEdit = ({ activity }: { activity: Activity }) => {
   const edit = useServerFn(editActivity)
   const fields = fieldsOf(activity)
 
@@ -133,7 +126,6 @@ export const useActivityEdit = ({
       Predicate.isObject(value) &&
       isActivityFields(value.from),
     equals: sameFields,
-    scheduleId,
     saved: { ...fields, from: fields },
     write: 'activity',
     run: async ({ from, ...value }) =>
@@ -141,7 +133,6 @@ export const useActivityEdit = ({
       answerOwn(
         await edit({
           data: {
-            scheduleId,
             activityId: activity.id,
             ...(value.title !== from.title && { title: value.title }),
             ...(value.time !== from.time && {
@@ -171,20 +162,13 @@ const noNewActivity: ActivityFields = { title: '', time: '', note: '' }
  * A new Activity on a Day of the Schedule shown, kept as a Draft. Every
  * retry goes under one operation, so the Trip adds it once.
  */
-export const useNewActivity = ({
-  scheduleId,
-  date,
-}: {
-  scheduleId: ScheduleId
-  date: IsoDate
-}) => {
+export const useNewActivity = ({ date }: { date: IsoDate }) => {
   const add = useServerFn(addActivity)
 
   return useSave({
     target: newActivityTarget(date),
     draft: isActivityFields,
     equals: sameFields,
-    scheduleId,
     saved: noNewActivity,
     write: 'activity',
     run: async ({ title, time, note }, operationId) =>
@@ -193,7 +177,6 @@ export const useNewActivity = ({
         await add({
           data: {
             operationId,
-            scheduleId,
             date,
             title,
             ...(time !== '' && { time }),
@@ -224,7 +207,6 @@ const passedActivityGone = (moving: string, outcome: MoveActivityOutcome) =>
 
 /** The Activities on a Day of the Schedule shown, as last read. */
 interface DayShown {
-  readonly scheduleId: ScheduleId
   readonly date: IsoDate
   readonly activities: ReadonlyArray<Activity>
 }
@@ -237,16 +219,15 @@ const isShown = (activities: ReadonlyArray<Activity>, activityId: string) =>
  * A move past an Activity that is gone counts as saved, with a warning. The
  * hook drops a move not saved once its Activity is gone.
  */
-export const useActivityMove = ({ scheduleId, date, activities }: DayShown) => {
+export const useActivityMove = ({ date, activities }: DayShown) => {
   const move = useServerFn(moveActivity)
 
   return useSend<ActivityMove>({
     target: activityMovesTarget(date),
     moot: ({ activityId }) => !isShown(activities, activityId),
-    scheduleId,
     write: 'activity',
     run: async (activityMove) => {
-      const outcome = await move({ data: { scheduleId, ...activityMove } })
+      const outcome = await move({ data: activityMove })
 
       return passedActivityGone(activityMove.activityId, outcome)
         ? warned(SaveAnswer.Saved(), notMoved)
@@ -264,20 +245,15 @@ const removalAnswerOf = (outcome: RemoveActivityOutcome) =>
  * time. Removing one already gone counts as saved. The hook drops a removal
  * not saved once its Activity is gone.
  */
-export const useActivityRemoval = ({
-  scheduleId,
-  date,
-  activities,
-}: DayShown) => {
+export const useActivityRemoval = ({ date, activities }: DayShown) => {
   const remove = useServerFn(removeActivity)
 
   return useSend<string>({
     target: activityRemovalsTarget(date),
     moot: (activityId) => !isShown(activities, activityId),
-    scheduleId,
     write: 'activity',
     run: async (activityId) =>
-      removalAnswerOf(await remove({ data: { scheduleId, activityId } })),
+      removalAnswerOf(await remove({ data: { activityId } })),
   })
 }
 
@@ -347,7 +323,6 @@ function ActivityInputs({
 
 function ActivityRow({
   activity,
-  scheduleId,
   near,
   beforeWhenUp,
   beforeWhenDown,
@@ -361,7 +336,6 @@ function ActivityRow({
   alerts,
 }: {
   activity: Activity
-  scheduleId: ScheduleId
   near: Coordinates
   beforeWhenUp: string | undefined
   beforeWhenDown: string | null | undefined
@@ -380,7 +354,7 @@ function ActivityRow({
   alerts: ReactNode
 }) {
   const titleId = useId()
-  const editing = useActivityEdit({ scheduleId, activity })
+  const editing = useActivityEdit({ activity })
 
   useEffect(() => {
     if (removed) editing.discard()
@@ -473,7 +447,6 @@ function ActivityRow({
             </div>
             {!removing && (
               <PinField
-                scheduleId={scheduleId}
                 target={{ activityId: activity.id }}
                 pin={activity.pin}
                 near={near}
@@ -511,15 +484,13 @@ function ActivityRow({
 }
 
 function AddActivity({
-  scheduleId,
   date,
   labelledBy,
 }: {
-  scheduleId: ScheduleId
   date: IsoDate
   labelledBy: string
 }) {
-  const field = useNewActivity({ scheduleId, date })
+  const field = useNewActivity({ date })
   const { value } = field
 
   return (
@@ -546,20 +517,18 @@ function AddActivity({
 }
 
 export function Activities({
-  scheduleId,
   date,
   activities,
   near,
   labelledBy,
 }: {
-  scheduleId: ScheduleId
   date: IsoDate
   activities: ReadonlyArray<Activity>
   near: Coordinates
   labelledBy: string
 }) {
-  const moving = useActivityMove({ scheduleId, date, activities })
-  const removal = useActivityRemoval({ scheduleId, date, activities })
+  const moving = useActivityMove({ date, activities })
+  const removal = useActivityRemoval({ date, activities })
   const moveFrame = frameOf(moving)
   const removalFrame = frameOf(removal)
 
@@ -590,7 +559,6 @@ export function Activities({
               <li key={activity.id}>
                 <ActivityRow
                   activity={activity}
-                  scheduleId={scheduleId}
                   near={near}
                   beforeWhenUp={activities[index - 1]?.id}
                   beforeWhenDown={
@@ -623,11 +591,7 @@ export function Activities({
           })}
         </ol>
       )}
-      <AddActivity
-        scheduleId={scheduleId}
-        date={date}
-        labelledBy={labelledBy}
-      />
+      <AddActivity date={date} labelledBy={labelledBy} />
     </div>
   )
 }

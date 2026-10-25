@@ -162,8 +162,6 @@ export const NextMove = Schema.Struct({
 export type NextMove = typeof NextMove.Type
 
 export const DayPage = Schema.Struct({
-  /** The Schedule the Day belongs to, which every write to it names. */
-  scheduleId: ScheduleId,
   day: ScheduleDayDetail,
   /** Absent on December 20, the Departure Day, when Phillip flies home. */
   tonight: Schema.optionalKey(TonightsHotel),

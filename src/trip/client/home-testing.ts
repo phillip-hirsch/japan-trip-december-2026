@@ -14,7 +14,7 @@ import type { Root } from 'react-dom/client'
 import { connected, reportConnection } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
 import { useDayNote } from '@/components/notes'
-import { openEditor, scheduleId } from '@/trip/client/editor-testing'
+import { openEditor } from '@/trip/client/editor-testing'
 import { testQueryClient, withClient } from '@/trip/client/hook-testing'
 import { pageHydrateOptions } from '@/trip/client/query-client'
 import {
@@ -25,12 +25,7 @@ import {
   useScheduleSnapshot,
 } from '@/trip/client/queries'
 import { snapshotWith } from '@/trip/client/snapshot-testing'
-import {
-  december,
-  HomeState,
-  ScheduleId,
-  WriteDayNoteOutcome,
-} from '@/trip/domain/domain'
+import { december, HomeState, WriteDayNoteOutcome } from '@/trip/domain/domain'
 import type { IsoDate, ScheduleSnapshot } from '@/trip/domain/domain'
 import { tokyoDateAt } from '@/trip/domain/calendar'
 import { getHome, getSchedules, writeDayNote } from '@/trip/trip/trip.functions'
@@ -39,10 +34,6 @@ import { getHome, getSchedules, writeDayNote } from '@/trip/trip/trip.functions'
 // and the Schedule snapshot as the server answers them. A test file using it
 // mocks `@/trip/trip/trip.functions` and runs `closeHome` after each test.
 // Saves go through the editors' own hooks, as they do on their pages.
-
-export const otherScheduleId = ScheduleId.make(
-  '00000000-0000-4000-8000-00000000000b',
-)
 
 export const tokyoTime = (iso: string) => new Date(`${iso}+09:00`)
 
@@ -258,10 +249,8 @@ const dayPageIn = (from: ScheduleSnapshot, date: IsoDate) => {
 export const openDayNote = () => {
   vi.mocked(getSchedules).mockResolvedValue(snapshot.schedules)
 
-  return openEditor(
-    useDayNote,
-    { scheduleId, date: december(14), note: undefined },
-    () => getSchedules(),
+  return openEditor(useDayNote, { date: december(14), note: undefined }, () =>
+    getSchedules(),
   )
 }
 

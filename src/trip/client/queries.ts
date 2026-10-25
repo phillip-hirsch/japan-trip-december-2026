@@ -230,14 +230,6 @@ export const useScheduleSnapshot = () => {
 export const shouldDehydrateQuery = (query: Query) =>
   query.queryKey[0] !== keys.scheduleSnapshot[0]
 
-const everyScheduleRead = [
-  keys.schedules,
-  keys.days,
-  keys.home,
-  keys.checklist,
-  keys.scheduleMap,
-] as const
-
 const withTheSchedule = [keys.home, keys.schedules] as const
 
 const withTheScheduleAndDays = [keys.days, ...withTheSchedule] as const
@@ -361,6 +353,3 @@ export const subscribeToReadsAfter = (
       listener()
     }
   })
-
-export const invalidateAfterScheduleChanged = (queryClient: QueryClient) =>
-  invalidate(queryClient, everyScheduleRead)

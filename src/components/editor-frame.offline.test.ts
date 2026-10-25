@@ -12,21 +12,19 @@ import {
   goOffline,
   openEditor,
 } from '@/trip/client/editor-testing'
-import { IsoDate, ScheduleId, WriteDayNoteOutcome } from '@/trip/domain/domain'
+import { IsoDate, WriteDayNoteOutcome } from '@/trip/domain/domain'
 import { writeDayNote } from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({
   writeDayNote: vi.fn(),
 }))
 
-const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
-
 const date = IsoDate.make('2026-12-07')
 
 /** The Day note editor on December 7, saved as "Tsukiji at dawn.", and its frame. */
 const openDayNoteFrame = () =>
   openEditor(() => {
-    const field = useDayNote({ scheduleId, date, note: 'Tsukiji at dawn.' })
+    const field = useDayNote({ date, note: 'Tsukiji at dawn.' })
 
     return { field, frame: useEditorFrame(field) }
   }, {})
@@ -58,7 +56,7 @@ describe('the editor frame while offline', () => {
     localStorage.clear()
     vi.mocked(writeDayNote).mockImplementation(
       answeringOnly(
-        { scheduleId, date, note: 'Tsukiji at six.' },
+        { date, note: 'Tsukiji at six.' },
         WriteDayNoteOutcome.cases.Written.make({}),
         WriteDayNoteOutcome.cases.DayNotFound.make({ date }),
       ),

@@ -11,7 +11,6 @@ import {
   answeringOnly,
   notSavedProblem,
   openEditor,
-  scheduleId,
   scheduleStay,
   staysEdited,
 } from '@/trip/client/editor-testing'
@@ -25,7 +24,7 @@ const kyoto = scheduleStay('stay-kyoto', 'kyoto', 9, 12)
 const openStayBase = (read?: () => Promise<string>) =>
   openEditor(
     () => {
-      const field = useStayBase({ scheduleId, stay: kyoto, anchorWarnings: [] })
+      const field = useStayBase({ stay: kyoto, anchorWarnings: [] })
 
       return { field, frame: useEditorFrame(field) }
     },
@@ -34,10 +33,10 @@ const openStayBase = (read?: () => Promise<string>) =>
   )
 
 describe('changing a Base', () => {
-  it('is changed once it sends the place chosen to the Stay of the Schedule shown', async () => {
+  it('is changed once it sends the place chosen to the Stay', async () => {
     vi.mocked(changeStayBase).mockImplementation(
       answeringOnly(
-        { scheduleId, stayId: 'stay-kyoto', place: 'uji' },
+        { stayId: 'stay-kyoto', place: 'uji' },
         staysEdited(),
         StayEditOutcome.cases.StayNotFound.make({ stayId: 'stay-kyoto' }),
       ),

@@ -7,7 +7,6 @@ import {
 } from '@/trip/domain/domain'
 import { noteMaxLength } from '@/trip/domain/limits'
 import {
-  currentScheduleId,
   kyotoStayId,
   currentStays,
   storage,
@@ -24,11 +23,9 @@ const tripNote = Effect.map(
 describe('runTripOperation for the Stay note', () => {
   it.effect('answers a written Stay note with Written', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
       const stayId = yield* kyotoStayId
 
       const outcome = yield* runTripOperation('writeStayNote', {
-        scheduleId,
         stayId,
         note: 'Ask about the late check-in.',
       })
@@ -47,10 +44,7 @@ describe('runTripOperation for the Stay note', () => {
     'answers a Stay the Schedule lacks with StayNotFound and its id',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
-
         const outcome = yield* runTripOperation('writeStayNote', {
-          scheduleId,
           stayId: 'no-such-stay',
           note: 'Nowhere.',
         })

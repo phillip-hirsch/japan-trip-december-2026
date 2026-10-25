@@ -156,7 +156,7 @@ export const removeOwnChecklistItem = createServerFn({ method: 'POST' })
   .handler(tripOperationHandler('removeOwnChecklistItem'))
 
 /**
- * Adds an Activity on a Day of the Schedule named. Repeating the operation id
+ * Adds an Activity on a Day. Repeating the operation id
  * returns the first result, so a retry never adds it twice.
  */
 export const addActivity = createServerFn({ method: 'POST' })
@@ -168,7 +168,7 @@ export const editActivity = createServerFn({ method: 'POST' })
   .handler(tripOperationHandler('editActivity'))
 
 /**
- * Removes an Activity of the Schedule named. A retry after it landed finds
+ * Removes an Activity. A retry after it landed finds
  * nothing to remove and answers not-found.
  */
 export const removeActivity = createServerFn({ method: 'POST' })
@@ -176,7 +176,7 @@ export const removeActivity = createServerFn({ method: 'POST' })
   .handler(tripOperationHandler('removeActivity'))
 
 /**
- * Moves an Activity of the Schedule named before another on its Day, or
+ * Moves an Activity before another on its Day, or
  * last. Moving to the same place again changes nothing, so it carries no
  * operation id.
  */

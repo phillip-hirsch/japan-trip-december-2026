@@ -15,7 +15,6 @@ import {
   IsoDate,
   MoveActivityOutcome,
   RemoveActivityOutcome,
-  ScheduleId,
   TokyoDateTime,
 } from '@/trip/domain/domain'
 import type { Activity } from '@/trip/domain/domain'
@@ -43,39 +42,33 @@ vi.mock('@/trip/trip/trip.functions', () => ({
   removeActivity: vi.fn(),
 }))
 
-const scheduleA = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
-
-const scheduleB = ScheduleId.make('00000000-0000-4000-8000-00000000000b')
-
 const date = IsoDate.make('2026-12-07')
 
-const scheduleChanged =
-  'Your Schedule changed on another device. This page now shows it as it is; your text is kept here to save again.'
+const restored =
+  'This is what you typed here last time. Save it, or discard it.'
+
+/** The Schedule an earlier version of the app kept with a Draft. */
+const keptFor = '00000000-0000-4000-8000-00000000000a'
 
 describe('adding an Activity', () => {
-  /** The new Activity editor on December 7, on a page showing `scheduleId`. */
-  const openNewActivity = (scheduleId: ScheduleId) =>
-    openEditor(
-      ({ scheduleId }: { scheduleId: ScheduleId }) =>
-        useNewActivity({ scheduleId, date }),
-      { scheduleId },
-    )
+  /** The new Activity editor on December 7. */
+  const openNewActivity = () => openEditor(() => useNewActivity({ date }), {})
 
   const tsukijiAdded = AddActivityOutcome.cases.Added.make({
     activityId: 'activity-tsukiji',
   })
 
   // Any answer but Added. Getting it means the Activity was added twice.
-  const addedAgain = AddActivityOutcome.cases.ScheduleChanged.make({})
+  const addedAgain = AddActivityOutcome.cases.DayNotFound.make({ date })
 
   const added = SaveState.Clean({ justSaved: true })
 
   const typeTsukiji = (field: () => ReturnType<typeof useNewActivity>) =>
     act(async () => field().change({ ...field().value, title: 'Tsukiji' }))
 
-  it('adds the Activity to its Day of the Schedule shown, with its time and note', async () => {
+  it('adds the Activity to its Day, with its time and note', async () => {
     localStorage.clear()
-    const editor = await openNewActivity(scheduleA)
+    const editor = await openNewActivity()
 
     await act(async () =>
       editor.field().change({
@@ -88,7 +81,6 @@ describe('adding an Activity', () => {
     vi.mocked(addActivity).mockImplementation(
       answeringOnlyUnderAnyOperation(
         {
-          scheduleId: scheduleA,
           date,
           title: 'Tsukiji',
           time: '06:30',
@@ -113,7 +105,7 @@ describe('adding an Activity', () => {
         addedAgain,
       ),
     )
-    const editor = await openNewActivity(scheduleA)
+    const editor = await openNewActivity()
 
     await typeTsukiji(editor.field)
     await act(() => editor.field().save())
@@ -123,79 +115,36 @@ describe('adding an Activity', () => {
     await editor.close()
   })
 
-  it('keeps a Draft sent to a replaced Schedule marked "Schedule changed" across a reload, unsent until Retry, which adds it to the Schedule shown as a new operation', async () => {
+  it('restores a Draft kept while saves named a Schedule marked "not saved", and adds it under the operation it was sent as', async () => {
     localStorage.clear()
+    // How the app kept a Draft sent under an operation while saves named
+    // the Schedule.
+    localStorage.setItem(
+      'draft:activity:new:2026-12-07',
+      JSON.stringify({
+        value: { title: 'Tsukiji', time: '', note: '' },
+        scheduleId: keptFor,
+        id: 'kept-before',
+        operation: { id: 'operation-sent-before', subject: keptFor },
+      }),
+    )
     vi.mocked(addActivity).mockImplementation(
-      losingFirstAnswer(
-        (retry, first) =>
-          retry.operationId !== first.operationId &&
-          retry.scheduleId === scheduleB,
+      answeringOnly(
+        { operationId: 'operation-sent-before', date, title: 'Tsukiji' },
         tsukijiAdded,
         addedAgain,
       ),
     )
-    const before = await openNewActivity(scheduleA)
-    await typeTsukiji(before.field)
-    await act(() => before.field().save())
+    const editor = await openNewActivity()
+    const problem = notSavedProblem(editor.field().state)
 
-    await before.show({ scheduleId: scheduleB })
-    assert.strictEqual(notSavedProblem(before.field().state), scheduleChanged)
-    await before.close()
+    await act(() => editor.field().save())
 
-    const after = await openNewActivity(scheduleB)
-    assert.strictEqual(notSavedProblem(after.field().state), scheduleChanged)
-    assert.strictEqual(after.field().value.title, 'Tsukiji')
-
-    await act(() => after.field().save())
-    assert.deepStrictEqual(after.field().state, added)
-    await after.close()
-  })
-
-  it('keeps a Draft typed, never sent, for a replaced Schedule marked "Schedule changed" across a reload', async () => {
-    localStorage.clear()
-    vi.mocked(addActivity).mockImplementation(
-      answeringOnlyUnderAnyOperation(
-        { scheduleId: scheduleB, date, title: 'Tsukiji' },
-        tsukijiAdded,
-        addedAgain,
-      ),
+    assert.deepStrictEqual(
+      { problem, state: editor.field().state },
+      { problem: restored, state: added },
     )
-    const before = await openNewActivity(scheduleA)
-    await typeTsukiji(before.field)
-    await before.show({ scheduleId: scheduleB })
-    await before.close()
-
-    const after = await openNewActivity(scheduleB)
-    assert.strictEqual(notSavedProblem(after.field().state), scheduleChanged)
-
-    await act(() => after.field().save())
-    assert.deepStrictEqual(after.field().state, added)
-    await after.close()
-  })
-
-  it('keeps a Draft from a replaced Schedule marked "Schedule changed" across a reload after its Retry got no answer, and retries it as the same operation', async () => {
-    localStorage.clear()
-    vi.mocked(addActivity).mockImplementation(
-      losingFirstAnswer(
-        (retry, first) =>
-          retry.operationId === first.operationId &&
-          retry.scheduleId === scheduleB,
-        tsukijiAdded,
-        addedAgain,
-      ),
-    )
-    const before = await openNewActivity(scheduleA)
-    await typeTsukiji(before.field)
-    await before.show({ scheduleId: scheduleB })
-    await act(() => before.field().save())
-    await before.close()
-
-    const after = await openNewActivity(scheduleB)
-    assert.strictEqual(notSavedProblem(after.field().state), scheduleChanged)
-
-    await act(() => after.field().save())
-    assert.deepStrictEqual(after.field().state, added)
-    await after.close()
+    await editor.close()
   })
 
   it('retries a Draft kept by an earlier version of the app as the operation it was sent under', async () => {
@@ -210,9 +159,9 @@ describe('adding an Activity', () => {
           time: '',
           note: '',
           operationId: 'operation-sent-before',
-          operationScheduleId: scheduleA,
+          operationScheduleId: keptFor,
         },
-        scheduleId: scheduleA,
+        scheduleId: keptFor,
         id: 'kept-before',
       }),
     )
@@ -220,7 +169,6 @@ describe('adding an Activity', () => {
       answeringOnly(
         {
           operationId: 'operation-sent-before',
-          scheduleId: scheduleA,
           date,
           title: 'Tsukiji',
         },
@@ -228,7 +176,7 @@ describe('adding an Activity', () => {
         addedAgain,
       ),
     )
-    const editor = await openNewActivity(scheduleA)
+    const editor = await openNewActivity()
 
     await act(() => editor.field().save())
 
@@ -241,7 +189,7 @@ describe('adding an Activity', () => {
     vi.mocked(addActivity).mockResolvedValue(
       AddActivityOutcome.cases.ActivityTitleInvalid.make({ maxLength: 200 }),
     )
-    const editor = await openNewActivity(scheduleA)
+    const editor = await openNewActivity()
 
     await typeTsukiji(editor.field)
     await act(() => editor.field().save())
@@ -263,24 +211,21 @@ describe('editing an Activity', () => {
 
   /** The editor of the Tsukiji Activity, read with `read`. */
   const openActivityEdit = (read?: () => Promise<string>) =>
-    openEditor(
-      () => useActivityEdit({ scheduleId: scheduleA, activity: tsukiji }),
-      {},
-      read,
-    )
+    openEditor(() => useActivityEdit({ activity: tsukiji }), {}, read)
 
   it('sends only the fields changed, and an emptied time as none', async () => {
     localStorage.clear()
     vi.mocked(editActivity).mockImplementation(
       answeringOnly(
         {
-          scheduleId: scheduleA,
           activityId: 'activity-tsukiji',
           time: null,
           note: 'Tuna auction.',
         },
         EditActivityOutcome.cases.Edited.make({}),
-        EditActivityOutcome.cases.ScheduleChanged.make({}),
+        EditActivityOutcome.cases.ActivityNotFound.make({
+          activityId: 'activity-tsukiji',
+        }),
       ),
     )
     const editor = await openActivityEdit()
@@ -320,12 +265,13 @@ describe('editing an Activity', () => {
     vi.mocked(editActivity).mockImplementation(
       answeringOnly(
         {
-          scheduleId: scheduleA,
           activityId: 'activity-tsukiji',
           title: 'Tsukiji',
         },
         EditActivityOutcome.cases.Edited.make({}),
-        EditActivityOutcome.cases.ScheduleChanged.make({}),
+        EditActivityOutcome.cases.ActivityNotFound.make({
+          activityId: 'activity-tsukiji',
+        }),
       ),
     )
     await act(async () => editor.field().edit())
@@ -383,8 +329,7 @@ interface DayShows {
 describe('moving an Activity', () => {
   const openMove = () =>
     openEditor(
-      ({ activities }: DayShows) =>
-        useActivityMove({ scheduleId: scheduleA, date, activities }),
+      ({ activities }: DayShows) => useActivityMove({ date, activities }),
       { activities: tsukijiAndSushi },
     )
 
@@ -393,12 +338,14 @@ describe('moving an Activity', () => {
     before: 'activity-sushi',
   }
 
-  it('moves the Activity before another on its Day of the Schedule shown', async () => {
+  it('moves the Activity before another on its Day', async () => {
     vi.mocked(moveActivity).mockImplementation(
       answeringOnly(
-        { scheduleId: scheduleA, ...moveTsukiji },
+        moveTsukiji,
         MoveActivityOutcome.cases.Moved.make({}),
-        MoveActivityOutcome.cases.ScheduleChanged.make({}),
+        MoveActivityOutcome.cases.ActivityNotFound.make({
+          activityId: 'activity-tsukiji',
+        }),
       ),
     )
     const editor = await openMove()
@@ -415,9 +362,11 @@ describe('moving an Activity', () => {
   it('moves nothing while offline, and moves the Activity once the connection returns', async () => {
     vi.mocked(moveActivity).mockImplementation(
       answeringOnly(
-        { scheduleId: scheduleA, ...moveTsukiji },
+        moveTsukiji,
         MoveActivityOutcome.cases.Moved.make({}),
-        MoveActivityOutcome.cases.ScheduleChanged.make({}),
+        MoveActivityOutcome.cases.ActivityNotFound.make({
+          activityId: 'activity-tsukiji',
+        }),
       ),
     )
     const editor = await openMove()
@@ -493,19 +442,17 @@ describe('moving an Activity', () => {
 describe('removing an Activity', () => {
   const openRemoval = () =>
     openEditor(
-      ({ activities }: DayShows) =>
-        useActivityRemoval({ scheduleId: scheduleA, date, activities }),
+      ({ activities }: DayShows) => useActivityRemoval({ date, activities }),
       { activities: tsukijiAndSushi },
     )
 
-  it('removes the Activity from the Schedule shown', async () => {
-    vi.mocked(removeActivity).mockImplementation(
-      answeringOnly(
-        { scheduleId: scheduleA, activityId: 'activity-tsukiji' },
-        RemoveActivityOutcome.cases.Removed.make({}),
-        RemoveActivityOutcome.cases.ScheduleChanged.make({}),
-      ),
-    )
+  it('removes the Activity', async () => {
+    // Removing any other Activity gets no answer.
+    vi.mocked(removeActivity).mockImplementation(async ({ data }) => {
+      if (data.activityId !== 'activity-tsukiji') throw new Error('No answer')
+
+      return RemoveActivityOutcome.cases.Removed.make({})
+    })
     const editor = await openRemoval()
 
     await act(() => editor.field().send('activity-tsukiji'))

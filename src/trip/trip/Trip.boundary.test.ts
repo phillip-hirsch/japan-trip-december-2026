@@ -8,7 +8,6 @@ import {
   HardRule,
   HardRuleBroken,
   Hotel,
-  ScheduleChanged,
   StayNotFound,
 } from '@/trip/domain/domain'
 import type {
@@ -20,12 +19,10 @@ import { option1 } from '@/trip/itinerary/option-1'
 import {
   assertFailedWith,
   currentSchedule,
-  currentScheduleId,
   stayIdAt,
   storage,
   storageStartingFrom,
   testTrip,
-  staleScheduleId,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -35,7 +32,6 @@ const moveCheckOut = (index: number, checkOut: IsoDate) =>
 
     return yield* Trip.use((trip) =>
       trip.moveStayBoundary({
-        scheduleId: schedule.id,
         stayId: stayIdAt(schedule, index),
         checkOut,
       }),
@@ -89,7 +85,6 @@ describe('Trip.moveStayBoundary', () => {
     "keeps both Stays' ids, Hotel details, Stay notes, highlights, Verify claims and ticks",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
         const before = yield* currentSchedule
         const kyotoId = stayIdAt(before, 1)
         const kanazawaId = stayIdAt(before, 2)
@@ -97,10 +92,10 @@ describe('Trip.moveStayBoundary', () => {
         const moveId = before.days[7]?.move?.id ?? ''
         yield* Trip.use((trip) =>
           Effect.all([
-            trip.writeHotelDetails({ scheduleId, stayId: kanazawaId, details }),
-            trip.writeStayNote({ scheduleId, stayId: kyotoId, note: 'Uji' }),
+            trip.writeHotelDetails({ stayId: kanazawaId, details }),
+            trip.writeStayNote({ stayId: kyotoId, note: 'Uji' }),
             ...[kyotoId, kanazawaId, moveId].map((itemId) =>
-              trip.tickChecklistItem({ scheduleId, itemId, ticked: true }),
+              trip.tickChecklistItem({ itemId, ticked: true }),
             ),
           ]),
         )
@@ -262,13 +257,11 @@ describe('Trip.moveStayBoundary', () => {
 
   it.effect("refuses a Stay the Schedule doesn't have, changing nothing", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
       const before = yield* currentSchedule
 
       const error = yield* Effect.flip(
         Trip.use((trip) =>
           trip.moveStayBoundary({
-            scheduleId,
             stayId: 'gone',
             checkOut: december(12),
           }),
@@ -276,25 +269,6 @@ describe('Trip.moveStayBoundary', () => {
       )
 
       assert.deepStrictEqual(error, new StayNotFound({ stayId: 'gone' }))
-      assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([testTrip, storage])),
-  )
-
-  it.effect('refuses an out-of-date Schedule with ScheduleChanged', () =>
-    Effect.gen(function* () {
-      const before = yield* currentSchedule
-
-      const error = yield* Effect.flip(
-        Trip.use((trip) =>
-          trip.moveStayBoundary({
-            scheduleId: staleScheduleId,
-            stayId: stayIdAt(before, 1),
-            checkOut: december(12),
-          }),
-        ),
-      )
-
-      assert.deepStrictEqual(error, new ScheduleChanged())
       assert.deepStrictEqual(yield* currentSchedule, before)
     }).pipe(Effect.provide([testTrip, storage])),
   )

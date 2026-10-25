@@ -6,12 +6,7 @@ import {
   StaySummary,
   VerifyClaimAttachment,
 } from '@/trip/domain/domain.itinerary'
-import { ScheduleId } from '@/trip/domain/domain.schedule'
-import {
-  OperationId,
-  ScheduleChanged,
-  operationOutcome,
-} from '@/trip/domain/domain.writes'
+import { OperationId, operationOutcome } from '@/trip/domain/domain.writes'
 
 /**
  * The id of a Checklist item: for one derived from the Schedule, the id of
@@ -71,19 +66,16 @@ export type ChecklistItem = typeof ChecklistItem.Type
  * last his own without a reminder date, oldest first.
  */
 export const Checklist = Schema.Struct({
-  /** The Schedule its derived items come from, which every tick on them names. */
-  scheduleId: ScheduleId,
   items: Schema.Array(ChecklistItem),
 })
 
 export type Checklist = typeof Checklist.Type
 
 /**
- * Set the tick on an item derived from the Schedule named, to true or false,
- * never toggled. It is kept with that Schedule, by what the item refers to.
+ * Set the tick on an item derived from the Schedule, to true or false, never
+ * toggled. It is kept with the Schedule, by what the item refers to.
  */
 export const TickChecklistItem = Schema.Struct({
-  scheduleId: ScheduleId,
   itemId: ChecklistItemId,
   ticked: Schema.Boolean,
 })
@@ -131,7 +123,6 @@ export class ChecklistTextInvalid extends Schema.TaggedError<ChecklistTextInvali
 ) {}
 
 export const TickChecklistItemOutcome = operationOutcome('Ticked', {}, [
-  ScheduleChanged,
   ChecklistItemNotFound,
 ])
 

@@ -35,7 +35,6 @@ import type {
   RemoveActivity,
   RemoveOwnChecklistItem,
   ResolveLocationLink,
-  ScheduleChanged,
   ScheduleMap,
   Schedules,
   ScheduleSnapshot,
@@ -106,51 +105,36 @@ export interface TripContract {
   >
   readonly scheduleMap: Effect.Effect<ScheduleMap, never, SqlClient.SqlClient>
   /**
-   * Writes the Day note on a Day of the Schedule named, as a whole value,
-   * so the last write wins. An empty note removes it. ScheduleChanged when
-   * the Schedule named isn't current; DayNotFound when it has no Day on
-   * the date; NoteTooLong past 10,000 characters. A refused write writes
-   * nothing.
+   * Writes the Day note on a Day, as a whole value, so the last write
+   * wins. An empty note removes it. DayNotFound when the Schedule has no
+   * Day on the date; NoteTooLong past 10,000 characters. A refused write
+   * writes nothing.
    */
   writeDayNote(
     input: WriteDayNote,
-  ): Effect.Effect<
-    void,
-    ScheduleChanged | DayNotFound | NoteTooLong,
-    SqlClient.SqlClient
-  >
+  ): Effect.Effect<void, DayNotFound | NoteTooLong, SqlClient.SqlClient>
   /**
-   * Writes the Stay note on a Stay of the Schedule named, as a whole value,
-   * so the last write wins. An empty note removes it. ScheduleChanged when
-   * the Schedule named isn't current; StayNotFound when it has no Stay with
-   * the id; NoteTooLong past 10,000 characters. A refused write writes
-   * nothing.
+   * Writes the Stay note on a Stay, as a whole value, so the last write
+   * wins. An empty note removes it. StayNotFound when the Schedule has no
+   * Stay with the id; NoteTooLong past 10,000 characters. A refused write
+   * writes nothing.
    */
   writeStayNote(
     input: WriteStayNote,
-  ): Effect.Effect<
-    void,
-    ScheduleChanged | StayNotFound | NoteTooLong,
-    SqlClient.SqlClient
-  >
+  ): Effect.Effect<void, StayNotFound | NoteTooLong, SqlClient.SqlClient>
   /**
-   * Writes the Hotel details on a Stay of the Schedule named, as a whole
-   * value, so the last write wins for each field. Each field is trimmed and
-   * a blank one removed; all blank leaves the hotel not recorded. The Stay
-   * keeps its id. ScheduleChanged when the Schedule named isn't current;
-   * StayNotFound when it has no Stay with the id; HotelDetailTooLong for a
-   * field past 500 characters. A refused write writes nothing.
+   * Writes the Hotel details on a Stay, as a whole value, so the last
+   * write wins for each field. Each field is trimmed and a blank one
+   * removed; all blank leaves the hotel not recorded. The Stay keeps its
+   * id. StayNotFound when the Schedule has no Stay with the id;
+   * HotelDetailTooLong for a field past 500 characters. A refused write
+   * writes nothing.
    */
   writeHotelDetails(
     input: WriteHotelDetails,
-  ): Effect.Effect<
-    void,
-    ScheduleChanged | StayNotFound | HotelDetailTooLong,
-    SqlClient.SqlClient
-  >
+  ): Effect.Effect<void, StayNotFound | HotelDetailTooLong, SqlClient.SqlClient>
   /**
-   * Splits a Stay of the Schedule named at a date after its check-in and
-   * before its check-out, as a Stay edit. The Stay keeps its id, Hotel
+   * Splits a Stay at a date after its check-in and before its check-out, as a Stay edit. The Stay keeps its id, Hotel
    * details, Stay note, highlights and ticks for the nights before the
    * date. A new Stay in the same Base takes the rest with nothing recorded,
    * joined to it by a new local Move, which derives no Checklist item.
@@ -160,12 +144,11 @@ export interface TripContract {
    * Otherwise fails as every Stay edit does. The operation id makes a retry
    * return the first result.
    *
-   * Every Stay edit runs as one transaction on the Schedule named. Each
+   * Every Stay edit runs as one transaction on the Schedule. Each
    * Stay or Move the edit doesn't remove keeps its id, Hotel details, Stay
    * note and ticks. Each one it removes loses its Checklist item and tick.
    * Verify claims follow their Stays. It returns the Schedule as edited,
    * with its Anchor warnings, which never block the edit. It fails with
-   * ScheduleChanged when the Schedule named isn't current, and with
    * HardRuleBroken for the first Hard rule it would break. A refused edit
    * writes nothing.
    */
@@ -173,12 +156,11 @@ export interface TripContract {
     input: SplitStay,
   ): Effect.Effect<
     StaysEdited,
-    ScheduleChanged | StayNotFound | HardRuleBroken,
+    StayNotFound | HardRuleBroken,
     SqlClient.SqlClient
   >
   /**
-   * Merges two adjacent Stays in one Base of the Schedule named, as a Stay
-   * edit. The earlier Stay keeps its id, Hotel details, Stay note and ticks,
+   * Merges two adjacent Stays in one Base, as a Stay edit. The earlier Stay keeps its id, Hotel details, Stay note and ticks,
    * takes the later one's nights and highlights, and the Verify claims
    * follow it. The later Stay, its Checklist item and tick, and the Move
    * between them are removed.
@@ -193,17 +175,17 @@ export interface TripContract {
     input: MergeStays,
   ): Effect.Effect<
     StaysEdited,
-    ScheduleChanged | StayNotFound | HardRuleBroken,
+    StayNotFound | HardRuleBroken,
     SqlClient.SqlClient
   >
   /**
-   * Moves the date a Stay of the Schedule named checks out, as a Stay edit.
+   * Moves the date a Stay checks out, as a Stay edit.
    * The next Stay's check-in and the Move between them move to the same
    * date. Both Stays keep their ids, and with them everything else that
    * splitStay says a Stay edit keeps.
    *
-   * Fails with ScheduleChanged when the Schedule named isn't current, and
-   * with StayNotFound when it has no Stay with the id. Fails with HardRuleBroken for StayWithoutNights when either
+   * Fails with StayNotFound when the Schedule has no Stay with the id, and
+   * with HardRuleBroken for StayWithoutNights when either
    * Stay would have no nights, and for NotTheTripDates when the last
    * Stay's check-out would move off December 20. A refused move writes
    * nothing.
@@ -212,12 +194,11 @@ export interface TripContract {
     input: MoveStayBoundary,
   ): Effect.Effect<
     StaysEdited,
-    ScheduleChanged | StayNotFound | HardRuleBroken,
+    StayNotFound | HardRuleBroken,
     SqlClient.SqlClient
   >
   /**
-   * Changes the Base of a Stay of the Schedule named to a place in the
-   * catalogue, as a Stay edit, which splitStay describes. The Stay keeps
+   * Changes the Base of a Stay to a place in the catalogue, as a Stay edit, which splitStay describes. The Stay keeps
    * its id, Hotel details, Stay note and ticks, but loses its highlights,
    * which described the old Base. The Moves on either side keep their mode
    * and lose their rail sections and duration, so their travel time is
@@ -231,7 +212,7 @@ export interface TripContract {
     input: ChangeStayBase,
   ): Effect.Effect<
     StaysEdited,
-    ScheduleChanged | StayNotFound | HardRuleBroken,
+    StayNotFound | HardRuleBroken,
     SqlClient.SqlClient
   >
   /**
@@ -247,18 +228,13 @@ export interface TripContract {
    */
   readonly checklist: Effect.Effect<Checklist, never, SqlClient.SqlClient>
   /**
-   * Sets the tick on an item derived from the Schedule named, to true or
-   * false; setting it again changes nothing. ScheduleChanged when the
-   * Schedule named isn't current; ChecklistItemNotFound when nothing in it
-   * derives an item with the id. A refused write writes nothing.
+   * Sets the tick on an item derived from the Schedule, to true or false;
+   * setting it again changes nothing. ChecklistItemNotFound when nothing in
+   * it derives an item with the id. A refused write writes nothing.
    */
   tickChecklistItem(
     input: TickChecklistItem,
-  ): Effect.Effect<
-    void,
-    ScheduleChanged | ChecklistItemNotFound,
-    SqlClient.SqlClient
-  >
+  ): Effect.Effect<void, ChecklistItemNotFound, SqlClient.SqlClient>
   /**
    * Adds one of Phillip's own Checklist items, its text trimmed, as one
    * transaction that also records the operation id with its result.
@@ -283,12 +259,11 @@ export interface TripContract {
     input: RemoveOwnChecklistItem,
   ): Effect.Effect<void, never, SqlClient.SqlClient>
   /**
-   * Adds an Activity on a Day of the Schedule named, its title trimmed, as
+   * Adds an Activity on a Day, its title trimmed, as
    * one transaction that also records the operation id with its result.
    * Repeating the operation id returns that result and writes nothing. A
    * timed Activity goes before the first with a later time; any other
-   * goes last. ScheduleChanged when the Schedule named isn't current;
-   * DayNotFound when it has no Day on the date; ActivityTitleInvalid for a
+   * goes last. DayNotFound when the Schedule has no Day on the date; ActivityTitleInvalid for a
    * blank title or one past 200 characters; NoteTooLong past 10,000
    * characters.
    */
@@ -296,14 +271,13 @@ export interface TripContract {
     input: AddActivity,
   ): Effect.Effect<
     ActivityAdded,
-    ScheduleChanged | DayNotFound | ActivityTitleInvalid | NoteTooLong,
+    DayNotFound | ActivityTitleInvalid | NoteTooLong,
     SqlClient.SqlClient
   >
   /**
-   * Writes the fields an edit carries on an Activity of the Schedule
-   * named, so the last write wins for each field; its time stays on its
-   * Day's date and its place in the order stays. ScheduleChanged when the
-   * Schedule named isn't current; ActivityNotFound when it has no Activity
+   * Writes the fields an edit carries on an Activity, so the last write
+   * wins for each field; its time stays on its Day's date and its place in
+   * the order stays. ActivityNotFound when the Schedule has no Activity
    * with the id; ActivityTitleInvalid and NoteTooLong as when adding. A
    * refused write writes nothing.
    */
@@ -311,29 +285,20 @@ export interface TripContract {
     input: EditActivity,
   ): Effect.Effect<
     void,
-    ScheduleChanged | ActivityNotFound | ActivityTitleInvalid | NoteTooLong,
+    ActivityNotFound | ActivityTitleInvalid | NoteTooLong,
     SqlClient.SqlClient
   >
   removeActivity(
     input: RemoveActivity,
-  ): Effect.Effect<
-    void,
-    ScheduleChanged | ActivityNotFound,
-    SqlClient.SqlClient
-  >
+  ): Effect.Effect<void, ActivityNotFound, SqlClient.SqlClient>
   /**
-   * Moves an Activity of the Schedule named to just before another on the
-   * same Day, or after the rest. ScheduleChanged when the Schedule named
-   * isn't current; ActivityNotFound when it has no Activity with either
+   * Moves an Activity to just before another on the same Day, or after the
+   * rest. ActivityNotFound when the Schedule has no Activity with either
    * id on that Day, so an Activity never moves to another Day.
    */
   moveActivity(
     input: MoveActivity,
-  ): Effect.Effect<
-    void,
-    ScheduleChanged | ActivityNotFound,
-    SqlClient.SqlClient
-  >
+  ): Effect.Effect<void, ActivityNotFound, SqlClient.SqlClient>
   /**
    * The coordinates a Google Maps link Phillip pasted carries, for him to
    * confirm as a Pin. It saves nothing. It reads only https links on
@@ -352,11 +317,10 @@ export interface TripContract {
     LocationLinkRefused | NoCoordinatesInLink | CoordinatesOutsideJapan
   >
   /**
-   * Sets the Pin on an Activity or a Stay's hotel of the Schedule named, as
-   * a whole value, so the last write wins; no Pin removes it. The hotel's
+   * Sets the Pin on an Activity or a Stay's hotel, as a whole value, so the last write wins; no Pin removes it. The hotel's
    * Pin is part of the Stay's hotel, as its Hotel details are, and neither
-   * write touches the other. ScheduleChanged when the Schedule named isn't
-   * current; ActivityNotFound or StayNotFound when it has no such Activity
+   * write touches the other. ActivityNotFound or StayNotFound when the
+   * Schedule has no such Activity
    * or Stay; LocationLinkRefused for a link that isn't a Google Maps link;
    * CoordinatesOutsideJapan for a Pin elsewhere.
    * A refused write writes nothing.
@@ -365,7 +329,6 @@ export interface TripContract {
     input: SetPin,
   ): Effect.Effect<
     void,
-    | ScheduleChanged
     | ActivityNotFound
     | StayNotFound
     | LocationLinkRefused

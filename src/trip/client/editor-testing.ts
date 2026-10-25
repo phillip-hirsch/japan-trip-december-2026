@@ -80,7 +80,6 @@ export const answeringOnly =
 /** A request to a write the Trip replays by operation id. */
 interface UnderOperation {
   readonly operationId: string
-  readonly scheduleId?: string
 }
 
 /**

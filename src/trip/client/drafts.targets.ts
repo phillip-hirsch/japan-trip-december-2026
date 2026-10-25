@@ -4,10 +4,8 @@ export const dayNoteTarget = (date: IsoDate) => `day-note:${date}`
 
 /**
  * The draft target of the Stay note on a Stay, by its id. Not by its dates:
- * a Stay keeps its id when they change, and another Schedule's Stay checking
- * in on the same date may be somewhere else entirely. Its id is fresh in each
- * Schedule, so a draft refused because the Schedule changed is kept, and
- * reopens only on its own Schedule.
+ * a Stay keeps its id when they change, and a Stay edit can leave another
+ * Stay checking in on the same date.
  */
 export const stayNoteTarget = (stayId: string) => `stay-note:${stayId}`
 

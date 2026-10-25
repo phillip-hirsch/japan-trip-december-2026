@@ -10,9 +10,7 @@ import {
 import type { ItineraryContent } from '@/trip/domain/domain'
 import { option1 } from '@/trip/itinerary/option-1'
 import {
-  currentScheduleId,
   operation,
-  staleScheduleId,
   storage,
   storageStartingFrom,
   tick,
@@ -184,29 +182,21 @@ describe('Trip.checklist', () => {
         ])
       }).pipe(Effect.provide([trip, storage])),
   )
-
-  it.effect('names the current Schedule', () =>
-    Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
-      assert.strictEqual((yield* checklist).scheduleId, scheduleId)
-    }).pipe(Effect.provide([trip, storeOfEveryKind])),
-  )
 })
 
 describe('Trip.tickChecklistItem', () => {
   it.effect('sets the tick to true or false, never toggling it', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
       const itemId = yield* idOf(ChecklistItem.guards.ConfirmShigeharu)
-      yield* tick(scheduleId, itemId, true)
-      yield* tick(scheduleId, itemId, true)
+      yield* tick(itemId, true)
+      yield* tick(itemId, true)
 
       const twiceTicked = (yield* describedChecklist).filter((item) =>
         item.startsWith('[x]'),
       )
 
-      yield* tick(scheduleId, itemId, false)
-      yield* tick(scheduleId, itemId, false)
+      yield* tick(itemId, false)
+      yield* tick(itemId, false)
 
       assert.deepStrictEqual(
         {
@@ -224,31 +214,11 @@ describe('Trip.tickChecklistItem', () => {
   )
 
   it.effect(
-    'refuses a tick naming a stale Schedule id with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const itemId = yield* idOf(ChecklistItem.guards.BookHotel)
-        const error = yield* Effect.flip(tick(staleScheduleId, itemId, true))
-
-        assert.deepStrictEqual(
-          {
-            tag: error._tag,
-            ticked: (yield* describedChecklist).filter((item) =>
-              item.startsWith('[x]'),
-            ),
-          },
-          { tag: 'ScheduleChanged', ticked: [] },
-        )
-      }).pipe(Effect.provide([trip, storeOfEveryKind])),
-  )
-
-  it.effect(
     'fails with ChecklistItemNotFound for an item the Schedule lacks',
     () =>
       Effect.gen(function* () {
-        const current = yield* currentScheduleId
         const goneItemId = 'no-such-item'
-        const error = yield* Effect.flip(tick(current, goneItemId, true))
+        const error = yield* Effect.flip(tick(goneItemId, true))
 
         assert.deepStrictEqual(
           {

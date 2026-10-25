@@ -144,7 +144,6 @@ export const activityMethods = Effect.gen(function* () {
 
   const addActivity = Effect.fn('Trip.addActivity')(function* ({
     operationId,
-    scheduleId,
     date,
     title,
     time,
@@ -154,8 +153,8 @@ export const activityMethods = Effect.gen(function* () {
     yield* requireNoteLength(note)
 
     return yield* scheduleWrite(
-      { naming: scheduleId, recorded: { operationId, result: ActivityAdded } },
-      (store) =>
+      { recorded: { operationId, result: ActivityAdded } },
+      (store, scheduleId) =>
         Effect.gen(function* () {
           if (!(yield* store.hasDay(scheduleId, date))) {
             return yield* new DayNotFound({ date })
@@ -194,7 +193,6 @@ export const activityMethods = Effect.gen(function* () {
   })
 
   const editActivity = Effect.fn('Trip.editActivity')(function* ({
-    scheduleId,
     activityId,
     title,
     time,
@@ -204,7 +202,7 @@ export const activityMethods = Effect.gen(function* () {
       title === undefined ? undefined : yield* requireActivityTitle(title)
 
     if (note !== undefined) yield* requireNoteLength(note)
-    yield* scheduleWrite({ naming: scheduleId }, (store) =>
+    yield* scheduleWrite({}, (store, scheduleId) =>
       Effect.gen(function* () {
         const date = yield* requireActivityDay(store, scheduleId, activityId)
 
@@ -220,10 +218,9 @@ export const activityMethods = Effect.gen(function* () {
   })
 
   const removeActivity = Effect.fn('Trip.removeActivity')(function* ({
-    scheduleId,
     activityId,
   }: RemoveActivity) {
-    yield* scheduleWrite({ naming: scheduleId }, (store) =>
+    yield* scheduleWrite({}, (store, scheduleId) =>
       Effect.andThen(
         requireActivityDay(store, scheduleId, activityId),
         store.removeActivity(scheduleId, activityId),
@@ -232,11 +229,10 @@ export const activityMethods = Effect.gen(function* () {
   })
 
   const moveActivity = Effect.fn('Trip.moveActivity')(function* ({
-    scheduleId,
     activityId,
     before,
   }: MoveActivity) {
-    yield* scheduleWrite({ naming: scheduleId }, (store) =>
+    yield* scheduleWrite({}, (store, scheduleId) =>
       Effect.gen(function* () {
         const date = yield* requireActivityDay(store, scheduleId, activityId)
 
@@ -269,13 +265,9 @@ export const activityMethods = Effect.gen(function* () {
     )
   })
 
-  const setPin = Effect.fn('Trip.setPin')(function* ({
-    scheduleId,
-    target,
-    pin,
-  }: SetPin) {
+  const setPin = Effect.fn('Trip.setPin')(function* ({ target, pin }: SetPin) {
     const confirmed = pin && (yield* requirePin(pin))
-    yield* scheduleWrite({ naming: scheduleId }, (store) =>
+    yield* scheduleWrite({}, (store, scheduleId) =>
       Effect.gen(function* () {
         if ('activityId' in target) {
           const { activityId } = target

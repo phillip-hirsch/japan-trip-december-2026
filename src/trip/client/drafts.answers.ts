@@ -5,7 +5,6 @@ import type { IsoDate } from '@/trip/domain/domain'
 
 export type SaveAnswer = Data.TaggedEnum<{
   Saved: {}
-  ScheduleChanged: {}
   Refused: { readonly problem: string }
   /**
    * What the value was for no longer exists, such as an item removed on
@@ -26,13 +25,12 @@ type WrittenTag =
   | 'Moved'
 
 /**
- * What every write can answer: it was written, the Schedule changed, or the
- * Day, Stay, Activity or Checklist item it was for no longer exists. The save
+ * What every write can answer: it was written, or the Day, Stay, Activity or
+ * Checklist item it was for no longer exists. The save
  * flow answers these alike for every editor.
  */
 export type SharedOutcome =
   | { readonly [T in WrittenTag]: { readonly _tag: T } }[WrittenTag]
-  | { readonly _tag: 'ScheduleChanged' }
   | { readonly _tag: 'DayNotFound'; readonly date: IsoDate }
   | { readonly _tag: 'StayNotFound' }
   | { readonly _tag: 'ActivityNotFound' }
@@ -51,7 +49,6 @@ const sharedAnswers = {
   Ticked: saved,
   Removed: saved,
   Moved: saved,
-  ScheduleChanged: () => SaveAnswer.ScheduleChanged(),
   DayNotFound: ({ date }: { readonly date: IsoDate }) =>
     SaveAnswer.Gone({
       problem: `${formatDay(date)} is no longer a Day of your Schedule, perhaps changed on another device.`,

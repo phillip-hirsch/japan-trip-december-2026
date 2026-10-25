@@ -3,12 +3,7 @@ import { Effect } from 'effect'
 
 import { december, IsoDate, WriteDayNoteOutcome } from '@/trip/domain/domain'
 import { noteMaxLength } from '@/trip/domain/limits'
-import {
-  currentScheduleId,
-  staleScheduleId,
-  storage,
-  testTrip,
-} from '@/trip/trip/testing'
+import { storage, testTrip } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import { runTripOperation } from '@/trip/trip-store/trip-operations'
 
@@ -23,10 +18,7 @@ const dayNote = (date: IsoDate) =>
 describe('runTripOperation', () => {
   it.effect('answers a written Day note with Written', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
-
       const outcome = yield* runTripOperation('writeDayNote', {
-        scheduleId,
         date: december(14),
         note: 'Book the onsen.',
       })
@@ -42,30 +34,10 @@ describe('runTripOperation', () => {
   )
 
   it.effect(
-    'answers a write to an out-of-date Schedule with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const outcome = yield* runTripOperation('writeDayNote', {
-          scheduleId: staleScheduleId,
-          date: december(14),
-          note: 'Written on an old screen.',
-        })
-
-        assert.deepStrictEqual(
-          outcome,
-          WriteDayNoteOutcome.cases.ScheduleChanged.make({}),
-        )
-      }).pipe(Effect.provide([trip, storage])),
-  )
-
-  it.effect(
     'answers a Day the Schedule lacks with DayNotFound and its date',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
-
         const outcome = yield* runTripOperation('writeDayNote', {
-          scheduleId,
           date: IsoDate.make('2026-12-21'),
           note: 'After the Trip.',
         })
@@ -81,10 +53,7 @@ describe('runTripOperation', () => {
 
   it.effect('answers a Day note too long with NoteTooLong and the limit', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
-
       const outcome = yield* runTripOperation('writeDayNote', {
-        scheduleId,
         date: december(14),
         note: 'あ'.repeat(noteMaxLength + 1),
       })

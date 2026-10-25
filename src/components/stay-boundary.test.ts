@@ -11,7 +11,6 @@ import { SaveState } from '@/trip/client/drafts'
 import {
   answeringOnly,
   openEditor,
-  scheduleId,
   scheduleStay,
   staysEdited,
 } from '@/trip/client/editor-testing'
@@ -52,7 +51,6 @@ interface Shown {
 const openStayBoundary = (shown: Shown) =>
   openEditor(({ stay, stays }: Shown) => {
     const field = useStayBoundary({
-      scheduleId,
       stay,
       stays: [stay, ...stays],
       anchorWarnings: [],
@@ -62,11 +60,11 @@ const openStayBoundary = (shown: Shown) =>
   }, shown)
 
 describe('moving the date between two Stays', () => {
-  it('is saved once it sends the check-out chosen to the Stay of the Schedule shown', async () => {
+  it('is saved once it sends the check-out chosen to the Stay', async () => {
     localStorage.clear()
     vi.mocked(moveStayBoundary).mockImplementation(
       answeringOnly(
-        { scheduleId, stayId: 'stay-kyoto', checkOut: december(11) },
+        { stayId: 'stay-kyoto', checkOut: december(11) },
         staysEdited(),
         StayEditOutcome.cases.StayNotFound.make({ stayId: 'stay-kyoto' }),
       ),

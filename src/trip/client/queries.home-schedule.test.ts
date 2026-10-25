@@ -7,7 +7,7 @@ import { act } from 'react'
 
 import { connected, reportConnection } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
-import { currentSchedule, deferred } from '@/trip/client/editor-testing'
+import { deferred } from '@/trip/client/editor-testing'
 import {
   loseConnection,
   outcomeOf,
@@ -23,21 +23,16 @@ import {
   openHome,
   openHomeFromCold,
   openRoot,
-  otherScheduleId,
   saveDayNote,
   settle,
   snapshot,
   timePassesTo,
   tokyoTime,
 } from '@/trip/client/home-testing'
-import { homeQuery, loadQuery, schedulesQuery } from '@/trip/client/queries'
+import { homeQuery, loadQuery } from '@/trip/client/queries'
 import { answerSnapshot, dayPage } from '@/trip/client/snapshot-testing'
 import { december, HomeState } from '@/trip/domain/domain'
-import {
-  getHome,
-  getSchedules,
-  getScheduleSnapshot,
-} from '@/trip/trip/trip.functions'
+import { getHome } from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({
   getHome: vi.fn(),
@@ -216,60 +211,6 @@ describe('Home after a save away from it', () => {
 })
 
 describe('Home after it moved on offline', () => {
-  it('stays as last read rather than go back to a Schedule a later Home read replaced', async () => {
-    clockAt('2026-12-14T20:00:00')
-    answerSnapshot(snapshot)
-    answerHome(homeDuringTrip('2026-12-14T20:00:00'))
-    const queryClient = testQueryClient()
-    const app = await openHome(queryClient)
-
-    // Home reads again with Option 2's Day, chosen on another device, while
-    // the snapshot fails, so the Schedules and every Day are still Option 1's.
-    vi.mocked(getScheduleSnapshot).mockImplementation(serverOutOfReach)
-
-    const homeWithOption2 = HomeState.cases.DuringTrip.make({
-      ...homeDuringTrip('2026-12-14T21:00:00'),
-      today: { ...dayPage(december(14)), scheduleId: otherScheduleId },
-    })
-
-    answerHome(homeWithOption2)
-    await act(() => loadQuery(queryClient, homeQuery))
-    loseConnection()
-    vi.mocked(getHome).mockImplementation(serverOutOfReach)
-    await timePassesTo('2026-12-15T00:00:00')
-
-    assert.deepStrictEqual(app.shown(), {
-      home: homeWithOption2,
-      from: hashKey(homeQuery.queryKey),
-    })
-    await app.close()
-  })
-
-  it('stays as last read rather than show a Day of a Schedule since replaced', async () => {
-    clockAt('2026-12-14T21:00:00')
-    answerSnapshot(snapshot)
-    answerHome(homeDuringTrip('2026-12-14T21:00:00'))
-    const queryClient = testQueryClient()
-    const app = await openHome(queryClient)
-
-    // Option 2 replaced the Schedule on another device. The Schedules read
-    // again here, but no snapshot answered since, so every Day is Option 1's.
-    vi.mocked(getScheduleSnapshot).mockImplementation(serverOutOfReach)
-    vi.mocked(getSchedules).mockResolvedValue({
-      current: currentSchedule({ id: otherScheduleId }),
-    })
-    await act(() => loadQuery(queryClient, schedulesQuery))
-    loseConnection()
-    vi.mocked(getHome).mockImplementation(serverOutOfReach)
-    await timePassesTo('2026-12-15T00:00:00')
-
-    assert.deepStrictEqual(app.shown(), {
-      home: homeDuringTrip('2026-12-14T21:00:00'),
-      from: hashKey(homeQuery.queryKey),
-    })
-    await app.close()
-  })
-
   it('shows Home as the server reads it again once the connection returns', async () => {
     clockAt('2026-12-14T21:00:00')
     answerSnapshot(snapshot)

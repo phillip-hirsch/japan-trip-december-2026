@@ -15,7 +15,7 @@ import type {
   ItineraryContent,
   ScheduleDetail,
 } from '@/trip/domain/domain'
-import { december, OperationId, ScheduleId } from '@/trip/domain/domain'
+import { december, OperationId } from '@/trip/domain/domain'
 import { Itinerary } from '@/trip/itinerary/Itinerary'
 import { option1 } from '@/trip/itinerary/option-1'
 import { LocationLinkResolver } from '@/trip/location-links/LocationLinkResolver'
@@ -160,17 +160,6 @@ export const currentSchedule = Effect.map(
   ({ current }) => current,
 )
 
-/**
- * A Schedule id that was never current, as a screen from before the
- * Schedule changed would name.
- */
-export const staleScheduleId = ScheduleId.make(
-  '9f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f',
-)
-
-/** The id of the Schedule store start created. */
-export const currentScheduleId = Effect.map(currentSchedule, ({ id }) => id)
-
 export const currentStays = Effect.map(currentSchedule, ({ stays }) => stays)
 
 export const stayIdAt = (schedule: ScheduleDetail, index: number) =>
@@ -201,5 +190,5 @@ export const checklistItems = Effect.map(
   ({ items }) => items,
 )
 
-export const tick = (scheduleId: ScheduleId, itemId: string, ticked = true) =>
-  Trip.use((trip) => trip.tickChecklistItem({ scheduleId, itemId, ticked }))
+export const tick = (itemId: string, ticked = true) =>
+  Trip.use((trip) => trip.tickChecklistItem({ itemId, ticked }))

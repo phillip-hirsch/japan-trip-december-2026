@@ -26,7 +26,6 @@ const isDate = (value: unknown): value is IsoDate =>
  * its Stay boundary offers while a next Stay follows it.
  */
 export const useStayBoundary = ({
-  scheduleId,
   stay,
   stays,
   anchorWarnings,
@@ -39,14 +38,13 @@ export const useStayBoundary = ({
     target: stayBoundaryTarget(stay.id),
     draft: isDate,
     offered: () => next !== undefined,
-    scheduleId,
     saved: stay.checkOut,
     write: 'stayEdit',
     run: async (checkOut) =>
       answerStayEdit(
         'The move breaks an Anchor',
         anchorWarnings,
-      )(await move({ data: { scheduleId, stayId: stay.id, checkOut } })),
+      )(await move({ data: { stayId: stay.id, checkOut } })),
   })
 
   return { ...field, next, checkOuts: boundary?.checkOuts ?? [] }

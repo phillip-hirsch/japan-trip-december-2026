@@ -22,13 +22,11 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
         {(headingId) => (
           <>
             <HotelDetailsField
-              scheduleId={schedule.id}
               stayId={stay.id}
               hotel={stay.hotel}
               labelledBy={headingId}
             />
             <PinField
-              scheduleId={schedule.id}
               target={{ stayId: stay.id }}
               pin={hotel?.pin}
               near={stay.base.coordinates}
@@ -40,27 +38,16 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
       </StaySection>
       <StaySection heading="Note" stay={stay}>
         {(headingId) => (
-          <StayNote
-            scheduleId={schedule.id}
-            stayId={stay.id}
-            note={stay.note}
-            labelledBy={headingId}
-          />
+          <StayNote stayId={stay.id} note={stay.note} labelledBy={headingId} />
         )}
       </StaySection>
-      <StayBaseField
-        scheduleId={schedule.id}
-        stay={stay}
-        anchorWarnings={schedule.anchorWarnings}
-      />
+      <StayBaseField stay={stay} anchorWarnings={schedule.anchorWarnings} />
       <StayBoundaryField
-        scheduleId={schedule.id}
         stay={stay}
         stays={schedule.stays}
         anchorWarnings={schedule.anchorWarnings}
       />
       <SplitMergeStay
-        scheduleId={schedule.id}
         stay={stay}
         stays={schedule.stays}
         anchorWarnings={schedule.anchorWarnings}

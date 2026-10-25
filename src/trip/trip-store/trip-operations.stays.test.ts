@@ -11,14 +11,12 @@ import {
 import { hotelDetailMaxLength } from '@/trip/domain/limits'
 import {
   currentSchedule,
-  currentScheduleId,
   kyotoHotel,
   kyotoStayId,
   operation,
   currentStays,
   storage,
   testTrip,
-  staleScheduleId,
 } from '@/trip/trip/testing'
 import { ryokan } from '@/trip/trip/Trip.pins.testing'
 import { runTripOperation } from '@/trip/trip-store/trip-operations'
@@ -26,11 +24,9 @@ import { runTripOperation } from '@/trip/trip-store/trip-operations'
 describe('runTripOperation for Hotel details', () => {
   it.effect('answers written Hotel details with Written', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
       const stayId = yield* kyotoStayId
 
       const outcome = yield* runTripOperation('writeHotelDetails', {
-        scheduleId,
         stayId,
         details: ryokan,
       })
@@ -49,11 +45,9 @@ describe('runTripOperation for Hotel details', () => {
     'answers a Hotel detail too long with HotelDetailTooLong and the limit',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
         const stayId = yield* kyotoStayId
 
         const outcome = yield* runTripOperation('writeHotelDetails', {
-          scheduleId,
           stayId,
           details: { name: 'あ'.repeat(hotelDetailMaxLength + 1) },
         })
@@ -74,11 +68,9 @@ describe('runTripOperation for Hotel details', () => {
 describe('runTripOperation for Stay edits', () => {
   it.effect('answers a split Stay with Edited and the Schedule after it', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
       const stayId = yield* kyotoStayId
 
       const outcome = yield* runTripOperation('splitStay', {
-        scheduleId,
         operationId: operation(2),
         stayId,
         date: december(11),
@@ -95,11 +87,9 @@ describe('runTripOperation for Stay edits', () => {
     'answers a merge of Stays in two Bases with HardRuleBroken and the rule',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
         const [, kyoto, kanazawa] = yield* currentStays
 
         const outcome = yield* runTripOperation('mergeStays', {
-          scheduleId,
           operationId: operation(2),
           stayIds: [kyoto?.id ?? '', kanazawa?.id ?? ''],
         })
@@ -114,30 +104,10 @@ describe('runTripOperation for Stay edits', () => {
   )
 
   it.effect(
-    'answers a check-out moved on an out-of-date Schedule with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const outcome = yield* runTripOperation('moveStayBoundary', {
-          scheduleId: staleScheduleId,
-          stayId: yield* kyotoStayId,
-          checkOut: december(12),
-        })
-
-        assert.deepStrictEqual(
-          outcome,
-          StayEditOutcome.cases.ScheduleChanged.make({}),
-        )
-      }).pipe(Effect.provide([testTrip, storage])),
-  )
-
-  it.effect(
     'answers a Base changed on a Stay the Schedule lacks with StayNotFound',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
-
         const outcome = yield* runTripOperation('changeStayBase', {
-          scheduleId,
           stayId: 'stay-missing',
           place: 'tokyo',
         })

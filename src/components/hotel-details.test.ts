@@ -4,11 +4,7 @@ import { vi } from 'vite-plus/test'
 import { act } from 'react'
 
 import { useHotelDetails } from '@/components/hotel-details'
-import {
-  Hotel,
-  ScheduleId,
-  WriteHotelDetailsOutcome,
-} from '@/trip/domain/domain'
+import { Hotel, WriteHotelDetailsOutcome } from '@/trip/domain/domain'
 import { SaveState } from '@/trip/client/drafts'
 import {
   answeringOnly,
@@ -19,8 +15,6 @@ import { writeHotelDetails } from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({ writeHotelDetails: vi.fn() }))
 
-const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
-
 const recorded = Hotel.cases.Recorded.make({
   name: 'Hotel Gion',
   address: '1 Gion, Kyoto',
@@ -28,11 +22,7 @@ const recorded = Hotel.cases.Recorded.make({
 
 /** The Hotel details of the Kyoto Stay, recorded as `hotel`. */
 const openHotelDetails = (hotel: Hotel, read?: () => Promise<string>) =>
-  openEditor(
-    () => useHotelDetails({ scheduleId, stayId: 'stay-kyoto', hotel }),
-    {},
-    read,
-  )
+  openEditor(() => useHotelDetails({ stayId: 'stay-kyoto', hotel }), {}, read)
 
 const confirmation = {
   name: 'Hotel Gion',
@@ -53,11 +43,11 @@ describe('the Hotel details', () => {
     await editor.close()
   })
 
-  it('is saved once it sends the Hotel details to their Stay of the Schedule shown', async () => {
+  it('is saved once it sends the Hotel details to their Stay', async () => {
     localStorage.clear()
     vi.mocked(writeHotelDetails).mockImplementation(
       answeringOnly(
-        { scheduleId, stayId: 'stay-kyoto', details: confirmation },
+        { stayId: 'stay-kyoto', details: confirmation },
         WriteHotelDetailsOutcome.cases.Written.make({}),
         WriteHotelDetailsOutcome.cases.StayNotFound.make({
           stayId: 'stay-kyoto',

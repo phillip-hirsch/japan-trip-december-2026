@@ -1,23 +1,16 @@
 import { Effect } from 'effect'
 
-import type { IsoDate, Pin, PinTarget, ScheduleId } from '@/trip/domain/domain'
+import type { IsoDate, Pin, PinTarget } from '@/trip/domain/domain'
 import { operation } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
-export const setPin = (scheduleId: ScheduleId, target: PinTarget, pin?: Pin) =>
-  Trip.use((trip) =>
-    trip.setPin({ scheduleId, target, ...(pin !== undefined && { pin }) }),
-  )
+export const setPin = (target: PinTarget, pin?: Pin) =>
+  Trip.use((trip) => trip.setPin({ target, ...(pin !== undefined && { pin }) }))
 
-export const addActivity = (
-  n: number,
-  scheduleId: ScheduleId,
-  date: IsoDate,
-  title: string,
-) =>
+export const addActivity = (n: number, date: IsoDate, title: string) =>
   Effect.map(
     Trip.use((trip) =>
-      trip.addActivity({ operationId: operation(n), scheduleId, date, title }),
+      trip.addActivity({ operationId: operation(n), date, title }),
     ),
     ({ activityId }) => activityId,
   )

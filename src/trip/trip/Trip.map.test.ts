@@ -2,17 +2,11 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 
 import { december } from '@/trip/domain/domain'
-import type {
-  Coordinates,
-  IsoDate,
-  Pin,
-  ScheduleId,
-} from '@/trip/domain/domain'
+import type { Coordinates, IsoDate, Pin } from '@/trip/domain/domain'
 import { option1 } from '@/trip/itinerary/option-1'
 import { places } from '@/trip/catalogue/places'
 import { stations } from '@/trip/catalogue/rail'
 import {
-  currentScheduleId,
   operation,
   storage,
   storageStartingFrom,
@@ -29,9 +23,9 @@ const stayId = (index: number) =>
     ({ current }) => current.stays[index]?.id ?? '',
   )
 
-const changeBase = (scheduleId: ScheduleId, index: number, place: string) =>
+const changeBase = (index: number, place: string) =>
   Effect.flatMap(stayId(index), (stayId) =>
-    Trip.use((trip) => trip.changeStayBase({ scheduleId, stayId, place })),
+    Trip.use((trip) => trip.changeStayBase({ stayId, place })),
   )
 
 describe('Trip.scheduleMap', () => {
@@ -241,8 +235,7 @@ describe('Trip.scheduleMap', () => {
     'draws the Moves either side of a Stay whose Base changed straight between the Bases, and the rest along their lines',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
-        yield* changeBase(scheduleId, 2, 'uji')
+        yield* changeBase(2, 'uji')
         const { bases, trainMoves } = yield* scheduleMap
         assert.deepStrictEqual(
           {
@@ -274,18 +267,16 @@ describe('Trip.scheduleMap', () => {
     'draws nothing for a local Move within a Base, and a straight line once its Stays are in two Bases',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
         const kyotoStay = yield* stayId(1)
         yield* Trip.use((trip) =>
           trip.splitStay({
             operationId: operation(2),
-            scheduleId,
             stayId: kyotoStay,
             date: december(11),
           }),
         )
         const afterSplit = yield* scheduleMap
-        yield* changeBase(scheduleId, 2, 'uji')
+        yield* changeBase(2, 'uji')
         const afterChange = yield* scheduleMap
 
         const straight = ({ trainMoves }: typeof afterSplit) =>
@@ -315,17 +306,11 @@ describe('Trip.scheduleMap', () => {
       }).pipe(Effect.provide([testTrip, storage])),
   )
 
-  const addActivity = (
-    n: number,
-    scheduleId: ScheduleId,
-    date: IsoDate,
-    title: string,
-  ) =>
+  const addActivity = (n: number, date: IsoDate, title: string) =>
     Effect.map(
       Trip.use((trip) =>
         trip.addActivity({
           operationId: operation(n),
-          scheduleId,
           date,
           title,
         }),
@@ -350,18 +335,16 @@ describe('Trip.scheduleMap', () => {
     'shows each pinned hotel with its Stay and Hotel details, and each pinned Activity with its Day, leaving the unpinned out',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* currentScheduleId
         const tokyoStay = yield* stayId(0)
         const kyotoStay = yield* stayId(1)
 
         const setPin = (
           target: { activityId: string } | { stayId: string },
           pin: Pin,
-        ) => Trip.use((trip) => trip.setPin({ scheduleId, target, pin }))
+        ) => Trip.use((trip) => trip.setPin({ target, pin }))
 
         yield* Trip.use((trip) =>
           trip.writeHotelDetails({
-            scheduleId,
             stayId: kyotoStay,
             details: {
               name: 'Kyoto Ryokan Sakura',
@@ -373,26 +356,19 @@ describe('Trip.scheduleMap', () => {
         yield* setPin({ stayId: kyotoStay }, nearKyotoStation)
         yield* Trip.use((trip) =>
           trip.writeHotelDetails({
-            scheduleId,
             stayId: tokyoStay,
             details: { name: 'Hotel without a Pin' },
           }),
         )
 
-        const birthday = yield* addActivity(
-          2,
-          scheduleId,
-          december(15),
-          'Birthday dinner',
-        )
+        const birthday = yield* addActivity(2, december(15), 'Birthday dinner')
 
-        const shrine = yield* addActivity(3, scheduleId, december(10), 'Shrine')
-        yield* addActivity(4, scheduleId, december(10), 'Unpinned lunch')
+        const shrine = yield* addActivity(3, december(10), 'Shrine')
+        yield* addActivity(4, december(10), 'Unpinned lunch')
         yield* setPin({ activityId: birthday }, ginza)
         yield* setPin({ activityId: shrine }, fushimiInari)
         yield* Trip.use((trip) =>
           trip.editActivity({
-            scheduleId,
             activityId: shrine,
             note: 'Go early, before the tour groups',
           }),
@@ -436,11 +412,9 @@ describe('Trip.scheduleMap', () => {
 
   it.effect('shows a hotel pinned before any other Hotel details', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* currentScheduleId
       const kyotoStay = yield* stayId(1)
       yield* Trip.use((trip) =>
         trip.setPin({
-          scheduleId,
           target: { stayId: kyotoStay },
           pin: nearKyotoStation,
         }),
