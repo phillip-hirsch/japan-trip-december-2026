@@ -3,7 +3,6 @@ import { Match, Predicate } from 'effect'
 import { BadgeAlertIcon, BellIcon, Trash2Icon } from 'lucide-react'
 import { useId } from 'react'
 
-import { ButtonLink } from '@/components/button-link'
 import {
   addVerb,
   EditorFrame,
@@ -114,8 +113,8 @@ const tickScheduleChanged: SaveWarning = {
 }
 
 /**
- * The Tick on `item`, of a Checklist showing the Schedule `scheduleId`, or
- * none yet. An own item belongs to the Trip, so its Tick names no Schedule.
+ * The Tick on `item`, of a Checklist showing the Schedule `scheduleId`. An
+ * own item belongs to the Trip, so its Tick names no Schedule.
  * The hook drops a Tick not saved once the Checklist shows it.
  */
 export const useTick = ({
@@ -123,7 +122,7 @@ export const useTick = ({
   scheduleId,
 }: {
   item: ChecklistItem
-  scheduleId: ScheduleId | null
+  scheduleId: ScheduleId
 }) => {
   const own = Predicate.isTagged('Own')(item)
   const tickDerived = useServerFn(tickChecklistItem)
@@ -137,8 +136,6 @@ export const useTick = ({
     write: 'checklist',
     run: async (ticked) => {
       if (own) return tickOwn({ data: { itemId: item.id, ticked } })
-
-      if (scheduleId === null) return SaveAnswer.ScheduleChanged()
 
       const outcome = await tickDerived({
         data: { scheduleId, itemId: item.id, ticked },
@@ -171,7 +168,7 @@ function ChecklistRow({
   scheduleId,
 }: {
   item: ChecklistItem
-  scheduleId: ScheduleId | null
+  scheduleId: ScheduleId
 }) {
   const titleId = useId()
   const tick = useTick({ item, scheduleId })
@@ -265,7 +262,7 @@ export function ChecklistItems({
   scheduleId,
 }: {
   items: ReadonlyArray<ChecklistItem>
-  scheduleId: ScheduleId | null
+  scheduleId: ScheduleId
 }) {
   if (items.length === 0) {
     return (
@@ -381,19 +378,5 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
         </div>
       )}
     </EditorFrame>
-  )
-}
-
-export function ChooseItineraryPrompt() {
-  return (
-    <div className="flex flex-col items-start gap-4 rounded-md border border-border bg-secondary px-4 py-4 text-sm text-secondary-foreground">
-      <p>
-        No Schedule yet. Choose an Itinerary, and the hotels, seats, flights and
-        confirmations it needs appear here. Your own items stay as they are.
-      </p>
-      <ButtonLink to="/options" size="sm">
-        Compare the Itineraries
-      </ButtonLink>
-    </div>
   )
 }

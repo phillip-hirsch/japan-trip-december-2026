@@ -61,7 +61,7 @@ const sentTicked = SaveState.Saved({ value: true })
 
 describe('a Tick', () => {
   /** The Tick of `item`, on a Checklist of `shown`'s Schedule. */
-  const openTick = (item: ChecklistItem, shown: ScheduleId | null) =>
+  const openTick = (item: ChecklistItem, shown: ScheduleId) =>
     openEditor(
       ({ item }: { item: ChecklistItem }) =>
         useTick({ item, scheduleId: shown }),
@@ -127,7 +127,7 @@ describe('a Tick', () => {
         }),
       ),
     )
-    const editor = await openTick(jrPass, null)
+    const editor = await openTick(jrPass, scheduleId)
 
     await goOffline()
     await act(() => editor.field().send(true))
@@ -151,7 +151,7 @@ describe('a Tick', () => {
 
   it('drops a Tick not saved once the Checklist shows the item ticked after all', async () => {
     vi.mocked(tickOwnChecklistItem).mockRejectedValue(new Error('offline'))
-    const editor = await openTick(jrPass, null)
+    const editor = await openTick(jrPass, scheduleId)
     await act(() => editor.field().send(true))
     assert.isTrue(SaveState.$is('NotSaved')(editor.field().state))
 

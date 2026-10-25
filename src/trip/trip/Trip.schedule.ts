@@ -13,33 +13,28 @@ import {
 import type {
   ChooseItinerary,
   DayPage,
-  HomeState,
   IsoDate,
   Itinerary,
-  ItinerarySummary,
   RestoreSchedule,
   ScheduleDetail,
   ScheduleMap,
+  ScheduleRecord,
   ScheduleSnapshot,
 } from '@/trip/domain/domain'
 import { homeStateOn } from '@/trip/domain/home-state'
-import { Itineraries } from '@/trip/itineraries/Itineraries'
 import { stayForNight } from '@/trip/domain/schedule-copy'
 import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
 import { scheduleStore } from '@/trip/schedule-store/schedule-store'
 import type { ScheduleStore } from '@/trip/schedule-store/schedule-store'
 import { checklistIn } from '@/trip/trip/Trip.checklist'
-import { scheduleWrite } from '@/trip/trip/Trip.guards'
-import { mapOf, summaryOf } from '@/trip/trip/Trip.itinerary'
+import { currentIn, scheduleWrite } from '@/trip/trip/Trip.guards'
+import { mapOf } from '@/trip/trip/Trip.itinerary'
 import {
   anchorsOf,
   CatalogueLookups,
   find,
   staySummaryOf,
 } from '@/trip/trip/Trip.shared'
-
-const isoInstantOf = (now: DateTime.DateTime) =>
-  IsoInstant.make(DateTime.formatIso(now))
 
 const scheduleMapOf = (copy: ScheduleCopy): ScheduleMap => ({
   ...mapOf(copy),
@@ -61,7 +56,8 @@ const scheduleMapOf = (copy: ScheduleCopy): ScheduleMap => ({
   ),
 })
 
-const copyOf = (itinerary: Itinerary): ScheduleCopy => {
+/** A fresh copy of the Itinerary, every copied entity with a new id. */
+export const copyOf = (itinerary: Itinerary): ScheduleCopy => {
   const withFreshId = <A extends object>(entity: A) => ({
     ...entity,
     id: crypto.randomUUID(),
@@ -79,6 +75,23 @@ const copyOf = (itinerary: Itinerary): ScheduleCopy => {
     anchors: anchorsOf(itinerary).map(withFreshId),
   }
 }
+
+/** A fresh current Schedule's record, copied from the Itinerary at `now`. */
+export const currentScheduleOf = (
+  itinerary: Itinerary,
+  now: IsoInstant,
+): ScheduleRecord => ({
+  id: ScheduleId.make(crypto.randomUUID()),
+  status: 'current',
+  sourceOptionNumber: itinerary.optionNumber,
+  sourceContentVersion: itinerary.contentVersion,
+  chosenAt: now,
+  archivedAt: null,
+  birthdayOutline: itinerary.birthdayOutline,
+})
+
+export const isoInstantOf = (now: DateTime.DateTime) =>
+  IsoInstant.make(DateTime.formatIso(now))
 
 const isDepartureDay = (date: IsoDate) => date === tripEndDate
 
@@ -125,22 +138,24 @@ const findDayPage = (schedule: ScheduleDetail, date: IsoDate) =>
     (day) => dayPageFor(schedule, day),
   )
 
-const homeStateOf = (
+const homeStateOf = Effect.fnUntraced(function* (
   now: DateTime.DateTime,
-  schedule: Option.Option<ScheduleDetail>,
-  itineraries: ReadonlyArray<ItinerarySummary>,
-): HomeState => {
+  schedule: ScheduleDetail,
+) {
   const date = tokyoDateAt(DateTime.toEpochMillis(now))
 
-  return homeStateOn(date, {
+  const home = homeStateOn(date, {
     readAt: DateTime.formatIso(now),
-    itineraries,
-    schedule: Option.getOrNull(schedule),
-    today: Option.getOrNull(
-      Option.flatMap(schedule, (schedule) => findDayPage(schedule, date)),
-    ),
+    schedule,
+    today: Option.getOrUndefined(findDayPage(schedule, date)),
   })
-}
+
+  if (home === undefined) {
+    return yield* Effect.die(new Error(`The Schedule has no Day on ${date}`))
+  }
+
+  return home
+})
 
 /**
  * Choosing and restoring a Schedule, and the reads of the Schedules: one
@@ -148,9 +163,7 @@ const homeStateOf = (
  * summary, Home and a Day page.
  */
 export const scheduleMethods = Effect.gen(function* () {
-  const { all } = yield* Itineraries
   const { byOptionNumber, scheduleDetail } = yield* CatalogueLookups
-  const summaries = all.map(summaryOf)
 
   /** Archives the current Schedule a choose or restore names, if any. */
   const archiveReplaced = (
@@ -171,21 +184,10 @@ export const scheduleMethods = Effect.gen(function* () {
           const itinerary = yield* find(byOptionNumber, optionNumber)
           const now = isoInstantOf(yield* DateTime.now)
           yield* archiveReplaced(store, replacing, now)
-          const scheduleId = ScheduleId.make(crypto.randomUUID())
-          yield* store.insert(
-            {
-              id: scheduleId,
-              status: 'current',
-              sourceOptionNumber: itinerary.optionNumber,
-              sourceContentVersion: itinerary.contentVersion,
-              chosenAt: now,
-              archivedAt: null,
-              birthdayOutline: itinerary.birthdayOutline,
-            },
-            copyOf(itinerary),
-          )
+          const schedule = currentScheduleOf(itinerary, now)
+          yield* store.insert(schedule, copyOf(itinerary))
 
-          return { scheduleId }
+          return { scheduleId: schedule.id }
         }),
     )
   })
@@ -239,13 +241,13 @@ export const scheduleMethods = Effect.gen(function* () {
    */
   const schedulesIn = Effect.fnUntraced(function* (store: ScheduleStore) {
     const { current, archived, tripNote } = yield* Effect.all({
-      current: store.current,
+      current: currentIn(store),
       archived: store.archived,
       tripNote: store.tripNote,
     })
 
     const schedules = {
-      current: Option.map(current, scheduleDetail),
+      current: scheduleDetail(current),
       archived,
       ...Option.match(tripNote, {
         onNone: () => ({}),
@@ -274,11 +276,13 @@ export const scheduleMethods = Effect.gen(function* () {
         const { schedules, storedCurrent } = yield* schedulesIn(store)
         const checklist = yield* checklistIn(store, storedCurrent)
 
-        return Option.map(schedules.current, (current): ScheduleSnapshot => ({
-          schedules: { ...schedules, current },
+        const { current } = schedules
+
+        return {
+          schedules,
           days: current.days.map((day) => dayPageFor(current, day)),
           checklist,
-        }))
+        } satisfies ScheduleSnapshot
       }),
     )
   }).pipe(
@@ -288,9 +292,9 @@ export const scheduleMethods = Effect.gen(function* () {
 
   const scheduleMap = Effect.gen(function* () {
     const store = yield* scheduleStore
-    const current = yield* store.transaction(store.current)
+    const { copy } = yield* store.transaction(currentIn(store))
 
-    return Option.map(current, ({ copy }) => scheduleMapOf(copy))
+    return scheduleMapOf(copy)
   }).pipe(
     Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
     Effect.withSpan('Trip.scheduleMap'),
@@ -310,22 +314,27 @@ export const scheduleMethods = Effect.gen(function* () {
 
   const currentSchedule = Effect.gen(function* () {
     const store = yield* scheduleStore
-    const current = yield* store.transaction(store.current)
+    const current = yield* store.transaction(currentIn(store))
 
-    return Option.map(current, scheduleDetail)
+    return scheduleDetail(current)
   }).pipe(Effect.catchTag(['SqlError', 'SchemaError'], Effect.die))
 
   const home = Effect.gen(function* () {
     const now = yield* DateTime.now
 
-    return homeStateOf(now, yield* currentSchedule, summaries)
+    return yield* homeStateOf(now, yield* currentSchedule)
   }).pipe(Effect.withSpan('Trip.home'))
 
   const day = Effect.fn('Trip.day')(function* (date: IsoDate) {
     if (!isTripDate(date)) return yield* new DayNotFound({ date })
     const schedule = yield* currentSchedule
+    const page = findDayPage(schedule, date)
 
-    return Option.flatMap(schedule, (schedule) => findDayPage(schedule, date))
+    if (Option.isNone(page)) {
+      return yield* Effect.die(new Error(`The Schedule has no Day on ${date}`))
+    }
+
+    return page.value
   })
 
   return {

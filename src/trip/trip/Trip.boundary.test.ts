@@ -11,14 +11,20 @@ import {
   ScheduleChanged,
   StayNotFound,
 } from '@/trip/domain/domain'
-import type { IsoDate, ScheduleDetail } from '@/trip/domain/domain'
+import type {
+  IsoDate,
+  ItineraryContent,
+  ScheduleDetail,
+} from '@/trip/domain/domain'
 import { option1 } from '@/trip/itineraries/option-1'
 import {
   assertFailedWith,
   chooseOption1,
   currentSchedule,
+  currentScheduleId,
   stayIdAt,
   storage,
+  storageStartingFrom,
   tripWith,
   tripWithOption1,
 } from '@/trip/trip/testing'
@@ -48,12 +54,23 @@ const datesOf = (schedule: ScheduleDetail) => ({
   ),
 })
 
+/** Option 1 without its last Tokyo Stay, so it ends in Kanazawa. */
+const endingInKanazawa: ItineraryContent = {
+  ...option1,
+  stays: option1.stays
+    .slice(0, 3)
+    .map((stay) =>
+      stay.base === 'kanazawa' ? { ...stay, checkOut: december(20) } : stay,
+    ),
+  moves: option1.moves.slice(0, 2),
+  verifyClaims: [],
+}
+
 describe('Trip.moveStayBoundary', () => {
   it.effect(
     'moves the check-out, the next check-in and the Move between them to the new date',
     () =>
       Effect.gen(function* () {
-        yield* chooseOption1(1, null)
         const { schedule } = yield* moveCheckOut(1, december(12))
         assert.deepStrictEqual(datesOf(schedule), {
           stays: [
@@ -73,7 +90,7 @@ describe('Trip.moveStayBoundary', () => {
     "keeps both Stays' ids, Hotel details, Stay notes, highlights, Verify claims and ticks",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* chooseOption1(1, null)
+        const scheduleId = yield* currentScheduleId
         const before = yield* currentSchedule
         const kyotoId = stayIdAt(before, 1)
         const kanazawaId = stayIdAt(before, 2)
@@ -120,7 +137,6 @@ describe('Trip.moveStayBoundary', () => {
     "moves the train Move's Reserve seats reminder to a month before its new date",
     () =>
       Effect.gen(function* () {
-        yield* chooseOption1(1, null)
         const moveId = (yield* currentSchedule).days[7]?.move?.id ?? ''
         yield* moveCheckOut(1, december(11))
 
@@ -162,7 +178,6 @@ describe('Trip.moveStayBoundary', () => {
   for (const [reason, index, checkOut, expected] of warnings) {
     it.effect(`goes ahead with a warning for ${reason}`, () =>
       Effect.gen(function* () {
-        yield* chooseOption1(1, null)
         const { schedule } = yield* moveCheckOut(index, december(checkOut))
         assert.strictEqual(schedule.stays[index]?.checkOut, december(checkOut))
         assert.deepStrictEqual(schedule.anchorWarnings, expected)
@@ -175,28 +190,14 @@ describe('Trip.moveStayBoundary', () => {
     'returns the warning for a last Stay outside Tokyo with the result',
     () =>
       Effect.gen(function* () {
-        yield* chooseOption1(1, null)
         const { schedule } = yield* moveCheckOut(1, december(12))
         assert.deepStrictEqual(schedule.anchorWarnings, [
           AnchorWarning.cases.EndsOutsideTokyo.make({ base: 'kanazawa' }),
         ])
       }).pipe(
         Effect.provide([
-          tripWith([
-            {
-              ...option1,
-              stays: option1.stays
-                .slice(0, 3)
-                .map((stay) =>
-                  stay.base === 'kanazawa'
-                    ? { ...stay, checkOut: december(20) }
-                    : stay,
-                ),
-              moves: option1.moves.slice(0, 2),
-              verifyClaims: [],
-            },
-          ]),
-          storage,
+          tripWith([endingInKanazawa]),
+          storageStartingFrom(endingInKanazawa),
         ]),
       ),
   )
@@ -251,7 +252,6 @@ describe('Trip.moveStayBoundary', () => {
   for (const [reason, index, checkOut, rule] of refusals) {
     it.effect(`refuses a move leaving ${reason}, changing nothing`, () =>
       Effect.gen(function* () {
-        yield* chooseOption1(1, null)
         const before = yield* currentSchedule
 
         const error = yield* Effect.flip(
@@ -266,7 +266,7 @@ describe('Trip.moveStayBoundary', () => {
 
   it.effect("refuses a Stay the Schedule doesn't have, changing nothing", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* chooseOption1(1, null)
+      const scheduleId = yield* currentScheduleId
       const before = yield* currentSchedule
 
       const error = yield* Effect.flip(
@@ -288,7 +288,7 @@ describe('Trip.moveStayBoundary', () => {
     'refuses an archived or out-of-date Schedule with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const archived = yield* chooseOption1(1, null)
+        const archived = yield* currentScheduleId
         const archivedBefore = yield* currentSchedule
         yield* chooseOption1(2, archived)
         const current = yield* currentSchedule

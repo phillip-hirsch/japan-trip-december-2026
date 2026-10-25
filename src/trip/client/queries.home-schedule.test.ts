@@ -19,6 +19,7 @@ import {
   chooseOption2,
   clockAt,
   closeHome,
+  dayPageIn,
   homeDuringTrip,
   openChoiceOfOption2,
   openDayNote,
@@ -43,7 +44,6 @@ import {
 import { answerSnapshot, dayPage } from '@/trip/client/snapshot-testing'
 import { december, HomeState, IsoInstant } from '@/trip/domain/domain'
 import {
-  getDay,
   getHome,
   getSchedules,
   getScheduleSnapshot,
@@ -51,7 +51,6 @@ import {
 
 vi.mock('@/trip/trip/trip.functions', () => ({
   chooseItinerary: vi.fn(),
-  getDay: vi.fn(),
   getHome: vi.fn(),
   getSchedules: vi.fn(),
   getScheduleSnapshot: vi.fn(),
@@ -268,9 +267,7 @@ describe('Home after it moved on offline', () => {
       HomeState.cases.DuringTrip.make({
         ...homeDuringTrip('2026-12-14T20:00:00'),
         date: december(15),
-        today:
-          option2Snapshot.days.find((page) => page.day.date === december(15)) ??
-          null,
+        today: dayPageIn(option2Snapshot, december(15)),
       }),
     )
     await app.close()
@@ -302,44 +299,13 @@ describe('Home after it moved on offline', () => {
       home: HomeState.cases.DuringTrip.make({
         ...homeDuringTrip('2026-12-14T20:00:00'),
         date: december(15),
-        today:
-          option2Snapshot.days.find((page) => page.day.date === december(15)) ??
-          null,
+        today: dayPageIn(option2Snapshot, december(15)),
       }),
       from: hashKey(dayQuery(december(15)).queryKey),
     })
     await app.close()
     await root.close()
     await choice.close()
-  })
-
-  it('shows no Day as Today when Home was last read with no Schedule, though a Day is stored', async () => {
-    clockAt('2026-12-14T20:00:00')
-    vi.mocked(getScheduleSnapshot).mockResolvedValue(null)
-
-    const noSchedule = HomeState.cases.DuringTrip.make({
-      ...homeDuringTrip('2026-12-14T20:00:00'),
-      today: null,
-    })
-
-    answerHome(noSchedule)
-    const queryClient = testQueryClient()
-    vi.mocked(getDay).mockResolvedValue(dayPage(december(15)))
-    await loadQuery(queryClient, dayQuery(december(15)))
-    const app = await openHome(queryClient)
-
-    loseConnection()
-    vi.mocked(getHome).mockImplementation(serverOutOfReach)
-    await timePassesTo('2026-12-15T00:00:00')
-
-    assert.deepStrictEqual(app.shown(), {
-      home: HomeState.cases.DuringTrip.make({
-        ...noSchedule,
-        date: december(15),
-      }),
-      from: hashKey(homeQuery.queryKey),
-    })
-    await app.close()
   })
 
   it('shows the new Day of a Schedule chosen here after Home was last read, opened offline after Tokyo midnight', async () => {
@@ -366,9 +332,7 @@ describe('Home after it moved on offline', () => {
       home: HomeState.cases.DuringTrip.make({
         ...homeDuringTrip('2026-12-14T20:00:00'),
         date: december(15),
-        today:
-          option2Snapshot.days.find((page) => page.day.date === december(15)) ??
-          null,
+        today: dayPageIn(option2Snapshot, december(15)),
       }),
       from: hashKey(dayQuery(december(15)).queryKey),
     })

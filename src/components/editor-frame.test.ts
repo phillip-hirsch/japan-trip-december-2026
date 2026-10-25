@@ -334,7 +334,7 @@ describe('the editor frame of a Tick', () => {
     vi.mocked(tickOwnChecklistItem).mockReturnValue(answer.promise)
 
     const editor = await openEditor(() => {
-      const field = useTick({ item, scheduleId: null })
+      const field = useTick({ item, scheduleId: scheduleA })
 
       return { field, frame: useEditorFrame(field) }
     }, {})

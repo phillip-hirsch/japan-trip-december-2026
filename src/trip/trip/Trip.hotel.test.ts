@@ -1,10 +1,11 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option, Predicate } from 'effect'
+import { Effect, Predicate } from 'effect'
 
 import { december, Hotel } from '@/trip/domain/domain'
 import type { ScheduleId } from '@/trip/domain/domain'
 import {
   choose,
+  currentScheduleId,
   kyotoHotelOf,
   kyotoStayId,
   operation,
@@ -44,7 +45,7 @@ describe('Trip.writeHotelDetails', () => {
     "shows the recorded details as tonight's hotel on every Day the Stay covers",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         yield* writeHotelDetails(
           scheduleId,
           yield* kyotoStayId(scheduleId),
@@ -64,7 +65,7 @@ describe('Trip.writeHotelDetails', () => {
 
   it.effect("shows the same tonight's hotel on Today on Home", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
       yield* writeHotelDetails(
         scheduleId,
         yield* kyotoStayId(scheduleId),
@@ -73,11 +74,8 @@ describe('Trip.writeHotelDetails', () => {
       yield* setTime('2026-12-10T01:00:00Z')
       const home = yield* Trip.use((trip) => trip.home)
       assert.deepStrictEqual(
-        Predicate.isTagged('DuringTrip')(home)
-          ? home.today?.tonight
-          : undefined,
-        Option.getOrThrow(yield* Trip.use((trip) => trip.day(december(10))))
-          .tonight,
+        Predicate.isTagged('DuringTrip')(home) ? home.today.tonight : undefined,
+        (yield* Trip.use((trip) => trip.day(december(10)))).tonight,
       )
     }).pipe(Effect.provide([tripWithOptions1And2, storage])),
   )
@@ -86,7 +84,6 @@ describe('Trip.writeHotelDetails', () => {
     "keeps tonight's hotel not recorded, and hidden on December 20, until details are written",
     () =>
       Effect.gen(function* () {
-        yield* choose(1, 1, null)
         assert.deepStrictEqual(
           yield* Effect.forEach([december(10), december(20)], tonightsHotel),
           [Hotel.cases.NotRecorded.make({}), undefined],
@@ -98,7 +95,7 @@ describe('Trip.writeHotelDetails', () => {
     'replaces the details as a whole, so a field left out of the last write is gone',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const stayId = yield* kyotoStayId(scheduleId)
         yield* writeHotelDetails(scheduleId, stayId, ryokan)
         yield* writeHotelDetails(scheduleId, stayId, {
@@ -120,7 +117,7 @@ describe('Trip.writeHotelDetails', () => {
     'trims each field, and all blank leaves the hotel not recorded',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const stayId = yield* kyotoStayId(scheduleId)
         yield* writeHotelDetails(scheduleId, stayId, {
           name: '  Kyoto Ryokan Sakura ',
@@ -144,7 +141,7 @@ describe('Trip.writeHotelDetails', () => {
 
   it.effect('keeps the Stay its id', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
       const stayId = yield* kyotoStayId(scheduleId)
       yield* writeHotelDetails(scheduleId, stayId, ryokan)
       assert.strictEqual(yield* kyotoStayId(scheduleId), stayId)
@@ -155,7 +152,7 @@ describe('Trip.writeHotelDetails', () => {
     'refuses a write naming a stale Schedule id with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const stale = yield* choose(1, 1, null)
+        const stale = yield* currentScheduleId
         const staleStayId = yield* kyotoStayId(stale)
         const current = yield* choose(2, 2, stale)
 
@@ -176,7 +173,7 @@ describe('Trip.writeHotelDetails', () => {
 
   it.effect('fails with StayNotFound for a Stay the Schedule lacks', () =>
     Effect.gen(function* () {
-      const first = yield* choose(1, 1, null)
+      const first = yield* currentScheduleId
       const goneStayId = yield* kyotoStayId(first)
       const current = yield* choose(1, 2, first)
 
@@ -199,7 +196,7 @@ describe('Trip.writeHotelDetails', () => {
 
   it.effect('accepts 500 characters in a field and rejects one more', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
       const stayId = yield* kyotoStayId(scheduleId)
       const longest = 'あ'.repeat(500)
       yield* writeHotelDetails(scheduleId, stayId, { address: longest })
@@ -230,7 +227,7 @@ describe('Trip.writeHotelDetails', () => {
 
   it.effect('leaves Hotel details behind when choosing again', () =>
     Effect.gen(function* () {
-      const first = yield* choose(1, 1, null)
+      const first = yield* currentScheduleId
       yield* writeHotelDetails(first, yield* kyotoStayId(first), ryokan)
       const second = yield* choose(1, 2, first)
       assert.deepStrictEqual(
@@ -247,7 +244,7 @@ describe('Trip.writeHotelDetails', () => {
     'archives Hotel details and restores them with their Schedule',
     () =>
       Effect.gen(function* () {
-        const first = yield* choose(1, 1, null)
+        const first = yield* currentScheduleId
         yield* writeHotelDetails(first, yield* kyotoStayId(first), ryokan)
         const second = yield* choose(2, 2, first)
         const archived = yield* kyotoHotelOf(first)

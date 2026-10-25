@@ -11,7 +11,6 @@ import {
   IsoInstant,
   ItineraryMap,
   ItineraryNotFound,
-  ItinerarySummary,
   MoveDetail,
   OptionNumber,
   StayDetail,
@@ -277,12 +276,12 @@ export const ArchivedScheduleSummary = Schema.Struct({
 export type ArchivedScheduleSummary = typeof ArchivedScheduleSummary.Type
 
 /**
- * Phillip's Schedules as /schedule shows them: the current one, if chosen,
- * the archived ones, most recently archived first, and the Trip note. Read
- * together, so the page never shows two moments at once.
+ * Phillip's Schedules as /schedule shows them: the current one, the archived
+ * ones, most recently archived first, and the Trip note. Read together, so
+ * the page never shows two moments at once.
  */
 export const Schedules = Schema.Struct({
-  current: Schema.NullOr(ScheduleDetail),
+  current: ScheduleDetail,
   archived: Schema.Array(ArchivedScheduleSummary),
   tripNote: Schema.optionalKey(Schema.String),
 })
@@ -335,7 +334,6 @@ const homeFields = {
    * string. The browser counts from it to the next Tokyo midnight.
    */
   readAt: Schema.String,
-  itineraries: Schema.Array(ItinerarySummary),
 }
 
 /**
@@ -350,28 +348,26 @@ export const HomeState = Schema.TaggedUnion({
      * changes the count.
      */
     daysToGo: Schema.Int,
-    schedule: Schema.NullOr(ScheduleDetail),
+    schedule: ScheduleDetail,
   },
   DuringTrip: {
     ...homeFields,
     date: IsoDate,
-    /** Today: that Day's page, null until a Schedule exists. */
-    today: Schema.NullOr(DayPage),
+    /** Today: that Day's page. */
+    today: DayPage,
   },
   AfterTrip: {
     ...homeFields,
-    schedule: Schema.NullOr(ScheduleDetail),
+    schedule: ScheduleDetail,
   },
 })
 
 export type HomeState = typeof HomeState.Type
 
-/** A Day's page, null until a Schedule exists. */
-export const DayOutcome = operationOutcome(
-  'Day',
-  { page: Schema.NullOr(DayPage) },
-  [DayNotFound],
-)
+/** A Day's page. */
+export const DayOutcome = operationOutcome('Day', { page: DayPage }, [
+  DayNotFound,
+])
 
 export type DayOutcome = typeof DayOutcome.Type
 

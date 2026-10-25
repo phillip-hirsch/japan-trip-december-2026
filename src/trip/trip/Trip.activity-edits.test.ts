@@ -4,7 +4,7 @@ import { Effect, Predicate } from 'effect'
 import { december, TimeOfDay, TokyoDateTime } from '@/trip/domain/domain'
 import {
   activitiesOn,
-  choose,
+  currentScheduleId,
   storage,
   tripWithOptions1And2,
 } from '@/trip/trip/testing'
@@ -58,7 +58,7 @@ describe('Trip.editActivity', () => {
     'removes the time when edited to null and the note when empty',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
 
         const onsen = yield* add(2, scheduleId, december(14), 'Onsen', {
           time: '18:00',
@@ -76,7 +76,7 @@ describe('Trip.editActivity', () => {
     'keeps the time on the Activity’s own Day whatever time is written',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
 
         const late = yield* add(2, scheduleId, december(20), 'Flight', {
           time: '08:00',
@@ -96,7 +96,7 @@ describe('Trip.editActivity', () => {
 
   it.effect('lets the last write win for each field it carries', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
 
       const onsen = yield* add(2, scheduleId, december(14), 'Onsen', {
         time: '18:00',
@@ -113,7 +113,7 @@ describe('Trip.editActivity', () => {
 
   it.effect('refuses a blank title and an overlong note, writing nothing', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
       const onsen = yield* add(2, scheduleId, december(14), 'Onsen')
 
       const blank = yield* Effect.flip(

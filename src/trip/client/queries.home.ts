@@ -20,7 +20,7 @@ import {
   millisecondsUntilTokyoMidnight,
   tokyoDateAt,
 } from '@/trip/domain/calendar'
-import type { HomeState, Schedules } from '@/trip/domain/domain'
+import type { HomeState, ScheduleDetail, Schedules } from '@/trip/domain/domain'
 import { homeStateOn } from '@/trip/domain/home-state'
 
 const homeRetryDelay = 60_000
@@ -167,42 +167,34 @@ export const useHome = () => {
   )
 
   if (schedule === undefined) return asRead
-  const showsDay = schedule !== null && isTripDate(today)
 
-  // A Day stored from another Schedule, such as one replaced on another
-  // device before the last snapshot answered, isn't Today.
-  if (showsDay && page?.scheduleId !== schedule.id) return asRead
+  const home = homeStateOn(today, {
+    readAt: data.readAt,
+    schedule,
+    // A Day stored from another Schedule, such as one replaced on another
+    // device before the last snapshot answered, isn't Today.
+    today: page?.scheduleId === schedule.id ? page : undefined,
+  })
 
-  return {
-    home: homeStateOn(today, {
-      readAt: data.readAt,
-      itineraries: data.itineraries,
-      schedule,
-      today: showsDay ? (page ?? null) : null,
-    }),
-    query: showsDay ? dayQuery(today) : from,
-  }
+  if (home === undefined) return asRead
+
+  return { home, query: isTripDate(today) ? dayQuery(today) : from }
 }
 
 /**
- * The Schedule Home was read with: its id, null for none, and its detail.
- * During the Trip Home carries only the id, so its detail is undefined.
+ * The Schedule Home was read with: its id and its detail. During the Trip
+ * Home carries only the id, so its detail is undefined.
  */
 const scheduleIn = (home: HomeState) =>
   Match.value(home).pipe(
+    Match.withReturnType<{
+      readonly id: string
+      readonly detail: ScheduleDetail | undefined
+    }>(),
     Match.tagsExhaustive({
-      BeforeTrip: ({ schedule }) => ({
-        id: schedule?.id ?? null,
-        detail: schedule,
-      }),
-      DuringTrip: ({ today }) => ({
-        id: today?.scheduleId ?? null,
-        detail: undefined,
-      }),
-      AfterTrip: ({ schedule }) => ({
-        id: schedule?.id ?? null,
-        detail: schedule,
-      }),
+      BeforeTrip: ({ schedule }) => ({ id: schedule.id, detail: schedule }),
+      DuringTrip: ({ today }) => ({ id: today.scheduleId, detail: undefined }),
+      AfterTrip: ({ schedule }) => ({ id: schedule.id, detail: schedule }),
     }),
   )
 
@@ -224,13 +216,13 @@ const scheduleToMoveOnWith = (
     return { schedule: schedules.current, from: schedulesQuery }
   }
 
-  if (readWith.id === null || readWith.detail !== undefined) {
-    return { schedule: readWith.detail ?? null, from: homeQuery }
+  if (readWith.detail !== undefined) {
+    return { schedule: readWith.detail, from: homeQuery }
   }
 
   // During the Trip Home carries only its Schedule's id, so the stored
   // Schedule stands in for it when it's the same one.
-  return schedules?.current?.id === readWith.id
+  return schedules?.current.id === readWith.id
     ? { schedule: schedules.current, from: schedulesQuery }
     : { schedule: undefined, from: homeQuery }
 }
@@ -238,22 +230,18 @@ const scheduleToMoveOnWith = (
 /**
  * Whether the server answered the stored Schedules later than Home, read at
  * `readAt` with the Schedule `homeScheduleId`. Both times are the server's,
- * so a device clock set wrong can't reorder them. A Schedule never goes back
- * to none, and choosing or restoring archives the Schedule it replaces. So
- * the stored Schedules are later when Home had none and they have one, or
- * when they archived Home's at or after the moment Home was read: Home saw
- * it current, so it was archived later. Holding the same Schedule as Home
+ * so a device clock set wrong can't reorder them. Choosing or restoring
+ * archives the Schedule it replaces. So the stored Schedules are later when
+ * they archived Home's at or after the moment Home was read: Home saw it
+ * current, so it was archived later. Holding the same Schedule as Home
  * proves neither is later.
  */
 const storedAreLater = (
-  homeScheduleId: string | null,
+  homeScheduleId: string,
   readAt: string,
-  { current, archived }: Schedules,
-) => {
-  if (homeScheduleId === null) return current !== null
-
-  return archived.some(
+  { archived }: Schedules,
+) =>
+  archived.some(
     ({ id, archivedAt }) =>
       id === homeScheduleId && Date.parse(archivedAt) >= Date.parse(readAt),
   )
-}

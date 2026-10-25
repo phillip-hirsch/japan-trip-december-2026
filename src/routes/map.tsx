@@ -2,7 +2,6 @@ import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 
 import { LastUpdated } from '@/components/last-updated'
-import { NoSchedule } from '@/components/no-schedule'
 import { ScheduleMap } from '@/components/schedule-map'
 import { loadQuery, scheduleMapQuery } from '@/trip/client/queries'
 import { pageTitle } from '@/lib/app-identity'
@@ -21,8 +20,6 @@ export const Route = createFileRoute('/map')({
 
 function MapPage() {
   const map = useSuspenseQuery(scheduleMapQuery).data
-
-  if (map === null) return <NoSchedule query={scheduleMapQuery} />
 
   return (
     <div className={cn('relative', mapViewport)}>

@@ -1,12 +1,17 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option } from 'effect'
+import { Effect } from 'effect'
 
 import { december, IsoDate, WriteDayNoteOutcome } from '@/trip/domain/domain'
 import type { ScheduleId } from '@/trip/domain/domain'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
 import { noteMaxLength } from '@/trip/domain/limits'
-import { operation, storage, tripWith } from '@/trip/trip/testing'
+import {
+  currentScheduleId,
+  operation,
+  storage,
+  tripWith,
+} from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import { runTripOperation } from '@/trip/trip-store/trip-operations'
 
@@ -27,13 +32,13 @@ const choose = (
 const dayNote = (date: IsoDate) =>
   Effect.map(
     Trip.use((trip) => trip.day(date)),
-    (page) => Option.getOrThrow(page).day.note,
+    (page) => page.day.note,
   )
 
 describe('runTripOperation', () => {
   it.effect('answers a written Day note with Written', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
 
       const outcome = yield* runTripOperation('writeDayNote', {
         scheduleId,
@@ -55,7 +60,7 @@ describe('runTripOperation', () => {
     'answers a write to an archived Schedule with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const archived = yield* choose(1, 1, null)
+        const archived = yield* currentScheduleId
         yield* choose(2, 2, archived)
 
         const outcome = yield* runTripOperation('writeDayNote', {
@@ -75,7 +80,7 @@ describe('runTripOperation', () => {
     'answers a Day the Schedule lacks with DayNotFound and its date',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
 
         const outcome = yield* runTripOperation('writeDayNote', {
           scheduleId,
@@ -94,7 +99,7 @@ describe('runTripOperation', () => {
 
   it.effect('answers a Day note too long with NoteTooLong and the limit', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
 
       const outcome = yield* runTripOperation('writeDayNote', {
         scheduleId,

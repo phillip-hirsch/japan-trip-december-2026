@@ -1,5 +1,5 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option, Predicate } from 'effect'
+import { Effect, Predicate } from 'effect'
 
 import { tripDates } from '@/trip/domain/calendar'
 import { ChecklistItem, december } from '@/trip/domain/domain'
@@ -8,6 +8,7 @@ import { add } from '@/trip/trip/Trip.activities.testing'
 import {
   checklistItems,
   choose,
+  currentScheduleId,
   kyotoStayId,
   operation,
   storage,
@@ -49,21 +50,10 @@ const notesAndAddressesOf = ({ schedules, days }: ScheduleSnapshot) => ({
 
 describe('Trip.scheduleSnapshot', () => {
   it.effect(
-    'is none before a Schedule is chosen, even with a Trip note and an Own Checklist item',
-    () =>
-      Effect.gen(function* () {
-        yield* writeTripNote
-        yield* addOwnItem
-
-        assert.isTrue(Option.isNone(yield* scheduleSnapshot))
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
-  it.effect(
     'reads the whole current Schedule: every Day page, the Checklist with its Ticks, and every note and address',
     () =>
       Effect.gen(function* () {
-        const archived = yield* choose(2, 1, null)
+        const archived = yield* currentScheduleId
         const scheduleId = yield* choose(1, 2, archived)
         const kyoto = yield* kyotoStayId(scheduleId)
 
@@ -90,7 +80,7 @@ describe('Trip.scheduleSnapshot', () => {
         const firstItem = (yield* checklistItems)[0]?.id ?? ''
         yield* tick(scheduleId, firstItem)
 
-        const snapshot = Option.getOrThrow(yield* scheduleSnapshot)
+        const snapshot = yield* scheduleSnapshot
 
         assert.deepStrictEqual(
           {
@@ -129,22 +119,15 @@ describe('Trip.scheduleSnapshot', () => {
     'matches the Schedules, every Day page and the Checklist as each is read on its own',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         yield* add(2, scheduleId, december(9), 'Senso-ji')
 
-        const snapshot = Option.getOrThrow(yield* scheduleSnapshot)
-        const schedules = yield* Trip.use((trip) => trip.schedules)
+        const snapshot = yield* scheduleSnapshot
 
         assert.deepStrictEqual(snapshot, {
-          schedules: {
-            ...schedules,
-            current: Option.getOrThrow(schedules.current),
-          },
+          schedules: yield* Trip.use((trip) => trip.schedules),
           days: yield* Effect.forEach(tripDates, (date) =>
-            Effect.map(
-              Trip.use((trip) => trip.day(date)),
-              Option.getOrThrow,
-            ),
+            Trip.use((trip) => trip.day(date)),
           ),
           checklist: yield* Trip.use((trip) => trip.checklist),
         })

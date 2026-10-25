@@ -7,6 +7,7 @@ import {
   checklistItems,
   choose,
   currentSchedule,
+  currentScheduleId,
   operation,
   scheduleById,
   stayIdAt,
@@ -27,12 +28,19 @@ interface Named {
   readonly activityId: string
 }
 
-/** Chooses Option 1 as operation `n`, with an Activity on December 15. */
+/**
+ * A Schedule with an Activity on December 15, added as operation `n + 1`:
+ * the one store start created, or else Option 1 chosen over `replacing` as
+ * operation `n`.
+ */
 const scheduleWithActivity = Effect.fnUntraced(function* (
   n: number,
-  replacing: ScheduleId | null,
+  replacing?: ScheduleId,
 ) {
-  const scheduleId = yield* choose(1, n, replacing)
+  const scheduleId =
+    replacing === undefined
+      ? yield* currentScheduleId
+      : yield* choose(1, n, replacing)
 
   const { activityId } = yield* Trip.use((trip) =>
     trip.addActivity({
@@ -254,7 +262,7 @@ const recordedWrites = {
 
 /** A current Schedule, after an earlier one was archived. */
 const currentAndArchived = Effect.gen(function* () {
-  const archived = yield* choose(1, 1, null)
+  const archived = yield* currentScheduleId
 
   return { current: yield* choose(1, 2, archived), archived }
 })
@@ -264,7 +272,7 @@ describe('Schedule writes', () => {
     'refuse every write naming an archived Schedule with ScheduleChanged, leaving it as it was',
     () =>
       Effect.gen(function* () {
-        const archived = yield* scheduleWithActivity(1, null)
+        const archived = yield* scheduleWithActivity(1)
         yield* scheduleWithActivity(3, archived.scheduleId)
 
         const unchanged = Effect.all({
@@ -284,7 +292,7 @@ describe('Schedule writes', () => {
 
   it.effect('leave no tick on an archived Schedule, once restored', () =>
     Effect.gen(function* () {
-      const archived = yield* scheduleWithActivity(1, null)
+      const archived = yield* scheduleWithActivity(1)
       const current = yield* scheduleWithActivity(3, archived.scheduleId)
       yield* writesNaming(archived, archived.scheduleId)
 
@@ -340,7 +348,7 @@ describe('Schedule writes', () => {
     'refuse invalid input as such before checking the Schedule is current',
     () =>
       Effect.gen(function* () {
-        const archived = yield* scheduleWithActivity(1, null)
+        const archived = yield* scheduleWithActivity(1)
         yield* scheduleWithActivity(3, archived.scheduleId)
         const { scheduleId, activityId } = archived
         const stayId = stayIdAt(archived.schedule, 1)
@@ -440,11 +448,15 @@ describe('Schedule writes', () => {
     'return the recorded result for a choose retried after its Itinerary left the catalogue',
     () =>
       Effect.gen(function* () {
+        const replacing = yield* currentScheduleId.pipe(
+          Effect.provide(tripWithOption1),
+        )
+
         const chooseOption2 = Trip.use((trip) =>
           trip.choose({
             operationId: operation(1),
             optionNumber: 2,
-            replacing: null,
+            replacing,
           }),
         )
 
@@ -456,22 +468,6 @@ describe('Schedule writes', () => {
 
         assert.deepStrictEqual(retry, first)
       }).pipe(Effect.provide(storage)),
-  )
-
-  it.effect('refuse a write naming a Schedule while none is current', () =>
-    Effect.gen(function* () {
-      const error = yield* Effect.flip(
-        Trip.use((trip) =>
-          trip.writeDayNote({
-            scheduleId: ScheduleId.make('9f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f'),
-            date: december(14),
-            note: 'Written before choosing.',
-          }),
-        ),
-      )
-
-      assert.strictEqual(error._tag, 'ScheduleChanged')
-    }).pipe(provided),
   )
 
   describe.each(Object.entries(recordedWrites))('%s', (_, write) => {

@@ -123,6 +123,18 @@ export const namedSchedule = (store: ScheduleStore, scheduleId: ScheduleId) =>
     }),
   )
 
+/**
+ * The current Schedule, with its copy. Store start creates it, so it is
+ * always there.
+ */
+export const currentIn = (store: ScheduleStore) =>
+  Effect.flatMap(store.current, (found) =>
+    Option.match(found, {
+      onNone: () => Effect.die(new Error('The store has no Schedule')),
+      onSome: Effect.succeed,
+    }),
+  )
+
 export const requireStay = Effect.fnUntraced(function* (
   store: ScheduleStore,
   scheduleId: ScheduleId,

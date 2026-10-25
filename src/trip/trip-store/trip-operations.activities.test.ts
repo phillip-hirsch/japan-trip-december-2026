@@ -12,7 +12,7 @@ import {
 import { activityTitleMaxLength } from '@/trip/domain/limits'
 import {
   activitiesOn,
-  choose,
+  currentScheduleId,
   kyotoStayId,
   operation,
   storage,
@@ -29,7 +29,7 @@ import { runTripOperation } from '@/trip/trip-store/trip-operations'
 describe('runTripOperation for an Activity', () => {
   it.effect('answers an added Activity with Added and its id', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
 
       const outcome = yield* runTripOperation('addActivity', {
         operationId: operation(2),
@@ -51,7 +51,7 @@ describe('runTripOperation for an Activity', () => {
     'answers a blank title with ActivityTitleInvalid and the limit',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
 
         const outcome = yield* runTripOperation('addActivity', {
           operationId: operation(2),
@@ -100,7 +100,7 @@ describe('runTripOperation for an Activity', () => {
     'answers an Activity the Schedule lacks with ActivityNotFound and its id',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
 
         const outcome = yield* runTripOperation('editActivity', {
           scheduleId,
@@ -185,7 +185,7 @@ describe('runTripOperation for a Pin', () => {
     'answers a Pin outside Japan with CoordinatesOutsideJapan and its coordinates',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const stayId = yield* kyotoStayId(scheduleId)
         const london = { latitude: 51.5332609, longitude: -0.1260032 }
 

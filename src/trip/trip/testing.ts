@@ -1,8 +1,8 @@
 // effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
 // @effect-diagnostics unstableApiUsage:off
-import { SqliteClient, SqliteMigrator } from '@effect/sql-sqlite-node'
+import { SqliteClient } from '@effect/sql-sqlite-node'
 import { deepStrictEqual } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option } from 'effect'
+import { DateTime, Effect, Layer } from 'effect'
 import { TestClock } from 'effect/testing'
 import { readFileSync } from 'node:fs'
 import { EtagMismatch } from 'pmtiles'
@@ -21,13 +21,22 @@ import { Itineraries } from '@/trip/itineraries/Itineraries'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
 import { LocationLinkResolver } from '@/trip/location-links/LocationLinkResolver'
-import { migrations } from '@/trip/schedule-store/migrations'
 import { recordedResponses } from '@/trip/location-links/recorded-location-links'
 import { Trip } from '@/trip/trip/Trip'
+import { startStore } from '@/trip/trip-store/store-start'
 
-export const storage = Layer.effectDiscard(
-  SqliteMigrator.run({ loader: migrations }),
-).pipe(Layer.provideMerge(SqliteClient.layer({ filename: ':memory:' })))
+/**
+ * A fresh Schedule store in memory, started as the Durable Object starts it,
+ * so its Schedule is copied from `itinerary`.
+ */
+export const storageStartingFrom = (itinerary: ItineraryContent) =>
+  Layer.effectDiscard(startStore).pipe(
+    Layer.provide(Itineraries.fromContent([itinerary])),
+    Layer.provideMerge(SqliteClient.layer({ filename: ':memory:' })),
+  )
+
+/** A fresh Schedule store in memory, its Schedule copied from Option 1. */
+export const storage = storageStartingFrom(option1)
 
 export const recordedLinks = LocationLinkResolver.of({
   request: (url) => {
@@ -189,8 +198,11 @@ export const restore = (
 
 export const currentSchedule = Effect.map(
   Trip.use((trip) => trip.schedules),
-  ({ current }) => Option.getOrThrow(current),
+  ({ current }) => current,
 )
+
+/** The id of the Schedule store start created, or of whichever is current. */
+export const currentScheduleId = Effect.map(currentSchedule, ({ id }) => id)
 
 export const scheduleById = (scheduleId: ScheduleId) =>
   Trip.use((trip) => trip.schedule(scheduleId))
@@ -211,13 +223,13 @@ export const kyotoHotelOf = (scheduleId: ScheduleId) =>
 export const activitiesOn = (date: IsoDate) =>
   Effect.map(
     Trip.use((trip) => trip.day(date)),
-    (page) => Option.getOrThrow(page).day.activities,
+    (page) => page.day.activities,
   )
 
 export const tonightsHotel = (date: IsoDate) =>
   Effect.map(
     Trip.use((trip) => trip.day(date)),
-    (page) => Option.getOrThrow(page).tonight?.hotel,
+    (page) => page.tonight?.hotel,
   )
 
 export const checklistItems = Effect.map(

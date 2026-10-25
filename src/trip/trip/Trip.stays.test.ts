@@ -11,12 +11,13 @@ import type {
 import { option1 } from '@/trip/itineraries/option-1'
 import {
   checklistItems,
-  chooseOption1,
   currentSchedule,
+  currentScheduleId,
   operation,
   scheduleById,
   stayIdAt,
   storage,
+  storageStartingFrom,
   tick,
   tripWith,
   tripWithOption1,
@@ -45,7 +46,6 @@ const option1With = (
 describe('Anchor warnings', () => {
   it.effect('are none for a Schedule keeping every Anchor', () =>
     Effect.gen(function* () {
-      yield* chooseOption1(1, null)
       assert.deepStrictEqual((yield* currentSchedule).anchorWarnings, [])
     }).pipe(Effect.provide([tripWithOption1, storage])),
   )
@@ -98,7 +98,7 @@ describe('Anchor warnings', () => {
       `are derived for a Schedule with ${reason} each time it's read`,
       () =>
         Effect.gen(function* () {
-          const scheduleId = yield* chooseOption1(1, null)
+          const scheduleId = yield* currentScheduleId
           assert.deepStrictEqual(
             (yield* currentSchedule).anchorWarnings,
             warnings,
@@ -107,7 +107,9 @@ describe('Anchor warnings', () => {
             (yield* scheduleById(scheduleId)).anchorWarnings,
             warnings,
           )
-        }).pipe(Effect.provide([tripWith([content]), storage])),
+        }).pipe(
+          Effect.provide([tripWith([content]), storageStartingFrom(content)]),
+        ),
     )
   }
 })
@@ -120,7 +122,7 @@ describe('Stay edits', () => {
     'drop the Checklist items and ticks of the Stay and Move they remove, keeping the ticks of the rest',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* chooseOption1(1, null)
+        const scheduleId = yield* currentScheduleId
         const before = yield* currentSchedule
         const [kyotoId, kanazawaId] = [stayIdAt(before, 1), stayIdAt(before, 2)]
         const into = moveIdOn(before, december(13))

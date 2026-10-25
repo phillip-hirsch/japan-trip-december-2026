@@ -1,4 +1,4 @@
-import { DateTime, Effect, Match, Option, Struct } from 'effect'
+import { DateTime, Effect, Match, Struct } from 'effect'
 
 import { tripStartDate } from '@/trip/domain/calendar'
 import {
@@ -23,6 +23,7 @@ import type {
   ScheduleStore,
 } from '@/trip/schedule-store/schedule-store'
 import {
+  currentIn,
   namedSchedule,
   requireChecklistText,
   scheduleWrite,
@@ -186,19 +187,12 @@ const checklistOf = (
  */
 export const checklistIn = Effect.fnUntraced(function* (
   store: ScheduleStore,
-  current: Effect.Success<ScheduleStore['current']>,
+  { schedule, copy }: Effect.Success<ReturnType<typeof currentIn>>,
 ) {
-  const derived = Option.isSome(current)
-    ? derivedChecklistOf(
-        current.value.copy,
-        yield* store.ticks(current.value.schedule.id),
-      )
-    : []
+  const derived = derivedChecklistOf(copy, yield* store.ticks(schedule.id))
 
   return {
-    scheduleId: Option.getOrNull(
-      Option.map(current, ({ schedule }) => schedule.id),
-    ),
+    scheduleId: schedule.id,
     items: checklistOf(derived, yield* store.ownItems),
   }
 })
@@ -207,7 +201,7 @@ const checklist = Effect.gen(function* () {
   const store = yield* scheduleStore
 
   return yield* store.transaction(
-    Effect.flatMap(store.current, (current) => checklistIn(store, current)),
+    Effect.flatMap(currentIn(store), (current) => checklistIn(store, current)),
   )
 }).pipe(
   Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),

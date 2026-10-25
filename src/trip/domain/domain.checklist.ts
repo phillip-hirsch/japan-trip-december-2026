@@ -74,11 +74,8 @@ export type ChecklistItem = typeof ChecklistItem.Type
  * last his own without a reminder date, oldest first.
  */
 export const Checklist = Schema.Struct({
-  /**
-   * The Schedule its derived items come from, which every tick on them
-   * names; null before Phillip chooses one, when only his own items show.
-   */
-  scheduleId: Schema.NullOr(ScheduleId),
+  /** The Schedule its derived items come from, which every tick on them names. */
+  scheduleId: ScheduleId,
   items: Schema.Array(ChecklistItem),
 })
 

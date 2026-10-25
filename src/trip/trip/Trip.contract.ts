@@ -9,7 +9,6 @@ import type {
   ActivityTitleInvalid,
   AddActivity,
   AddOwnChecklistItem,
-  ArchivedScheduleSummary,
   ChangeStayBase,
   Checklist,
   ChecklistItemNotFound,
@@ -49,6 +48,7 @@ import type {
   ScheduleMap,
   ScheduleNotFound,
   ScheduleRestored,
+  Schedules,
   ScheduleSnapshot,
   ScheduleSummary,
   SetPin,
@@ -79,12 +79,10 @@ export interface TripContract {
    */
   readonly home: Effect.Effect<HomeState, never, SqlClient.SqlClient>
   /**
-   * One Day of the current Schedule as its page shows it; none before a
-   * Schedule is chosen. DayNotFound for a date outside the Trip.
+   * One Day of the current Schedule as its page shows it. DayNotFound for a
+   * date outside the Trip.
    */
-  day(
-    date: IsoDate,
-  ): Effect.Effect<Option.Option<DayPage>, DayNotFound, SqlClient.SqlClient>
+  day(date: IsoDate): Effect.Effect<DayPage, DayNotFound, SqlClient.SqlClient>
   readonly itineraries: Effect.Effect<ReadonlyArray<ItineraryComparison>>
   readonly comparisonMap: Effect.Effect<ComparisonMap>
   /**
@@ -147,36 +145,22 @@ export interface TripContract {
     scheduleId: ScheduleId,
   ): Effect.Effect<ScheduleDetail, ScheduleNotFound, SqlClient.SqlClient>
   /**
-   * The current Schedule, if Phillip has chosen one, every archived
-   * Schedule, the most recently archived first, and the Trip note, if he
-   * has written one, read as one transaction so they never come from two
-   * moments.
+   * The current Schedule, every archived Schedule, the most recently
+   * archived first, and the Trip note, if Phillip has written one, read as
+   * one transaction so they never come from two moments.
    */
-  readonly schedules: Effect.Effect<
-    {
-      readonly current: Option.Option<ScheduleDetail>
-      readonly archived: ReadonlyArray<ArchivedScheduleSummary>
-      readonly tripNote?: string
-    },
-    never,
-    SqlClient.SqlClient
-  >
+  readonly schedules: Effect.Effect<Schedules, never, SqlClient.SqlClient>
   /**
    * The current Schedule whole. It holds the Schedules as `schedules` reads
    * them, every Day page in Trip order and the Checklist with its Ticks, read
-   * as one transaction so nothing in it comes from two moments. None before a
-   * Schedule is chosen.
+   * as one transaction so nothing in it comes from two moments.
    */
   readonly scheduleSnapshot: Effect.Effect<
-    Option.Option<ScheduleSnapshot>,
+    ScheduleSnapshot,
     never,
     SqlClient.SqlClient
   >
-  readonly scheduleMap: Effect.Effect<
-    Option.Option<ScheduleMap>,
-    never,
-    SqlClient.SqlClient
-  >
+  readonly scheduleMap: Effect.Effect<ScheduleMap, never, SqlClient.SqlClient>
   readonly scheduleSummary: Effect.Effect<
     Option.Option<ScheduleSummary>,
     never,

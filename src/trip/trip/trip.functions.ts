@@ -58,7 +58,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(
   tripOperationHandler('home'),
 )
 
-/** A Day's page, or null before Phillip chooses a Schedule. */
+/** A Day's page. */
 export const getDay = createServerFn({ method: 'GET' })
   .validator(Schema.toStandardSchemaV1(Schema.Struct({ date: IsoDate })))
   .handler(async ({ data }) => {
@@ -190,8 +190,8 @@ export const getSchedules = createServerFn({ method: 'GET' }).handler(
 )
 
 /**
- * The current Schedule whole, or null before Phillip chooses one. The browser
- * fills the Schedule and every Day page from it, so they read offline.
+ * The current Schedule whole. The browser fills the Schedule and every Day
+ * page from it, so they read offline.
  */
 export const getScheduleSnapshot = createServerFn({ method: 'GET' }).handler(
   tripOperationHandler('scheduleSnapshot'),

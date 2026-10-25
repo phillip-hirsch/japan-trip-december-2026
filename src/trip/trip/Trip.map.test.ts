@@ -1,10 +1,16 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option } from 'effect'
+import { Effect } from 'effect'
 
 import { december } from '@/trip/domain/domain'
 import type { IsoDate, Pin, ScheduleId } from '@/trip/domain/domain'
 import { places } from '@/trip/catalogue/places'
-import { choose, liveTrip, operation, storage } from '@/trip/trip/testing'
+import {
+  choose,
+  currentScheduleId,
+  liveTrip,
+  operation,
+  storage,
+} from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
 const scheduleMap = Trip.use((trip) => trip.scheduleMap)
@@ -12,7 +18,7 @@ const scheduleMap = Trip.use((trip) => trip.scheduleMap)
 const stayId = (index: number) =>
   Effect.map(
     Trip.use((trip) => trip.schedules),
-    ({ current }) => Option.getOrThrow(current).stays[index]?.id ?? '',
+    ({ current }) => current.stays[index]?.id ?? '',
   )
 
 const changeBase = (scheduleId: ScheduleId, index: number, place: string) =>
@@ -20,21 +26,13 @@ const changeBase = (scheduleId: ScheduleId, index: number, place: string) =>
     Trip.use((trip) => trip.changeStayBase({ scheduleId, stayId, place })),
   )
 
-const currentMap = Effect.map(scheduleMap, Option.getOrThrow)
-
 describe('Trip.scheduleMap', () => {
-  it.effect('shows no map before a Schedule is chosen', () =>
-    Effect.gen(function* () {
-      assert.isTrue(Option.isNone(yield* scheduleMap))
-    }).pipe(Effect.provide([liveTrip, storage])),
-  )
-
   it.effect(
     "draws a fresh Schedule's Bases, Moves and Day trips as its Itinerary's map does",
     () =>
       Effect.gen(function* () {
         const itineraries = yield* Trip.use((trip) => trip.itineraries)
-        let replacing: ScheduleId | null = null
+        let replacing = yield* currentScheduleId
 
         for (const { optionNumber } of itineraries) {
           replacing = yield* choose(optionNumber, optionNumber, replacing)
@@ -43,7 +41,7 @@ describe('Trip.scheduleMap', () => {
             trip.itinerary(optionNumber),
           )
 
-          const { hotels, activities, ...drawn } = yield* currentMap
+          const { hotels, activities, ...drawn } = yield* scheduleMap
 
           assert.deepStrictEqual(
             { drawn, hotels, activities },
@@ -60,9 +58,9 @@ describe('Trip.scheduleMap', () => {
     'draws the Moves either side of a Stay whose Base changed straight between the Bases, and the rest along their lines',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         yield* changeBase(scheduleId, 2, 'osaka')
-        const { bases, trainMoves } = yield* currentMap
+        const { bases, trainMoves } = yield* scheduleMap
         assert.deepStrictEqual(
           {
             bases: bases.map((base) => base.id),
@@ -93,7 +91,7 @@ describe('Trip.scheduleMap', () => {
     'draws nothing for a local Move within a Base, and a straight line once its Stays are in two Bases',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const kyotoStay = yield* stayId(1)
         yield* Trip.use((trip) =>
           trip.splitStay({
@@ -103,9 +101,9 @@ describe('Trip.scheduleMap', () => {
             date: december(11),
           }),
         )
-        const afterSplit = yield* currentMap
+        const afterSplit = yield* scheduleMap
         yield* changeBase(scheduleId, 2, 'osaka')
-        const afterChange = yield* currentMap
+        const afterChange = yield* scheduleMap
 
         const straight = ({ trainMoves }: typeof afterSplit) =>
           trainMoves
@@ -169,7 +167,7 @@ describe('Trip.scheduleMap', () => {
     'shows each pinned hotel with its Stay and Hotel details, and each pinned Activity with its Day, leaving the unpinned out',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const tokyoStay = yield* stayId(0)
         const kyotoStay = yield* stayId(1)
 
@@ -217,7 +215,7 @@ describe('Trip.scheduleMap', () => {
           }),
         )
 
-        const { hotels, activities } = yield* currentMap
+        const { hotels, activities } = yield* scheduleMap
         assert.deepStrictEqual(
           { hotels, activities },
           {
@@ -255,7 +253,7 @@ describe('Trip.scheduleMap', () => {
 
   it.effect('shows a hotel pinned before any other Hotel details', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
       const kyotoStay = yield* stayId(1)
       yield* Trip.use((trip) =>
         trip.setPin({
@@ -265,7 +263,7 @@ describe('Trip.scheduleMap', () => {
         }),
       )
       assert.deepStrictEqual(
-        (yield* currentMap).hotels.map(({ stayId, name, pin }) => ({
+        (yield* scheduleMap).hotels.map(({ stayId, name, pin }) => ({
           stayId,
           name,
           pin,

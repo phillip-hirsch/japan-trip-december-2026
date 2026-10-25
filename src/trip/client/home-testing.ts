@@ -38,7 +38,7 @@ import {
   ScheduleId,
   WriteDayNoteOutcome,
 } from '@/trip/domain/domain'
-import type { ScheduleSnapshot } from '@/trip/domain/domain'
+import type { IsoDate, ScheduleSnapshot } from '@/trip/domain/domain'
 import { tokyoDateAt } from '@/trip/domain/calendar'
 import {
   chooseItinerary,
@@ -125,7 +125,6 @@ export const snapshot = snapshotWith('Onsen at 18:00.')
 const homeReadDuringTrip = (readAt: Date) =>
   HomeState.cases.DuringTrip.make({
     readAt: readAt.toISOString(),
-    itineraries: [],
     ...todayOn(Number(tokyoDateAt(readAt.getTime()).slice(8, 10))),
   })
 
@@ -136,7 +135,6 @@ export const homeDuringTrip = (iso: string) =>
 /** Home as the server reads it on December 5, the day before the Trip. */
 export const homeBeforeTrip = HomeState.cases.BeforeTrip.make({
   readAt: tokyoTime('2026-12-05T22:00:00').toISOString(),
-  itineraries: [],
   daysToGo: 1,
   schedule: snapshot.schedules.current,
 })
@@ -279,10 +277,16 @@ export const option2Snapshot = {
 export const todayOn = (day: number) => {
   const date = december(day)
 
-  return {
-    date,
-    today: snapshot.days.find((page) => page.day.date === date) ?? null,
-  }
+  return { date, today: dayPageIn(snapshot, date) }
+}
+
+/** The Day page `from` holds for `date`. */
+export const dayPageIn = (from: ScheduleSnapshot, date: IsoDate) => {
+  const page = from.days.find(({ day }) => day.date === date)
+
+  if (page === undefined) throw new Error(`The snapshot has no ${date}`)
+
+  return page
 }
 
 /**

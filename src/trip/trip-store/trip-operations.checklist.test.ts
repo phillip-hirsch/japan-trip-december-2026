@@ -11,7 +11,7 @@ import {
 import { checklistTextMaxLength } from '@/trip/domain/limits'
 import {
   checklistItems,
-  choose,
+  currentScheduleId,
   kyotoStayId,
   operation,
   storage,
@@ -35,7 +35,7 @@ describe('runTripOperation for a Tick', () => {
     'answers a Tick on an item derived from the Schedule with Ticked',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const itemId = yield* kyotoStayId(scheduleId)
 
         const outcome = yield* runTripOperation('tickChecklistItem', {
@@ -58,7 +58,7 @@ describe('runTripOperation for a Tick', () => {
     'answers an item nothing in the Schedule derives with ChecklistItemNotFound and its id',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
 
         const outcome = yield* runTripOperation('tickChecklistItem', {
           scheduleId,

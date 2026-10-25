@@ -3,7 +3,7 @@ import { Effect } from 'effect'
 
 import { december, Hotel } from '@/trip/domain/domain'
 import {
-  choose,
+  currentScheduleId,
   kyotoHotelOf,
   kyotoStayId,
   operation,
@@ -25,7 +25,7 @@ describe('Trip.setPin on a hotel', () => {
     "records the hotel's Pin on its Stay, shown as tonight's hotel, beside its Hotel details",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const stayId = yield* kyotoStayId(scheduleId)
         yield* setPin(scheduleId, hotelTarget(stayId), fushimiInari)
         const pinnedOnly = yield* kyotoHotelOf(scheduleId)
@@ -57,7 +57,7 @@ describe('Trip.setPin on a hotel', () => {
     "removes the hotel's Pin, leaving its Hotel details; blank details leave its Pin; with neither it's not recorded",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const stayId = yield* kyotoStayId(scheduleId)
         yield* Trip.use((trip) =>
           trip.writeHotelDetails({ scheduleId, stayId, details: ryokan }),
@@ -86,7 +86,7 @@ describe('Trip.setPin on a hotel', () => {
     "carries the hotel's Pin with its Stay, and its id, through a Stay edit",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const stayId = yield* kyotoStayId(scheduleId)
         yield* setPin(scheduleId, hotelTarget(stayId), fushimiInari)
         yield* Trip.use((trip) =>
@@ -127,7 +127,7 @@ describe('Trip.setPin on a hotel', () => {
     "keeps the hotel's Pin on the earlier Stay after a split, and through a merge back",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const stayId = yield* kyotoStayId(scheduleId)
         yield* setPin(scheduleId, hotelTarget(stayId), fushimiInari)
 
@@ -177,7 +177,7 @@ describe('Trip.setPin on a hotel', () => {
 
   it.effect("keeps the hotel's Pin through a change of its Stay's Base", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
       const stayId = yield* kyotoStayId(scheduleId)
       yield* setPin(scheduleId, hotelTarget(stayId), fushimiInari)
       yield* Trip.use((trip) =>

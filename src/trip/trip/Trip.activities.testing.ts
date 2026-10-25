@@ -3,7 +3,7 @@ import { Effect } from 'effect'
 import { timeOfDayOf } from '@/trip/domain/calendar'
 import { december, IsoDate, TimeOfDay } from '@/trip/domain/domain'
 import type { Activity, EditActivity, ScheduleId } from '@/trip/domain/domain'
-import { activitiesOn, choose, operation } from '@/trip/trip/testing'
+import { activitiesOn, currentScheduleId, operation } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
 export const add = (
@@ -52,7 +52,7 @@ export const describedOn = (date: IsoDate) =>
   Effect.map(activitiesOn(date), (activities) => activities.map(described))
 
 export const dayWithThree = Effect.gen(function* () {
-  const scheduleId = yield* choose(1, 1, null)
+  const scheduleId = yield* currentScheduleId
 
   const temple = yield* add(2, scheduleId, december(15), 'Kiyomizu-dera', {
     time: '09:00',

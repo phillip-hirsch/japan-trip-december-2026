@@ -199,8 +199,6 @@ const readSnapshot = async (queryClient: QueryClient) => {
   const started = startRead()
   const snapshot = await getScheduleSnapshot()
   const read = { started, answeredAt: Date.now() }
-
-  if (snapshot === null) return snapshot
   storeRead(queryClient, schedulesQuery, snapshot.schedules, read)
 
   for (const page of snapshot.days) {

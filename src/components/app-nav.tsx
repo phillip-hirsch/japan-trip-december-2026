@@ -5,7 +5,6 @@ import {
   HouseIcon,
   ListChecksIcon,
   MapIcon,
-  RouteIcon,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -20,8 +19,6 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
-import { Skeleton } from '@/components/ui/skeleton'
-import { useScheduleSummary } from '@/trip/client/queries'
 
 type NavEntry = {
   to: LinkProps['to']
@@ -31,13 +28,6 @@ type NavEntry = {
 }
 
 const home: NavEntry = { to: '/', label: 'Home', icon: HouseIcon, exact: true }
-
-const options: NavEntry = {
-  to: '/options',
-  label: 'Options',
-  icon: RouteIcon,
-  exact: false,
-}
 
 const schedule: NavEntry = {
   to: '/schedule',
@@ -55,22 +45,12 @@ const checklist: NavEntry = {
   exact: false,
 }
 
-const useNavEntries = (): ReadonlyArray<NavEntry | undefined> => {
-  const summary = useScheduleSummary()
-
-  return [
-    home,
-    summary === undefined ? undefined : summary === null ? options : schedule,
-    map,
-    checklist,
-  ]
-}
+const entries: ReadonlyArray<NavEntry> = [home, schedule, map, checklist]
 
 /**
  * Link props that mark an entry's pages with data-active, which the sidebar's
  * owned styles already use. An exact entry matches only its own page; any
- * other also matches the pages below it, as an Itinerary page sits under
- * Options.
+ * other also matches the pages below it, as a Day page sits under Schedule.
  */
 const navLinkProps = ({ to, exact }: NavEntry) => ({
   to,
@@ -79,8 +59,6 @@ const navLinkProps = ({ to, exact }: NavEntry) => ({
 })
 
 export function AppSidebar() {
-  const entries = useNavEntries()
-
   return (
     // Not collapsible: it is the only desktop nav, so the Cmd/Ctrl+B shortcut
     // must not be able to hide it.
@@ -100,26 +78,12 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {entries.map((entry, index) => (
-                <SidebarMenuItem key={index}>
-                  {entry ? (
-                    <SidebarMenuButton
-                      render={<Link {...navLinkProps(entry)} />}
-                    >
-                      <entry.icon />
-                      <span>{entry.label}</span>
-                    </SidebarMenuButton>
-                  ) : (
-                    // Not SidebarMenuSkeleton: its random width would differ
-                    // between the server render and hydration.
-                    <div
-                      aria-hidden
-                      className="flex h-8 items-center gap-2 rounded-md px-2"
-                    >
-                      <Skeleton className="size-4" />
-                      <Skeleton className="h-4 w-16" />
-                    </div>
-                  )}
+              {entries.map((entry) => (
+                <SidebarMenuItem key={entry.label}>
+                  <SidebarMenuButton render={<Link {...navLinkProps(entry)} />}>
+                    <entry.icon />
+                    <span>{entry.label}</span>
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -131,33 +95,21 @@ export function AppSidebar() {
 }
 
 export function BottomTabBar() {
-  const entries = useNavEntries()
-
   return (
     <nav
       aria-label="Primary"
       className="fixed inset-x-0 bottom-0 z-40 border-t border-sidebar-border bg-sidebar/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
     >
       <ul className="flex">
-        {entries.map((entry, index) => (
-          <li key={index} className="flex-1">
-            {entry ? (
-              <Link
-                {...navLinkProps(entry)}
-                className="flex h-14 flex-col items-center justify-center gap-1 text-[0.6875rem] text-muted-foreground transition-colors data-active:text-foreground"
-              >
-                <entry.icon className="size-5" aria-hidden />
-                {entry.label}
-              </Link>
-            ) : (
-              <div
-                aria-hidden
-                className="flex h-14 flex-col items-center justify-center gap-1"
-              >
-                <Skeleton className="size-5" />
-                <Skeleton className="h-3 w-12" />
-              </div>
-            )}
+        {entries.map((entry) => (
+          <li key={entry.label} className="flex-1">
+            <Link
+              {...navLinkProps(entry)}
+              className="flex h-14 flex-col items-center justify-center gap-1 text-[0.6875rem] text-muted-foreground transition-colors data-active:text-foreground"
+            >
+              <entry.icon className="size-5" aria-hidden />
+              {entry.label}
+            </Link>
           </li>
         ))}
       </ul>

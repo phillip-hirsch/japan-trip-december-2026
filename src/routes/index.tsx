@@ -3,16 +3,11 @@ import { Match } from 'effect'
 import type { ReactNode } from 'react'
 
 import { DisplayJa } from '@/components/display-ja'
-import { ItineraryList } from '@/components/itinerary-list'
 import { LastUpdated } from '@/components/last-updated'
 import { ScheduleDayView } from '@/components/schedule-day'
 import { ScheduleSections } from '@/components/schedule-sections'
 import { formatDay, tripEndDate, tripStartDate } from '@/trip/domain/calendar'
-import type {
-  HomeState,
-  ItinerarySummary,
-  ScheduleDetail,
-} from '@/trip/domain/domain'
+import type { HomeState, ScheduleDetail } from '@/trip/domain/domain'
 import type { ScreenQuery } from '@/trip/client/last-updated'
 import { homeQuery, loadQuery, useHome } from '@/trip/client/queries'
 
@@ -30,31 +25,17 @@ function Home() {
   return Match.value(home).pipe(
     Match.tagsExhaustive({
       BeforeTrip: (home) => <BeforeTrip home={home} query={query} />,
-      DuringTrip: (home) =>
-        home.today ? (
-          <ScheduleDayView page={home.today} eyebrow="Today" query={query} />
-        ) : (
-          <Hero
-            eyebrow="Today"
-            query={query}
-            title={<HeroTitle>{formatDay(home.date)}</HeroTitle>}
-            lede="No Schedule yet. Choose an Itinerary, and Today appears here."
-          >
-            <HomeItineraries itineraries={home.itineraries} />
-          </Hero>
-        ),
-      AfterTrip: (home) => (
+      DuringTrip: ({ today }) => (
+        <ScheduleDayView page={today} eyebrow="Today" query={query} />
+      ),
+      AfterTrip: ({ schedule }) => (
         <Hero
           eyebrow="After the Trip"
           query={query}
           title={<HeroTitle>Welcome home</HeroTitle>}
-          lede={
-            home.schedule
-              ? 'Your Schedule, as a record of the Trip.'
-              : 'No Schedule was chosen. The Itineraries are still here.'
-          }
+          lede="Your Schedule, as a record of the Trip."
         >
-          <ScheduleOrItineraries {...home} />
+          <HomeSchedule schedule={schedule} />
         </Hero>
       ),
     }),
@@ -101,7 +82,7 @@ function HeroTitle({ children }: { children: ReactNode }) {
 }
 
 function BeforeTrip({
-  home: { daysToGo, schedule, itineraries },
+  home: { daysToGo, schedule },
   query,
 }: {
   home: Extract<HomeState, { _tag: 'BeforeTrip' }>
@@ -138,40 +119,8 @@ function BeforeTrip({
         </>
       }
     >
-      <ScheduleOrItineraries schedule={schedule} itineraries={itineraries} />
+      <HomeSchedule schedule={schedule} />
     </Hero>
-  )
-}
-
-function ScheduleOrItineraries({
-  schedule,
-  itineraries,
-}: {
-  schedule: ScheduleDetail | null
-  itineraries: ReadonlyArray<ItinerarySummary>
-}) {
-  return schedule ? (
-    <HomeSchedule schedule={schedule} />
-  ) : (
-    <HomeItineraries itineraries={itineraries} />
-  )
-}
-
-function HomeItineraries({
-  itineraries,
-}: {
-  itineraries: ReadonlyArray<ItinerarySummary>
-}) {
-  return (
-    <section aria-labelledby="itineraries" className="max-w-md">
-      <h2
-        id="itineraries"
-        className="mb-4 text-xs tracking-[0.3em] text-muted-foreground uppercase"
-      >
-        Itineraries
-      </h2>
-      <ItineraryList itineraries={itineraries} />
-    </section>
   )
 }
 

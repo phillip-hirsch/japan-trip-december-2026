@@ -13,10 +13,11 @@ import {
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import {
-  trip,
-  choose,
   archivedSchedules,
+  choose,
   revisedOption1,
+  started,
+  trip,
 } from '@/trip/trip/Trip.schedule.testing'
 
 const copyOf = (schedule: ScheduleDetail) =>
@@ -28,7 +29,7 @@ describe('Trip.restore', () => {
     () =>
       Effect.gen(function* () {
         const { first, original, second } = yield* Effect.gen(function* () {
-          const first = yield* choose(1, operation(1), null)
+          const first = yield* started
           const original = yield* currentSchedule
           yield* setTime('2026-10-02T09:30:00Z')
           const second = yield* choose(2, operation(2), first.scheduleId)
@@ -96,7 +97,7 @@ describe('Trip.restore', () => {
   it.effect('returns the recorded result when an operation id repeats', () =>
     Effect.gen(function* () {
       yield* setTime('2026-10-01T09:00:00Z')
-      const first = yield* choose(1, operation(1), null)
+      const first = yield* started
       yield* setTime('2026-10-02T09:00:00Z')
       const second = yield* choose(2, operation(2), first.scheduleId)
       yield* setTime('2026-10-03T09:00:00Z')
@@ -134,7 +135,7 @@ describe('Trip.restore', () => {
 
   it.effect('leaves the current Schedule as it is when restoring it', () =>
     Effect.gen(function* () {
-      const first = yield* choose(1, operation(1), null)
+      const first = yield* started
       const second = yield* choose(2, operation(2), first.scheduleId)
 
       const before = {
@@ -165,7 +166,7 @@ describe('Trip.restore', () => {
 
   it.effect('refuses a restore naming an archived Schedule', () =>
     Effect.gen(function* () {
-      const first = yield* choose(1, operation(1), null)
+      const first = yield* started
       const second = yield* choose(2, operation(2), first.scheduleId)
       yield* choose(1, operation(3), second.scheduleId)
 
@@ -197,7 +198,7 @@ describe('Trip.restore', () => {
 
   it.effect('fails with ScheduleNotFound for an unknown Schedule', () =>
     Effect.gen(function* () {
-      const first = yield* choose(1, operation(1), null)
+      const first = yield* started
       const unknown = ScheduleId.make('00000000-0000-4000-8000-ffffffffffff')
 
       const error = yield* Effect.flip(

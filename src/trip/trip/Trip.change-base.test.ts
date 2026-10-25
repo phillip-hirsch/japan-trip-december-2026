@@ -15,6 +15,7 @@ import {
   assertFailedWith,
   chooseOption1,
   currentSchedule,
+  currentScheduleId,
   stayIdAt,
   storage,
   tripWithOption1,
@@ -43,7 +44,7 @@ describe('Trip.changeStayBase', () => {
     "changes the Base to a catalogue place, keeping the Stay's id and dates",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* chooseOption1(1, null)
+        const scheduleId = yield* currentScheduleId
         const before = yield* currentSchedule
         const kanazawaId = stayIdAt(before, 2)
 
@@ -69,7 +70,7 @@ describe('Trip.changeStayBase', () => {
 
   it.effect("clears the Stay's copied highlights", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* chooseOption1(1, null)
+      const scheduleId = yield* currentScheduleId
       const before = yield* currentSchedule
       assert.isNotEmpty(before.stays[2]?.highlights)
 
@@ -87,7 +88,7 @@ describe('Trip.changeStayBase', () => {
     'leaves the adjoining Moves their mode, without rail sections or a duration, and the other Moves as they were',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* chooseOption1(1, null)
+        const scheduleId = yield* currentScheduleId
         const before = yield* currentSchedule
 
         const { schedule } = yield* changeBase(
@@ -125,7 +126,7 @@ describe('Trip.changeStayBase', () => {
 
   it.effect('strips only the one Move next to the first Stay', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* chooseOption1(1, null)
+      const scheduleId = yield* currentScheduleId
       const before = yield* currentSchedule
 
       const { schedule } = yield* changeBase(
@@ -147,7 +148,7 @@ describe('Trip.changeStayBase', () => {
 
   it.effect("keeps the Stay's Hotel details, Stay note and ticks", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* chooseOption1(1, null)
+      const scheduleId = yield* currentScheduleId
       const before = yield* currentSchedule
       const kanazawaId = stayIdAt(before, 2)
       const moveId = before.days[7]?.move?.id ?? ''
@@ -209,7 +210,7 @@ describe('Trip.changeStayBase', () => {
     'returns the Anchor warnings a change breaks, without blocking it',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* chooseOption1(1, null)
+        const scheduleId = yield* currentScheduleId
         const before = yield* currentSchedule
 
         const notInKyoto = yield* changeBase(
@@ -242,7 +243,7 @@ describe('Trip.changeStayBase', () => {
       `refuses "${place}", a place outside the catalogue, changing nothing`,
       () =>
         Effect.gen(function* () {
-          const scheduleId = yield* chooseOption1(1, null)
+          const scheduleId = yield* currentScheduleId
           const before = yield* currentSchedule
 
           const error = yield* Effect.flip(
@@ -262,7 +263,7 @@ describe('Trip.changeStayBase', () => {
 
   it.effect('changes nothing when the Base is already that place', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* chooseOption1(1, null)
+      const scheduleId = yield* currentScheduleId
       const before = yield* currentSchedule
 
       const { schedule } = yield* changeBase(
@@ -277,7 +278,7 @@ describe('Trip.changeStayBase', () => {
 
   it.effect("refuses a Stay the Schedule doesn't have, changing nothing", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* chooseOption1(1, null)
+      const scheduleId = yield* currentScheduleId
       const before = yield* currentSchedule
 
       const error = yield* Effect.flip(changeBase(scheduleId, 'gone', 'osaka'))
@@ -291,7 +292,7 @@ describe('Trip.changeStayBase', () => {
     'refuses an archived or out-of-date Schedule with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const archived = yield* chooseOption1(1, null)
+        const archived = yield* currentScheduleId
         yield* chooseOption1(2, archived)
         const scheduleById = Trip.use((trip) => trip.schedule(archived))
         const before = yield* scheduleById

@@ -1,11 +1,7 @@
 import { Schema } from 'effect'
 
 import { Checklist } from '@/trip/domain/domain.checklist'
-import {
-  DayPage,
-  ScheduleDetail,
-  Schedules,
-} from '@/trip/domain/domain.schedule'
+import { DayPage, Schedules } from '@/trip/domain/domain.schedule'
 
 /**
  * The current Schedule whole. It holds the Schedules as /schedule shows them,
@@ -14,7 +10,7 @@ import {
  * browser keeps it, so any Day opens offline.
  */
 export const ScheduleSnapshot = Schema.Struct({
-  schedules: Schema.Struct({ ...Schedules.fields, current: ScheduleDetail }),
+  schedules: Schedules,
   days: Schema.Array(DayPage),
   checklist: Checklist,
 })

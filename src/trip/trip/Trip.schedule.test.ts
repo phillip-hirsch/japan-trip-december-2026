@@ -14,40 +14,21 @@ import {
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import {
-  option1WithEveryAttachment,
-  trip,
-  firstChoose,
-  secondChoose,
-  chooseOption1,
-  choose,
-  schedules,
   archivedSchedules,
-  withoutIds,
+  choose,
+  chooseOption1,
+  firstChoose,
+  option1WithEveryAttachment,
+  secondChoose,
+  started,
+  trip,
   withoutActivities,
   withoutHotels,
+  withoutIds,
   withoutOffers,
 } from '@/trip/trip/Trip.schedule.testing'
 
-describe('Trip.schedules', () => {
-  it.effect('has nothing before anything is chosen', () =>
-    Effect.gen(function* () {
-      const { current, archived } = yield* schedules
-      assert.deepStrictEqual(
-        { current: Option.isNone(current), archived: [...archived] },
-        { current: true, archived: [] },
-      )
-    }).pipe(Effect.provide([trip, storage])),
-  )
-})
-
 describe('Trip.scheduleSummary', () => {
-  it.effect('is empty before anything is chosen', () =>
-    Effect.gen(function* () {
-      const summary = yield* Trip.use((trip) => trip.scheduleSummary)
-      assert.isTrue(Option.isNone(summary))
-    }).pipe(Effect.provide([trip, storage])),
-  )
-
   it.effect('names the current Schedule and the Itinerary it came from', () =>
     Effect.gen(function* () {
       const chosen = yield* chooseOption1(firstChoose)
@@ -159,9 +140,18 @@ describe('Trip.choose', () => {
 
   it.effect('refuses a choose naming no Schedule while one is current', () =>
     Effect.gen(function* () {
-      yield* chooseOption1(firstChoose)
       const before = yield* currentSchedule
-      const error = yield* Effect.flip(chooseOption1(secondChoose))
+
+      const error = yield* Effect.flip(
+        Trip.use((trip) =>
+          trip.choose({
+            operationId: secondChoose,
+            optionNumber: 1,
+            replacing: null,
+          }),
+        ),
+      )
+
       assert.deepStrictEqual(
         {
           tag: error._tag,
@@ -174,20 +164,21 @@ describe('Trip.choose', () => {
 
   it.effect('fails with ItineraryNotFound and chooses nothing', () =>
     Effect.gen(function* () {
+      const before = yield* currentSchedule
+
       const error = yield* Effect.flip(
         Trip.use((trip) =>
           trip.choose({
             operationId: firstChoose,
             optionNumber: 99,
-            replacing: null,
+            replacing: before.id,
           }),
         ),
       )
 
-      const { current } = yield* schedules
       assert.deepStrictEqual(
-        { tag: error._tag, scheduleExists: Option.isSome(current) },
-        { tag: 'ItineraryNotFound', scheduleExists: false },
+        { tag: error._tag, after: yield* currentSchedule },
+        { tag: 'ItineraryNotFound', after: before },
       )
     }).pipe(Effect.provide([trip, storage])),
   )
@@ -196,10 +187,9 @@ describe('Trip.choose', () => {
 describe('Trip.choose again', () => {
   it.effect('archives the current Schedule and makes a fresh one current', () =>
     Effect.gen(function* () {
-      yield* setTime('2026-10-01T09:30:00Z')
-      const first = yield* choose(1, operation(1), null)
+      const first = yield* currentSchedule
       yield* setTime('2026-10-03T12:00:00Z')
-      const second = yield* choose(2, operation(2), first.scheduleId)
+      const second = yield* choose(2, operation(2), first.id)
       const current = yield* currentSchedule
       assert.deepStrictEqual(
         {
@@ -220,9 +210,9 @@ describe('Trip.choose again', () => {
           },
           archived: [
             {
-              id: first.scheduleId,
+              id: first.id,
               sourceOptionNumber: 1,
-              chosenAt: '2026-10-01T09:30:00.000Z',
+              chosenAt: first.chosenAt,
               archivedAt: '2026-10-03T12:00:00.000Z',
             },
           ],
@@ -234,13 +224,17 @@ describe('Trip.choose again', () => {
     'makes a fresh Schedule from the Itinerary the current one came from',
     () =>
       Effect.gen(function* () {
-        const first = yield* choose(1, operation(1), null)
+        const first = yield* started
         const before = yield* currentSchedule
         const second = yield* choose(1, operation(2), first.scheduleId)
         const after = yield* currentSchedule
 
         const stayIds = (schedule: typeof before) =>
           schedule.stays.map((stay) => stay.id)
+
+        // Store start also wrote December 15's Day note; choosing doesn't.
+        const daysOf = (schedule: typeof before) =>
+          withoutIds(schedule.days.map((day) => Struct.omit(day, ['note'])))
 
         assert.deepStrictEqual(
           {
@@ -249,14 +243,14 @@ describe('Trip.choose again', () => {
               stayIds(before).includes(id),
             ),
             sourceOptionNumber: after.sourceOptionNumber,
-            days: withoutIds(after.days),
+            days: daysOf(after),
             archived: (yield* archivedSchedules).map(({ id }) => id),
           },
           {
             fresh: true,
             freshCopy: false,
             sourceOptionNumber: 1,
-            days: withoutIds(before.days),
+            days: daysOf(before),
             archived: [first.scheduleId],
           },
         )
@@ -265,7 +259,7 @@ describe('Trip.choose again', () => {
 
   it.effect('copies a different Itinerary into the fresh Schedule', () =>
     Effect.gen(function* () {
-      const first = yield* choose(1, operation(1), null)
+      const first = yield* started
       yield* choose(2, operation(2), first.scheduleId)
       const schedule = yield* currentSchedule
       const itinerary = yield* Trip.use((trip) => trip.itinerary(2))
@@ -294,7 +288,7 @@ describe('Trip.choose again', () => {
 
   it.effect('leaves the current Schedule current when it fails', () =>
     Effect.gen(function* () {
-      const first = yield* choose(1, operation(1), null)
+      const first = yield* started
       const before = yield* currentSchedule
 
       const error = yield* Effect.flip(
@@ -329,7 +323,7 @@ describe('Trip.choose again', () => {
         })
 
         const { first, before } = yield* Effect.gen(function* () {
-          const first = yield* choose(1, operation(1), null)
+          const first = yield* started
 
           return { first, before: yield* state }
         }).pipe(Effect.provide(trip))

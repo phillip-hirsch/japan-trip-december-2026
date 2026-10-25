@@ -87,7 +87,6 @@ describe('Home offline at the Trip boundaries', () => {
 
     const withSchedule = HomeState.cases.BeforeTrip.make({
       readAt: tokyoTime('2026-12-04T22:00:00').toISOString(),
-      itineraries: [],
       daysToGo: 2,
       schedule: snapshot.schedules.current,
     })
@@ -112,7 +111,6 @@ describe('Home offline at the Trip boundaries', () => {
     answerHome(
       HomeState.cases.BeforeTrip.make({
         readAt: tokyoTime('2026-12-04T20:00:00').toISOString(),
-        itineraries: [],
         daysToGo: 2,
         schedule: snapshot.schedules.current,
       }),
@@ -126,7 +124,6 @@ describe('Home offline at the Trip boundaries', () => {
 
     const edited = HomeState.cases.BeforeTrip.make({
       readAt: tokyoTime('2026-12-04T21:00:00').toISOString(),
-      itineraries: [],
       daysToGo: 2,
       schedule: currentSchedule({
         days: snapshot.days.map(({ day }) => day),
@@ -148,31 +145,6 @@ describe('Home offline at the Trip boundaries', () => {
     await app.close()
   })
 
-  it('counts down a day at Tokyo midnight offline before a Schedule is chosen', async () => {
-    clockAt('2026-12-04T22:00:00')
-    vi.mocked(getScheduleSnapshot).mockResolvedValue(null)
-
-    const noSchedule = HomeState.cases.BeforeTrip.make({
-      readAt: tokyoTime('2026-12-04T22:00:00').toISOString(),
-      itineraries: [],
-      daysToGo: 2,
-      schedule: null,
-    })
-
-    answerHome(noSchedule)
-    const app = await openHome(testQueryClient())
-
-    loseConnection()
-    vi.mocked(getHome).mockImplementation(serverOutOfReach)
-    await timePassesTo('2026-12-05T00:00:00')
-
-    assert.deepStrictEqual(app.shown(), {
-      home: HomeState.cases.BeforeTrip.make({ ...noSchedule, daysToGo: 1 }),
-      from: hashKey(homeQuery.queryKey),
-    })
-    await app.close()
-  })
-
   it('begins the Trip with Today on December 6 at Tokyo midnight, offline', async () => {
     clockAt('2026-12-05T22:00:00')
     answerSnapshot(snapshot)
@@ -186,7 +158,6 @@ describe('Home offline at the Trip boundaries', () => {
     assert.deepStrictEqual(app.shown(), {
       home: HomeState.cases.DuringTrip.make({
         readAt: homeBeforeTrip.readAt,
-        itineraries: [],
         ...todayOn(6),
       }),
       from: hashKey(dayQuery(december(6)).queryKey),
@@ -207,7 +178,6 @@ describe('Home offline at the Trip boundaries', () => {
     assert.deepStrictEqual(app.shown(), {
       home: HomeState.cases.AfterTrip.make({
         readAt: homeDuringTrip('2026-12-20T21:00:00').readAt,
-        itineraries: [],
         schedule: snapshot.schedules.current,
       }),
       from: hashKey(schedulesQuery.queryKey),

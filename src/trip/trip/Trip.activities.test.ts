@@ -5,6 +5,7 @@ import { december, IsoDate, TokyoDateTime } from '@/trip/domain/domain'
 import {
   activitiesOn,
   choose,
+  currentScheduleId,
   restore,
   setTime,
   storage,
@@ -26,7 +27,7 @@ describe('Trip.addActivity', () => {
     'adds an Activity with a title and, optionally, a time and a note',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         yield* add(2, scheduleId, december(14), 'Onsen', {
           time: '18:00',
           note: 'Bring a towel.',
@@ -43,7 +44,7 @@ describe('Trip.addActivity', () => {
     'stores the time as a zoned date-time in Tokyo on the Activity’s Day',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         yield* add(2, scheduleId, december(15), 'Birthday dinner', {
           time: '19:00',
         })
@@ -62,7 +63,7 @@ describe('Trip.addActivity', () => {
     'records the international flights on the Arrival and Departure Days at the Tokyo-side time',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         yield* add(2, scheduleId, december(6), 'Flight lands at Haneda', {
           time: '15:40',
           note: 'Departs YYZ 13:10 Dec 5, seat 32K.',
@@ -90,7 +91,7 @@ describe('Trip.addActivity', () => {
 
   it.effect('trims the title and refuses a blank or overlong one', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
       yield* add(2, scheduleId, december(14), '  Onsen  ')
       yield* add(3, scheduleId, december(14), 'あ'.repeat(200))
       const blank = yield* Effect.flip(add(4, scheduleId, december(14), '   '))
@@ -120,7 +121,7 @@ describe('Trip.addActivity', () => {
 
   it.effect('refuses a note past 10,000 characters with NoteTooLong', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
 
       const error = yield* Effect.flip(
         add(2, scheduleId, december(14), 'Onsen', {
@@ -139,7 +140,7 @@ describe('Trip.addActivity', () => {
     'returns the recorded result for a repeated operation id, adding nothing more',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const first = yield* add(2, scheduleId, december(14), 'Onsen')
         const repeated = yield* add(2, scheduleId, december(14), 'Onsen')
         assert.deepStrictEqual(
@@ -187,7 +188,7 @@ describe('Trip.addActivity', () => {
     'refuses an Activity naming a stale Schedule id with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const stale = yield* choose(1, 1, null)
+        const stale = yield* currentScheduleId
         yield* choose(2, 2, stale)
         const error = yield* Effect.flip(add(3, stale, december(14), 'Onsen'))
         assert.deepStrictEqual(
@@ -199,7 +200,7 @@ describe('Trip.addActivity', () => {
 
   it.effect('fails with DayNotFound for a Day the Schedule lacks', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
 
       const error = yield* Effect.flip(
         add(2, scheduleId, IsoDate.make('2026-12-21'), 'After the Trip'),

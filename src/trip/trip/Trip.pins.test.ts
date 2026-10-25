@@ -5,6 +5,7 @@ import { december, Hotel } from '@/trip/domain/domain'
 import {
   activitiesOn,
   choose,
+  currentScheduleId,
   kyotoHotelOf,
   kyotoStayId,
   operation,
@@ -27,7 +28,7 @@ describe('Trip.setPin', () => {
     'sets the Pin on an Activity, with its link, and only on that one',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const shrine = yield* addActivity(2, scheduleId, december(10), 'Shrine')
         yield* addActivity(3, scheduleId, december(10), 'Dinner')
         yield* setPin(scheduleId, activityTarget(shrine), fushimiInari)
@@ -48,7 +49,7 @@ describe('Trip.setPin', () => {
     "keeps the link of a Pin dropped by hand for a link without coordinates, and replaces the Activity's Pin as a whole",
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const shrine = yield* addActivity(2, scheduleId, december(10), 'Shrine')
         yield* setPin(scheduleId, activityTarget(shrine), fushimiInari)
 
@@ -69,7 +70,7 @@ describe('Trip.setPin', () => {
 
   it.effect("removes an Activity's Pin when given none", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
       const shrine = yield* addActivity(2, scheduleId, december(10), 'Shrine')
       yield* setPin(scheduleId, activityTarget(shrine), fushimiInari)
       yield* setPin(scheduleId, activityTarget(shrine))
@@ -82,7 +83,7 @@ describe('Trip.setPin', () => {
 
   it.effect("keeps an Activity's Pin through an edit of its other fields", () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
+      const scheduleId = yield* currentScheduleId
       const shrine = yield* addActivity(2, scheduleId, december(10), 'Shrine')
       yield* setPin(scheduleId, activityTarget(shrine), fushimiInari)
       yield* Trip.use((trip) =>
@@ -107,7 +108,7 @@ describe('Trip.setPin', () => {
     'refuses a link that is not Google Maps, or a Pin outside Japan, writing nothing',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
+        const scheduleId = yield* currentScheduleId
         const stayId = yield* kyotoStayId(scheduleId)
         const shrine = yield* addActivity(2, scheduleId, december(10), 'Shrine')
 
@@ -143,7 +144,7 @@ describe('Trip.setPin', () => {
     'refuses a stale or archived Schedule with ScheduleChanged, leaving it as it was',
     () =>
       Effect.gen(function* () {
-        const archived = yield* choose(1, 1, null)
+        const archived = yield* currentScheduleId
         const stayId = yield* kyotoStayId(archived)
         const shrine = yield* addActivity(2, archived, december(10), 'Shrine')
         yield* choose(2, 3, archived)
@@ -179,7 +180,7 @@ describe('Trip.setPin', () => {
     'fails with ActivityNotFound or StayNotFound for one the Schedule lacks',
     () =>
       Effect.gen(function* () {
-        const first = yield* choose(1, 1, null)
+        const first = yield* currentScheduleId
         const goneStayId = yield* kyotoStayId(first)
         const current = yield* choose(1, 2, first)
         const shrine = yield* addActivity(3, current, december(10), 'Shrine')
@@ -201,7 +202,7 @@ describe('Trip.setPin', () => {
 
   it.effect('archives Pins and restores them with their Schedule', () =>
     Effect.gen(function* () {
-      const first = yield* choose(1, 1, null)
+      const first = yield* currentScheduleId
       const shrine = yield* addActivity(2, first, december(10), 'Shrine')
       yield* setPin(first, activityTarget(shrine), fushimiInari)
       yield* setPin(

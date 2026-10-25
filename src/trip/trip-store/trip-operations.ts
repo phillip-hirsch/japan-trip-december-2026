@@ -95,9 +95,7 @@ const read = <S extends Schema.Codec<unknown, unknown>, I = void>(
 const tripOperations = {
   home: read(HomeState, () => Trip.use((trip) => trip.home)),
   day: withOutcome(DayOutcome, ({ date }: { readonly date: IsoDate }) =>
-    Trip.use((trip) => trip.day(date)).pipe(
-      Effect.map((page) => ({ page: Option.getOrNull(page) })),
-    ),
+    Trip.use((trip) => trip.day(date)).pipe(Effect.map((page) => ({ page }))),
   ),
   schedule: withOutcome(
     ScheduleOutcome,
@@ -106,22 +104,11 @@ const tripOperations = {
         Effect.map((schedule) => ({ schedule })),
       ),
   ),
-  schedules: read(Schedules, () =>
-    Trip.use((trip) => trip.schedules).pipe(
-      Effect.map(({ current, ...rest }) => ({
-        current: Option.getOrNull(current),
-        ...rest,
-      })),
-    ),
+  schedules: read(Schedules, () => Trip.use((trip) => trip.schedules)),
+  scheduleSnapshot: read(ScheduleSnapshot, () =>
+    Trip.use((trip) => trip.scheduleSnapshot),
   ),
-  scheduleSnapshot: read(Schema.NullOr(ScheduleSnapshot), () =>
-    Trip.use((trip) => trip.scheduleSnapshot).pipe(
-      Effect.map(Option.getOrNull),
-    ),
-  ),
-  scheduleMap: read(Schema.NullOr(ScheduleMap), () =>
-    Trip.use((trip) => trip.scheduleMap).pipe(Effect.map(Option.getOrNull)),
-  ),
+  scheduleMap: read(ScheduleMap, () => Trip.use((trip) => trip.scheduleMap)),
   scheduleSummary: read(Schema.NullOr(ScheduleSummary), () =>
     Trip.use((trip) => trip.scheduleSummary).pipe(Effect.map(Option.getOrNull)),
   ),

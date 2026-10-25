@@ -5,6 +5,7 @@ import { ChooseOutcome, RestoreOutcome, ScheduleId } from '@/trip/domain/domain'
 import {
   choose,
   currentSchedule,
+  currentScheduleId,
   operation,
   storage,
   tripWithOptions1And2,
@@ -21,7 +22,7 @@ describe('runTripOperation for choosing an Itinerary', () => {
       const outcome = yield* runTripOperation('choose', {
         operationId: operation(1),
         optionNumber: 1,
-        replacing: null,
+        replacing: yield* currentScheduleId,
       })
 
       assert.deepStrictEqual(
@@ -40,7 +41,7 @@ describe('runTripOperation for choosing an Itinerary', () => {
         const outcome = yield* runTripOperation('choose', {
           operationId: operation(1),
           optionNumber: 9,
-          replacing: null,
+          replacing: yield* currentScheduleId,
         })
 
         assert.deepStrictEqual(
@@ -54,8 +55,6 @@ describe('runTripOperation for choosing an Itinerary', () => {
     'answers a choice that names no current Schedule with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        yield* choose(1, 1, null)
-
         const outcome = yield* runTripOperation('choose', {
           operationId: operation(2),
           optionNumber: 2,
@@ -73,7 +72,7 @@ describe('runTripOperation for choosing an Itinerary', () => {
 describe('runTripOperation for restoring a Schedule', () => {
   it.effect('answers a restored Schedule with Restored and its id', () =>
     Effect.gen(function* () {
-      const archived = yield* choose(1, 1, null)
+      const archived = yield* currentScheduleId
       const current = yield* choose(2, 2, archived)
 
       const outcome = yield* runTripOperation('restore', {
@@ -96,7 +95,7 @@ describe('runTripOperation for restoring a Schedule', () => {
     'answers a Schedule that never existed with ScheduleNotFound and its id',
     () =>
       Effect.gen(function* () {
-        const current = yield* choose(1, 1, null)
+        const current = yield* currentScheduleId
 
         const outcome = yield* runTripOperation('restore', {
           operationId: operation(2),
@@ -117,7 +116,7 @@ describe('runTripOperation for restoring a Schedule', () => {
     'answers a restore that names an archived Schedule as current with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const first = yield* choose(1, 1, null)
+        const first = yield* currentScheduleId
         const second = yield* choose(2, 2, first)
         yield* choose(1, 3, second)
 

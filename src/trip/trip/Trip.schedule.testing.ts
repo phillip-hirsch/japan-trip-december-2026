@@ -15,7 +15,7 @@ import type {
 } from '@/trip/domain/domain'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
-import { tripWith } from '@/trip/trip/testing'
+import { currentScheduleId, tripWith } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
 export const option1WithEveryAttachment: ItineraryContent = {
@@ -40,10 +40,18 @@ export const secondChoose = OperationId.make(
   'c4e2a9b1-3f7d-4e8a-b6c0-9d1e5f2a7b38',
 )
 
+/** Chooses Option 1 again, replacing the current Schedule. */
 export const chooseOption1 = (operationId: OperationId) =>
-  Trip.use((trip) =>
-    trip.choose({ operationId, optionNumber: 1, replacing: null }),
+  Effect.flatMap(currentScheduleId, (replacing) =>
+    Trip.use((trip) =>
+      trip.choose({ operationId, optionNumber: 1, replacing }),
+    ),
   )
+
+/** The Schedule store start created, as choosing it would have answered. */
+export const started = Effect.map(currentScheduleId, (scheduleId) => ({
+  scheduleId,
+}))
 
 export const choose = (
   optionNumber: number,

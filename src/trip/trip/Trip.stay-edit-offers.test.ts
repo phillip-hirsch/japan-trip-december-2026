@@ -1,7 +1,7 @@
 // effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
 // @effect-diagnostics unstableApiUsage:off
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Result, Schema, Struct } from 'effect'
+import { Effect, Layer, Result, Schema, Struct } from 'effect'
 import { SqlClient } from 'effect/sql'
 
 import { tripDates } from '@/trip/domain/calendar'
@@ -14,12 +14,11 @@ import type {
   SplitStay,
 } from '@/trip/domain/domain'
 import {
-  chooseOption1,
   currentSchedule,
+  currentScheduleId,
   operation,
   option1WithTwoKyotoStays,
-  scheduleById,
-  storage,
+  storageStartingFrom,
   tripWith,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
@@ -29,6 +28,8 @@ import { Trip } from '@/trip/trip/Trip'
  * so only the two Kyoto Stays are in one Base.
  */
 const sampleTrip = tripWith([option1WithTwoKyotoStays])
+
+const sampleStorage = storageStartingFrom(option1WithTwoKyotoStays)
 
 /** December dates from `from` through `to`. */
 const decemberDates = (from: number, to: number) =>
@@ -132,8 +133,6 @@ describe('Offered Stay edits', () => {
     "are each Stay's split dates, a merge with the next Stay in its Base, and the dates its Stay boundary can move to",
     () =>
       Effect.gen(function* () {
-        yield* chooseOption1(1, null)
-
         assert.deepStrictEqual(offersByPosition(yield* currentSchedule), [
           {
             base: 'tokyo',
@@ -166,40 +165,32 @@ describe('Offered Stay edits', () => {
             boundary: undefined,
           },
         ])
-      }).pipe(Effect.provide([sampleTrip, storage])),
+      }).pipe(Effect.provide([sampleTrip, sampleStorage])),
   )
 
   it.effect(
     'are accepted, and every Stay edit not offered is refused by a Hard rule',
     () =>
       Effect.gen(function* () {
-        let n = 1
-        let scheduleId = yield* chooseOption1(n++, null)
-        const candidates = candidatesOf(yield* scheduleById(scheduleId))
+        const candidates = candidatesOf(yield* currentSchedule)
         const mismatches: Array<string> = []
 
         for (const { name, offered, edit } of candidates) {
-          const { stays } = yield* scheduleById(scheduleId)
+          // Each edit starts from a fresh store, so an accepted one never
+          // changes the Schedule the next one tries.
+          const answer = yield* Effect.gen(function* () {
+            const { id, stays } = yield* currentSchedule
 
-          const stayAt = (position: number) =>
-            stays[position]?.id ?? assert.fail(`No Stay ${position}`)
+            const stayAt = (position: number) =>
+              stays[position]?.id ?? assert.fail(`No Stay ${position}`)
 
-          const outcome = yield* Effect.result(
-            edit(scheduleId, stayAt, operation(n++)),
-          )
+            const outcome = yield* Effect.result(edit(id, stayAt, operation(1)))
 
-          const answer = Result.isSuccess(outcome)
-            ? 'accepted'
-            : outcome.failure._tag
+            return Result.isSuccess(outcome) ? 'accepted' : outcome.failure._tag
+          }).pipe(Effect.provide(Layer.fresh(sampleStorage)))
 
           if (answer !== (offered ? 'accepted' : 'HardRuleBroken')) {
             mismatches.push(`${name}: offered ${offered}, ${answer}`)
-          }
-
-          // An accepted edit changed the Schedule, so the next one starts
-          // from a fresh copy of the same sample.
-          if (Result.isSuccess(outcome)) {
-            scheduleId = yield* chooseOption1(n++, scheduleId)
           }
         }
 
@@ -210,14 +201,14 @@ describe('Offered Stay edits', () => {
           candidates.filter(({ offered }) => offered).length,
           9 + 1 + 18,
         )
-      }).pipe(Effect.provide([sampleTrip, storage])),
+      }).pipe(Effect.provide([sampleTrip, sampleStorage])),
   )
 
   it.effect(
     'are empty when a retry returns a Stay edit recorded before the Schedule had them',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* chooseOption1(1, null)
+        const scheduleId = yield* currentScheduleId
         const kyotoId = (yield* currentSchedule).stays[1]?.id ?? ''
 
         const split = splitStay({
@@ -252,6 +243,6 @@ describe('Offered Stay edits', () => {
           retried.schedule.stays.map(({ id, offers }) => ({ id, offers })),
           schedule.stays.map(({ id }) => ({ id, offers: { splitDates: [] } })),
         )
-      }).pipe(Effect.provide([sampleTrip, storage])),
+      }).pipe(Effect.provide([sampleTrip, sampleStorage])),
   )
 })
