@@ -218,5 +218,9 @@ export const migrations = Migrator.fromRecord({
     ]) {
       yield* sql`ALTER TABLE schedules DROP COLUMN ${sql(column)}`
     }
+
+    // Every row has the same key, 0, so the store refuses a second Schedule.
+    // The Trip reads the Schedule with no order or limit and would miss one.
+    yield* sql`CREATE UNIQUE INDEX schedulesOne ON schedules ((0))`
   }),
 })
