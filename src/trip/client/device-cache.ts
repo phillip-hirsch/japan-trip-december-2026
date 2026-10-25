@@ -24,7 +24,7 @@ declare module '@tanstack/react-query' {
  * kept query's key or data changes shape. The app then discards what an
  * older version kept instead of reading it.
  */
-export const keptDataVersion = 3
+export const keptDataVersion = 4
 
 /** Where IndexedDB keeps the cache. */
 const storageKey = 'query-cache'

@@ -4,7 +4,6 @@ import {
   BuildingIcon,
   LuggageIcon,
   MapPinnedIcon,
-  PlaneIcon,
   TrainFrontIcon,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -88,7 +87,6 @@ export function AnchorNotes({ anchors }: { anchors: ReadonlyArray<Anchor> }) {
 
 const moveModes: Record<MoveMode, { label: string; icon: LucideIcon }> = {
   train: { label: 'Train', icon: TrainFrontIcon },
-  flight: { label: 'Flight', icon: PlaneIcon },
   local: { label: 'Local', icon: BuildingIcon },
 }
 
@@ -115,7 +113,7 @@ const isLocalWithinOneBase = (move: MoveDetail) =>
   move.mode === 'local' && move.from.id === move.to.id
 
 /**
- * The Move's mode, travel time and changes. A train or flight Move without a
+ * The Move's mode, travel time and changes. A train Move without a
  * duration has its travel time unknown, as after a Base change.
  */
 export function MoveTravel({

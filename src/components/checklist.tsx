@@ -66,10 +66,6 @@ const wordingOf = (
         title: `Reserve seats, ${moveRoute(move)}`,
         about: `Move on ${formatDay(move.date)}`,
       }),
-      BookFlight: ({ move }) => ({
-        title: `Book flight, ${moveRoute(move)}`,
-        about: `Move on ${formatDay(move.date)}`,
-      }),
       ConfirmShigeharu: ({ date }) => ({
         title: `Confirm Shigeharu is open ${formatWeekdayDate(date)}`,
       }),
@@ -93,14 +89,12 @@ const wordingOf = (
 
 const verifyNotes = {
   'reminder-date': 'Verify: seats open about a month before',
-  'when-booking-opens': 'Verify when booking opens',
 }
 
 const verifyNoteOf = (item: ChecklistItem) =>
   Match.value(item).pipe(
     Match.tags({
       ReserveSeats: ({ verify }) => verifyNotes[verify],
-      BookFlight: ({ verify }) => verifyNotes[verify],
       VerifyClaim: () => 'Verify',
     }),
     Match.orElse(() => undefined),

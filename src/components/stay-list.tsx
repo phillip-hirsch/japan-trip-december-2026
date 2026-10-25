@@ -17,7 +17,6 @@ import type { AccommodationKind, StayDetail } from '@/trip/domain/domain'
 
 const accommodationLabels: Record<AccommodationKind, string> = {
   hotel: 'Hotel',
-  ryokan: 'Ryokan',
 }
 
 /** The id of a Schedule's Stay on its page, for links to it. */

@@ -37,7 +37,7 @@ export const Place = Schema.Struct({
 
 export type Place = typeof Place.Type
 
-export const AccommodationKind = Schema.Literals(['hotel', 'ryokan'])
+export const AccommodationKind = Schema.Literal('hotel')
 
 export type AccommodationKind = typeof AccommodationKind.Type
 
@@ -96,7 +96,7 @@ export const DurationRange = Schema.Struct({
 export type DurationRange = typeof DurationRange.Type
 
 /** Local is a Move between two Stays in the same Base. */
-export const MoveMode = Schema.Literals(['train', 'flight', 'local'])
+export const MoveMode = Schema.Literals(['train', 'local'])
 
 export type MoveMode = typeof MoveMode.Type
 
@@ -250,15 +250,6 @@ export const DayDetail = Schema.Struct({
 
 export type DayDetail = typeof DayDetail.Type
 
-export const MoveSummary = Schema.Struct({
-  date: IsoDate,
-  mode: MoveMode,
-  from: Place,
-  to: Place,
-})
-
-export type MoveSummary = typeof MoveSummary.Type
-
 /**
  * A rail section as the map draws it: along its rail line, or straight
  * between its stations when the rail geometry lacks it.
@@ -271,7 +262,7 @@ export const MapRailSection = Schema.Struct({
 export type MapRailSection = typeof MapRailSection.Type
 
 /**
- * A Move between two Bases as the map draws it, other than a flight: from
+ * A Move between two Bases as the map draws it: from
  * the Base it leaves, along each of its rail sections in turn, to the Base it
  * reaches. Its stations join their Bases with straight lines, and a Move
  * without rail sections, such as after a Stay edit, is one straight line.
@@ -300,8 +291,6 @@ export const ItineraryMap = Schema.Struct({
   /** Each Base once, in the order the Trip first reaches it. */
   bases: Schema.Array(Place),
   trainMoves: Schema.Array(MapTrainMove),
-  /** Each flight from Base to Base, drawn as an arc. */
-  flights: Schema.Array(MoveSummary),
   /** Each pair of Base and destination once, drawn dashed. */
   dayTrips: Schema.Array(MapDayTrip),
   /**

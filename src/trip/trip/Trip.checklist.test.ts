@@ -41,7 +41,7 @@ const withEveryKindOfItem: ItineraryContent = {
   ],
   moves: [
     ...option1.moves.slice(0, 2),
-    { date: december(17), mode: 'flight', sections: [] },
+    { date: december(17), mode: 'train', sections: [] },
     { date: december(19), mode: 'local', sections: [] },
   ],
   verifyClaims: [
@@ -69,8 +69,6 @@ const described = (item: ChecklistItem) => {
       `Book hotel: ${stay.base.romaji} ${stay.checkIn} to ${stay.checkOut}`,
     ReserveSeats: ({ move, reminderDate, verify }) =>
       `Reserve seats: ${move.from.romaji} to ${move.to.romaji} on ${move.date}, reminded ${reminderDate}, verify ${verify}`,
-    BookFlight: ({ move, verify }) =>
-      `Book flight: ${move.from.romaji} to ${move.to.romaji} on ${move.date}, verify ${verify}`,
     ConfirmShigeharu: ({ date }) => `Confirm Shigeharu is open ${date}`,
     ReserveBirthdayDinner: ({ date }) => `Reserve birthday dinner ${date}`,
     VerifyClaim: ({ text, attachedTo }) =>
@@ -116,7 +114,7 @@ const removeOwn = (itemId: string) =>
 
 describe('Trip.checklist', () => {
   it.effect(
-    'derives an item for each Stay, train and flight Move, the Shigeharu visit, the Birthday and each Verify claim',
+    'derives an item for each Stay, each train Move with or without rail sections, the Shigeharu visit, the Birthday and each Verify claim',
     () =>
       Effect.gen(function* () {
         assert.deepStrictEqual(yield* describedChecklist, [
@@ -129,11 +127,11 @@ describe('Trip.checklist', () => {
           '[ ] Verify (Stay 2026-12-13): December also falls',
           '[ ] Verify (Stay 2026-12-13): Kanazawa can be',
           '[ ] Reserve birthday dinner 2026-12-15',
-          '[ ] Book flight: Kanazawa to Tokyo on 2026-12-17, verify when-booking-opens',
           '[ ] Book hotel: Tokyo 2026-12-17 to 2026-12-19',
           '[ ] Book hotel: Tokyo 2026-12-19 to 2026-12-20',
           '[ ] Reserve seats: Tokyo to Kyoto on 2026-12-09, reminded 2026-11-09, verify reminder-date',
           '[ ] Reserve seats: Kyoto to Kanazawa on 2026-12-13, reminded 2026-11-13, verify reminder-date',
+          '[ ] Reserve seats: Kanazawa to Tokyo on 2026-12-17, reminded 2026-11-17, verify reminder-date',
         ])
       }).pipe(Effect.provide([trip, storeOfEveryKind])),
   )

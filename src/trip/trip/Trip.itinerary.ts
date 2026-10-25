@@ -1,4 +1,4 @@
-import { Effect, Struct } from 'effect'
+import { Effect } from 'effect'
 
 import type {
   Coordinates,
@@ -7,7 +7,6 @@ import type {
   ItineraryMap,
   MapDayTrip,
   MapRailSection,
-  MoveSummary,
   RailSectionDetail,
 } from '@/trip/domain/domain'
 import { Itinerary } from '@/trip/itinerary/Itinerary'
@@ -26,9 +25,6 @@ const datedMovesOf = (plan: Pick<ItineraryContent, 'stays' | 'moves'>) =>
   Array.from(moveDetailsOf(plan), ([date, move]) => ({ date, ...move }))
 
 type DatedMove = ReturnType<typeof datedMovesOf>[number]
-
-const moveSummaryOf = (move: DatedMove): MoveSummary =>
-  Struct.pick(move, ['date', 'mode', 'from', 'to'])
 
 const groupedDayTrips = (
   dayTrips: ReadonlyArray<DayTrip>,
@@ -52,9 +48,6 @@ const groupedDayTrips = (
     optional: members.every((dayTrip) => dayTrip.optional),
   }))
 }
-
-const flightsOf = (moves: ReadonlyArray<DatedMove>) =>
-  moves.flatMap((move) => (move.mode === 'flight' ? [moveSummaryOf(move)] : []))
 
 const withoutConsecutiveRepeats = (path: ReadonlyArray<Coordinates>) =>
   path.filter((point, index) => {
@@ -96,8 +89,7 @@ const railPathOf = (section: RailSectionDetail) => {
       }
 }
 
-const drawsOnTheGround = (move: DatedMove) =>
-  move.mode !== 'flight' && move.from.id !== move.to.id
+const betweenTwoBases = (move: DatedMove) => move.from.id !== move.to.id
 
 export const mapOf = (
   plan: Pick<ItineraryContent, 'stays' | 'moves' | 'dayTrips'>,
@@ -105,7 +97,7 @@ export const mapOf = (
   const moves = datedMovesOf(plan)
 
   const trainMoves = moves
-    .filter(drawsOnTheGround)
+    .filter(betweenTwoBases)
     .map((move) => ({ move, railPaths: move.sections.map(railPathOf) }))
 
   return {
@@ -120,7 +112,6 @@ export const mapOf = (
         move.to.coordinates,
       ]),
     })),
-    flights: flightsOf(moves),
     dayTrips: mapDayTripsOf(plan),
     ...(trainMoves.some(({ railPaths }) =>
       railPaths.some((railPath) => railPath.followsRailLine),

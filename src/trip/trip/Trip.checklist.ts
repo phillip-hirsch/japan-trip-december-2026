@@ -97,15 +97,6 @@ const derivedChecklistOf = (
             }),
           },
         ]),
-        Match.when('flight', () => [
-          {
-            ...at,
-            item: ChecklistItem.cases.BookFlight.make({
-              ...fields,
-              verify: 'when-booking-opens',
-            }),
-          },
-        ]),
         Match.when('local', () => []),
         Match.exhaustive,
       )
