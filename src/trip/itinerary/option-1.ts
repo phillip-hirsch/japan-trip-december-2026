@@ -5,7 +5,7 @@ import type {
   VerifyClaim,
 } from '@/trip/domain/domain'
 
-export const tokyoKyotoDuration: DurationRange = {
+const tokyoKyotoDuration: DurationRange = {
   minMinutes: 135,
   maxMinutes: 135,
 }

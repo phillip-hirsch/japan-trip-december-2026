@@ -9,8 +9,6 @@ import {
 } from '@/trip/domain/calendar'
 import { Anchor, VerifyClaimAttachment } from '@/trip/domain/domain'
 import type {
-  Day,
-  DayTrip,
   IsoDate,
   ItineraryContent,
   Move,
@@ -35,7 +33,7 @@ import {
 } from '@/trip/domain/schedule-copy'
 import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
 
-export const nightsOf = (stay: Stay) => daysBetween(stay.checkIn, stay.checkOut)
+const nightsOf = (stay: Stay) => daysBetween(stay.checkIn, stay.checkOut)
 
 export const placeOf = (id: PlaceId): Place => ({
   id,
@@ -88,7 +86,7 @@ export const moveDetailsOf = <M extends Move>({
 const coversWholeDay = (stay: Stay, date: IsoDate) =>
   stay.checkIn < date && date < stay.checkOut
 
-export const hasThursdayBackup = (stays: ReadonlyArray<Stay>) =>
+const hasThursdayBackup = (stays: ReadonlyArray<Stay>) =>
   stays.some(
     (stay) => stay.base === 'kyoto' && coversWholeDay(stay, shigeharuEveDate),
   )
@@ -121,53 +119,30 @@ const claimsAttachedTo = (
     )
     .map(({ id, text }) => ({ id, text }))
 
-interface Plan<
-  S extends Stay,
-  D extends Day,
-  M extends Move,
-  T extends DayTrip,
-  A extends Anchor,
-> {
-  readonly stays: ReadonlyArray<S>
-  readonly days: ReadonlyArray<D>
-  readonly moves: ReadonlyArray<M>
-  readonly dayTrips: ReadonlyArray<T>
-  readonly verifyClaims: ReadonlyArray<VerifyClaim>
-  readonly anchors: ReadonlyArray<A>
-}
-
-export const staysAndDaysOf = <
-  S extends Stay,
-  D extends Day,
-  M extends Move,
-  T extends DayTrip,
-  A extends Anchor,
->(
-  plan: Plan<S, D, M, T, A>,
-) => {
-  const moves = moveDetailsOf(plan)
+const staysAndDaysOf = (copy: ScheduleCopy) => {
+  const moves = moveDetailsOf(copy)
 
   return {
     verifyClaims: claimsAttachedTo(
-      plan,
+      copy,
       VerifyClaimAttachment.cases.Itinerary.make({}),
     ),
-    stays: plan.stays.map((stay) => ({
+    stays: copy.stays.map((stay) => ({
       ...stay,
       ...staySummaryOf(stay),
       verifyClaims: claimsAttachedTo(
-        plan,
+        copy,
         VerifyClaimAttachment.cases.Stay.make({ checkIn: stay.checkIn }),
       ),
     })),
-    days: plan.days.map((day) => {
-      const dayAnchors = plan.anchors.filter(
+    days: copy.days.map((day) => {
+      const dayAnchors = copy.anchors.filter(
         (anchor) => anchor.date === day.date,
       )
 
       const move = moves.get(day.date)
 
-      const dayTrips = plan.dayTrips
+      const dayTrips = copy.dayTrips
         .filter((dayTrip) => dayTrip.date === day.date)
         .map((dayTrip) => ({
           ...Struct.omit(dayTrip, ['date', 'place']),
@@ -180,7 +155,7 @@ export const staysAndDaysOf = <
         ...(move && { move }),
         dayTrips,
         verifyClaims: claimsAttachedTo(
-          plan,
+          copy,
           VerifyClaimAttachment.cases.Day.make({ date: day.date }),
         ),
         freeDay:

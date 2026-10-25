@@ -1,6 +1,11 @@
 import { DateTime, Effect, Option, Struct } from 'effect'
 
-import { isTripDate, tokyoDateAt, tripEndDate } from '@/trip/domain/calendar'
+import {
+  birthdayDate,
+  isTripDate,
+  tokyoDateAt,
+  tripEndDate,
+} from '@/trip/domain/calendar'
 import { DayNotFound, Hotel } from '@/trip/domain/domain'
 import type {
   DayPage,
@@ -44,7 +49,10 @@ const scheduleMapOf = (copy: ScheduleCopy): ScheduleMap => ({
   ),
 })
 
-/** A fresh copy of the Itinerary, every copied entity with a new id. */
+/**
+ * A fresh copy of the Itinerary, every copied entity with a new id and its
+ * Birthday outline as December 15's Day note.
+ */
 export const copyOf = (itinerary: ItineraryContent): ScheduleCopy => {
   const withFreshId = <A extends object>(entity: A) => ({
     ...entity,
@@ -56,7 +64,11 @@ export const copyOf = (itinerary: ItineraryContent): ScheduleCopy => {
       ...withFreshId(stay),
       hotel: Hotel.cases.NotRecorded.make({}),
     })),
-    days: itinerary.days.map((day) => ({ ...day, activities: [] })),
+    days: itinerary.days.map((day) => ({
+      ...day,
+      ...(day.date === birthdayDate && { note: itinerary.birthdayOutline }),
+      activities: [],
+    })),
     moves: itinerary.moves.map(withFreshId),
     dayTrips: itinerary.dayTrips.map(withFreshId),
     verifyClaims: itinerary.verifyClaims.map(withFreshId),
@@ -108,6 +120,10 @@ const findDayPage = (schedule: ScheduleDetail, date: IsoDate) =>
     (day) => dayPageFor(schedule, day),
   )
 
+/** A defect: every Trip date has a Day in the Schedule. */
+const noDayOn = (date: IsoDate) =>
+  Effect.die(new Error(`The Schedule has no Day on ${date}`))
+
 const homeStateOf = Effect.fnUntraced(function* (
   now: DateTime.DateTime,
   schedule: ScheduleDetail,
@@ -121,7 +137,7 @@ const homeStateOf = Effect.fnUntraced(function* (
   })
 
   if (home === undefined) {
-    return yield* Effect.die(new Error(`The Schedule has no Day on ${date}`))
+    return yield* noDayOn(date)
   }
 
   return home
@@ -215,7 +231,7 @@ export const scheduleMethods = Effect.sync(() => {
     const page = findDayPage(schedule, date)
 
     if (Option.isNone(page)) {
-      return yield* Effect.die(new Error(`The Schedule has no Day on ${date}`))
+      return yield* noDayOn(date)
     }
 
     return page.value

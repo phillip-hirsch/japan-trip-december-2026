@@ -3,30 +3,13 @@
 import { Effect, Option } from 'effect'
 import { Migrator } from 'effect/sql'
 
-import { birthdayDate } from '@/trip/domain/calendar'
 import { ScheduleId } from '@/trip/domain/domain'
-import type { ItineraryContent } from '@/trip/domain/domain'
-import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
 import { Itinerary } from '@/trip/itinerary/Itinerary'
 import { migrations } from '@/trip/schedule-store/migrations'
 import { scheduleStore } from '@/trip/schedule-store/schedule-store'
 import { copyOf } from '@/trip/trip/Trip'
 
 const runMigrations = Migrator.make({})({ loader: migrations })
-
-/** The Itinerary's copy, its Birthday outline as December 15's Day note. */
-const startingCopyOf = (itinerary: ItineraryContent): ScheduleCopy => {
-  const copy = copyOf(itinerary)
-
-  return {
-    ...copy,
-    days: copy.days.map((day) =>
-      day.date === birthdayDate
-        ? { ...day, note: itinerary.birthdayOutline }
-        : day,
-    ),
-  }
-}
 
 /**
  * Starts the Schedule store: runs the migrations, then, if the store has no
@@ -43,7 +26,7 @@ export const startStore = Effect.gen(function* () {
       if (Option.isSome(yield* store.currentRecord)) return
       yield* store.insert(
         { id: ScheduleId.make(crypto.randomUUID()) },
-        startingCopyOf(itinerary),
+        copyOf(itinerary),
       )
     }),
   )
