@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0007
+---
+
 # Itineraries are repo content; only the Schedule is stored
 
 Candidate Itineraries (Option 1, Option 2, …) are typed content files in the repository, checked by the typecheck and by tests of the Trip's rules (14 nights, back-to-back Stays, Anchors respected, no Move on the Birthday, ending in Tokyo). A coding agent adds or revises them from gpt-6-astra's markdown by following a written guide, and they ship with a deploy. They cannot be edited in the app. Choosing an Itinerary copies it into the Schedule, which is the only thing kept in storage (see ADR 0001), so later Revisions never change what Phillip has already planned.

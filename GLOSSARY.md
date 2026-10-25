@@ -1,6 +1,6 @@
 # Japan Trip December 2026
 
-Phillip's fourth trip to Japan: choosing how to spend it, then living it day by day.
+Phillip's fourth trip to Japan: planning it, then living it day by day.
 
 ## Language
 
@@ -8,37 +8,30 @@ Phillip's fourth trip to Japan: choosing how to spend it, then living it day by 
 The whole journey: arriving in Japan on Sunday, December 6, 2026 and flying home on Sunday, December 20, 2026 — 14 nights.
 
 **Itinerary**:
-One candidate way to spend the Trip, as a sequence of Stays.
+The way gpt-6-astra planned the Trip, as a sequence of Stays, that the Schedule started from. It never changes.
 _Avoid_: Option, plan, route
 
-**Option number**:
-The number that labels an Itinerary, shown as "Option 1". A Revision keeps the number; a new Itinerary gets the next one.
-
-**Revision**:
-A new version of an Itinerary that replaces it under the same Option number.
-_Avoid_: version, update
-
 **Schedule**:
-The editable copy of the Itinerary Phillip chose. Later Revisions of that Itinerary never change it. Choosing again archives it, read-only and restorable, and starts a fresh Schedule. Only the Trip note and Phillip's own Checklist items carry over.
+Phillip's editable copy of the Itinerary, which he changes as he prepares for the Trip and lives it. There is only one.
 _Avoid_: chosen itinerary, plan
 
 **Day**:
 One calendar date of the Trip in Tokyo time, December 6 through December 20.
 
 **Activity**:
-One thing planned on a Day of the Schedule, with a title and optionally a Tokyo time, a note and a Pin, such as a flight at its Tokyo-side time or the birthday dinner reservation. A Day keeps its Activities in Phillip's own order, never re-sorted by time; a new timed one goes before the first with a later time. Like a Day note, it belongs to that Schedule, and it never moves to another Day.
+One thing planned on a Day of the Schedule, with a title and optionally a Tokyo time, a note and a Pin, such as a flight at its Tokyo-side time or the birthday dinner reservation. A Day keeps its Activities in Phillip's own order, never re-sorted by time; a new timed one goes before the first with a later time. It never moves to another Day.
 _Avoid_: event, item
 
 **Day note**:
-Phillip's own plain-text note on a Day of the Schedule, shown on its Day page. It belongs to that Schedule: choosing again starts without Day notes, and restoring brings them back.
+Phillip's own plain-text note on a Day of the Schedule, shown on its Day page.
 _Avoid_: day memo, comment
 
 **Stay note**:
-Phillip's own plain-text note on a Stay of the Schedule, such as tips about the hotel's area, shown with the Stay on the Schedule page. Like a Day note, it belongs to that Schedule.
+Phillip's own plain-text note on a Stay of the Schedule, such as tips about the hotel's area, shown with the Stay on the Schedule page.
 _Avoid_: hotel note, stay memo
 
 **Hotel details**:
-Phillip's record of a Stay's hotel: its name, address and confirmation number, each optional, saved together as one value, and its Pin, saved on its own. Like a Stay note, they belong to that Schedule, and the Stay keeps them, and its id, when they are edited.
+Phillip's record of a Stay's hotel: its name, address and confirmation number, each optional, saved together as one value, and its Pin, saved on its own. The Stay keeps them, and its id, when they are edited.
 _Avoid_: booking, reservation, hotel info
 
 **Pin**:
@@ -46,15 +39,15 @@ Where an Activity or a Stay's hotel is on the map: its coordinates, and the Goog
 _Avoid_: marker, location, geotag
 
 **Detail tiles**:
-The street-level map, up to zoom 14, in a box around every place in the catalogue, which covers every Base and Day trip destination. The app serves them itself, and only to Phillip. Beyond the boxes, the map has no street detail.
+The street-level map, up to zoom 14, in a box around every place in the catalogue: every Base and Day trip destination of the Schedule. The app serves them itself, and only to Phillip. Beyond the boxes, the map has no street detail.
 _Avoid_: city maps, map tiles
 
 **Trip note**:
-Phillip's one plain-text note about the whole Trip, shown on the Schedule page. It belongs to the Trip, not a Schedule, so it stays as it is when he chooses again or restores.
+Phillip's one plain-text note about the whole Trip, shown on the Schedule page.
 _Avoid_: general note, global note
 
 **Schedule snapshot**:
-The current Schedule read whole at one moment: every Day page, the Checklist with its Ticks, and the Schedules with every note and Hotel details. The app stores each of them from the last one it read and keeps them on the device, so the Schedule and any Day open offline. That includes a Day never opened there, even after the app has closed.
+The current Schedule read whole at one moment: every Day page, the Checklist with its Ticks, and the Schedule with every note and Hotel details. The app stores each of them from the last one it read and keeps them on the device, so the Schedule and any Day open offline. That includes a Day never opened there, even after the app has closed.
 _Avoid_: cache, dump, export
 
 **Day page**:
@@ -74,7 +67,7 @@ Consecutive nights at one hotel.
 _Avoid_: leg, segment
 
 **Base**:
-The town a Stay is in. One Base can host several Stays in the same Itinerary, such as Tokyo at the start and at the end.
+The town a Stay is in. One Base can host several Stays, such as Tokyo at the start and at the end.
 _Avoid_: overnight base, city
 
 **Move**:
@@ -94,7 +87,7 @@ A Base or Day trip destination Phillip has not visited on a previous trip.
 _Avoid_: unvisited, fresh
 
 **Anchor**:
-A fixed date every Itinerary must respect: Arrival (December 6), the Shigeharu visit (Friday, December 11, morning), the Birthday (Tuesday, December 15, never a Move day), and Departure (December 20). A Schedule may break an Anchor, but never silently.
+A fixed date the Trip is planned around: Arrival (December 6), the Shigeharu visit (Friday, December 11, morning), the Birthday (Tuesday, December 15, never a Move day), and Departure (December 20). The Schedule may break an Anchor, but never silently.
 _Avoid_: fixed event, constraint
 
 **Stay edit**:
@@ -102,7 +95,7 @@ A change to the Schedule's Stays themselves: splitting or merging Stays, moving 
 _Avoid_: reschedule, re-plan
 
 **Hard rule**:
-A rule every Schedule keeps: the Trip dates, back-to-back Stays covering every night, and at least one night per Stay. The app refuses a Stay edit that would break one, or that can't apply, such as a merge of Stays in different Bases. It names the rule and changes nothing.
+A rule the Schedule always keeps: the Trip dates, back-to-back Stays covering every night, and at least one night per Stay. The app refuses a Stay edit that would break one, or that can't apply, such as a merge of Stays in different Bases. It names the rule and changes nothing.
 _Avoid_: constraint, validation error
 
 **Offered Stay edit**:
@@ -122,7 +115,7 @@ The Kyoto knife shop Phillip wants to visit. Its opening days are observed by vi
 _Avoid_: the knife shop
 
 **Verify claim**:
-A time-sensitive statement in an Itinerary that should be confirmed before relying on it, such as Shigeharu's opening days.
+A time-sensitive statement in the Schedule, from the Itinerary, that should be confirmed before relying on it, such as Shigeharu's opening days.
 _Avoid_: caveat, warning
 
 **Checklist**:
@@ -134,7 +127,7 @@ One thing on the Checklist. "Item" alone always means a Checklist item, never an
 _Avoid_: task, todo
 
 **Own Checklist item**:
-A Checklist item Phillip writes himself, with an optional Reminder date. It belongs to the Trip, not a Schedule, so it carries over when he chooses again.
+A Checklist item Phillip writes himself, with an optional Reminder date.
 _Avoid_: custom item, personal task
 
 **Reminder date**:
@@ -142,7 +135,7 @@ The date a Checklist item becomes worth doing, such as one month before a train 
 _Avoid_: due date, deadline, notification
 
 **Tick**:
-Phillip's mark that a Checklist item is done. A tick on an item derived from the Schedule belongs to that Schedule: choosing again starts without ticks, and restoring brings them back.
+Phillip's mark that a Checklist item is done.
 _Avoid_: checkmark, completion
 
 **Draft**:
@@ -150,7 +143,7 @@ What Phillip has typed but not yet saved, kept on his device until its save succ
 _Avoid_: autosave, unsaved changes
 
 **Operation**:
-One attempt at a save that must happen once, such as adding an Activity, splitting a Stay or choosing an Itinerary. A Retry of the same Operation never saves twice, even when the first answer was lost. An edit, or a send for another Schedule or Itinerary, starts a new one.
+One attempt at a save that must happen once, such as adding an Activity or splitting a Stay. A Retry of the same Operation never saves twice, even when the first answer was lost. An edit starts a new one.
 _Avoid_: request, idempotency key
 
 **Last updated**:
