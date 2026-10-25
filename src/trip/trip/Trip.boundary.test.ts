@@ -49,7 +49,7 @@ const datesOf = (schedule: ScheduleDetail) => ({
   ),
 })
 
-/** Option 1 without its last Tokyo Stay, so it ends in Kanazawa. */
+/** The Itinerary without its last Tokyo Stay, so it ends in Kanazawa. */
 const endingInKanazawa: ItineraryContent = {
   ...option1,
   stays: option1.stays

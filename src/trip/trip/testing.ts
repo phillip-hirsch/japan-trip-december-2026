@@ -33,7 +33,7 @@ export const storageStartingFrom = (itinerary: ItineraryContent) =>
     Layer.provideMerge(SqliteClient.layer({ filename: ':memory:' })),
   )
 
-/** A fresh Schedule store in memory, its Schedule copied from Option 1. */
+/** A fresh Schedule store in memory, its Schedule copied from the Itinerary. */
 export const storage = storageStartingFrom(option1)
 
 export const recordedLinks = LocationLinkResolver.of({
@@ -58,7 +58,7 @@ export const tripWith = (links: LocationLinkResolver['Service']) =>
 /** The Trip over the Itinerary, following links from recorded responses. */
 export const testTrip = tripWith(recordedLinks)
 
-/** Option 1 with its Kyoto Stay split on December 11, both parts in Kyoto. */
+/** The Itinerary with its Kyoto Stay split on December 11, both parts in Kyoto. */
 export const option1WithTwoKyotoStays: ItineraryContent = {
   ...option1,
   stays: option1.stays.flatMap((stay) =>
@@ -165,7 +165,7 @@ export const currentStays = Effect.map(currentSchedule, ({ stays }) => stays)
 export const stayIdAt = (schedule: ScheduleDetail, index: number) =>
   schedule.stays[index]?.id ?? ''
 
-/** The Kyoto Stay, second in Option 1. */
+/** The Kyoto Stay, second in the Itinerary. */
 export const kyotoStayId = Effect.map(
   currentStays,
   (stays) => stays[1]?.id ?? '',

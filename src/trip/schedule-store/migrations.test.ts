@@ -41,7 +41,7 @@ interface Entered {
   readonly activityOn: string
 }
 
-/** Writes an Option 1 Schedule with SQL, as the shipped migrations stored it. */
+/** Writes a Schedule copied from the Itinerary with SQL, as the shipped migrations stored it. */
 const insertScheduleAsShipped = Effect.fnUntraced(function* (
   id: ScheduleId,
   status: 'current' | 'archived',
@@ -197,7 +197,7 @@ const expectedStays = option1.stays.map((stay) => ({
       : Hotel.cases.NotRecorded.make({}),
 }))
 
-describe('Dropping what only choosing used', () => {
+describe('Migrating to one Schedule', () => {
   it.effect(
     'keeps the current Schedule whole, its Birthday outline now the December 15 Day note',
     () =>
@@ -228,6 +228,23 @@ describe('Dropping what only choosing used', () => {
               insertScheduleAsShipped(currentId, 'current', entered),
             ),
           ),
+        ]),
+      ),
+  )
+
+  it.effect(
+    'started again, keeps the one Schedule with the same id and what Phillip entered',
+    () =>
+      Effect.gen(function* () {
+        const before = yield* whatPhillipSees
+        yield* startStore.pipe(Effect.provide(Itinerary.fromContent(option1)))
+        const after = yield* whatPhillipSees
+
+        assert.deepStrictEqual(after, { ...before, id: currentId })
+      }).pipe(
+        Effect.provide([
+          testTrip,
+          startedAfter(insertScheduleAsShipped(currentId, 'current', entered)),
         ]),
       ),
   )

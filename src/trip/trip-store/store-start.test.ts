@@ -17,7 +17,7 @@ import { option1WithEveryAttachment } from '@/trip/trip/Trip.schedule.testing'
 
 describe('Store start', () => {
   it.effect(
-    'gives a fresh store one Schedule copied from Option 1, its Birthday outline as the December 15 Day note',
+    'gives a fresh store one Schedule copied from the Itinerary, its Birthday outline as the December 15 Day note',
     () =>
       Effect.gen(function* () {
         const { stays, days, verifyClaims } = yield* currentSchedule
