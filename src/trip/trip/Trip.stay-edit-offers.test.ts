@@ -202,6 +202,9 @@ describe('Offered Stay edits', () => {
           9 + 1 + 18,
         )
       }).pipe(Effect.provide([sampleTrip, sampleStorage])),
+    // Starts a fresh store, every migration included, for each of about 80
+    // Stay edits, which can pass 5 seconds while the whole suite runs.
+    { timeout: 20_000 },
   )
 
   it.effect(
