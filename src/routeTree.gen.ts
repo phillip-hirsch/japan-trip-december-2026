@@ -16,7 +16,6 @@ import { Route as OptionsIndexRouteImport } from './routes/options/index'
 import { Route as OptionsOptionNumberRouteImport } from './routes/options/$optionNumber'
 import { Route as ScheduleIndexRouteImport } from './routes/schedule/index'
 import { Route as ScheduleDateRouteImport } from './routes/schedule/$date'
-import { Route as ScheduleArchivedScheduleIdRouteImport } from './routes/schedule/archived/$scheduleId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -53,12 +52,6 @@ const ScheduleDateRoute = ScheduleDateRouteImport.update({
   path: '/schedule/$date',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ScheduleArchivedScheduleIdRoute =
-  ScheduleArchivedScheduleIdRouteImport.update({
-    id: '/schedule/archived/$scheduleId',
-    path: '/schedule/archived/$scheduleId',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,7 +61,6 @@ export interface FileRoutesByFullPath {
   '/schedule/$date': typeof ScheduleDateRoute
   '/options/': typeof OptionsIndexRoute
   '/schedule/': typeof ScheduleIndexRoute
-  '/schedule/archived/$scheduleId': typeof ScheduleArchivedScheduleIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,7 +70,6 @@ export interface FileRoutesByTo {
   '/schedule/$date': typeof ScheduleDateRoute
   '/options': typeof OptionsIndexRoute
   '/schedule': typeof ScheduleIndexRoute
-  '/schedule/archived/$scheduleId': typeof ScheduleArchivedScheduleIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,7 +80,6 @@ export interface FileRoutesById {
   '/schedule/$date': typeof ScheduleDateRoute
   '/options/': typeof OptionsIndexRoute
   '/schedule/': typeof ScheduleIndexRoute
-  '/schedule/archived/$scheduleId': typeof ScheduleArchivedScheduleIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,7 +91,6 @@ export interface FileRouteTypes {
     | '/schedule/$date'
     | '/options/'
     | '/schedule/'
-    | '/schedule/archived/$scheduleId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,7 +100,6 @@ export interface FileRouteTypes {
     | '/schedule/$date'
     | '/options'
     | '/schedule'
-    | '/schedule/archived/$scheduleId'
   id:
     | '__root__'
     | '/'
@@ -121,7 +109,6 @@ export interface FileRouteTypes {
     | '/schedule/$date'
     | '/options/'
     | '/schedule/'
-    | '/schedule/archived/$scheduleId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,7 +119,6 @@ export interface RootRouteChildren {
   ScheduleDateRoute: typeof ScheduleDateRoute
   OptionsIndexRoute: typeof OptionsIndexRoute
   ScheduleIndexRoute: typeof ScheduleIndexRoute
-  ScheduleArchivedScheduleIdRoute: typeof ScheduleArchivedScheduleIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -186,13 +172,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ScheduleDateRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/schedule/archived/$scheduleId': {
-      id: '/schedule/archived/$scheduleId'
-      path: '/schedule/archived/$scheduleId'
-      fullPath: '/schedule/archived/$scheduleId'
-      preLoaderRoute: typeof ScheduleArchivedScheduleIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
@@ -204,7 +183,6 @@ const rootRouteChildren: RootRouteChildren = {
   ScheduleDateRoute: ScheduleDateRoute,
   OptionsIndexRoute: OptionsIndexRoute,
   ScheduleIndexRoute: ScheduleIndexRoute,
-  ScheduleArchivedScheduleIdRoute: ScheduleArchivedScheduleIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

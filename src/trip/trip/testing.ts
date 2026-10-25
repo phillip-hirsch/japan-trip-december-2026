@@ -14,9 +14,8 @@ import type {
   IsoDate,
   ItineraryContent,
   ScheduleDetail,
-  ScheduleId,
 } from '@/trip/domain/domain'
-import { december, OperationId } from '@/trip/domain/domain'
+import { december, OperationId, ScheduleId } from '@/trip/domain/domain'
 import { Itineraries } from '@/trip/itineraries/Itineraries'
 import { option1 } from '@/trip/itineraries/option-1'
 import { option2 } from '@/trip/itineraries/option-2'
@@ -169,56 +168,34 @@ export const operation = (n: number) =>
 export const assertFailedWith = <E extends Error>(actual: E, expected: E) =>
   deepStrictEqual(actual, expected)
 
-/** Chooses the Itinerary with this Option number, as operation `n`. */
-export const choose = (
-  optionNumber: number,
-  n: number,
-  replacing: ScheduleId | null,
-) =>
-  Effect.map(
-    Trip.use((trip) =>
-      trip.choose({ operationId: operation(n), optionNumber, replacing }),
-    ),
-    ({ scheduleId }) => scheduleId,
-  )
-
-/** Chooses Option 1, as operation `n`. */
-export const chooseOption1 = (n: number, replacing: ScheduleId | null) =>
-  choose(1, n, replacing)
-
-/** Restores an archived Schedule, as operation `n`. */
-export const restore = (
-  scheduleId: ScheduleId,
-  n: number,
-  replacing: ScheduleId,
-) =>
-  Trip.use((trip) =>
-    trip.restore({ operationId: operation(n), scheduleId, replacing }),
-  )
-
 export const currentSchedule = Effect.map(
   Trip.use((trip) => trip.schedules),
   ({ current }) => current,
 )
 
-/** The id of the Schedule store start created, or of whichever is current. */
+/**
+ * A Schedule id that was never current, as a screen from before the
+ * Schedule changed would name.
+ */
+export const staleScheduleId = ScheduleId.make(
+  '9f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f',
+)
+
+/** The id of the Schedule store start created. */
 export const currentScheduleId = Effect.map(currentSchedule, ({ id }) => id)
 
-export const scheduleById = (scheduleId: ScheduleId) =>
-  Trip.use((trip) => trip.schedule(scheduleId))
-
-export const staysOf = (scheduleId: ScheduleId) =>
-  Effect.map(scheduleById(scheduleId), ({ stays }) => stays)
+export const currentStays = Effect.map(currentSchedule, ({ stays }) => stays)
 
 export const stayIdAt = (schedule: ScheduleDetail, index: number) =>
   schedule.stays[index]?.id ?? ''
 
-/** The Kyoto Stay, second in Option 1 and Option 2. */
-export const kyotoStayId = (scheduleId: ScheduleId) =>
-  Effect.map(staysOf(scheduleId), (stays) => stays[1]?.id ?? '')
+/** The Kyoto Stay, second in Option 1. */
+export const kyotoStayId = Effect.map(
+  currentStays,
+  (stays) => stays[1]?.id ?? '',
+)
 
-export const kyotoHotelOf = (scheduleId: ScheduleId) =>
-  Effect.map(staysOf(scheduleId), (stays) => stays[1]?.hotel)
+export const kyotoHotel = Effect.map(currentStays, (stays) => stays[1]?.hotel)
 
 export const activitiesOn = (date: IsoDate) =>
   Effect.map(

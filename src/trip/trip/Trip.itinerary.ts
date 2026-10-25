@@ -290,7 +290,6 @@ const detailOf = (itinerary: Itinerary): ItineraryDetail => ({
     'whyRecommended',
     'travelNotes',
   ]),
-  contentVersion: itinerary.contentVersion,
   ...staysAndDaysOf({ ...itinerary, anchors: anchorsOf(itinerary) }),
   map: mapOf(itinerary),
 })

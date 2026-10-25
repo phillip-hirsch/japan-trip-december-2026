@@ -1,23 +1,20 @@
 import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 
-import { december, ScheduleId, TimeOfDay } from '@/trip/domain/domain'
-import type { ScheduleDetail } from '@/trip/domain/domain'
+import { december, TimeOfDay } from '@/trip/domain/domain'
+import type { ScheduleDetail, ScheduleId } from '@/trip/domain/domain'
 import {
   checklistItems,
-  choose,
   currentSchedule,
-  currentScheduleId,
   operation,
-  scheduleById,
+  staleScheduleId,
   stayIdAt,
   storage,
   tripWithOption1,
-  tripWithOptions1And2,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
-const provided = Effect.provide([tripWithOptions1And2, storage])
+const provided = Effect.provide([tripWithOption1, storage])
 
 const outsideJapan = { coordinates: { latitude: 48.8584, longitude: 2.2945 } }
 
@@ -29,54 +26,36 @@ interface Named {
 }
 
 /**
- * A Schedule with an Activity on December 15, added as operation `n + 1`:
- * the one store start created, or else Option 1 chosen over `replacing` as
- * operation `n`.
+ * The Schedule with an Activity on December 15, added as operation 1, named
+ * as `scheduleId`.
  */
 const scheduleWithActivity = Effect.fnUntraced(function* (
-  n: number,
-  replacing?: ScheduleId,
+  naming: (current: ScheduleId) => ScheduleId,
 ) {
-  const scheduleId =
-    replacing === undefined
-      ? yield* currentScheduleId
-      : yield* choose(1, n, replacing)
+  const { id } = yield* currentSchedule
 
   const { activityId } = yield* Trip.use((trip) =>
     trip.addActivity({
-      operationId: operation(n + 1),
-      scheduleId,
+      operationId: operation(1),
+      scheduleId: id,
       date: december(15),
       title: 'Walk Gion',
     }),
   )
 
-  return { scheduleId, schedule: yield* scheduleById(scheduleId), activityId }
+  return {
+    scheduleId: naming(id),
+    schedule: yield* currentSchedule,
+    activityId,
+  }
 })
 
 /** Every Trip write that names a Schedule, each with valid input. */
-const writesNaming = (
-  { scheduleId, schedule, activityId }: Named,
-  restoring: ScheduleId,
-) => {
+const writesNaming = ({ scheduleId, schedule, activityId }: Named) => {
   const stay = (index: number) => stayIdAt(schedule, index)
 
   return Trip.use((trip) =>
     Effect.all({
-      choose: Effect.flip(
-        trip.choose({
-          operationId: operation(101),
-          optionNumber: 1,
-          replacing: scheduleId,
-        }),
-      ),
-      restore: Effect.flip(
-        trip.restore({
-          operationId: operation(102),
-          scheduleId: restoring,
-          replacing: scheduleId,
-        }),
-      ),
       writeDayNote: Effect.flip(
         trip.writeDayNote({ scheduleId, date: december(14), note: 'Onsen.' }),
       ),
@@ -159,8 +138,6 @@ const tagsOf = (errors: Record<string, { readonly _tag: string }>) =>
   )
 
 const everyWrite = (tag: string) => ({
-  choose: tag,
-  restore: tag,
   writeDayNote: tag,
   writeStayNote: tag,
   writeHotelDetails: tag,
@@ -177,11 +154,7 @@ const everyWrite = (tag: string) => ({
   setHotelPin: tag,
 })
 
-const tickedItems = Effect.map(checklistItems, (items) =>
-  items.flatMap((item) => (item.ticked ? [item.id] : [])),
-)
-
-/** What the Trip shows: its Schedules, the Trip note and the Checklist. */
+/** What the Trip shows: its Schedule, the Trip note and the Checklist. */
 const shown = Effect.all({
   schedules: Trip.use((trip) => trip.schedules),
   checklist: checklistItems,
@@ -189,28 +162,11 @@ const shown = Effect.all({
 
 /**
  * Every write that records its result under an operation id, run as
- * operation 200. Each names the current Schedule given, and restore brings
- * back the archived one given.
+ * operation 200. Each names the Schedule given.
  */
 const recordedWrites = {
-  choose: (current: ScheduleId) =>
-    Trip.use((trip) =>
-      trip.choose({
-        operationId: operation(200),
-        optionNumber: 2,
-        replacing: current,
-      }),
-    ),
-  restore: (current: ScheduleId, archived: ScheduleId) =>
-    Trip.use((trip) =>
-      trip.restore({
-        operationId: operation(200),
-        scheduleId: archived,
-        replacing: current,
-      }),
-    ),
   splitStay: (current: ScheduleId) =>
-    Effect.flatMap(scheduleById(current), (schedule) =>
+    Effect.flatMap(currentSchedule, (schedule) =>
       Trip.use((trip) =>
         trip.splitStay({
           scheduleId: current,
@@ -221,7 +177,7 @@ const recordedWrites = {
       ),
     ),
   mergeStays: (current: ScheduleId) =>
-    Effect.flatMap(scheduleById(current), (schedule) =>
+    Effect.flatMap(currentSchedule, (schedule) =>
       Trip.use((trip) =>
         Effect.flatMap(
           trip.splitStay({
@@ -260,86 +216,18 @@ const recordedWrites = {
     ),
 }
 
-/** A current Schedule, after an earlier one was archived. */
-const currentAndArchived = Effect.gen(function* () {
-  const archived = yield* currentScheduleId
-
-  return { current: yield* choose(1, 2, archived), archived }
-})
-
 describe('Schedule writes', () => {
   it.effect(
-    'refuse every write naming an archived Schedule with ScheduleChanged, leaving it as it was',
+    'refuse every write naming a Schedule that isn’t current with ScheduleChanged, leaving the Schedule as it was',
     () =>
       Effect.gen(function* () {
-        const archived = yield* scheduleWithActivity(1)
-        yield* scheduleWithActivity(3, archived.scheduleId)
-
-        const unchanged = Effect.all({
-          shown,
-          archived: scheduleById(archived.scheduleId),
-        })
-
-        const before = yield* unchanged
-        const errors = yield* writesNaming(archived, archived.scheduleId)
-
-        assert.deepStrictEqual(
-          { errors: tagsOf(errors), unchanged: yield* unchanged },
-          { errors: everyWrite('ScheduleChanged'), unchanged: before },
-        )
-      }).pipe(provided),
-  )
-
-  it.effect('leave no tick on an archived Schedule, once restored', () =>
-    Effect.gen(function* () {
-      const archived = yield* scheduleWithActivity(1)
-      const current = yield* scheduleWithActivity(3, archived.scheduleId)
-      yield* writesNaming(archived, archived.scheduleId)
-
-      yield* Trip.use((trip) =>
-        trip.restore({
-          operationId: operation(5),
-          scheduleId: archived.scheduleId,
-          replacing: current.scheduleId,
-        }),
-      )
-
-      assert.deepStrictEqual(yield* tickedItems, [])
-    }).pipe(provided),
-  )
-
-  it.effect(
-    'refuse a choose or restore naming no Schedule while one is current',
-    () =>
-      Effect.gen(function* () {
-        const { archived } = yield* currentAndArchived
+        const named = yield* scheduleWithActivity(() => staleScheduleId)
         const before = yield* shown
-
-        const errors = yield* Trip.use((trip) =>
-          Effect.all({
-            choose: Effect.flip(
-              trip.choose({
-                operationId: operation(3),
-                optionNumber: 2,
-                replacing: null,
-              }),
-            ),
-            restore: Effect.flip(
-              trip.restore({
-                operationId: operation(4),
-                scheduleId: archived,
-                replacing: null,
-              }),
-            ),
-          }),
-        )
+        const errors = yield* writesNaming(named)
 
         assert.deepStrictEqual(
           { errors: tagsOf(errors), shown: yield* shown },
-          {
-            errors: { choose: 'ScheduleChanged', restore: 'ScheduleChanged' },
-            shown: before,
-          },
+          { errors: everyWrite('ScheduleChanged'), shown: before },
         )
       }).pipe(provided),
   )
@@ -348,10 +236,9 @@ describe('Schedule writes', () => {
     'refuse invalid input as such before checking the Schedule is current',
     () =>
       Effect.gen(function* () {
-        const archived = yield* scheduleWithActivity(1)
-        yield* scheduleWithActivity(3, archived.scheduleId)
-        const { scheduleId, activityId } = archived
-        const stayId = stayIdAt(archived.schedule, 1)
+        const named = yield* scheduleWithActivity(() => staleScheduleId)
+        const { scheduleId, activityId } = named
+        const stayId = stayIdAt(named.schedule, 1)
         const tooLong = 'あ'.repeat(10_001)
 
         const errors = yield* Trip.use((trip) =>
@@ -406,79 +293,15 @@ describe('Schedule writes', () => {
       }).pipe(provided),
   )
 
-  it.effect(
-    'refuse a choose of an unknown Itinerary or a restore of an unknown Schedule from an out-of-date screen with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const { archived } = yield* currentAndArchived
-        const before = yield* shown
-
-        const errors = yield* Trip.use((trip) =>
-          Effect.all({
-            choose: Effect.flip(
-              trip.choose({
-                operationId: operation(3),
-                optionNumber: 9,
-                replacing: archived,
-              }),
-            ),
-            restore: Effect.flip(
-              trip.restore({
-                operationId: operation(4),
-                scheduleId: ScheduleId.make(
-                  '9f1c2d3e-4a5b-4c6d-8e7f-0a1b2c3d4e5f',
-                ),
-                replacing: archived,
-              }),
-            ),
-          }),
-        )
-
-        assert.deepStrictEqual(
-          { errors: tagsOf(errors), shown: yield* shown },
-          {
-            errors: { choose: 'ScheduleChanged', restore: 'ScheduleChanged' },
-            shown: before,
-          },
-        )
-      }).pipe(provided),
-  )
-
-  it.effect(
-    'return the recorded result for a choose retried after its Itinerary left the catalogue',
-    () =>
-      Effect.gen(function* () {
-        const replacing = yield* currentScheduleId.pipe(
-          Effect.provide(tripWithOption1),
-        )
-
-        const chooseOption2 = Trip.use((trip) =>
-          trip.choose({
-            operationId: operation(1),
-            optionNumber: 2,
-            replacing,
-          }),
-        )
-
-        const first = yield* chooseOption2.pipe(
-          Effect.provide(tripWithOptions1And2),
-        )
-
-        const retry = yield* chooseOption2.pipe(Effect.provide(tripWithOption1))
-
-        assert.deepStrictEqual(retry, first)
-      }).pipe(Effect.provide(storage)),
-  )
-
   describe.each(Object.entries(recordedWrites))('%s', (_, write) => {
     it.effect(
       'returns the recorded result when its operation id repeats, writing nothing more',
       () =>
         Effect.gen(function* () {
-          const { current, archived } = yield* currentAndArchived
-          const first = yield* write(current, archived)
+          const current = (yield* currentSchedule).id
+          const first = yield* write(current)
           const after = yield* shown
-          const repeat = yield* write(current, archived)
+          const repeat = yield* write(current)
 
           assert.deepStrictEqual(
             { repeat, shown: yield* shown },
@@ -488,25 +311,16 @@ describe('Schedule writes', () => {
     )
 
     it.effect(
-      'returns the recorded result for a retry after the Schedule changed',
+      'returns the recorded result for a retry naming a Schedule no longer current',
       () =>
         Effect.gen(function* () {
-          const { current, archived } = yield* currentAndArchived
-          const first = yield* write(current, archived)
-          yield* choose(1, 300, (yield* currentSchedule).id)
-
-          const unchanged = Effect.all({
-            shown,
-            current: scheduleById(current),
-            archived: scheduleById(archived),
-          })
-
-          const before = yield* unchanged
-          const retry = yield* write(current, archived)
+          const first = yield* write((yield* currentSchedule).id)
+          const before = yield* shown
+          const retry = yield* write(staleScheduleId)
 
           assert.deepStrictEqual(
-            { retry, unchanged: yield* unchanged },
-            { retry: first, unchanged: before },
+            { retry, shown: yield* shown },
+            { retry: first, shown: before },
           )
         }).pipe(provided),
     )

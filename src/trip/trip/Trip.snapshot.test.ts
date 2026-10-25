@@ -4,16 +4,16 @@ import { Effect, Predicate } from 'effect'
 import { tripDates } from '@/trip/domain/calendar'
 import { ChecklistItem, december } from '@/trip/domain/domain'
 import type { ScheduleSnapshot } from '@/trip/domain/domain'
+import { option1 } from '@/trip/itineraries/option-1'
 import { add } from '@/trip/trip/Trip.activities.testing'
 import {
   checklistItems,
-  choose,
   currentScheduleId,
   kyotoStayId,
   operation,
   storage,
   tick,
-  tripWithOptions1And2,
+  tripWithOption1,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -53,9 +53,8 @@ describe('Trip.scheduleSnapshot', () => {
     'reads the whole current Schedule: every Day page, the Checklist with its Ticks, and every note and address',
     () =>
       Effect.gen(function* () {
-        const archived = yield* currentScheduleId
-        const scheduleId = yield* choose(1, 2, archived)
-        const kyoto = yield* kyotoStayId(scheduleId)
+        const scheduleId = yield* currentScheduleId
+        const kyoto = yield* kyotoStayId
 
         yield* Trip.use((trip) =>
           trip.writeDayNote({
@@ -85,7 +84,6 @@ describe('Trip.scheduleSnapshot', () => {
         assert.deepStrictEqual(
           {
             schedule: snapshot.schedules.current.id,
-            archived: snapshot.schedules.archived.map(({ id }) => id),
             days: snapshot.days.map(({ day }) => day.date),
             ...notesAndAddressesOf(snapshot),
             ticked: snapshot.checklist.items
@@ -97,12 +95,11 @@ describe('Trip.scheduleSnapshot', () => {
           },
           {
             schedule: scheduleId,
-            archived: [archived],
             days: [...tripDates],
             tripNote: 'Pack light.',
             stayNotes: ['Near Gion.'],
             addresses: ['1 Example-cho'],
-            dayNotes: ['Onsen at 18:00.'],
+            dayNotes: ['Onsen at 18:00.', option1.birthdayOutline],
             activities: ['2026-12-15 Kiyomizu-dera'],
             // The Kyoto Stay covers the nights of December 9 to 12.
             tonightsAddresses: [9, 10, 11, 12].map(
@@ -112,7 +109,7 @@ describe('Trip.scheduleSnapshot', () => {
             ownItems: ['Buy a Suica card'],
           },
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
@@ -131,6 +128,6 @@ describe('Trip.scheduleSnapshot', () => {
           ),
           checklist: yield* Trip.use((trip) => trip.checklist),
         })
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })

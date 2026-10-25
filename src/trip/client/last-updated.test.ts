@@ -11,11 +11,7 @@ import { renderToString } from 'react-dom/server'
 
 import { connected, reportConnection } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
-import {
-  currentSchedule,
-  deferred,
-  scheduleId,
-} from '@/trip/client/editor-testing'
+import { currentSchedule, deferred } from '@/trip/client/editor-testing'
 import {
   loseConnection,
   serverOutOfReach,
@@ -28,7 +24,7 @@ import type { ScreenQuery } from '@/trip/client/last-updated'
 import {
   dayQuery,
   loadQuery,
-  scheduleByIdQuery,
+  schedulesQuery,
   useScheduleSnapshot,
 } from '@/trip/client/queries'
 import { pageHydrateOptions } from '@/trip/client/query-client'
@@ -41,13 +37,13 @@ import { december } from '@/trip/domain/domain'
 import type { DayPage, ScheduleSnapshot } from '@/trip/domain/domain'
 import {
   getDay,
-  getScheduleById,
+  getSchedules,
   getScheduleSnapshot,
 } from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({
   getDay: vi.fn(),
-  getScheduleById: vi.fn(),
+  getSchedules: vi.fn(),
   getScheduleSnapshot: vi.fn(),
 }))
 
@@ -323,8 +319,8 @@ describe('when a screen was last updated', () => {
 
   it('counts from when the browser read a Schedule the server rendered into the page again unchanged, and after a restart', async () => {
     clockAt('2026-12-14T09:00:00')
-    vi.mocked(getScheduleById).mockResolvedValue(currentSchedule())
-    const schedule = scheduleByIdQuery(scheduleId)
+    vi.mocked(getSchedules).mockResolvedValue({ current: currentSchedule() })
+    const schedule = schedulesQuery
     const server = testQueryClient()
     await loadQuery(server, schedule)
     const page = structuredClone(dehydrate(server))

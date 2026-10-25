@@ -13,12 +13,12 @@ import {
 import type { ScheduleDetail, ScheduleId } from '@/trip/domain/domain'
 import {
   assertFailedWith,
-  chooseOption1,
   currentSchedule,
   currentScheduleId,
   stayIdAt,
   storage,
   tripWithOption1,
+  staleScheduleId,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -288,23 +288,16 @@ describe('Trip.changeStayBase', () => {
     }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
-  it.effect(
-    'refuses an archived or out-of-date Schedule with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const archived = yield* currentScheduleId
-        yield* chooseOption1(2, archived)
-        const scheduleById = Trip.use((trip) => trip.schedule(archived))
-        const before = yield* scheduleById
-        const current = yield* currentSchedule
+  it.effect('refuses an out-of-date Schedule with ScheduleChanged', () =>
+    Effect.gen(function* () {
+      const before = yield* currentSchedule
 
-        const error = yield* Effect.flip(
-          changeBase(archived, stayIdAt(before, 2), 'osaka'),
-        )
+      const error = yield* Effect.flip(
+        changeBase(staleScheduleId, stayIdAt(before, 2), 'osaka'),
+      )
 
-        assert.strictEqual(error._tag, 'ScheduleChanged')
-        assert.deepStrictEqual(yield* scheduleById, before)
-        assert.deepStrictEqual(yield* currentSchedule, current)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      assert.strictEqual(error._tag, 'ScheduleChanged')
+      assert.deepStrictEqual(yield* currentSchedule, before)
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })

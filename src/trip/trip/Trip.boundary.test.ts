@@ -19,7 +19,6 @@ import type {
 import { option1 } from '@/trip/itineraries/option-1'
 import {
   assertFailedWith,
-  chooseOption1,
   currentSchedule,
   currentScheduleId,
   stayIdAt,
@@ -27,6 +26,7 @@ import {
   storageStartingFrom,
   tripWith,
   tripWithOption1,
+  staleScheduleId,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -284,31 +284,22 @@ describe('Trip.moveStayBoundary', () => {
     }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
-  it.effect(
-    'refuses an archived or out-of-date Schedule with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const archived = yield* currentScheduleId
-        const archivedBefore = yield* currentSchedule
-        yield* chooseOption1(2, archived)
-        const current = yield* currentSchedule
+  it.effect('refuses an out-of-date Schedule with ScheduleChanged', () =>
+    Effect.gen(function* () {
+      const before = yield* currentSchedule
 
-        const error = yield* Effect.flip(
-          Trip.use((trip) =>
-            trip.moveStayBoundary({
-              scheduleId: archived,
-              stayId: stayIdAt(archivedBefore, 1),
-              checkOut: december(12),
-            }),
-          ),
-        )
+      const error = yield* Effect.flip(
+        Trip.use((trip) =>
+          trip.moveStayBoundary({
+            scheduleId: staleScheduleId,
+            stayId: stayIdAt(before, 1),
+            checkOut: december(12),
+          }),
+        ),
+      )
 
-        assert.deepStrictEqual(error, new ScheduleChanged())
-        assert.deepStrictEqual(
-          datesOf(yield* Trip.use((trip) => trip.schedule(archived))),
-          datesOf(archivedBefore),
-        )
-        assert.deepStrictEqual(yield* currentSchedule, current)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      assert.deepStrictEqual(error, new ScheduleChanged())
+      assert.deepStrictEqual(yield* currentSchedule, before)
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })

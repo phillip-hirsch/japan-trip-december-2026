@@ -186,7 +186,7 @@ describe('runTripOperation for a Pin', () => {
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* currentScheduleId
-        const stayId = yield* kyotoStayId(scheduleId)
+        const stayId = yield* kyotoStayId
         const london = { latitude: 51.5332609, longitude: -0.1260032 }
 
         const outcome = yield* runTripOperation('setPin', {

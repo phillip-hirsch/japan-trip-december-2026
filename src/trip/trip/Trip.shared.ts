@@ -22,7 +22,6 @@ import type {
   Place,
   ScheduleDetail,
   ScheduleRecord,
-  SourceItineraryStatus,
   Station,
   Stay,
   StaySummary,
@@ -203,41 +202,26 @@ export const staysAndDaysOf = <
   }
 }
 
-const sourceItineraryOf = (
-  schedule: ScheduleRecord,
-  itineraries: ReadonlyMap<number, Itinerary>,
-): SourceItineraryStatus => {
-  const source = itineraries.get(schedule.sourceOptionNumber)
+/** The stored Schedule as its page shows it. */
+export const scheduleDetailOf = ({
+  schedule,
+  copy,
+}: {
+  readonly schedule: ScheduleRecord
+  readonly copy: ScheduleCopy
+}): ScheduleDetail => {
+  const { stays, ...rest } = staysAndDaysOf(copy)
 
-  if (source === undefined) return 'unavailable'
-
-  return source.contentVersion === schedule.sourceContentVersion
-    ? 'unchanged'
-    : 'revised'
-}
-
-const scheduleDetailOf =
-  (itineraries: ReadonlyMap<number, Itinerary>) =>
-  ({
-    schedule,
-    copy,
-  }: {
-    readonly schedule: ScheduleRecord
-    readonly copy: ScheduleCopy
-  }): ScheduleDetail => {
-    const { stays, ...rest } = staysAndDaysOf(copy)
-
-    return {
-      ...schedule,
-      sourceItinerary: sourceItineraryOf(schedule, itineraries),
-      ...rest,
-      stays: stays.map((stay) => ({
-        ...stay,
-        offers: stayEditOffersOf(copy, stay),
-      })),
-      anchorWarnings: anchorWarningsOf(copy),
-    }
+  return {
+    ...schedule,
+    ...rest,
+    stays: stays.map((stay) => ({
+      ...stay,
+      offers: stayEditOffersOf(copy, stay),
+    })),
+    anchorWarnings: anchorWarningsOf(copy),
   }
+}
 
 export const find = Effect.fnUntraced(function* <A>(
   entries: ReadonlyMap<number, A>,
@@ -263,9 +247,7 @@ export const buildCatalogueLookups = Effect.gen(function* () {
     all.map((itinerary) => [itinerary.optionNumber, itinerary]),
   )
 
-  const scheduleDetail = scheduleDetailOf(byOptionNumber)
-
-  return { byOptionNumber, scheduleDetail }
+  return { byOptionNumber }
 })
 
 /** The catalogue lookups several areas share, built once per Trip layer. */

@@ -4,14 +4,13 @@ import { Effect } from 'effect'
 import { december, Hotel } from '@/trip/domain/domain'
 import {
   activitiesOn,
-  choose,
+  currentSchedule,
   currentScheduleId,
-  kyotoHotelOf,
+  kyotoHotel,
   kyotoStayId,
-  operation,
+  staleScheduleId,
   storage,
-  tonightsHotel,
-  tripWithOptions1And2,
+  tripWithOption1,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import {
@@ -42,7 +41,7 @@ describe('Trip.setPin', () => {
             { title: 'Dinner', pin: undefined },
           ],
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
@@ -65,7 +64,7 @@ describe('Trip.setPin', () => {
           [afterKept, (yield* activitiesOn(december(10)))[0]?.pin],
           [kept, droppedByHand],
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect("removes an Activity's Pin when given none", () =>
@@ -78,7 +77,7 @@ describe('Trip.setPin', () => {
         (yield* activitiesOn(december(10))).map(({ pin }) => pin),
         [undefined],
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect("keeps an Activity's Pin through an edit of its other fields", () =>
@@ -101,7 +100,7 @@ describe('Trip.setPin', () => {
         })),
         [{ title: 'Fushimi Inari at dawn', pin: fushimiInari }],
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
@@ -109,7 +108,7 @@ describe('Trip.setPin', () => {
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* currentScheduleId
-        const stayId = yield* kyotoStayId(scheduleId)
+        const stayId = yield* kyotoStayId
         const shrine = yield* addActivity(2, scheduleId, december(10), 'Shrine')
 
         const errors = yield* Effect.forEach(
@@ -129,7 +128,7 @@ describe('Trip.setPin', () => {
           {
             errors,
             activityPin: (yield* activitiesOn(december(10)))[0]?.pin,
-            hotel: yield* kyotoHotelOf(scheduleId),
+            hotel: yield* kyotoHotel,
           },
           {
             errors: ['LocationLinkRefused', 'CoordinatesOutsideJapan'],
@@ -137,27 +136,26 @@ describe('Trip.setPin', () => {
             hotel: Hotel.cases.NotRecorded.make({}),
           },
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
-    'refuses a stale or archived Schedule with ScheduleChanged, leaving it as it was',
+    'refuses a stale Schedule with ScheduleChanged, leaving the Schedule as it was',
     () =>
       Effect.gen(function* () {
-        const archived = yield* currentScheduleId
-        const stayId = yield* kyotoStayId(archived)
-        const shrine = yield* addActivity(2, archived, december(10), 'Shrine')
-        yield* choose(2, 3, archived)
+        const current = yield* currentScheduleId
+        const stayId = yield* kyotoStayId
+        const shrine = yield* addActivity(2, current, december(10), 'Shrine')
 
         const errors = yield* Effect.forEach(
           [
-            setPin(archived, activityTarget(shrine), fushimiInari),
-            setPin(archived, hotelTarget(stayId), fushimiInari),
+            setPin(staleScheduleId, activityTarget(shrine), fushimiInari),
+            setPin(staleScheduleId, hotelTarget(stayId), fushimiInari),
           ],
           (write) => Effect.map(Effect.flip(write), (error) => error._tag),
         )
 
-        const schedule = yield* Trip.use((trip) => trip.schedule(archived))
+        const schedule = yield* currentSchedule
 
         assert.deepStrictEqual(
           {
@@ -173,16 +171,15 @@ describe('Trip.setPin', () => {
             hotel: Hotel.cases.NotRecorded.make({}),
           },
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     'fails with ActivityNotFound or StayNotFound for one the Schedule lacks',
     () =>
       Effect.gen(function* () {
-        const first = yield* currentScheduleId
-        const goneStayId = yield* kyotoStayId(first)
-        const current = yield* choose(1, 2, first)
+        const current = yield* currentScheduleId
+        const goneStayId = 'no-such-stay'
         const shrine = yield* addActivity(3, current, december(10), 'Shrine')
         yield* Trip.use((trip) =>
           trip.removeActivity({ scheduleId: current, activityId: shrine }),
@@ -197,49 +194,6 @@ describe('Trip.setPin', () => {
         )
 
         assert.deepStrictEqual(errors, ['ActivityNotFound', 'StayNotFound'])
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
-  it.effect('archives Pins and restores them with their Schedule', () =>
-    Effect.gen(function* () {
-      const first = yield* currentScheduleId
-      const shrine = yield* addActivity(2, first, december(10), 'Shrine')
-      yield* setPin(first, activityTarget(shrine), fushimiInari)
-      yield* setPin(
-        first,
-        hotelTarget(yield* kyotoStayId(first)),
-        droppedByHand,
-      )
-      const second = yield* choose(2, 3, first)
-
-      const fresh = {
-        activities: yield* activitiesOn(december(10)),
-        hotel: yield* tonightsHotel(december(10)),
-      }
-
-      yield* Trip.use((trip) =>
-        trip.restore({
-          operationId: operation(4),
-          scheduleId: first,
-          replacing: second,
-        }),
-      )
-      assert.deepStrictEqual(
-        {
-          fresh,
-          restored: {
-            pins: (yield* activitiesOn(december(10))).map(({ pin }) => pin),
-            hotel: yield* tonightsHotel(december(10)),
-          },
-        },
-        {
-          fresh: { activities: [], hotel: Hotel.cases.NotRecorded.make({}) },
-          restored: {
-            pins: [fushimiInari],
-            hotel: Hotel.cases.Recorded.make({ pin: droppedByHand }),
-          },
-        },
-      )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })

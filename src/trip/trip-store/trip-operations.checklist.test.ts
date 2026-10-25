@@ -36,7 +36,7 @@ describe('runTripOperation for a Tick', () => {
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* currentScheduleId
-        const itemId = yield* kyotoStayId(scheduleId)
+        const itemId = yield* kyotoStayId
 
         const outcome = yield* runTripOperation('tickChecklistItem', {
           scheduleId,

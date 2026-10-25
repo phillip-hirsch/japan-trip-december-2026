@@ -11,7 +11,6 @@ import type {
   QueryClient,
   QueryKey,
 } from '@tanstack/react-query'
-import { useHydrated } from '@tanstack/react-router'
 
 import {
   ConnectionStatus,
@@ -35,11 +34,7 @@ import {
   schedulesQuery,
   subscribeToQuery,
 } from '@/trip/client/queries.reads'
-import {
-  getHome,
-  getScheduleSnapshot,
-  getScheduleSummary,
-} from '@/trip/trip/trip.functions'
+import { getHome, getScheduleSnapshot } from '@/trip/trip/trip.functions'
 
 export { useHome } from '@/trip/client/queries.home'
 
@@ -47,7 +42,6 @@ export {
   checklistQuery,
   dayQuery,
   homeQuery,
-  scheduleByIdQuery,
   scheduleMapQuery,
   schedulesQuery,
   subscribeToQuery,
@@ -229,51 +223,22 @@ export const useScheduleSnapshot = () => {
   useQuery({ ...scheduleSnapshotQuery, notifyOnChangeProps: [] })
 }
 
-const scheduleSummaryQuery = queryOptions({
-  queryKey: keys.scheduleSummary,
-  queryFn: () => getScheduleSummary(),
-})
-
-/**
- * The Schedule summary: undefined until it first answers, then null before a
- * Schedule exists. `useQuery` only fetches in the browser, after hydration.
- *
- * It is undefined in a server render and on the render that hydrates a page,
- * because the server never has it. A code-split page hydrates after the app
- * nav has read the summary, and its first render must still match the
- * server's HTML.
- */
-export const useScheduleSummary = () => {
-  const hydrated = useHydrated()
-  const { data } = useQuery(scheduleSummaryQuery)
-
-  return hydrated ? data : undefined
-}
-
-const neverDehydrated: ReadonlyArray<unknown> = [
-  keys.scheduleSummary[0],
-  keys.scheduleSnapshot[0],
-]
-
 /**
  * Whether a server render may carry a query into the page. Never the Schedule
- * summary, even if a loader fetched it, so prerendered HTML can't contain it,
- * and never the Schedule snapshot, which only the browser reads.
+ * snapshot, which only the browser reads.
  */
 export const shouldDehydrateQuery = (query: Query) =>
-  !neverDehydrated.includes(query.queryKey[0])
+  query.queryKey[0] !== keys.scheduleSnapshot[0]
 
-const replacingTheSchedule = [
+const everyScheduleRead = [
   keys.schedules,
   keys.days,
   keys.home,
-  keys.scheduleSummary,
-  keys.scheduleById,
   keys.checklist,
   keys.scheduleMap,
 ] as const
 
-const withTheSchedule = [keys.home, keys.schedules, keys.scheduleById] as const
+const withTheSchedule = [keys.home, keys.schedules] as const
 
 const withTheScheduleAndDays = [keys.days, ...withTheSchedule] as const
 
@@ -283,8 +248,6 @@ const withTheScheduleDaysAndMap = [
 ] as const
 
 const affectedBy = {
-  choose: replacingTheSchedule,
-  restore: replacingTheSchedule,
   dayNote: withTheScheduleAndDays,
   activity: withTheScheduleDaysAndMap,
   stayNote: withTheSchedule,
@@ -400,4 +363,4 @@ export const subscribeToReadsAfter = (
   })
 
 export const invalidateAfterScheduleChanged = (queryClient: QueryClient) =>
-  invalidate(queryClient, replacingTheSchedule)
+  invalidate(queryClient, everyScheduleRead)

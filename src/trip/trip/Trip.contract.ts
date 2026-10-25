@@ -13,7 +13,6 @@ import type {
   Checklist,
   ChecklistItemNotFound,
   ChecklistTextInvalid,
-  ChooseItinerary,
   ComparisonMap,
   Coordinates,
   CoordinatesOutsideJapan,
@@ -40,17 +39,10 @@ import type {
   RemoveActivity,
   RemoveOwnChecklistItem,
   ResolveLocationLink,
-  RestoreSchedule,
   ScheduleChanged,
-  ScheduleChosen,
-  ScheduleDetail,
-  ScheduleId,
   ScheduleMap,
-  ScheduleNotFound,
-  ScheduleRestored,
   Schedules,
   ScheduleSnapshot,
-  ScheduleSummary,
   SetPin,
   SplitStay,
   StayNotFound,
@@ -115,39 +107,8 @@ export interface TripContract {
    */
   readonly railSections: Effect.Effect<ReadonlyArray<MapRailSection>>
   /**
-   * Copies an Itinerary into a fresh current Schedule, archiving the one it
-   * replaces, as one transaction that also records the operation id with
-   * its result. Repeating the operation id returns that result and writes
-   * nothing.
-   */
-  choose(
-    input: ChooseItinerary,
-  ): Effect.Effect<
-    ScheduleChosen,
-    ItineraryNotFound | ScheduleChanged,
-    SqlClient.SqlClient
-  >
-  /**
-   * Makes an archived Schedule current again, archiving the one it
-   * replaces, as one transaction that also records the operation id with
-   * its result. Repeating the operation id returns that result and writes
-   * nothing.
-   */
-  restore(
-    input: RestoreSchedule,
-  ): Effect.Effect<
-    ScheduleRestored,
-    ScheduleNotFound | ScheduleChanged,
-    SqlClient.SqlClient
-  >
-  /** One Schedule, current or archived. */
-  schedule(
-    scheduleId: ScheduleId,
-  ): Effect.Effect<ScheduleDetail, ScheduleNotFound, SqlClient.SqlClient>
-  /**
-   * The current Schedule, every archived Schedule, the most recently
-   * archived first, and the Trip note, if Phillip has written one, read as
-   * one transaction so they never come from two moments.
+   * The current Schedule and the Trip note, if Phillip has written one, read
+   * as one transaction so they never come from two moments.
    */
   readonly schedules: Effect.Effect<Schedules, never, SqlClient.SqlClient>
   /**
@@ -161,17 +122,12 @@ export interface TripContract {
     SqlClient.SqlClient
   >
   readonly scheduleMap: Effect.Effect<ScheduleMap, never, SqlClient.SqlClient>
-  readonly scheduleSummary: Effect.Effect<
-    Option.Option<ScheduleSummary>,
-    never,
-    SqlClient.SqlClient
-  >
   /**
    * Writes the Day note on a Day of the Schedule named, as a whole value,
    * so the last write wins. An empty note removes it. ScheduleChanged when
-   * the Schedule named isn't current, archived ones included; DayNotFound
-   * when it has no Day on the date; NoteTooLong past 10,000 characters.
-   * A refused write writes nothing.
+   * the Schedule named isn't current; DayNotFound when it has no Day on
+   * the date; NoteTooLong past 10,000 characters. A refused write writes
+   * nothing.
    */
   writeDayNote(
     input: WriteDayNote,
@@ -183,9 +139,9 @@ export interface TripContract {
   /**
    * Writes the Stay note on a Stay of the Schedule named, as a whole value,
    * so the last write wins. An empty note removes it. ScheduleChanged when
-   * the Schedule named isn't current, archived ones included; StayNotFound
-   * when it has no Stay with the id; NoteTooLong past 10,000 characters. A
-   * refused write writes nothing.
+   * the Schedule named isn't current; StayNotFound when it has no Stay with
+   * the id; NoteTooLong past 10,000 characters. A refused write writes
+   * nothing.
    */
   writeStayNote(
     input: WriteStayNote,
@@ -198,10 +154,9 @@ export interface TripContract {
    * Writes the Hotel details on a Stay of the Schedule named, as a whole
    * value, so the last write wins for each field. Each field is trimmed and
    * a blank one removed; all blank leaves the hotel not recorded. The Stay
-   * keeps its id. ScheduleChanged when the Schedule named isn't current,
-   * archived ones included; StayNotFound when it has no Stay with the id;
-   * HotelDetailTooLong for a field past 500 characters. A refused write
-   * writes nothing.
+   * keeps its id. ScheduleChanged when the Schedule named isn't current;
+   * StayNotFound when it has no Stay with the id; HotelDetailTooLong for a
+   * field past 500 characters. A refused write writes nothing.
    */
   writeHotelDetails(
     input: WriteHotelDetails,
@@ -227,9 +182,9 @@ export interface TripContract {
    * note and ticks. Each one it removes loses its Checklist item and tick.
    * Verify claims follow their Stays. It returns the Schedule as edited,
    * with its Anchor warnings, which never block the edit. It fails with
-   * ScheduleChanged when the Schedule named isn't current, archived ones
-   * included, and with HardRuleBroken for the first Hard rule it would
-   * break. A refused edit writes nothing.
+   * ScheduleChanged when the Schedule named isn't current, and with
+   * HardRuleBroken for the first Hard rule it would break. A refused edit
+   * writes nothing.
    */
   splitStay(
     input: SplitStay,
@@ -264,9 +219,8 @@ export interface TripContract {
    * date. Both Stays keep their ids, and with them everything else that
    * splitStay says a Stay edit keeps.
    *
-   * Fails with ScheduleChanged when the Schedule named isn't current,
-   * archived ones included, and with StayNotFound when it has no Stay with
-   * the id. Fails with HardRuleBroken for StayWithoutNights when either
+   * Fails with ScheduleChanged when the Schedule named isn't current, and
+   * with StayNotFound when it has no Stay with the id. Fails with HardRuleBroken for StayWithoutNights when either
    * Stay would have no nights, and for NotTheTripDates when the last
    * Stay's check-out would move off December 20. A refused move writes
    * nothing.
@@ -299,25 +253,21 @@ export interface TripContract {
   >
   /**
    * Writes the Trip note as a whole value, so the last write wins. An empty
-   * note removes it. It belongs to the Trip, so choosing again or restoring
-   * leaves it as it is. NoteTooLong past 10,000 characters, writing
-   * nothing.
+   * note removes it. NoteTooLong past 10,000 characters, writing nothing.
    */
   writeTripNote(
     input: WriteTripNote,
   ): Effect.Effect<void, NoteTooLong, SqlClient.SqlClient>
   /**
    * The Checklist, derived from the current Schedule as it is now, with
-   * Phillip's own items, read as one transaction. Before a Schedule is
-   * chosen, only his own items.
+   * Phillip's own items, read as one transaction.
    */
   readonly checklist: Effect.Effect<Checklist, never, SqlClient.SqlClient>
   /**
    * Sets the tick on an item derived from the Schedule named, to true or
    * false; setting it again changes nothing. ScheduleChanged when the
-   * Schedule named isn't current, archived ones included;
-   * ChecklistItemNotFound when nothing in it derives an item with the id.
-   * A refused write writes nothing.
+   * Schedule named isn't current; ChecklistItemNotFound when nothing in it
+   * derives an item with the id. A refused write writes nothing.
    */
   tickChecklistItem(
     input: TickChecklistItem,
@@ -354,10 +304,10 @@ export interface TripContract {
    * one transaction that also records the operation id with its result.
    * Repeating the operation id returns that result and writes nothing. A
    * timed Activity goes before the first with a later time; any other
-   * goes last. ScheduleChanged when the Schedule named isn't current,
-   * archived ones included; DayNotFound when it has no Day on the date;
-   * ActivityTitleInvalid for a blank title or one past 200 characters;
-   * NoteTooLong past 10,000 characters.
+   * goes last. ScheduleChanged when the Schedule named isn't current;
+   * DayNotFound when it has no Day on the date; ActivityTitleInvalid for a
+   * blank title or one past 200 characters; NoteTooLong past 10,000
+   * characters.
    */
   addActivity(
     input: AddActivity,
@@ -423,9 +373,9 @@ export interface TripContract {
    * a whole value, so the last write wins; no Pin removes it. The hotel's
    * Pin is part of the Stay's hotel, as its Hotel details are, and neither
    * write touches the other. ScheduleChanged when the Schedule named isn't
-   * current, archived ones included; ActivityNotFound or StayNotFound when
-   * it has no such Activity or Stay; LocationLinkRefused for a link that
-   * isn't a Google Maps link; CoordinatesOutsideJapan for a Pin elsewhere.
+   * current; ActivityNotFound or StayNotFound when it has no such Activity
+   * or Stay; LocationLinkRefused for a link that isn't a Google Maps link;
+   * CoordinatesOutsideJapan for a Pin elsewhere.
    * A refused write writes nothing.
    */
   setPin(

@@ -1,24 +1,13 @@
 import { DateTime, Effect, Option, Struct } from 'effect'
 
 import { isTripDate, tokyoDateAt, tripEndDate } from '@/trip/domain/calendar'
-import {
-  DayNotFound,
-  Hotel,
-  IsoInstant,
-  ScheduleChosen,
-  ScheduleId,
-  ScheduleNotFound,
-  ScheduleRestored,
-} from '@/trip/domain/domain'
+import { DayNotFound, Hotel } from '@/trip/domain/domain'
 import type {
-  ChooseItinerary,
   DayPage,
   IsoDate,
   Itinerary,
-  RestoreSchedule,
   ScheduleDetail,
   ScheduleMap,
-  ScheduleRecord,
   ScheduleSnapshot,
 } from '@/trip/domain/domain'
 import { homeStateOn } from '@/trip/domain/home-state'
@@ -27,12 +16,11 @@ import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
 import { scheduleStore } from '@/trip/schedule-store/schedule-store'
 import type { ScheduleStore } from '@/trip/schedule-store/schedule-store'
 import { checklistIn } from '@/trip/trip/Trip.checklist'
-import { currentIn, scheduleWrite } from '@/trip/trip/Trip.guards'
+import { currentIn } from '@/trip/trip/Trip.guards'
 import { mapOf } from '@/trip/trip/Trip.itinerary'
 import {
   anchorsOf,
-  CatalogueLookups,
-  find,
+  scheduleDetailOf,
   staySummaryOf,
 } from '@/trip/trip/Trip.shared'
 
@@ -75,23 +63,6 @@ export const copyOf = (itinerary: Itinerary): ScheduleCopy => {
     anchors: anchorsOf(itinerary).map(withFreshId),
   }
 }
-
-/** A fresh current Schedule's record, copied from the Itinerary at `now`. */
-export const currentScheduleOf = (
-  itinerary: Itinerary,
-  now: IsoInstant,
-): ScheduleRecord => ({
-  id: ScheduleId.make(crypto.randomUUID()),
-  status: 'current',
-  sourceOptionNumber: itinerary.optionNumber,
-  sourceContentVersion: itinerary.contentVersion,
-  chosenAt: now,
-  archivedAt: null,
-  birthdayOutline: itinerary.birthdayOutline,
-})
-
-export const isoInstantOf = (now: DateTime.DateTime) =>
-  IsoInstant.make(DateTime.formatIso(now))
 
 const isDepartureDay = (date: IsoDate) => date === tripEndDate
 
@@ -158,97 +129,23 @@ const homeStateOf = Effect.fnUntraced(function* (
 })
 
 /**
- * Choosing and restoring a Schedule, and the reads of the Schedules: one
- * Schedule, every Schedule, the Schedule snapshot, the Schedule map and
- * summary, Home and a Day page.
+ * The reads of the Schedule: the Schedule with the Trip note, the Schedule
+ * snapshot, the Schedule map, Home and a Day page.
  */
-export const scheduleMethods = Effect.gen(function* () {
-  const { byOptionNumber, scheduleDetail } = yield* CatalogueLookups
-
-  /** Archives the current Schedule a choose or restore names, if any. */
-  const archiveReplaced = (
-    store: ScheduleStore,
-    replacing: ScheduleId | null,
-    archivedAt: IsoInstant,
-  ) => (replacing === null ? Effect.void : store.archive(replacing, archivedAt))
-
-  const choose = Effect.fn('Trip.choose')(function* ({
-    operationId,
-    optionNumber,
-    replacing,
-  }: ChooseItinerary) {
-    return yield* scheduleWrite(
-      { naming: replacing, recorded: { operationId, result: ScheduleChosen } },
-      (store) =>
-        Effect.gen(function* () {
-          const itinerary = yield* find(byOptionNumber, optionNumber)
-          const now = isoInstantOf(yield* DateTime.now)
-          yield* archiveReplaced(store, replacing, now)
-          const schedule = currentScheduleOf(itinerary, now)
-          yield* store.insert(schedule, copyOf(itinerary))
-
-          return { scheduleId: schedule.id }
-        }),
-    )
-  })
-
-  const restore = Effect.fn('Trip.restore')(function* ({
-    operationId,
-    scheduleId,
-    replacing,
-  }: RestoreSchedule) {
-    return yield* scheduleWrite(
-      {
-        naming: replacing,
-        recorded: { operationId, result: ScheduleRestored },
-      },
-      (store) =>
-        Effect.gen(function* () {
-          const restoring = yield* store.recordById(scheduleId)
-
-          if (Option.isNone(restoring)) {
-            return yield* new ScheduleNotFound({ scheduleId })
-          }
-
-          if (restoring.value.status !== 'current') {
-            const now = isoInstantOf(yield* DateTime.now)
-            yield* archiveReplaced(store, replacing, now)
-            yield* store.makeCurrent(scheduleId)
-          }
-
-          return { scheduleId }
-        }),
-    )
-  })
-
-  const schedule = Effect.fn('Trip.schedule')(
-    function* (scheduleId: ScheduleId) {
-      const store = yield* scheduleStore
-      const found = yield* store.transaction(store.scheduleById(scheduleId))
-
-      if (Option.isNone(found)) {
-        return yield* new ScheduleNotFound({ scheduleId })
-      }
-
-      return scheduleDetail(found.value)
-    },
-    Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-  )
-
+export const scheduleMethods = Effect.sync(() => {
   /**
-   * Reads the Schedules inside the caller's transaction. It also returns the
-   * current Schedule as stored, for reads that derive more from it.
+   * Reads the Schedule and the Trip note inside the caller's transaction. It
+   * also returns the current Schedule as stored, for reads that derive more
+   * from it.
    */
   const schedulesIn = Effect.fnUntraced(function* (store: ScheduleStore) {
-    const { current, archived, tripNote } = yield* Effect.all({
+    const { current, tripNote } = yield* Effect.all({
       current: currentIn(store),
-      archived: store.archived,
       tripNote: store.tripNote,
     })
 
     const schedules = {
-      current: scheduleDetail(current),
-      archived,
+      current: scheduleDetailOf(current),
       ...Option.match(tripNote, {
         onNone: () => ({}),
         onSome: (tripNote) => ({ tripNote }),
@@ -300,23 +197,11 @@ export const scheduleMethods = Effect.gen(function* () {
     Effect.withSpan('Trip.scheduleMap'),
   )
 
-  const scheduleSummary = Effect.gen(function* () {
-    const store = yield* scheduleStore
-    const current = yield* store.currentRecord
-
-    return Option.map(current, (schedule) =>
-      Struct.pick(schedule, ['id', 'sourceOptionNumber']),
-    )
-  }).pipe(
-    Effect.catchTag(['SqlError', 'SchemaError'], Effect.die),
-    Effect.withSpan('Trip.scheduleSummary'),
-  )
-
   const currentSchedule = Effect.gen(function* () {
     const store = yield* scheduleStore
     const current = yield* store.transaction(currentIn(store))
 
-    return scheduleDetail(current)
+    return scheduleDetailOf(current)
   }).pipe(Effect.catchTag(['SqlError', 'SchemaError'], Effect.die))
 
   const home = Effect.gen(function* () {
@@ -340,12 +225,8 @@ export const scheduleMethods = Effect.gen(function* () {
   return {
     home,
     day,
-    choose,
-    restore,
-    schedule,
     schedules,
     scheduleSnapshot,
     scheduleMap,
-    scheduleSummary,
   }
 })

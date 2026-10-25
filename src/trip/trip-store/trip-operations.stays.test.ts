@@ -10,16 +10,15 @@ import {
 } from '@/trip/domain/domain'
 import { hotelDetailMaxLength } from '@/trip/domain/limits'
 import {
-  choose,
   currentSchedule,
   currentScheduleId,
-  kyotoHotelOf,
+  kyotoHotel,
   kyotoStayId,
   operation,
-  staysOf,
+  currentStays,
   storage,
   tripWithOption1,
-  tripWithOptions1And2,
+  staleScheduleId,
 } from '@/trip/trip/testing'
 import { ryokan } from '@/trip/trip/Trip.pins.testing'
 import { runTripOperation } from '@/trip/trip-store/trip-operations'
@@ -28,7 +27,7 @@ describe('runTripOperation for Hotel details', () => {
   it.effect('answers written Hotel details with Written', () =>
     Effect.gen(function* () {
       const scheduleId = yield* currentScheduleId
-      const stayId = yield* kyotoStayId(scheduleId)
+      const stayId = yield* kyotoStayId
 
       const outcome = yield* runTripOperation('writeHotelDetails', {
         scheduleId,
@@ -37,7 +36,7 @@ describe('runTripOperation for Hotel details', () => {
       })
 
       assert.deepStrictEqual(
-        { outcome, hotel: yield* kyotoHotelOf(scheduleId) },
+        { outcome, hotel: yield* kyotoHotel },
         {
           outcome: WriteHotelDetailsOutcome.cases.Written.make({}),
           hotel: Hotel.cases.Recorded.make(ryokan),
@@ -51,7 +50,7 @@ describe('runTripOperation for Hotel details', () => {
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* currentScheduleId
-        const stayId = yield* kyotoStayId(scheduleId)
+        const stayId = yield* kyotoStayId
 
         const outcome = yield* runTripOperation('writeHotelDetails', {
           scheduleId,
@@ -60,7 +59,7 @@ describe('runTripOperation for Hotel details', () => {
         })
 
         assert.deepStrictEqual(
-          { outcome, hotel: yield* kyotoHotelOf(scheduleId) },
+          { outcome, hotel: yield* kyotoHotel },
           {
             outcome: WriteHotelDetailsOutcome.cases.HotelDetailTooLong.make({
               maxLength: hotelDetailMaxLength,
@@ -76,7 +75,7 @@ describe('runTripOperation for Stay edits', () => {
   it.effect('answers a split Stay with Edited and the Schedule after it', () =>
     Effect.gen(function* () {
       const scheduleId = yield* currentScheduleId
-      const stayId = yield* kyotoStayId(scheduleId)
+      const stayId = yield* kyotoStayId
 
       const outcome = yield* runTripOperation('splitStay', {
         scheduleId,
@@ -97,7 +96,7 @@ describe('runTripOperation for Stay edits', () => {
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* currentScheduleId
-        const [, kyoto, kanazawa] = yield* staysOf(scheduleId)
+        const [, kyoto, kanazawa] = yield* currentStays
 
         const outcome = yield* runTripOperation('mergeStays', {
           scheduleId,
@@ -111,20 +110,16 @@ describe('runTripOperation for Stay edits', () => {
             rule: HardRule.cases.StaysInDifferentBases.make({}),
           }),
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
-    'answers a check-out moved on an archived Schedule with ScheduleChanged',
+    'answers a check-out moved on an out-of-date Schedule with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const archived = yield* currentScheduleId
-        const stayId = yield* kyotoStayId(archived)
-        yield* choose(2, 2, archived)
-
         const outcome = yield* runTripOperation('moveStayBoundary', {
-          scheduleId: archived,
-          stayId,
+          scheduleId: staleScheduleId,
+          stayId: yield* kyotoStayId,
           checkOut: december(12),
         })
 
@@ -132,7 +127,7 @@ describe('runTripOperation for Stay edits', () => {
           outcome,
           StayEditOutcome.cases.ScheduleChanged.make({}),
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
@@ -151,6 +146,6 @@ describe('runTripOperation for Stay edits', () => {
           outcome,
           StayEditOutcome.cases.StayNotFound.make({ stayId: 'stay-missing' }),
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })

@@ -6,7 +6,6 @@ import {
   AddActivity,
   AddOwnChecklistItem,
   ChangeStayBase,
-  ChooseItinerary,
   DayOutcome,
   EditActivity,
   IsoDate,
@@ -20,9 +19,6 @@ import {
   RemoveOwnChecklistItem,
   ResolveLocationLink,
   ResolveLocationLinkOutcome,
-  RestoreSchedule,
-  ScheduleId,
-  ScheduleOutcome,
   SplitStay,
   SetPin,
   TickChecklistItem,
@@ -105,24 +101,6 @@ export const getItinerary = createServerFn({ method: 'GET' })
     })
   })
 
-/**
- * Copies an Itinerary into Phillip's Schedule, archiving the current one.
- * Repeating the operation id returns the first result, so a retry never
- * chooses twice.
- */
-export const chooseItinerary = createServerFn({ method: 'POST' })
-  .validator(Schema.toStandardSchemaV1(ChooseItinerary))
-  .handler(tripOperationHandler('choose'))
-
-/**
- * Makes an archived Schedule current again, archiving the current one.
- * Repeating the operation id returns the first result, so a retry never
- * restores twice.
- */
-export const restoreSchedule = createServerFn({ method: 'POST' })
-  .validator(Schema.toStandardSchemaV1(RestoreSchedule))
-  .handler(tripOperationHandler('restore'))
-
 export const writeDayNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteDayNote))
   .handler(tripOperationHandler('writeDayNote'))
@@ -172,19 +150,6 @@ export const writeTripNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteTripNote))
   .handler(tripOperationHandler('writeTripNote'))
 
-export const getScheduleById = createServerFn({ method: 'GET' })
-  .validator(
-    Schema.toStandardSchemaV1(Schema.Struct({ scheduleId: ScheduleId })),
-  )
-  .handler(async ({ data }) => {
-    const outcome = await callTripOperation('schedule', data)
-
-    return ScheduleOutcome.match(outcome, {
-      Schedule: ({ schedule }) => schedule,
-      ScheduleNotFound: () => null,
-    })
-  })
-
 export const getSchedules = createServerFn({ method: 'GET' }).handler(
   tripOperationHandler('schedules'),
 )
@@ -199,15 +164,6 @@ export const getScheduleSnapshot = createServerFn({ method: 'GET' }).handler(
 
 export const getScheduleMap = createServerFn({ method: 'GET' }).handler(
   tripOperationHandler('scheduleMap'),
-)
-
-/**
- * The current Schedule's summary, or null before Phillip chooses one. Only
- * the browser asks for it, after hydration, so prerendered pages never
- * contain it.
- */
-export const getScheduleSummary = createServerFn({ method: 'GET' }).handler(
-  tripOperationHandler('scheduleSummary'),
 )
 
 export const getChecklist = createServerFn({ method: 'GET' }).handler(

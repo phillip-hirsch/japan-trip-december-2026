@@ -16,18 +16,13 @@ import {
 } from '@/trip/client/hook-testing'
 import {
   answerHome,
-  chooseOption2,
   clockAt,
   closeHome,
-  dayPageIn,
   homeDuringTrip,
-  openChoiceOfOption2,
   openDayNote,
   openHome,
   openHomeFromCold,
   openRoot,
-  option1Archived,
-  option2Snapshot,
   otherScheduleId,
   saveDayNote,
   settle,
@@ -35,14 +30,9 @@ import {
   timePassesTo,
   tokyoTime,
 } from '@/trip/client/home-testing'
-import {
-  dayQuery,
-  homeQuery,
-  loadQuery,
-  schedulesQuery,
-} from '@/trip/client/queries'
+import { homeQuery, loadQuery, schedulesQuery } from '@/trip/client/queries'
 import { answerSnapshot, dayPage } from '@/trip/client/snapshot-testing'
-import { december, HomeState, IsoInstant } from '@/trip/domain/domain'
+import { december, HomeState } from '@/trip/domain/domain'
 import {
   getHome,
   getSchedules,
@@ -50,7 +40,6 @@ import {
 } from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({
-  chooseItinerary: vi.fn(),
   getHome: vi.fn(),
   getSchedules: vi.fn(),
   getScheduleSnapshot: vi.fn(),
@@ -227,120 +216,6 @@ describe('Home after a save away from it', () => {
 })
 
 describe('Home after it moved on offline', () => {
-  it("shows the new Day of a Schedule that replaced Home's at the very moment Home was read", async () => {
-    clockAt('2026-12-14T20:00:00')
-    answerSnapshot(snapshot)
-    answerHome(homeDuringTrip('2026-12-14T20:00:00'))
-    const choice = await openChoiceOfOption2()
-    const { queryClient } = choice
-    const root = await openRoot(queryClient)
-    await (await openHome(queryClient)).close()
-
-    // Home saw Option 1's Schedule current, so the server archived it after
-    // that read, though in the same millisecond.
-    const archivedAsHomeWasRead = {
-      ...option2Snapshot,
-      schedules: {
-        ...option2Snapshot.schedules,
-        archived: [
-          {
-            ...option1Archived,
-            archivedAt: IsoInstant.make(
-              tokyoTime('2026-12-14T20:00:00').toISOString(),
-            ),
-          },
-        ],
-      },
-    }
-
-    await timePassesTo('2026-12-14T20:30:00')
-    // Home's own read after the choice never answers before the signal goes.
-    vi.mocked(getHome).mockImplementation(() => new Promise(() => {}))
-    await chooseOption2(choice, archivedAsHomeWasRead)
-    loseConnection()
-    vi.mocked(getHome).mockImplementation(serverOutOfReach)
-    await timePassesTo('2026-12-15T07:00:00')
-    const app = await openHome(queryClient)
-
-    assert.deepStrictEqual(
-      app.shown()?.home,
-      HomeState.cases.DuringTrip.make({
-        ...homeDuringTrip('2026-12-14T20:00:00'),
-        date: december(15),
-        today: dayPageIn(option2Snapshot, december(15)),
-      }),
-    )
-    await app.close()
-    await root.close()
-    await choice.close()
-  })
-
-  it('shows the new Day of a Schedule chosen here after Home was last read, though the device clock runs behind the server', async () => {
-    clockAt('2026-12-14T20:00:00')
-    answerSnapshot(snapshot)
-    answerHome(homeDuringTrip('2026-12-14T20:00:00'))
-    const choice = await openChoiceOfOption2()
-    const { queryClient } = choice
-    const root = await openRoot(queryClient)
-    await (await openHome(queryClient)).close()
-
-    // The device's clock is set back ten minutes, so the snapshot that
-    // stores Option 2's choice answers before Home did by its clock.
-    vi.setSystemTime(tokyoTime('2026-12-14T19:50:00'))
-    // Home's own read after the choice never answers before the signal goes.
-    vi.mocked(getHome).mockImplementation(() => new Promise(() => {}))
-    await chooseOption2(choice, option2Snapshot)
-    loseConnection()
-    vi.mocked(getHome).mockImplementation(serverOutOfReach)
-    await timePassesTo('2026-12-15T07:00:00')
-    const app = await openHome(queryClient)
-
-    assert.deepStrictEqual(app.shown(), {
-      home: HomeState.cases.DuringTrip.make({
-        ...homeDuringTrip('2026-12-14T20:00:00'),
-        date: december(15),
-        today: dayPageIn(option2Snapshot, december(15)),
-      }),
-      from: hashKey(dayQuery(december(15)).queryKey),
-    })
-    await app.close()
-    await root.close()
-    await choice.close()
-  })
-
-  it('shows the new Day of a Schedule chosen here after Home was last read, opened offline after Tokyo midnight', async () => {
-    clockAt('2026-12-14T20:00:00')
-    answerSnapshot(snapshot)
-    answerHome(homeDuringTrip('2026-12-14T20:00:00'))
-    const choice = await openChoiceOfOption2()
-    const { queryClient } = choice
-    const root = await openRoot(queryClient)
-    await (await openHome(queryClient)).close()
-
-    // Phillip chooses Option 2 from its page, away from Home, and the
-    // snapshot stores its Schedules and every Day.
-    await timePassesTo('2026-12-14T20:30:00')
-    // Home's own read after the choice never answers before the signal goes.
-    vi.mocked(getHome).mockImplementation(() => new Promise(() => {}))
-    await chooseOption2(choice, option2Snapshot)
-    loseConnection()
-    vi.mocked(getHome).mockImplementation(serverOutOfReach)
-    await timePassesTo('2026-12-15T07:00:00')
-    const app = await openHome(queryClient)
-
-    assert.deepStrictEqual(app.shown(), {
-      home: HomeState.cases.DuringTrip.make({
-        ...homeDuringTrip('2026-12-14T20:00:00'),
-        date: december(15),
-        today: dayPageIn(option2Snapshot, december(15)),
-      }),
-      from: hashKey(dayQuery(december(15)).queryKey),
-    })
-    await app.close()
-    await root.close()
-    await choice.close()
-  })
-
   it('stays as last read rather than go back to a Schedule a later Home read replaced', async () => {
     clockAt('2026-12-14T20:00:00')
     answerSnapshot(snapshot)
@@ -381,15 +256,7 @@ describe('Home after it moved on offline', () => {
     // again here, but no snapshot answered since, so every Day is Option 1's.
     vi.mocked(getScheduleSnapshot).mockImplementation(serverOutOfReach)
     vi.mocked(getSchedules).mockResolvedValue({
-      current: currentSchedule({ id: otherScheduleId, sourceOptionNumber: 2 }),
-      archived: [
-        {
-          ...option1Archived,
-          archivedAt: IsoInstant.make(
-            tokyoTime('2026-12-14T21:30:00').toISOString(),
-          ),
-        },
-      ],
+      current: currentSchedule({ id: otherScheduleId }),
     })
     await act(() => loadQuery(queryClient, schedulesQuery))
     loseConnection()

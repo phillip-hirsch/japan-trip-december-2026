@@ -134,8 +134,7 @@ function HomeSchedule({ schedule }: { schedule: ScheduleDetail }) {
         Schedule
       </h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        From Option {schedule.sourceOptionNumber}, {formatDay(tripStartDate)} to{' '}
-        {formatDay(tripEndDate)}.{' '}
+        {formatDay(tripStartDate)} to {formatDay(tripEndDate)}.{' '}
         <Link
           to="/schedule"
           className="text-foreground underline underline-offset-3"

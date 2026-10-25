@@ -5,7 +5,6 @@ import { december } from '@/trip/domain/domain'
 import type { IsoDate, Pin, ScheduleId } from '@/trip/domain/domain'
 import { places } from '@/trip/catalogue/places'
 import {
-  choose,
   currentScheduleId,
   liveTrip,
   operation,
@@ -31,24 +30,13 @@ describe('Trip.scheduleMap', () => {
     "draws a fresh Schedule's Bases, Moves and Day trips as its Itinerary's map does",
     () =>
       Effect.gen(function* () {
-        const itineraries = yield* Trip.use((trip) => trip.itineraries)
-        let replacing = yield* currentScheduleId
+        const itinerary = yield* Trip.use((trip) => trip.itinerary(1))
+        const { hotels, activities, ...drawn } = yield* scheduleMap
 
-        for (const { optionNumber } of itineraries) {
-          replacing = yield* choose(optionNumber, optionNumber, replacing)
-
-          const itinerary = yield* Trip.use((trip) =>
-            trip.itinerary(optionNumber),
-          )
-
-          const { hotels, activities, ...drawn } = yield* scheduleMap
-
-          assert.deepStrictEqual(
-            { drawn, hotels, activities },
-            { drawn: itinerary.map, hotels: [], activities: [] },
-            `Option ${optionNumber}`,
-          )
-        }
+        assert.deepStrictEqual(
+          { drawn, hotels, activities },
+          { drawn: itinerary.map, hotels: [], activities: [] },
+        )
       }).pipe(Effect.provide([liveTrip, storage])),
   )
 

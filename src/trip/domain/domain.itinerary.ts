@@ -1,4 +1,4 @@
-import { DateTime, Option, Schema, Struct } from 'effect'
+import { Schema, Struct } from 'effect'
 
 import { displayStrings } from '@/fonts/display-strings'
 import { isCalendarDate } from '@/trip/domain/calendar'
@@ -15,17 +15,6 @@ export const IsoDate = Schema.String.check(
 ).pipe(Schema.brand('IsoDate'))
 
 export type IsoDate = typeof IsoDate.Type
-
-export const IsoInstant = Schema.String.check(
-  Schema.makeFilter((instant: string) =>
-    Option.exists(
-      DateTime.make(instant),
-      (parsed) => DateTime.formatIso(parsed) === instant,
-    ),
-  ),
-).pipe(Schema.brand('IsoInstant'))
-
-export type IsoInstant = typeof IsoInstant.Type
 
 export const december = (day: number) =>
   IsoDate.make(`2026-12-${String(day).padStart(2, '0')}`)
@@ -203,16 +192,10 @@ export const ItineraryContent = Schema.Struct({
 
 export type ItineraryContent = typeof ItineraryContent.Type
 
-/**
- * One candidate way to spend the Trip. The content version is a fingerprint
- * of its content that changes only when a Revision lands.
- */
-export const Itinerary = Schema.Struct({
-  ...ItineraryContent.fields,
-  contentVersion: Schema.String,
-})
+/** One candidate way to spend the Trip. */
+export const Itinerary = ItineraryContent
 
-export type Itinerary = typeof Itinerary.Type
+export type Itinerary = ItineraryContent
 
 export const anchorFields = {
   Arrival: { date: IsoDate },
@@ -436,7 +419,6 @@ export type ComparisonMap = typeof ComparisonMap.Type
 export const ItineraryDetail = Schema.Struct({
   ...ItinerarySummary.fields,
   ...ItineraryReasoning.fields,
-  contentVersion: Schema.String,
   stays: Schema.Array(StayDetail),
   days: Schema.Array(DayDetail),
   /** The Verify claims about the Itinerary as a whole. */

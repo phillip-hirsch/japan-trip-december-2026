@@ -4,7 +4,7 @@ import { Effect } from 'effect'
 import { december, Hotel } from '@/trip/domain/domain'
 import {
   currentScheduleId,
-  kyotoHotelOf,
+  kyotoHotel,
   kyotoStayId,
   operation,
   storage,
@@ -26,9 +26,9 @@ describe('Trip.setPin on a hotel', () => {
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* currentScheduleId
-        const stayId = yield* kyotoStayId(scheduleId)
+        const stayId = yield* kyotoStayId
         yield* setPin(scheduleId, hotelTarget(stayId), fushimiInari)
-        const pinnedOnly = yield* kyotoHotelOf(scheduleId)
+        const pinnedOnly = yield* kyotoHotel
         yield* Trip.use((trip) =>
           trip.writeHotelDetails({ scheduleId, stayId, details: ryokan }),
         )
@@ -39,11 +39,7 @@ describe('Trip.setPin on a hotel', () => {
         })
 
         assert.deepStrictEqual(
-          [
-            pinnedOnly,
-            yield* kyotoHotelOf(scheduleId),
-            yield* tonightsHotel(december(10)),
-          ],
+          [pinnedOnly, yield* kyotoHotel, yield* tonightsHotel(december(10))],
           [
             Hotel.cases.Recorded.make({ pin: fushimiInari }),
             recorded,
@@ -58,21 +54,21 @@ describe('Trip.setPin on a hotel', () => {
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* currentScheduleId
-        const stayId = yield* kyotoStayId(scheduleId)
+        const stayId = yield* kyotoStayId
         yield* Trip.use((trip) =>
           trip.writeHotelDetails({ scheduleId, stayId, details: ryokan }),
         )
         yield* setPin(scheduleId, hotelTarget(stayId), fushimiInari)
         yield* setPin(scheduleId, hotelTarget(stayId))
-        const unpinned = yield* kyotoHotelOf(scheduleId)
+        const unpinned = yield* kyotoHotel
         yield* setPin(scheduleId, hotelTarget(stayId), droppedByHand)
         yield* Trip.use((trip) =>
           trip.writeHotelDetails({ scheduleId, stayId, details: {} }),
         )
-        const pinnedOnly = yield* kyotoHotelOf(scheduleId)
+        const pinnedOnly = yield* kyotoHotel
         yield* setPin(scheduleId, hotelTarget(stayId))
         assert.deepStrictEqual(
-          [unpinned, pinnedOnly, yield* kyotoHotelOf(scheduleId)],
+          [unpinned, pinnedOnly, yield* kyotoHotel],
           [
             Hotel.cases.Recorded.make(ryokan),
             Hotel.cases.Recorded.make({ pin: droppedByHand }),
@@ -87,7 +83,7 @@ describe('Trip.setPin on a hotel', () => {
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* currentScheduleId
-        const stayId = yield* kyotoStayId(scheduleId)
+        const stayId = yield* kyotoStayId
         yield* setPin(scheduleId, hotelTarget(stayId), fushimiInari)
         yield* Trip.use((trip) =>
           trip.writeHotelDetails({ scheduleId, stayId, details: ryokan }),
@@ -128,7 +124,7 @@ describe('Trip.setPin on a hotel', () => {
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* currentScheduleId
-        const stayId = yield* kyotoStayId(scheduleId)
+        const stayId = yield* kyotoStayId
         yield* setPin(scheduleId, hotelTarget(stayId), fushimiInari)
 
         const split = yield* Trip.use((trip) =>
@@ -178,7 +174,7 @@ describe('Trip.setPin on a hotel', () => {
   it.effect("keeps the hotel's Pin through a change of its Stay's Base", () =>
     Effect.gen(function* () {
       const scheduleId = yield* currentScheduleId
-      const stayId = yield* kyotoStayId(scheduleId)
+      const stayId = yield* kyotoStayId
       yield* setPin(scheduleId, hotelTarget(stayId), fushimiInari)
       yield* Trip.use((trip) =>
         trip.writeHotelDetails({ scheduleId, stayId, details: ryokan }),

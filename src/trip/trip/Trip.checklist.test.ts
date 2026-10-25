@@ -10,10 +10,9 @@ import {
 import type { ItineraryContent } from '@/trip/domain/domain'
 import { option1 } from '@/trip/itineraries/option-1'
 import {
-  choose,
   currentScheduleId,
   operation,
-  restore,
+  staleScheduleId,
   storage,
   storageStartingFrom,
   tick,
@@ -55,9 +54,7 @@ const withEveryKindOfItem: ItineraryContent = {
   ],
 }
 
-const option1AsOption2: ItineraryContent = { ...option1, optionNumber: 2 }
-
-const trip = tripWith([withEveryKindOfItem, option1AsOption2])
+const trip = tripWith([withEveryKindOfItem])
 
 /** A store whose Schedule has every kind of derived item. */
 const storeOfEveryKind = storageStartingFrom(withEveryKindOfItem)
@@ -232,10 +229,8 @@ describe('Trip.tickChecklistItem', () => {
     'refuses a tick naming a stale Schedule id with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const stale = yield* currentScheduleId
-        const staleItemId = yield* idOf(ChecklistItem.guards.BookHotel)
-        yield* choose(1, 2, stale)
-        const error = yield* Effect.flip(tick(stale, staleItemId, true))
+        const itemId = yield* idOf(ChecklistItem.guards.BookHotel)
+        const error = yield* Effect.flip(tick(staleScheduleId, itemId, true))
 
         assert.deepStrictEqual(
           {
@@ -253,9 +248,8 @@ describe('Trip.tickChecklistItem', () => {
     'fails with ChecklistItemNotFound for an item the Schedule lacks',
     () =>
       Effect.gen(function* () {
-        const first = yield* currentScheduleId
-        const goneItemId = yield* idOf(ChecklistItem.guards.BookHotel)
-        const current = yield* choose(1, 2, first)
+        const current = yield* currentScheduleId
+        const goneItemId = 'no-such-item'
         const error = yield* Effect.flip(tick(current, goneItemId, true))
 
         assert.deepStrictEqual(
@@ -269,65 +263,9 @@ describe('Trip.tickChecklistItem', () => {
         )
       }).pipe(Effect.provide([trip, storeOfEveryKind])),
   )
-
-  it.effect(
-    'keeps ticks with their Schedule: not carried into a new one, back on restoring',
-    () =>
-      Effect.gen(function* () {
-        const first = yield* currentScheduleId
-        yield* tick(first, yield* idOf(ChecklistItem.guards.BookHotel), true)
-        yield* tick(
-          first,
-          yield* idOf(ChecklistItem.guards.ReserveBirthdayDinner),
-          true,
-        )
-        const second = yield* choose(1, 2, first)
-
-        const afterChoosing = (yield* describedChecklist).filter((item) =>
-          item.startsWith('[x]'),
-        )
-
-        yield* restore(first, 3, second)
-
-        assert.deepStrictEqual(
-          {
-            afterChoosing,
-            afterRestoring: (yield* describedChecklist).filter((item) =>
-              item.startsWith('[x]'),
-            ),
-          },
-          {
-            afterChoosing: [],
-            afterRestoring: [
-              '[x] Book hotel: Tokyo 2026-12-06 to 2026-12-09',
-              '[x] Reserve birthday dinner 2026-12-15',
-            ],
-          },
-        )
-      }).pipe(Effect.provide([trip, storeOfEveryKind])),
-  )
 })
 
 describe('Phillip’s own Checklist items', () => {
-  it.effect('carry over, ticks included, on choosing again', () =>
-    Effect.gen(function* () {
-      const first = yield* currentScheduleId
-      const { itemId } = yield* addOwn(2, 'Buy a Suica', december(1))
-      yield* addOwn(3, 'Pack the coin purse')
-      yield* tickOwn(itemId, true)
-      yield* choose(2, 4, first)
-      const { items } = yield* checklist
-
-      assert.deepStrictEqual(
-        items.filter(ChecklistItem.guards.Own).map(described),
-        [
-          '[x] Own: Buy a Suica, reminded 2026-12-01',
-          '[ ] Own: Pack the coin purse',
-        ],
-      )
-    }).pipe(Effect.provide([trip, storeOfEveryKind])),
-  )
-
   it.effect(
     'returns the recorded result for a repeated create operation id, adding nothing',
     () =>

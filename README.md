@@ -76,7 +76,7 @@ The repo is public. Itineraries and these docs are in git. The schedule, checkli
 
 ## Where to look
 
-- `src/routes`: `/`, `/options`, `/options/$optionNumber`, `/schedule`, `/schedule/$date`, `/schedule/archived/$scheduleId`, `/checklist`
+- `src/routes`: `/`, `/options`, `/options/$optionNumber`, `/schedule`, `/schedule/$date`, `/checklist`
 - `src/trip`: one folder per service, plus what they share
   - `domain`: types, calendar, limits and Schedule rules shared by browser and server
   - `catalogue`: places, stations, rail lines and rail geometry

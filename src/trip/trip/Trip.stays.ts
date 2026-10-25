@@ -14,12 +14,8 @@ import { trimmedHotelDetails } from '@/trip/domain/hotel-details'
 import { hotelDetailMaxLength } from '@/trip/domain/limits'
 import { applyStayEdit, StayEdit } from '@/trip/domain/schedule-copy'
 import type { ScheduleStore } from '@/trip/schedule-store/schedule-store'
-import {
-  namedSchedule,
-  requireStay,
-  scheduleWrite,
-} from '@/trip/trip/Trip.guards'
-import { CatalogueLookups } from '@/trip/trip/Trip.shared'
+import { currentIn, requireStay, scheduleWrite } from '@/trip/trip/Trip.guards'
+import { scheduleDetailOf } from '@/trip/trip/Trip.shared'
 
 const requireHotelDetails = (details: HotelDetails) => {
   const trimmed = trimmedHotelDetails(details)
@@ -32,9 +28,7 @@ const requireHotelDetails = (details: HotelDetails) => {
 }
 
 /** The Hotel details write and the Stay edits. */
-export const stayMethods = Effect.gen(function* () {
-  const { scheduleDetail } = yield* CatalogueLookups
-
+export const stayMethods = Effect.sync(() => {
   const writeHotelDetails = Effect.fn('Trip.writeHotelDetails')(function* ({
     scheduleId,
     stayId,
@@ -55,10 +49,10 @@ export const stayMethods = Effect.gen(function* () {
     scheduleId: ScheduleId,
     edit: StayEdit,
   ) {
-    const { copy } = yield* namedSchedule(store, scheduleId)
+    const { copy } = yield* currentIn(store)
     yield* store.saveStayEdit(scheduleId, yield* applyStayEdit(copy, edit))
 
-    return { schedule: scheduleDetail(yield* namedSchedule(store, scheduleId)) }
+    return { schedule: scheduleDetailOf(yield* currentIn(store)) }
   })
 
   const splitStay = Effect.fn('Trip.splitStay')(function* ({

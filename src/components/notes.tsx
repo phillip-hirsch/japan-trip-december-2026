@@ -193,7 +193,7 @@ export function TripNote({
     <NoteFrame
       field={field}
       labelledBy={labelledBy}
-      emptyText="No Trip note yet. It stays as it is when you choose again."
+      emptyText="No Trip note yet."
     />
   )
 }

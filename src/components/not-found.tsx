@@ -9,14 +9,14 @@ export function NotFound() {
       actions={
         <>
           <ButtonLink to="/">Home</ButtonLink>
-          <ButtonLink to="/options" variant="outline">
-            Options
+          <ButtonLink to="/schedule" variant="outline">
+            Schedule
           </ButtonLink>
         </>
       }
     >
-      The link may be mistyped, or it may point to an Option or a Day that
-      doesn’t exist.
+      The link may be mistyped, or it may point to a page or a Day that doesn’t
+      exist.
     </PageMessage>
   )
 }

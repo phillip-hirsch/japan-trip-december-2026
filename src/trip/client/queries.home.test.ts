@@ -118,7 +118,7 @@ describe('Home offline at the Trip boundaries', () => {
     const queryClient = testQueryClient()
     const app = await openHome(queryClient)
 
-    // Home reads again with the birthday outline edited on another device,
+    // Home reads again with a Day note edited on another device,
     // while the snapshot fails, so the stored Schedules predate the edit.
     vi.mocked(getScheduleSnapshot).mockImplementation(serverOutOfReach)
 
@@ -126,8 +126,11 @@ describe('Home offline at the Trip boundaries', () => {
       readAt: tokyoTime('2026-12-04T21:00:00').toISOString(),
       daysToGo: 2,
       schedule: currentSchedule({
-        days: snapshot.days.map(({ day }) => day),
-        birthdayOutline: 'Kaiseki at 19:00.',
+        days: snapshot.days.map(({ day }) =>
+          day.date === december(15)
+            ? { ...day, note: 'Kaiseki at 19:00.' }
+            : day,
+        ),
       }),
     })
 

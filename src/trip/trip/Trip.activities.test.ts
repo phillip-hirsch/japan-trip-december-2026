@@ -4,12 +4,11 @@ import { Effect, Predicate } from 'effect'
 import { december, IsoDate, TokyoDateTime } from '@/trip/domain/domain'
 import {
   activitiesOn,
-  choose,
   currentScheduleId,
-  restore,
   setTime,
+  staleScheduleId,
   storage,
-  tripWithOptions1And2,
+  tripWithOption1,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import {
@@ -37,7 +36,7 @@ describe('Trip.addActivity', () => {
           '18:00 Onsen (Bring a towel.)',
           '--:-- Pack for the Alps',
         ])
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
@@ -56,7 +55,7 @@ describe('Trip.addActivity', () => {
             TokyoDateTime.make('2026-12-15T23:59:00.000+09:00[Asia/Tokyo]'),
           ],
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
@@ -86,7 +85,7 @@ describe('Trip.addActivity', () => {
             ],
           },
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect('trims the title and refuses a blank or overlong one', () =>
@@ -116,7 +115,7 @@ describe('Trip.addActivity', () => {
           titles: [5, 200],
         },
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect('refuses a note past 10,000 characters with NoteTooLong', () =>
@@ -133,7 +132,7 @@ describe('Trip.addActivity', () => {
         { tag: error._tag, activities: yield* activitiesOn(december(14)) },
         { tag: 'NoteTooLong', activities: [] },
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
@@ -147,7 +146,7 @@ describe('Trip.addActivity', () => {
           { repeated, activities: yield* describedOn(december(14)) },
           { repeated: first, activities: ['--:-- Onsen'] },
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect('adds an untimed Activity after the rest', () =>
@@ -160,7 +159,7 @@ describe('Trip.addActivity', () => {
         '19:00 Birthday dinner',
         '--:-- Buy souvenirs',
       ])
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
@@ -181,21 +180,22 @@ describe('Trip.addActivity', () => {
           '19:00 Cake',
           '22:00 Night walk',
         ])
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(
     'refuses an Activity naming a stale Schedule id with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const stale = yield* currentScheduleId
-        yield* choose(2, 2, stale)
-        const error = yield* Effect.flip(add(3, stale, december(14), 'Onsen'))
+        const error = yield* Effect.flip(
+          add(3, staleScheduleId, december(14), 'Onsen'),
+        )
+
         assert.deepStrictEqual(
           { tag: error._tag, activities: yield* activitiesOn(december(14)) },
           { tag: 'ScheduleChanged', activities: [] },
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect('fails with DayNotFound for a Day the Schedule lacks', () =>
@@ -212,7 +212,7 @@ describe('Trip.addActivity', () => {
           : error._tag,
         'DayNotFound 2026-12-21',
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })
 
@@ -239,35 +239,11 @@ describe('Activity writes to a missing target', () => {
         ),
         [true, true, true, true],
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })
 
 describe('Activities and the Schedule', () => {
-  it.effect('leaves Activities behind when choosing again', () =>
-    Effect.gen(function* () {
-      const { scheduleId } = yield* dayWithThree
-      yield* choose(2, 5, scheduleId)
-      assert.deepStrictEqual(yield* activitiesOn(december(15)), [])
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
-  it.effect(
-    'brings Activities back, in order, when restoring their Schedule',
-    () =>
-      Effect.gen(function* () {
-        const { scheduleId, temple, dinner } = yield* dayWithThree
-        yield* move(scheduleId, dinner, temple)
-        const replacement = yield* choose(2, 5, scheduleId)
-        yield* restore(scheduleId, 6, replacement)
-        assert.deepStrictEqual(yield* describedOn(december(15)), [
-          '19:00 Birthday dinner',
-          '09:00 Kiyomizu-dera',
-          '--:-- Walk Gion',
-        ])
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
   it.effect(
     'shows the current Day’s Activities, in order with their times, on Today',
     () =>
@@ -291,6 +267,6 @@ describe('Activities and the Schedule', () => {
             ],
           },
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 })

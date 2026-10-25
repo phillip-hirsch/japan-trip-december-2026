@@ -7,7 +7,6 @@ import {
   getChecklist,
   getDay,
   getHome,
-  getScheduleById,
   getScheduleMap,
   getSchedules,
 } from '@/trip/trip/trip.functions'
@@ -20,8 +19,6 @@ export const keys = {
   home: ['home'],
   schedules: ['schedules'],
   days: ['days'],
-  scheduleSummary: ['schedule-summary'],
-  scheduleById: ['schedule-by-id'],
   checklist: ['checklist'],
   scheduleMap: ['schedule-map'],
   scheduleSnapshot: ['schedule-snapshot'],
@@ -61,13 +58,6 @@ export const schedulesQuery = queryOptions({
   structuralSharing: keepLatestRead,
   refetchOnMount: false,
 })
-
-export const scheduleByIdQuery = (scheduleId: string) =>
-  queryOptions({
-    queryKey: [...keys.scheduleById, scheduleId],
-    queryFn: () => getScheduleById({ data: { scheduleId } }),
-    refetchOnMount: false,
-  })
 
 export const checklistQuery = queryOptions({
   queryKey: keys.checklist,

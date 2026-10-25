@@ -160,11 +160,7 @@ export const useHome = () => {
 
   if (!movedOn) return asRead
 
-  const { schedule, from } = scheduleToMoveOnWith(
-    scheduleIn(data),
-    data.readAt,
-    schedules,
-  )
+  const { schedule, from } = scheduleToMoveOnWith(scheduleIn(data), schedules)
 
   if (schedule === undefined) return asRead
 
@@ -200,22 +196,13 @@ const scheduleIn = (home: HomeState) =>
 
 /**
  * The Schedule Home moves on with offline, and the query it came from:
- * whichever of Home and the stored Schedules the server answered later, else
- * Home's own. Undefined when that lacks it, as Home during the Trip carries
- * only its Schedule's id.
+ * Home's own. Undefined when Home lacks it, as Home during the Trip carries
+ * only its Schedule's id and the stored Schedule is another.
  */
 const scheduleToMoveOnWith = (
   readWith: ReturnType<typeof scheduleIn>,
-  readAt: string,
   schedules: Schedules | undefined,
 ) => {
-  if (
-    schedules !== undefined &&
-    storedAreLater(readWith.id, readAt, schedules)
-  ) {
-    return { schedule: schedules.current, from: schedulesQuery }
-  }
-
   if (readWith.detail !== undefined) {
     return { schedule: readWith.detail, from: homeQuery }
   }
@@ -226,22 +213,3 @@ const scheduleToMoveOnWith = (
     ? { schedule: schedules.current, from: schedulesQuery }
     : { schedule: undefined, from: homeQuery }
 }
-
-/**
- * Whether the server answered the stored Schedules later than Home, read at
- * `readAt` with the Schedule `homeScheduleId`. Both times are the server's,
- * so a device clock set wrong can't reorder them. Choosing or restoring
- * archives the Schedule it replaces. So the stored Schedules are later when
- * they archived Home's at or after the moment Home was read: Home saw it
- * current, so it was archived later. Holding the same Schedule as Home
- * proves neither is later.
- */
-const storedAreLater = (
-  homeScheduleId: string,
-  readAt: string,
-  { archived }: Schedules,
-) =>
-  archived.some(
-    ({ id, archivedAt }) =>
-      id === homeScheduleId && Date.parse(archivedAt) >= Date.parse(readAt),
-  )

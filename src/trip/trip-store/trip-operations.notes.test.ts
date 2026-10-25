@@ -9,7 +9,7 @@ import { noteMaxLength } from '@/trip/domain/limits'
 import {
   currentScheduleId,
   kyotoStayId,
-  staysOf,
+  currentStays,
   storage,
   tripWithOption1,
 } from '@/trip/trip/testing'
@@ -25,7 +25,7 @@ describe('runTripOperation for the Stay note', () => {
   it.effect('answers a written Stay note with Written', () =>
     Effect.gen(function* () {
       const scheduleId = yield* currentScheduleId
-      const stayId = yield* kyotoStayId(scheduleId)
+      const stayId = yield* kyotoStayId
 
       const outcome = yield* runTripOperation('writeStayNote', {
         scheduleId,
@@ -34,7 +34,7 @@ describe('runTripOperation for the Stay note', () => {
       })
 
       assert.deepStrictEqual(
-        { outcome, note: (yield* staysOf(scheduleId))[1]?.note },
+        { outcome, note: (yield* currentStays)[1]?.note },
         {
           outcome: WriteStayNoteOutcome.cases.Written.make({}),
           note: 'Ask about the late check-in.',

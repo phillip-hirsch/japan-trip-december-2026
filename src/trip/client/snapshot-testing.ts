@@ -29,7 +29,6 @@ export const snapshotWith = (dayNote: string): ScheduleSnapshot => {
   return {
     schedules: {
       current: currentSchedule({ days: days.map(({ day }) => day) }),
-      archived: [],
       tripNote: 'Pack light.',
     },
     days,

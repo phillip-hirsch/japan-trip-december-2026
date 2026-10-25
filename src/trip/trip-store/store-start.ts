@@ -1,15 +1,16 @@
 // effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
 // @effect-diagnostics unstableApiUsage:off
-import { DateTime, Effect, Option } from 'effect'
+import { Effect, Option } from 'effect'
 import { Migrator } from 'effect/sql'
 
 import { birthdayDate } from '@/trip/domain/calendar'
+import { ScheduleId } from '@/trip/domain/domain'
 import type { Itinerary } from '@/trip/domain/domain'
 import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
 import { Itineraries } from '@/trip/itineraries/Itineraries'
 import { migrations } from '@/trip/schedule-store/migrations'
 import { scheduleStore } from '@/trip/schedule-store/schedule-store'
-import { copyOf, currentScheduleOf, isoInstantOf } from '@/trip/trip/Trip'
+import { copyOf } from '@/trip/trip/Trip'
 
 const runMigrations = Migrator.make({})({ loader: migrations })
 
@@ -46,9 +47,8 @@ export const startStore = Effect.gen(function* () {
   yield* store.transaction(
     Effect.gen(function* () {
       if (Option.isSome(yield* store.currentRecord)) return
-      const now = isoInstantOf(yield* DateTime.now)
       yield* store.insert(
-        currentScheduleOf(itinerary, now),
+        { id: ScheduleId.make(crypto.randomUUID()) },
         startingCopyOf(itinerary),
       )
     }),

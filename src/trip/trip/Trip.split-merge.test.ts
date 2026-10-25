@@ -13,18 +13,17 @@ import type { IsoDate, ScheduleDetail, ScheduleId } from '@/trip/domain/domain'
 import {
   assertFailedWith,
   checklistItems,
-  chooseOption1,
   currentSchedule,
   currentScheduleId,
   operation,
   option1WithTwoKyotoStays,
-  scheduleById,
   stayIdAt,
   storage,
   storageStartingFrom,
   tick,
   tripWith,
   tripWithOption1,
+  staleScheduleId,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -308,24 +307,17 @@ describe('Trip.splitStay', () => {
     }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
-  it.effect(
-    'refuses an archived or out-of-date Schedule with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const archived = yield* currentScheduleId
-        const stayId = stayIdAt(yield* scheduleById(archived), 1)
-        yield* chooseOption1(2, archived)
-        const before = yield* scheduleById(archived)
-        const current = yield* currentSchedule
+  it.effect('refuses an out-of-date Schedule with ScheduleChanged', () =>
+    Effect.gen(function* () {
+      const before = yield* currentSchedule
 
-        const error = yield* Effect.flip(
-          splitStay(archived, stayId, december(11)),
-        )
+      const error = yield* Effect.flip(
+        splitStay(staleScheduleId, stayIdAt(before, 1), december(11)),
+      )
 
-        assert.strictEqual(error._tag, 'ScheduleChanged')
-        assert.deepStrictEqual(yield* scheduleById(archived), before)
-        assert.deepStrictEqual(yield* currentSchedule, current)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      assert.strictEqual(error._tag, 'ScheduleChanged')
+      assert.deepStrictEqual(yield* currentSchedule, before)
+    }).pipe(Effect.provide([tripWithOption1, storage])),
   )
 
   it.effect(

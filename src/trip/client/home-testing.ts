@@ -14,12 +14,7 @@ import type { Root } from 'react-dom/client'
 import { connected, reportConnection } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
 import { useDayNote } from '@/components/notes'
-import { useChooseItinerary } from '@/components/replace-schedule-dialog'
-import {
-  currentSchedule,
-  openEditor,
-  scheduleId,
-} from '@/trip/client/editor-testing'
+import { openEditor, scheduleId } from '@/trip/client/editor-testing'
 import { testQueryClient, withClient } from '@/trip/client/hook-testing'
 import { pageHydrateOptions } from '@/trip/client/query-client'
 import {
@@ -29,23 +24,16 @@ import {
   useHome,
   useScheduleSnapshot,
 } from '@/trip/client/queries'
-import { answerSnapshot, snapshotWith } from '@/trip/client/snapshot-testing'
+import { snapshotWith } from '@/trip/client/snapshot-testing'
 import {
-  ChooseOutcome,
   december,
   HomeState,
-  IsoInstant,
   ScheduleId,
   WriteDayNoteOutcome,
 } from '@/trip/domain/domain'
 import type { IsoDate, ScheduleSnapshot } from '@/trip/domain/domain'
 import { tokyoDateAt } from '@/trip/domain/calendar'
-import {
-  chooseItinerary,
-  getHome,
-  getSchedules,
-  writeDayNote,
-} from '@/trip/trip/trip.functions'
+import { getHome, getSchedules, writeDayNote } from '@/trip/trip/trip.functions'
 
 // What Home's hook tests share: the device's clock, the app's roots, and Home
 // and the Schedule snapshot as the server answers them. A test file using it
@@ -247,32 +235,6 @@ export const openRoot = async (queryClient: QueryClient) => {
   return { close: () => closeRoot(root) }
 }
 
-/**
- * Option 1's Schedule as the Schedules list it once Option 2 replaced it at
- * 20:30 on December 14 in Tokyo, by the server's clock.
- */
-export const option1Archived = {
-  id: scheduleId,
-  sourceOptionNumber: 1,
-  chosenAt: currentSchedule().chosenAt,
-  archivedAt: IsoInstant.make(tokyoTime('2026-12-14T20:30:00').toISOString()),
-}
-
-/** The snapshot once the Schedule chosen from Option 2 replaced Option 1's. */
-export const option2Snapshot = {
-  ...snapshot,
-  schedules: {
-    ...snapshot.schedules,
-    current: currentSchedule({
-      id: otherScheduleId,
-      sourceOptionNumber: 2,
-      days: snapshot.days.map(({ day }) => day),
-    }),
-    archived: [option1Archived],
-  },
-  days: snapshot.days.map((page) => ({ ...page, scheduleId: otherScheduleId })),
-}
-
 /** Today on December `day`, as the Schedule snapshot stored it. */
 export const todayOn = (day: number) => {
   const date = december(day)
@@ -281,7 +243,7 @@ export const todayOn = (day: number) => {
 }
 
 /** The Day page `from` holds for `date`. */
-export const dayPageIn = (from: ScheduleSnapshot, date: IsoDate) => {
+const dayPageIn = (from: ScheduleSnapshot, date: IsoDate) => {
   const page = from.days.find(({ day }) => day.date === date)
 
   if (page === undefined) throw new Error(`The snapshot has no ${date}`)
@@ -313,38 +275,6 @@ export const saveDayNote = async (
   )
   await act(async () => editor.field().change(note))
   await act(() => editor.field().save())
-  await settle()
-}
-
-/**
- * Opens the choice of Option 2 over Option 1's Schedule on a new query
- * client, on a page that reads the Schedules of `snapshot`.
- */
-export const openChoiceOfOption2 = () => {
-  vi.mocked(getSchedules).mockResolvedValue(snapshot.schedules)
-
-  return openEditor(
-    useChooseItinerary,
-    { optionNumber: 2, current: { id: scheduleId, sourceOptionNumber: 1 } },
-    () => getSchedules(),
-  )
-}
-
-/**
- * Chooses Option 2, as Phillip confirms it. The server takes it, and from
- * then on answers the Schedules and the snapshot with `chosen`.
- */
-export const chooseOption2 = async (
-  choice: Awaited<ReturnType<typeof openChoiceOfOption2>>,
-  chosen: ScheduleSnapshot,
-) => {
-  vi.mocked(chooseItinerary).mockResolvedValue(
-    ChooseOutcome.cases.Chosen.make({ scheduleId: otherScheduleId }),
-  )
-  answerSnapshot(chosen)
-  vi.mocked(getSchedules).mockResolvedValue(chosen.schedules)
-  await act(async () => choice.field().openChange(true))
-  await act(() => choice.field().confirm())
   await settle()
 }
 

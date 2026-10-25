@@ -80,7 +80,6 @@ const storeWrite = Effect.fnUntraced(
  *
  * 1. returns the recorded result when the operation id repeats,
  * 2. refuses with ScheduleChanged when the Schedule named isn't current,
- *    archived Schedules included,
  * 3. runs the write in one transaction, and
  * 4. records the result with its operation id in that transaction.
  *
@@ -112,20 +111,9 @@ export const tripWrite = <A, E, R>(
 ) => storeWrite(recorded, () => Effect.void, write)
 
 /**
- * The Schedule a write names, with its copy. The Schedule-write unit has
- * already found it current, so it is always there.
- */
-export const namedSchedule = (store: ScheduleStore, scheduleId: ScheduleId) =>
-  Effect.flatMap(store.scheduleById(scheduleId), (found) =>
-    Option.match(found, {
-      onNone: () => Effect.die(new Error(`Schedule ${scheduleId} is missing`)),
-      onSome: Effect.succeed,
-    }),
-  )
-
-/**
  * The current Schedule, with its copy. Store start creates it, so it is
- * always there.
+ * always there. A write reads it after the Schedule-write unit has found the
+ * Schedule it names current.
  */
 export const currentIn = (store: ScheduleStore) =>
   Effect.flatMap(store.current, (found) =>

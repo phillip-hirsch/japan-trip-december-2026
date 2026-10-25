@@ -14,7 +14,6 @@ import {
   currentSchedule,
   currentScheduleId,
   operation,
-  scheduleById,
   stayIdAt,
   storage,
   storageStartingFrom,
@@ -98,13 +97,12 @@ describe('Anchor warnings', () => {
       `are derived for a Schedule with ${reason} each time it's read`,
       () =>
         Effect.gen(function* () {
-          const scheduleId = yield* currentScheduleId
           assert.deepStrictEqual(
             (yield* currentSchedule).anchorWarnings,
             warnings,
           )
           assert.deepStrictEqual(
-            (yield* scheduleById(scheduleId)).anchorWarnings,
+            (yield* currentSchedule).anchorWarnings,
             warnings,
           )
         }).pipe(

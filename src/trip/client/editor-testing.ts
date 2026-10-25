@@ -23,7 +23,6 @@ import { nightsBetween } from '@/trip/domain/calendar'
 import {
   december,
   Hotel,
-  IsoInstant,
   ScheduleId,
   StayEditOutcome,
 } from '@/trip/domain/domain'
@@ -196,20 +195,13 @@ export const scheduleId = ScheduleId.make(
 )
 
 /**
- * Phillip's current Schedule, copied from Option 1, with no Stays, Days or
+ * Phillip's Schedule, with no Stays, Days or
  * Anchor warnings unless `fields` gives them.
  */
 export const currentSchedule = (
   fields: Partial<ScheduleDetail> = {},
 ): ScheduleDetail => ({
   id: scheduleId,
-  status: 'current',
-  sourceOptionNumber: 1,
-  sourceContentVersion: 'v1',
-  chosenAt: IsoInstant.make('2026-10-01T00:00:00.000Z'),
-  archivedAt: null,
-  birthdayOutline: '',
-  sourceItinerary: 'unchanged',
   verifyClaims: [],
   stays: [],
   days: [],

@@ -14,6 +14,7 @@ import {
 import { Trip } from '@/trip/trip/Trip'
 import { startStore } from '@/trip/trip-store/store-start'
 import {
+  option1WithEveryAttachment,
   withoutActivities,
   withoutHotels,
   withoutIds,
@@ -23,7 +24,6 @@ import {
 describe('Store start', () => {
   it.effect('gives a fresh store one Schedule copied from Option 1', () =>
     Effect.gen(function* () {
-      const { archived } = yield* Trip.use((trip) => trip.schedules)
       const schedule = yield* currentSchedule
       const itinerary = yield* Trip.use((trip) => trip.itinerary(1))
 
@@ -34,24 +34,57 @@ describe('Store start', () => {
       )
 
       assert.deepStrictEqual(
-        {
-          archived: [...archived],
-          copy: withoutIds({
-            stays: withoutOffers(schedule.stays),
-            days: schedule.days,
-            verifyClaims: schedule.verifyClaims,
-          }),
-        },
-        {
-          archived: [],
-          copy: withoutIds({
-            stays: withoutHotels(itinerary.stays),
-            days: withBirthdayNote,
-            verifyClaims: itinerary.verifyClaims,
-          }),
-        },
+        withoutIds({
+          stays: withoutOffers(schedule.stays),
+          days: schedule.days,
+          verifyClaims: schedule.verifyClaims,
+        }),
+        withoutIds({
+          stays: withoutHotels(itinerary.stays),
+          days: withBirthdayNote,
+          verifyClaims: itinerary.verifyClaims,
+        }),
       )
     }).pipe(Effect.provide([tripWithOption1, storage])),
+  )
+
+  it.effect(
+    'gives every copied Stay, Move, Day trip, Verify claim and Anchor a fresh id',
+    () =>
+      Effect.gen(function* () {
+        const { stays, days, verifyClaims } = yield* currentSchedule
+
+        const copied = [
+          ...stays,
+          ...days.flatMap((day) => [
+            ...day.anchors,
+            ...(day.move ? [day.move] : []),
+            ...day.dayTrips,
+            ...day.verifyClaims,
+          ]),
+          ...stays.flatMap((stay) => stay.verifyClaims),
+          ...verifyClaims,
+        ]
+
+        const ids = copied.map((entity) => entity.id)
+
+        const contentIds = option1WithEveryAttachment.verifyClaims.map(
+          (claim) => claim.id,
+        )
+
+        assert.deepStrictEqual(
+          {
+            allDistinct: new Set(ids).size === ids.length,
+            fromContent: ids.filter((id) => contentIds.includes(id)),
+          },
+          { allDistinct: true, fromContent: [] },
+        )
+      }).pipe(
+        Effect.provide([
+          tripWithOption1,
+          storageStartingFrom(option1WithEveryAttachment),
+        ]),
+      ),
   )
 
   it.effect('starts from the Itinerary it is given', () =>
@@ -84,18 +117,13 @@ describe('Store start', () => {
         }),
       )
       yield* startStore.pipe(Effect.provide(Itineraries.fromContent([option1])))
-      const { current, archived } = yield* Trip.use((trip) => trip.schedules)
+      const { current } = yield* Trip.use((trip) => trip.schedules)
       const page = yield* Trip.use((trip) => trip.day(december(15)))
 
-      const after = {
-        current: current.id,
-        archived: archived.length,
-        note: page.day.note,
-      }
+      const after = { current: current.id, note: page.day.note }
 
       assert.deepStrictEqual<typeof after>(after, {
         current: before.id,
-        archived: 0,
         note: 'Dinner at 19:00.',
       })
     }).pipe(Effect.provide([tripWithOption1, storage])),

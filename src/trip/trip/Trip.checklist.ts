@@ -24,7 +24,6 @@ import type {
 } from '@/trip/schedule-store/schedule-store'
 import {
   currentIn,
-  namedSchedule,
   requireChecklistText,
   scheduleWrite,
   tripWrite,
@@ -215,7 +214,7 @@ const tickChecklistItem = Effect.fn('Trip.tickChecklistItem')(function* ({
 }: TickChecklistItem) {
   yield* scheduleWrite({ naming: scheduleId }, (store) =>
     Effect.gen(function* () {
-      const { copy } = yield* namedSchedule(store, scheduleId)
+      const { copy } = yield* currentIn(store)
 
       const derives = derivedChecklistOf(copy, new Set()).some(
         (item) => item.id === itemId,

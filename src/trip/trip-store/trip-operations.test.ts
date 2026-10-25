@@ -2,32 +2,18 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 
 import { december, IsoDate, WriteDayNoteOutcome } from '@/trip/domain/domain'
-import type { ScheduleId } from '@/trip/domain/domain'
 import { option1 } from '@/trip/itineraries/option-1'
-import { option2 } from '@/trip/itineraries/option-2'
 import { noteMaxLength } from '@/trip/domain/limits'
 import {
   currentScheduleId,
-  operation,
+  staleScheduleId,
   storage,
   tripWith,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import { runTripOperation } from '@/trip/trip-store/trip-operations'
 
-const trip = tripWith([option1, option2])
-
-const choose = (
-  optionNumber: number,
-  n: number,
-  replacing: ScheduleId | null,
-) =>
-  Effect.map(
-    Trip.use((trip) =>
-      trip.choose({ operationId: operation(n), optionNumber, replacing }),
-    ),
-    ({ scheduleId }) => scheduleId,
-  )
+const trip = tripWith([option1])
 
 const dayNote = (date: IsoDate) =>
   Effect.map(
@@ -57,14 +43,11 @@ describe('runTripOperation', () => {
   )
 
   it.effect(
-    'answers a write to an archived Schedule with ScheduleChanged',
+    'answers a write to an out-of-date Schedule with ScheduleChanged',
     () =>
       Effect.gen(function* () {
-        const archived = yield* currentScheduleId
-        yield* choose(2, 2, archived)
-
         const outcome = yield* runTripOperation('writeDayNote', {
-          scheduleId: archived,
+          scheduleId: staleScheduleId,
           date: december(14),
           note: 'Written on an old screen.',
         })
