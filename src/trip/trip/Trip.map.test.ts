@@ -35,7 +35,7 @@ const changeBase = (scheduleId: ScheduleId, index: number, place: string) =>
   )
 
 describe('Trip.scheduleMap', () => {
-  const { tokyo, kyoto, kanazawa, osaka } = places
+  const { tokyo, kyoto, kanazawa, uji } = places
 
   it.effect('shows each Base once, in the order the Trip reaches it', () =>
     Effect.gen(function* () {
@@ -242,7 +242,7 @@ describe('Trip.scheduleMap', () => {
     () =>
       Effect.gen(function* () {
         const scheduleId = yield* currentScheduleId
-        yield* changeBase(scheduleId, 2, 'osaka')
+        yield* changeBase(scheduleId, 2, 'uji')
         const { bases, trainMoves } = yield* scheduleMap
         assert.deepStrictEqual(
           {
@@ -253,16 +253,16 @@ describe('Trip.scheduleMap', () => {
             })),
           },
           {
-            bases: ['tokyo', 'kyoto', 'osaka'],
+            bases: ['tokyo', 'kyoto', 'uji'],
             trainMoves: [
               { date: december(9), path: 'along its lines' },
               {
                 date: december(13),
-                path: [kyoto.coordinates, osaka.coordinates],
+                path: [kyoto.coordinates, uji.coordinates],
               },
               {
                 date: december(17),
-                path: [osaka.coordinates, tokyo.coordinates],
+                path: [uji.coordinates, tokyo.coordinates],
               },
             ],
           },
@@ -285,7 +285,7 @@ describe('Trip.scheduleMap', () => {
           }),
         )
         const afterSplit = yield* scheduleMap
-        yield* changeBase(scheduleId, 2, 'osaka')
+        yield* changeBase(scheduleId, 2, 'uji')
         const afterChange = yield* scheduleMap
 
         const straight = ({ trainMoves }: typeof afterSplit) =>
@@ -303,11 +303,11 @@ describe('Trip.scheduleMap', () => {
             [
               {
                 date: december(11),
-                path: [kyoto.coordinates, osaka.coordinates],
+                path: [kyoto.coordinates, uji.coordinates],
               },
               {
                 date: december(13),
-                path: [osaka.coordinates, places.kanazawa.coordinates],
+                path: [uji.coordinates, places.kanazawa.coordinates],
               },
             ],
           ],

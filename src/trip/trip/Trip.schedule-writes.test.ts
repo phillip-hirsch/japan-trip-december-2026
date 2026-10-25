@@ -92,7 +92,7 @@ const writesNaming = ({ scheduleId, schedule, activityId }: Named) => {
         }),
       ),
       changeStayBase: Effect.flip(
-        trip.changeStayBase({ scheduleId, stayId: stay(2), place: 'osaka' }),
+        trip.changeStayBase({ scheduleId, stayId: stay(2), place: 'kamakura' }),
       ),
       tickChecklistItem: Effect.flip(
         trip.tickChecklistItem({ scheduleId, itemId: stay(1), ticked: true }),

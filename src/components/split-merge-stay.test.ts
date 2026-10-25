@@ -148,7 +148,7 @@ describe('splitting a Stay', () => {
 describe('merging a Stay with the next', () => {
   const kyotoAgain = scheduleStay('stay-kyoto-2', 'kyoto', 12, 14)
 
-  const osaka = scheduleStay('stay-kyoto-2', 'osaka', 12, 14)
+  const uji = scheduleStay('stay-kyoto-2', 'uji', 12, 14)
 
   const refusal =
     'Only Stays in the same Base can be merged. Nothing changed. Your Stays may have changed on another device.'
@@ -309,7 +309,7 @@ describe('merging a Stay with the next', () => {
       editor.field().field.change({ kind: 'merge', next: kyotoAgain }),
     )
 
-    await editor.show({ stay: kyoto, next: osaka })
+    await editor.show({ stay: kyoto, next: uji })
 
     const { view, discardLabel, problem } = editor.field().frame
     assert.deepStrictEqual(
@@ -345,7 +345,7 @@ describe('merging a Stay with the next', () => {
     await act(() => editor.field().field.save())
     assert.strictEqual(notSavedProblem(editor.field().field.state), refusal)
 
-    await editor.show({ stay: oneNightKyoto, next: osaka })
+    await editor.show({ stay: oneNightKyoto, next: uji })
 
     const { view, discardLabel, problem } = editor.field().frame
     assert.deepStrictEqual(
@@ -408,7 +408,7 @@ describe('merging a Stay with the next', () => {
     )
     const { finished } = await startSaving(() => editor.field().field.save())
 
-    await editor.show({ stay: oneNightKyoto, next: osaka })
+    await editor.show({ stay: oneNightKyoto, next: uji })
     await act(async () => {
       answer.resolve(inDifferentBases)
       await finished

@@ -90,7 +90,7 @@ describe('Trip.setPin on a hotel', () => {
         )
 
         yield* Trip.use((trip) =>
-          trip.changeStayBase({ scheduleId, stayId, place: 'osaka' }),
+          trip.changeStayBase({ scheduleId, stayId, place: 'uji' }),
         )
 
         const { schedule } = yield* Trip.use((trip) =>
@@ -107,7 +107,7 @@ describe('Trip.setPin on a hotel', () => {
             })),
           [
             {
-              base: 'osaka',
+              base: 'uji',
               checkOut: december(14),
               hotel: Hotel.cases.Recorded.make({
                 ...ryokan,
@@ -181,7 +181,7 @@ describe('Trip.setPin on a hotel', () => {
       )
 
       const { schedule } = yield* Trip.use((trip) =>
-        trip.changeStayBase({ scheduleId, stayId, place: 'osaka' }),
+        trip.changeStayBase({ scheduleId, stayId, place: 'uji' }),
       )
 
       assert.deepStrictEqual(
@@ -190,7 +190,7 @@ describe('Trip.setPin on a hotel', () => {
           .map(({ base, hotel }) => ({ base: base.id, hotel })),
         [
           {
-            base: 'osaka',
+            base: 'uji',
             hotel: Hotel.cases.Recorded.make({ ...ryokan, pin: fushimiInari }),
           },
         ],

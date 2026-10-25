@@ -49,10 +49,6 @@ const tokaidoLineToYamashina: MlitLine = {
 
 const mlitLines: Record<RailLineId, ReadonlyArray<MlitLine>> = {
   'tokaido-shinkansen': [{ name: '東海道新幹線' }],
-  'tokaido-sanyo-shinkansen': [
-    { name: '東海道新幹線' },
-    { name: '山陽新幹線' },
-  ],
   'hokuriku-shinkansen': [
     tohokuShinkansenToOmiya,
     joetsuShinkansenToTakasaki,

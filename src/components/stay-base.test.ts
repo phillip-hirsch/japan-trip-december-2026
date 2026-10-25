@@ -37,7 +37,7 @@ describe('changing a Base', () => {
   it('is changed once it sends the place chosen to the Stay of the Schedule shown', async () => {
     vi.mocked(changeStayBase).mockImplementation(
       answeringOnly(
-        { scheduleId, stayId: 'stay-kyoto', place: 'osaka' },
+        { scheduleId, stayId: 'stay-kyoto', place: 'uji' },
         staysEdited(),
         StayEditOutcome.cases.StayNotFound.make({ stayId: 'stay-kyoto' }),
       ),
@@ -45,7 +45,7 @@ describe('changing a Base', () => {
     const editor = await openStayBase()
 
     await act(async () => editor.field().field.edit())
-    await act(async () => editor.field().field.change('osaka'))
+    await act(async () => editor.field().field.change('uji'))
     await act(() => editor.field().field.save())
 
     assert.deepStrictEqual(
@@ -58,14 +58,14 @@ describe('changing a Base', () => {
   it('keeps a place the app doesn’t know marked "not saved", without re-reading the Schedules', async () => {
     vi.mocked(changeStayBase).mockResolvedValue(
       StayEditOutcome.cases.HardRuleBroken.make({
-        rule: HardRule.cases.PlaceNotInCatalogue.make({ place: 'osaka' }),
+        rule: HardRule.cases.PlaceNotInCatalogue.make({ place: 'uji' }),
       }),
     )
     let reads = 0
     const editor = await openStayBase(async () => `schedules, read ${++reads}`)
 
     await act(async () => editor.field().field.edit())
-    await act(async () => editor.field().field.change('osaka'))
+    await act(async () => editor.field().field.change('uji'))
     await act(() => editor.field().field.save())
 
     assert.strictEqual(

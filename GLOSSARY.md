@@ -79,7 +79,7 @@ The date one Stay checks out and the next checks in, which is the date of the Mo
 _Avoid_: changeover, transition day
 
 **Day trip**:
-Going to another town and returning to the same Base on the same day. Sights within a Base's own area, like the Hakone Open-Air Museum during a Hakone Stay, are not Day trips.
+Going to another town and returning to the same Base on the same day. Sights within a Base's own area, like Kenrokuen during a Kanazawa Stay, are not Day trips.
 _Avoid_: excursion, side trip
 
 **New place**:

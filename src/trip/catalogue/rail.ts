@@ -18,14 +18,6 @@ export const stations = {
     name: 'Kanazawa',
     coordinates: { latitude: 36.578, longitude: 136.6475 },
   },
-  odawara: {
-    name: 'Odawara',
-    coordinates: { latitude: 35.2564, longitude: 139.1556 },
-  },
-  hakata: {
-    name: 'Hakata',
-    coordinates: { latitude: 33.5897, longitude: 130.4207 },
-  },
 } as const satisfies Record<
   StationId,
   {

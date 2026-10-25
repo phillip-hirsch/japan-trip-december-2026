@@ -48,7 +48,11 @@ describe('Trip.changeStayBase', () => {
         const before = yield* currentSchedule
         const kanazawaId = stayIdAt(before, 2)
 
-        const { schedule } = yield* changeBase(scheduleId, kanazawaId, 'osaka')
+        const { schedule } = yield* changeBase(
+          scheduleId,
+          kanazawaId,
+          'kamakura',
+        )
 
         assert.deepStrictEqual(
           schedule.stays.map(({ id, base, checkIn, checkOut }) => [
@@ -60,7 +64,7 @@ describe('Trip.changeStayBase', () => {
           [
             [stayIdAt(before, 0), 'tokyo', december(6), december(9)],
             [stayIdAt(before, 1), 'kyoto', december(9), december(13)],
-            [kanazawaId, 'osaka', december(13), december(17)],
+            [kanazawaId, 'kamakura', december(13), december(17)],
             [stayIdAt(before, 3), 'tokyo', december(17), december(20)],
           ],
         )
@@ -77,7 +81,7 @@ describe('Trip.changeStayBase', () => {
       const { schedule } = yield* changeBase(
         scheduleId,
         stayIdAt(before, 2),
-        'osaka',
+        'kamakura',
       )
 
       assert.deepStrictEqual(schedule.stays[2]?.highlights, [])
@@ -94,7 +98,7 @@ describe('Trip.changeStayBase', () => {
         const { schedule } = yield* changeBase(
           scheduleId,
           stayIdAt(before, 2),
-          'osaka',
+          'kamakura',
         )
 
         assert.deepStrictEqual(movesOf(schedule), [
@@ -167,7 +171,7 @@ describe('Trip.changeStayBase', () => {
         )
       }
 
-      const { schedule } = yield* changeBase(scheduleId, kanazawaId, 'osaka')
+      const { schedule } = yield* changeBase(scheduleId, kanazawaId, 'kamakura')
 
       assert.deepStrictEqual(
         {
@@ -199,7 +203,7 @@ describe('Trip.changeStayBase', () => {
             : [],
         ),
         [
-          ['BookHotel', kanazawaId, 'osaka'],
+          ['BookHotel', kanazawaId, 'kamakura'],
           ['ReserveSeats', moveId, undefined],
         ],
       )
@@ -216,29 +220,70 @@ describe('Trip.changeStayBase', () => {
         const notInKyoto = yield* changeBase(
           scheduleId,
           stayIdAt(before, 1),
-          'osaka',
+          'uji',
         )
 
-        assert.deepStrictEqual(notInKyoto.schedule.stays[1]?.base.id, 'osaka')
+        assert.deepStrictEqual(notInKyoto.schedule.stays[1]?.base.id, 'uji')
         assert.deepStrictEqual(notInKyoto.schedule.anchorWarnings, [
-          AnchorWarning.cases.NotWakingUpInKyoto.make({ base: 'osaka' }),
+          AnchorWarning.cases.NotWakingUpInKyoto.make({ base: 'uji' }),
         ])
 
         const outsideTokyo = yield* changeBase(
           scheduleId,
           stayIdAt(before, 3),
-          'hakone',
+          'enoshima',
         )
 
         assert.deepStrictEqual(outsideTokyo.schedule.anchorWarnings, [
-          AnchorWarning.cases.NotWakingUpInKyoto.make({ base: 'osaka' }),
-          AnchorWarning.cases.EndsOutsideTokyo.make({ base: 'hakone' }),
+          AnchorWarning.cases.NotWakingUpInKyoto.make({ base: 'uji' }),
+          AnchorWarning.cases.EndsOutsideTokyo.make({ base: 'enoshima' }),
         ])
         assert.deepStrictEqual(yield* currentSchedule, outsideTokyo.schedule)
       }).pipe(Effect.provide([testTrip, storage])),
   )
 
-  for (const place of ['atlantis', 'Osaka', 'constructor', '']) {
+  it.effect(
+    'offers the six catalogue places, Tokyo and Kyoto as visited and the rest as New places',
+    () =>
+      Effect.gen(function* () {
+        const scheduleId = yield* currentScheduleId
+        const stayId = stayIdAt(yield* currentSchedule, 2)
+
+        const bases = yield* Effect.forEach(
+          ['tokyo', 'kyoto', 'kanazawa', 'kamakura', 'uji', 'enoshima'],
+          (place) =>
+            changeBase(scheduleId, stayId, place).pipe(
+              Effect.map(({ schedule }) => {
+                const base = schedule.stays[2]?.base
+
+                return [base?.id, base?.newPlace]
+              }),
+            ),
+        )
+
+        assert.deepStrictEqual(bases, [
+          ['tokyo', false],
+          ['kyoto', false],
+          ['kanazawa', true],
+          ['kamakura', true],
+          ['uji', true],
+          ['enoshima', true],
+        ])
+      }).pipe(Effect.provide([testTrip, storage])),
+  )
+
+  for (const place of [
+    'osaka',
+    'hiroshima',
+    'hakone',
+    'nikko',
+    'fukuoka',
+    'dazaifu',
+    'atlantis',
+    'Kyoto',
+    'constructor',
+    '',
+  ]) {
     it.effect(
       `refuses "${place}", a place outside the catalogue, changing nothing`,
       () =>
@@ -281,7 +326,9 @@ describe('Trip.changeStayBase', () => {
       const scheduleId = yield* currentScheduleId
       const before = yield* currentSchedule
 
-      const error = yield* Effect.flip(changeBase(scheduleId, 'gone', 'osaka'))
+      const error = yield* Effect.flip(
+        changeBase(scheduleId, 'gone', 'kamakura'),
+      )
 
       assert.deepStrictEqual(error, new StayNotFound({ stayId: 'gone' }))
       assert.deepStrictEqual(yield* currentSchedule, before)
@@ -293,7 +340,7 @@ describe('Trip.changeStayBase', () => {
       const before = yield* currentSchedule
 
       const error = yield* Effect.flip(
-        changeBase(staleScheduleId, stayIdAt(before, 2), 'osaka'),
+        changeBase(staleScheduleId, stayIdAt(before, 2), 'kamakura'),
       )
 
       assert.strictEqual(error._tag, 'ScheduleChanged')
