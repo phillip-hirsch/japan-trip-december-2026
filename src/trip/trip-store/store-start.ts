@@ -5,9 +5,9 @@ import { Migrator } from 'effect/sql'
 
 import { birthdayDate } from '@/trip/domain/calendar'
 import { ScheduleId } from '@/trip/domain/domain'
-import type { Itinerary } from '@/trip/domain/domain'
+import type { ItineraryContent } from '@/trip/domain/domain'
 import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
-import { Itineraries } from '@/trip/itineraries/Itineraries'
+import { Itinerary } from '@/trip/itinerary/Itinerary'
 import { migrations } from '@/trip/schedule-store/migrations'
 import { scheduleStore } from '@/trip/schedule-store/schedule-store'
 import { copyOf } from '@/trip/trip/Trip'
@@ -15,7 +15,7 @@ import { copyOf } from '@/trip/trip/Trip'
 const runMigrations = Migrator.make({})({ loader: migrations })
 
 /** The Itinerary's copy, its Birthday outline as December 15's Day note. */
-const startingCopyOf = (itinerary: Itinerary): ScheduleCopy => {
+const startingCopyOf = (itinerary: ItineraryContent): ScheduleCopy => {
   const copy = copyOf(itinerary)
 
   return {
@@ -30,18 +30,12 @@ const startingCopyOf = (itinerary: Itinerary): ScheduleCopy => {
 
 /**
  * Starts the Schedule store: runs the migrations, then, if the store has no
- * Schedule, creates one from Option 1 in one transaction (ADR 0007). Running
+ * Schedule, creates one from the Itinerary in one transaction (ADR 0007). Running
  * it again changes nothing, so every screen always has a Schedule.
  */
 export const startStore = Effect.gen(function* () {
   yield* runMigrations
-  const { all } = yield* Itineraries
-  const itinerary = all.find(({ optionNumber }) => optionNumber === 1)
-
-  if (itinerary === undefined) {
-    return yield* Effect.die(new Error('No Itinerary to start from'))
-  }
-
+  const itinerary = yield* Itinerary
   const store = yield* scheduleStore
 
   yield* store.transaction(

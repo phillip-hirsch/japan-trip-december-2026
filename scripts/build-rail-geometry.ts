@@ -1,4 +1,4 @@
-// Rebuilds the rail geometry: each rail section the Itineraries ride, along
+// Rebuilds the rail geometry: each rail section the Itinerary rides, along
 // its real line, clipped between its stations and simplified. The source is
 // MLIT's National Land Numerical Information railway data (N02), FY2025
 // edition, CC BY 4.0. Needs network access and `unzip`.

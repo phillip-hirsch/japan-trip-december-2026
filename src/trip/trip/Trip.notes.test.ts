@@ -9,7 +9,7 @@ import {
   staleScheduleId,
   currentStays,
   storage,
-  tripWithOption1,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -51,7 +51,7 @@ describe('Trip.writeDayNote', () => {
         yield* dayNote(december(14)),
         'Onsen booked for 18:00.',
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -73,7 +73,7 @@ describe('Trip.writeDayNote', () => {
           { tag: error._tag, note: yield* dayNote(december(14)) },
           { tag: 'ScheduleChanged', note: 'Pack for the Alps.' },
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('fails with DayNotFound for a Day the Schedule lacks', () =>
@@ -93,7 +93,7 @@ describe('Trip.writeDayNote', () => {
         },
         { tag: 'DayNotFound', date: '2026-12-21' },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('accepts 10,000 characters and rejects one more', () =>
@@ -116,7 +116,7 @@ describe('Trip.writeDayNote', () => {
         },
         { tag: 'NoteTooLong', maxLength: 10_000, kept: true },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('removes the Day note when written empty', () =>
@@ -125,7 +125,7 @@ describe('Trip.writeDayNote', () => {
       yield* writeDayNote(scheduleId, december(14), 'Book the onsen.')
       yield* writeDayNote(scheduleId, december(14), '')
       assert.isUndefined(yield* dayNote(december(14)))
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('shows the Day note on Today on Home for that date', () =>
@@ -140,7 +140,7 @@ describe('Trip.writeDayNote', () => {
           : undefined,
         { scheduleId, note: 'Book the onsen.' },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
@@ -152,7 +152,7 @@ describe('Trip.writeStayNote', () => {
       yield* writeStayNote(scheduleId, stayId, 'Asakusa is quiet at night.')
       yield* writeStayNote(scheduleId, stayId, 'Try the kissaten by Exit 3.')
       assert.strictEqual(yield* firstStayNote, 'Try the kissaten by Exit 3.')
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('fails with StayNotFound for a Stay the Schedule lacks', () =>
@@ -174,7 +174,7 @@ describe('Trip.writeStayNote', () => {
         },
         { tag: 'StayNotFound', stayId: goneStayId, notes: [] },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('accepts 10,000 characters and rejects one more', () =>
@@ -198,7 +198,7 @@ describe('Trip.writeStayNote', () => {
         },
         { tag: 'NoteTooLong', maxLength: 10_000, kept: true },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('removes the Stay note when written empty', () =>
@@ -208,7 +208,7 @@ describe('Trip.writeStayNote', () => {
       yield* writeStayNote(scheduleId, stayId, 'Asakusa is quiet at night.')
       yield* writeStayNote(scheduleId, stayId, '')
       assert.isUndefined(yield* firstStayNote)
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
@@ -218,13 +218,13 @@ describe('Trip.writeTripNote', () => {
       yield* writeTripNote('Bring a coin purse.')
       yield* writeTripNote('Bring a coin purse and the Suica.')
       assert.strictEqual(yield* tripNote, 'Bring a coin purse and the Suica.')
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('has no Trip note until Phillip writes one', () =>
     Effect.gen(function* () {
       assert.isUndefined(yield* tripNote)
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('removes the Trip note when written empty', () =>
@@ -232,7 +232,7 @@ describe('Trip.writeTripNote', () => {
       yield* writeTripNote('Bring a coin purse.')
       yield* writeTripNote('')
       assert.isUndefined(yield* tripNote)
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('accepts 10,000 characters and rejects one more', () =>
@@ -249,6 +249,6 @@ describe('Trip.writeTripNote', () => {
         },
         { tag: 'NoteTooLong', maxLength: 10_000, kept: true },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })

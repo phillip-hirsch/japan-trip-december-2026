@@ -17,7 +17,7 @@ import {
   operation,
   currentStays,
   storage,
-  tripWithOption1,
+  testTrip,
   staleScheduleId,
 } from '@/trip/trip/testing'
 import { ryokan } from '@/trip/trip/Trip.pins.testing'
@@ -42,7 +42,7 @@ describe('runTripOperation for Hotel details', () => {
           hotel: Hotel.cases.Recorded.make(ryokan),
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -67,7 +67,7 @@ describe('runTripOperation for Hotel details', () => {
             hotel: Hotel.cases.NotRecorded.make({}),
           },
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
@@ -88,7 +88,7 @@ describe('runTripOperation for Stay edits', () => {
         outcome,
         StayEditOutcome.cases.Edited.make({ schedule: yield* currentSchedule }),
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -110,7 +110,7 @@ describe('runTripOperation for Stay edits', () => {
             rule: HardRule.cases.StaysInDifferentBases.make({}),
           }),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -127,7 +127,7 @@ describe('runTripOperation for Stay edits', () => {
           outcome,
           StayEditOutcome.cases.ScheduleChanged.make({}),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -146,6 +146,6 @@ describe('runTripOperation for Stay edits', () => {
           outcome,
           StayEditOutcome.cases.StayNotFound.make({ stayId: 'stay-missing' }),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })

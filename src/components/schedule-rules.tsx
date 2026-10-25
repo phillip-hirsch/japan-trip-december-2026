@@ -74,7 +74,7 @@ export const hardRuleProblem = (rule: HardRule) =>
       StaysNotAdjacent: () => 'Only Stays next to each other can be merged.',
       StaysInDifferentBases: () => 'Only Stays in the same Base can be merged.',
       PlaceNotInCatalogue: () =>
-        'The app doesn’t know that place. Add new places with the Itinerary guide.',
+        'The app doesn’t know that place. Add new places with the places guide, docs/agents/places.md.',
     }),
   )
 

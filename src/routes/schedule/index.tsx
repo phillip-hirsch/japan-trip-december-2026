@@ -35,7 +35,7 @@ function SchedulePage() {
         </h2>
         <TripNote note={tripNote} labelledBy="trip-note" />
       </section>
-      <ScheduleSections schedule={schedule} linkDays />
+      <ScheduleSections schedule={schedule} />
     </article>
   )
 }

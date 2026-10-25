@@ -8,7 +8,7 @@ import type {
   ScheduleDetail,
   Stay,
 } from '@/trip/domain/domain'
-import { option1 } from '@/trip/itineraries/option-1'
+import { option1 } from '@/trip/itinerary/option-1'
 import {
   checklistItems,
   currentSchedule,
@@ -18,8 +18,7 @@ import {
   storage,
   storageStartingFrom,
   tick,
-  tripWith,
-  tripWithOption1,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -46,7 +45,7 @@ describe('Anchor warnings', () => {
   it.effect('are none for a Schedule keeping every Anchor', () =>
     Effect.gen(function* () {
       assert.deepStrictEqual((yield* currentSchedule).anchorWarnings, [])
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   const cases: ReadonlyArray<
@@ -105,9 +104,7 @@ describe('Anchor warnings', () => {
             (yield* currentSchedule).anchorWarnings,
             warnings,
           )
-        }).pipe(
-          Effect.provide([tripWith([content]), storageStartingFrom(content)]),
-        ),
+        }).pipe(Effect.provide([testTrip, storageStartingFrom(content)])),
     )
   }
 })
@@ -168,6 +165,6 @@ describe('Stay edits', () => {
           .map((item) => item.id)
 
         assert.sameMembers(ticked, [kyotoId, outOf])
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })

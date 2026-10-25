@@ -114,18 +114,15 @@ export function MoveRoute({
 const isLocalWithinOneBase = (move: MoveDetail) =>
   move.mode === 'local' && move.from.id === move.to.id
 
+/**
+ * The Move's mode, travel time and changes. A train or flight Move without a
+ * duration has its travel time unknown, as after a Base change.
+ */
 export function MoveTravel({
   move,
-  onSchedule = false,
   className,
 }: {
   move: MoveDetail
-  /**
-   * Whether the Move is on the Schedule. A train or flight Move without a
-   * duration then has its travel time unknown, as after a Base change. In an
-   * Itinerary, its source didn't give one.
-   */
-  onSchedule?: boolean
   className?: string
 }) {
   const { label, icon: Icon } = moveModes[move.mode]
@@ -144,9 +141,7 @@ export function MoveTravel({
           ·{' '}
           {move.duration
             ? formatDurationRange(move.duration)
-            : onSchedule
-              ? 'travel time unknown'
-              : 'duration not given'}
+            : 'travel time unknown'}
         </span>
       )}
       {move.changes.map((station) => (

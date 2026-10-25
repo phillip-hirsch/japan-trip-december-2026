@@ -142,7 +142,7 @@ function HomeSchedule({ schedule }: { schedule: ScheduleDetail }) {
           Open your Schedule
         </Link>
       </p>
-      <ScheduleSections schedule={schedule} linkDays />
+      <ScheduleSections schedule={schedule} />
     </section>
   )
 }

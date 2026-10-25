@@ -5,7 +5,7 @@ import { DayNotFound, Hotel } from '@/trip/domain/domain'
 import type {
   DayPage,
   IsoDate,
-  Itinerary,
+  ItineraryContent,
   ScheduleDetail,
   ScheduleMap,
   ScheduleSnapshot,
@@ -45,7 +45,7 @@ const scheduleMapOf = (copy: ScheduleCopy): ScheduleMap => ({
 })
 
 /** A fresh copy of the Itinerary, every copied entity with a new id. */
-export const copyOf = (itinerary: Itinerary): ScheduleCopy => {
+export const copyOf = (itinerary: ItineraryContent): ScheduleCopy => {
   const withFreshId = <A extends object>(entity: A) => ({
     ...entity,
     id: crypto.randomUUID(),

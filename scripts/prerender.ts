@@ -1,30 +1,14 @@
 import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 
-import { Effect } from 'effect'
 import type { Plugin, ViteBuilder } from 'vite-plus'
 
 import { pageFile, shellPath } from '../src/offline/shell.ts'
 import { shellProblems } from './check-spa-shell.ts'
-import { readTrip } from './trip.ts'
-
-/**
- * The pages the build prerenders, listed rather than crawled: the comparison
- * page and every Itinerary's page, from the catalogue. Home depends on the
- * date, so it stays dynamic.
- */
-export const readPrerenderedPaths = () =>
-  readTrip((trip) =>
-    Effect.map(trip.itineraries, (itineraries) => [
-      '/options',
-      ...itineraries.map(({ optionNumber }) => `/options/${optionNumber}`),
-    ]),
-  )
 
 /**
  * Where a page's HTML lands with TanStack Start's `autoSubfolderIndex` off:
- * `/options/1` becomes `options/1.html`, which Workers static assets serve at
- * `/options/1` without a trailing-slash redirect.
+ * the shell at `/_shell` becomes `_shell.html`.
  */
 const htmlFile = (pagePath: string) => pageFile(pagePath).slice(1)
 
@@ -37,35 +21,20 @@ export const clientOutDir = (builder: ViteBuilder) =>
 
 const leakedEmailAddress = /[\w.%+-]+@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}\b/i
 
-const optionsLink = /href="(\/options[^"?#]*)"/g
-
-const pageProblems = (
-  prerenderedPaths: ReadonlyArray<string>,
-  file: string,
-  html: string,
-) => [
+const pageProblems = (file: string, html: string) => [
   ...(leakedEmailAddress.test(html)
     ? [`${file} contains an email address`]
     : []),
-  ...[...html.matchAll(optionsLink)].flatMap(([, href]) =>
-    !prerenderedPaths.includes(href)
-      ? [`${file} links to ${href}, which isn't prerendered`]
-      : [],
-  ),
   ...(file === htmlFile(shellPath) ? shellProblems(html) : []),
 ]
 
 /**
- * Fails the build unless the client output holds exactly the prerendered
- * pages and the SPA shell, none containing an email address or linking to an
- * Itinerary page that isn't prerendered, and the shell carrying no loader
- * data (ADR 0006). It must follow TanStack Start's prerender, which is
- * also an enforce-post, order-post `buildApp` hook, so list it after
- * `tanstackStart()`.
+ * Fails the build unless the client output holds exactly one page, the SPA
+ * shell, with no email address and no loader data (ADR 0006). It must follow
+ * TanStack Start's prerender, which is also an enforce-post, order-post
+ * `buildApp` hook, so list it after `tanstackStart()`.
  */
-export const checkPrerenderedHtml = (
-  prerenderedPaths: ReadonlyArray<string>,
-): Plugin => ({
+export const checkPrerenderedHtml = (): Plugin => ({
   name: 'japan-trip:check-prerendered-html',
   apply: 'build',
   enforce: 'post',
@@ -74,7 +43,7 @@ export const checkPrerenderedHtml = (
     async handler(builder) {
       const outDir = clientOutDir(builder)
 
-      const expected = [...prerenderedPaths, shellPath].map(htmlFile)
+      const expected = [htmlFile(shellPath)]
 
       const found = (await readdir(outDir, { recursive: true }))
         .filter((file) => file.endsWith('.html'))
@@ -82,11 +51,7 @@ export const checkPrerenderedHtml = (
 
       const contentProblems = await Promise.all(
         found.map(async (file) =>
-          pageProblems(
-            prerenderedPaths,
-            file,
-            await readFile(path.join(outDir, file), 'utf8'),
-          ),
+          pageProblems(file, await readFile(path.join(outDir, file), 'utf8')),
         ),
       )
 

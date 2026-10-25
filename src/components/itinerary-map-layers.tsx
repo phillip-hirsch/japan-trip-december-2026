@@ -11,7 +11,7 @@ import type { Coordinates, ItineraryMap, Place } from '@/trip/domain/domain'
 
 // MapLibre takes colour strings, not CSS variables: these are the theme's
 // --paper, --chart-1 and --muted-foreground in hex. Vermilion stays reserved
-// for the recommended Itinerary and the Birthday.
+// for the Birthday.
 const trainColor = '#eee7d9'
 
 const flightColor = '#a1c3db'

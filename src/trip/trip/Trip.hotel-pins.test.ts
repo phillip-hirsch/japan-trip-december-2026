@@ -9,7 +9,7 @@ import {
   operation,
   storage,
   tonightsHotel,
-  tripWithOptions1And2,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import {
@@ -46,7 +46,7 @@ describe('Trip.setPin on a hotel', () => {
             recorded,
           ],
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -75,7 +75,7 @@ describe('Trip.setPin on a hotel', () => {
             Hotel.cases.NotRecorded.make({}),
           ],
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -116,7 +116,7 @@ describe('Trip.setPin on a hotel', () => {
             },
           ],
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -168,7 +168,7 @@ describe('Trip.setPin on a hotel', () => {
             merged: [[stayId, december(13), pinned]],
           },
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect("keeps the hotel's Pin through a change of its Stay's Base", () =>
@@ -195,6 +195,6 @@ describe('Trip.setPin on a hotel', () => {
           },
         ],
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })

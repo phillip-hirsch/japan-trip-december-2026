@@ -21,8 +21,7 @@ import {
   storage,
   storageStartingFrom,
   tick,
-  tripWith,
-  tripWithOption1,
+  testTrip,
   staleScheduleId,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
@@ -131,7 +130,7 @@ describe('Trip.splitStay', () => {
             nights: 1,
           },
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -171,7 +170,7 @@ describe('Trip.splitStay', () => {
           movesOf(before).some(({ id }) => id === local?.id) ||
             local?.id === undefined,
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -201,7 +200,7 @@ describe('Trip.splitStay', () => {
           items.find(({ id }) => id === kyotoId)?.ticked,
           true,
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -222,7 +221,7 @@ describe('Trip.splitStay', () => {
         ])
         assert.strictEqual(schedule.stays.length, 5)
         assert.deepStrictEqual(yield* currentSchedule, schedule)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   const refusals: ReadonlyArray<
@@ -266,7 +265,7 @@ describe('Trip.splitStay', () => {
           assertFailedWith(error, new HardRuleBroken({ rule }))
           assert.deepStrictEqual(yield* currentSchedule, before)
           assert.deepStrictEqual(yield* checklistItems, itemsBefore)
-        }).pipe(Effect.provide([tripWithOption1, storage])),
+        }).pipe(Effect.provide([testTrip, storage])),
     )
   }
 
@@ -290,7 +289,7 @@ describe('Trip.splitStay', () => {
           }),
         )
         assert.deepStrictEqual(yield* currentSchedule, before)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect("refuses a Stay the Schedule doesn't have, changing nothing", () =>
@@ -304,7 +303,7 @@ describe('Trip.splitStay', () => {
 
       assert.deepStrictEqual(error, new StayNotFound({ stayId: 'gone' }))
       assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('refuses an out-of-date Schedule with ScheduleChanged', () =>
@@ -317,7 +316,7 @@ describe('Trip.splitStay', () => {
 
       assert.strictEqual(error._tag, 'ScheduleChanged')
       assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -330,7 +329,7 @@ describe('Trip.splitStay', () => {
         const repeat = yield* splitStay(scheduleId, kyotoId, december(11), 2)
         assert.deepStrictEqual(repeat, first)
         assert.deepStrictEqual(yield* currentSchedule, first.schedule)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
@@ -347,7 +346,7 @@ describe('Trip.mergeStays', () => {
 
       assert.deepStrictEqual(schedule, before)
       assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -409,7 +408,7 @@ describe('Trip.mergeStays', () => {
         assert.deepStrictEqual(yield* currentSchedule, schedule)
       }).pipe(
         Effect.provide([
-          tripWith([option1WithTwoKyotoStays]),
+          testTrip,
           storageStartingFrom(option1WithTwoKyotoStays),
         ]),
       ),
@@ -450,7 +449,7 @@ describe('Trip.mergeStays', () => {
         )
       }).pipe(
         Effect.provide([
-          tripWith([option1WithTwoKyotoStays]),
+          testTrip,
           storageStartingFrom(option1WithTwoKyotoStays),
         ]),
       ),
@@ -470,7 +469,7 @@ describe('Trip.mergeStays', () => {
       ])
 
       assert.deepStrictEqual(schedule.anchorWarnings, [])
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   const refusals: ReadonlyArray<
@@ -506,7 +505,7 @@ describe('Trip.mergeStays', () => {
 
         assertFailedWith(error, new HardRuleBroken({ rule }))
         assert.deepStrictEqual(yield* currentSchedule, before)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
     )
   }
 
@@ -521,7 +520,7 @@ describe('Trip.mergeStays', () => {
 
       assert.deepStrictEqual(error, new StayNotFound({ stayId: 'gone' }))
       assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -536,7 +535,7 @@ describe('Trip.mergeStays', () => {
         assert.deepStrictEqual(repeat, first)
       }).pipe(
         Effect.provide([
-          tripWith([option1WithTwoKyotoStays]),
+          testTrip,
           storageStartingFrom(option1WithTwoKyotoStays),
         ]),
       ),

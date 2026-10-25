@@ -8,7 +8,7 @@ import {
   VerifyClaimAttachment,
 } from '@/trip/domain/domain'
 import type { ItineraryContent } from '@/trip/domain/domain'
-import { option1 } from '@/trip/itineraries/option-1'
+import { option1 } from '@/trip/itinerary/option-1'
 import {
   currentScheduleId,
   operation,
@@ -16,7 +16,7 @@ import {
   storage,
   storageStartingFrom,
   tick,
-  tripWith,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -54,7 +54,7 @@ const withEveryKindOfItem: ItineraryContent = {
   ],
 }
 
-const trip = tripWith([withEveryKindOfItem])
+const trip = testTrip
 
 /** A store whose Schedule has every kind of derived item. */
 const storeOfEveryKind = storageStartingFrom(withEveryKindOfItem)

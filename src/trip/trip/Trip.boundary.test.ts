@@ -16,7 +16,7 @@ import type {
   ItineraryContent,
   ScheduleDetail,
 } from '@/trip/domain/domain'
-import { option1 } from '@/trip/itineraries/option-1'
+import { option1 } from '@/trip/itinerary/option-1'
 import {
   assertFailedWith,
   currentSchedule,
@@ -24,8 +24,7 @@ import {
   stayIdAt,
   storage,
   storageStartingFrom,
-  tripWith,
-  tripWithOption1,
+  testTrip,
   staleScheduleId,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
@@ -83,7 +82,7 @@ describe('Trip.moveStayBoundary', () => {
         })
         assert.deepStrictEqual(schedule.anchorWarnings, [])
         assert.deepStrictEqual(yield* currentSchedule, schedule)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -130,7 +129,7 @@ describe('Trip.moveStayBoundary', () => {
           .map((item) => item.id)
 
         assert.sameMembers(ticked, [kyotoId, kanazawaId, moveId])
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -150,7 +149,7 @@ describe('Trip.moveStayBoundary', () => {
             : undefined,
           '2026-11-11',
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   const warnings: ReadonlyArray<
@@ -182,7 +181,7 @@ describe('Trip.moveStayBoundary', () => {
         assert.strictEqual(schedule.stays[index]?.checkOut, december(checkOut))
         assert.deepStrictEqual(schedule.anchorWarnings, expected)
         assert.deepStrictEqual(yield* currentSchedule, schedule)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
     )
   }
 
@@ -195,10 +194,7 @@ describe('Trip.moveStayBoundary', () => {
           AnchorWarning.cases.EndsOutsideTokyo.make({ base: 'kanazawa' }),
         ])
       }).pipe(
-        Effect.provide([
-          tripWith([endingInKanazawa]),
-          storageStartingFrom(endingInKanazawa),
-        ]),
+        Effect.provide([testTrip, storageStartingFrom(endingInKanazawa)]),
       ),
   )
 
@@ -260,7 +256,7 @@ describe('Trip.moveStayBoundary', () => {
 
         assertFailedWith(error, new HardRuleBroken({ rule }))
         assert.deepStrictEqual(yield* currentSchedule, before)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
     )
   }
 
@@ -281,7 +277,7 @@ describe('Trip.moveStayBoundary', () => {
 
       assert.deepStrictEqual(error, new StayNotFound({ stayId: 'gone' }))
       assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('refuses an out-of-date Schedule with ScheduleChanged', () =>
@@ -300,6 +296,6 @@ describe('Trip.moveStayBoundary', () => {
 
       assert.deepStrictEqual(error, new ScheduleChanged())
       assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })

@@ -2,18 +2,17 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 
 import { december, IsoDate, WriteDayNoteOutcome } from '@/trip/domain/domain'
-import { option1 } from '@/trip/itineraries/option-1'
 import { noteMaxLength } from '@/trip/domain/limits'
 import {
   currentScheduleId,
   staleScheduleId,
   storage,
-  tripWith,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import { runTripOperation } from '@/trip/trip-store/trip-operations'
 
-const trip = tripWith([option1])
+const trip = testTrip
 
 const dayNote = (date: IsoDate) =>
   Effect.map(

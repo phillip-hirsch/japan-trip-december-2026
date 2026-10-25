@@ -214,8 +214,8 @@ export const MapActivity = Schema.Struct({
 export type MapActivity = typeof MapActivity.Type
 
 /**
- * The current Schedule on its map: drawn as an Itinerary's map is, from the
- * Schedule's own Stays and Moves, with every pinned hotel and Activity.
+ * The current Schedule on its map: its Stays, Moves and Day trips, with every
+ * pinned hotel and Activity.
  */
 export const ScheduleMap = Schema.Struct({
   ...ItineraryMap.fields,

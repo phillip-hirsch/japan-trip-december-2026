@@ -10,11 +10,11 @@ import {
   staleScheduleId,
   stayIdAt,
   storage,
-  tripWithOption1,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
-const provided = Effect.provide([tripWithOption1, storage])
+const provided = Effect.provide([testTrip, storage])
 
 const outsideJapan = { coordinates: { latitude: 48.8584, longitude: 2.2945 } }
 

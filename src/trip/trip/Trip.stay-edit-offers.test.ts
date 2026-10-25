@@ -19,7 +19,7 @@ import {
   operation,
   option1WithTwoKyotoStays,
   storageStartingFrom,
-  tripWith,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -27,7 +27,7 @@ import { Trip } from '@/trip/trip/Trip'
  * A sample Schedule: Tokyo, Kyoto, Kyoto again, Kanazawa and Tokyo again,
  * so only the two Kyoto Stays are in one Base.
  */
-const sampleTrip = tripWith([option1WithTwoKyotoStays])
+const sampleTrip = testTrip
 
 const sampleStorage = storageStartingFrom(option1WithTwoKyotoStays)
 

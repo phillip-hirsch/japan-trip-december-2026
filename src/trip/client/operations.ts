@@ -4,10 +4,7 @@
  */
 export interface Operation {
   readonly id: string
-  /**
-   * What the attempt is for, such as the Schedule shown when it was sent, or
-   * the Itinerary a replace-Schedule dialog chooses.
-   */
+  /** What the attempt is for, such as the Schedule shown when it was sent. */
   readonly subject: string | null
 }
 

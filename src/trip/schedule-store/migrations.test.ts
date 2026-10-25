@@ -13,10 +13,10 @@ import {
   Hotel,
   ScheduleId,
 } from '@/trip/domain/domain'
-import { Itineraries } from '@/trip/itineraries/Itineraries'
-import { option1 } from '@/trip/itineraries/option-1'
+import { Itinerary } from '@/trip/itinerary/Itinerary'
+import { option1 } from '@/trip/itinerary/option-1'
 import { migrations } from '@/trip/schedule-store/migrations'
-import { tripWithOption1 } from '@/trip/trip/testing'
+import { testTrip } from '@/trip/trip/testing'
 import { copyOf, Trip } from '@/trip/trip/Trip'
 import { startStore } from '@/trip/trip-store/store-start'
 
@@ -147,7 +147,7 @@ const startedAfter = (
       Effect.andThen(startStore),
     ),
   ).pipe(
-    Layer.provide(Itineraries.fromContent([option1])),
+    Layer.provide(Itinerary.fromContent(option1)),
     Layer.provideMerge(SqliteClient.layer({ filename: ':memory:' })),
   )
 
@@ -216,7 +216,7 @@ describe('Dropping what only choosing used', () => {
         })
       }).pipe(
         Effect.provide([
-          tripWithOption1,
+          testTrip,
           startedAfter(
             Effect.andThen(
               insertScheduleAsShipped(archivedId, 'archived', {
@@ -242,7 +242,7 @@ describe('Dropping what only choosing used', () => {
       ])
     }).pipe(
       Effect.provide([
-        tripWithOption1,
+        testTrip,
         startedAfter(
           insertScheduleAsShipped(currentId, 'current', {
             ...entered,

@@ -4,7 +4,7 @@ import { Effect, Predicate } from 'effect'
 import { tripDates } from '@/trip/domain/calendar'
 import { ChecklistItem, december } from '@/trip/domain/domain'
 import type { ScheduleSnapshot } from '@/trip/domain/domain'
-import { option1 } from '@/trip/itineraries/option-1'
+import { option1 } from '@/trip/itinerary/option-1'
 import { add } from '@/trip/trip/Trip.activities.testing'
 import {
   checklistItems,
@@ -13,7 +13,7 @@ import {
   operation,
   storage,
   tick,
-  tripWithOption1,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -109,7 +109,7 @@ describe('Trip.scheduleSnapshot', () => {
             ownItems: ['Buy a Suica card'],
           },
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -128,6 +128,6 @@ describe('Trip.scheduleSnapshot', () => {
           ),
           checklist: yield* Trip.use((trip) => trip.checklist),
         })
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })

@@ -1,4 +1,4 @@
-import { Context, Effect, Predicate, Struct } from 'effect'
+import { Predicate, Struct } from 'effect'
 
 import {
   birthdayDate,
@@ -7,16 +7,12 @@ import {
   tripEndDate,
   tripStartDate,
 } from '@/trip/domain/calendar'
-import {
-  Anchor,
-  ItineraryNotFound,
-  VerifyClaimAttachment,
-} from '@/trip/domain/domain'
+import { Anchor, VerifyClaimAttachment } from '@/trip/domain/domain'
 import type {
   Day,
   DayTrip,
   IsoDate,
-  Itinerary,
+  ItineraryContent,
   Move,
   MoveDetail,
   Place,
@@ -28,7 +24,6 @@ import type {
   VerifyClaim,
   VerifyClaimDetail,
 } from '@/trip/domain/domain'
-import { Itineraries } from '@/trip/itineraries/Itineraries'
 import type { PlaceId, StationId } from '@/trip/catalogue/catalogue-ids'
 import { places, visitedPlaceIds } from '@/trip/catalogue/places'
 import { stations } from '@/trip/catalogue/rail'
@@ -101,7 +96,7 @@ export const hasThursdayBackup = (stays: ReadonlyArray<Stay>) =>
 export const anchorsOf = ({
   stays,
   shigeharuVisit,
-}: Itinerary): Array<Anchor> => [
+}: ItineraryContent): Array<Anchor> => [
   Anchor.cases.Arrival.make({ date: tripStartDate }),
   ...(shigeharuVisit
     ? [
@@ -222,36 +217,3 @@ export const scheduleDetailOf = ({
     anchorWarnings: anchorWarningsOf(copy),
   }
 }
-
-export const find = Effect.fnUntraced(function* <A>(
-  entries: ReadonlyMap<number, A>,
-  optionNumber: number,
-) {
-  const found = entries.get(optionNumber)
-
-  if (found === undefined) {
-    return yield* new ItineraryNotFound({ optionNumber })
-  }
-
-  return found
-})
-
-/**
- * Builds the lookups over the Itinerary catalogue that several areas share.
- * The Trip layer runs it once and provides the result as CatalogueLookups.
- */
-export const buildCatalogueLookups = Effect.gen(function* () {
-  const { all } = yield* Itineraries
-
-  const byOptionNumber = new Map(
-    all.map((itinerary) => [itinerary.optionNumber, itinerary]),
-  )
-
-  return { byOptionNumber }
-})
-
-/** The catalogue lookups several areas share, built once per Trip layer. */
-export class CatalogueLookups extends Context.Service<
-  CatalogueLookups,
-  Effect.Success<typeof buildCatalogueLookups>
->()('japan-trip/trip/CatalogueLookups') {}

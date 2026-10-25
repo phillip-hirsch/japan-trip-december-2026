@@ -10,7 +10,7 @@ import {
   kyotoStayId,
   staleScheduleId,
   storage,
-  tripWithOption1,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import {
@@ -41,7 +41,7 @@ describe('Trip.setPin', () => {
             { title: 'Dinner', pin: undefined },
           ],
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -64,7 +64,7 @@ describe('Trip.setPin', () => {
           [afterKept, (yield* activitiesOn(december(10)))[0]?.pin],
           [kept, droppedByHand],
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect("removes an Activity's Pin when given none", () =>
@@ -77,7 +77,7 @@ describe('Trip.setPin', () => {
         (yield* activitiesOn(december(10))).map(({ pin }) => pin),
         [undefined],
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect("keeps an Activity's Pin through an edit of its other fields", () =>
@@ -100,7 +100,7 @@ describe('Trip.setPin', () => {
         })),
         [{ title: 'Fushimi Inari at dawn', pin: fushimiInari }],
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -136,7 +136,7 @@ describe('Trip.setPin', () => {
             hotel: Hotel.cases.NotRecorded.make({}),
           },
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -171,7 +171,7 @@ describe('Trip.setPin', () => {
             hotel: Hotel.cases.NotRecorded.make({}),
           },
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -194,6 +194,6 @@ describe('Trip.setPin', () => {
         )
 
         assert.deepStrictEqual(errors, ['ActivityNotFound', 'StayNotFound'])
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })

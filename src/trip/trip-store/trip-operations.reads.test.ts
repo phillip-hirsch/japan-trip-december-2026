@@ -2,7 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect } from 'effect'
 
 import { DayOutcome, december, IsoDate } from '@/trip/domain/domain'
-import { currentSchedule, storage, tripWithOption1 } from '@/trip/trip/testing'
+import { currentSchedule, storage, testTrip } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import { runTripOperation } from '@/trip/trip-store/trip-operations'
 
@@ -19,7 +19,7 @@ describe('runTripOperation for reads', () => {
           checklist: yield* Trip.use((trip) => trip.checklist),
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers the current Schedule and its map', () =>
@@ -34,7 +34,7 @@ describe('runTripOperation for reads', () => {
           map: yield* Trip.use((trip) => trip.scheduleMap),
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers the Schedule snapshot as the Trip reads it', () =>
@@ -43,7 +43,7 @@ describe('runTripOperation for reads', () => {
         yield* runTripOperation('scheduleSnapshot', undefined),
         yield* Trip.use((trip) => trip.scheduleSnapshot),
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -56,7 +56,7 @@ describe('runTripOperation for reads', () => {
           (yield* runTripOperation('schedules', undefined)).tripNote,
           'Pack a coat.',
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers a Day of the current Schedule with its page', () =>
@@ -69,7 +69,7 @@ describe('runTripOperation for reads', () => {
           page: yield* Trip.use((trip) => trip.day(december(14))),
         }),
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -86,6 +86,6 @@ describe('runTripOperation for reads', () => {
             date: IsoDate.make('2026-12-21'),
           }),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })

@@ -13,7 +13,6 @@ import type {
   Checklist,
   ChecklistItemNotFound,
   ChecklistTextInvalid,
-  ComparisonMap,
   Coordinates,
   CoordinatesOutsideJapan,
   DayNotFound,
@@ -25,9 +24,6 @@ import type {
   HomeState,
   HotelDetailTooLong,
   IsoDate,
-  ItineraryComparison,
-  ItineraryDetail,
-  ItineraryNotFound,
   LocationLinkRefused,
   MapRailSection,
   MergeStays,
@@ -50,7 +46,6 @@ import type {
   TickChecklistItem,
   TickOwnChecklistItem,
   TileCoordinates,
-  TripRuleBreak,
   WriteDayNote,
   WriteHotelDetails,
   WriteStayNote,
@@ -75,8 +70,6 @@ export interface TripContract {
    * date outside the Trip.
    */
   day(date: IsoDate): Effect.Effect<DayPage, DayNotFound, SqlClient.SqlClient>
-  readonly itineraries: Effect.Effect<ReadonlyArray<ItineraryComparison>>
-  readonly comparisonMap: Effect.Effect<ComparisonMap>
   /**
    * The Detail tile at the coordinates, as its archive stores it, still
    * compressed; none outside the archive's boxes, beyond its zoom levels,
@@ -90,18 +83,8 @@ export interface TripContract {
     DetailTilesUnavailable,
     DetailTileArchive
   >
-  itinerary(
-    optionNumber: number,
-  ): Effect.Effect<ItineraryDetail, ItineraryNotFound>
   /**
-   * How an Itinerary breaks the Trip's rules. Only the tests call this, over
-   * every Itinerary: content is trusted at runtime and never re-checked.
-   */
-  tripRuleBreaks(
-    optionNumber: number,
-  ): Effect.Effect<ReadonlyArray<TripRuleBreak>, ItineraryNotFound>
-  /**
-   * Every rail section the Itineraries ride, once whichever way it's
+   * Every rail section the Itinerary rides, once whichever way it's
    * ridden, and whether the map follows its rail line. Only the rail
    * geometry build and the tests call this.
    */

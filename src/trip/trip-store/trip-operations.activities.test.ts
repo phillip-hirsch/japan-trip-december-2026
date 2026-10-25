@@ -16,7 +16,7 @@ import {
   kyotoStayId,
   operation,
   storage,
-  tripWithOption1,
+  testTrip,
 } from '@/trip/trip/testing'
 import { dayWithThree, describedOn } from '@/trip/trip/Trip.activities.testing'
 import {
@@ -44,7 +44,7 @@ describe('runTripOperation for an Activity', () => {
         outcome,
         AddActivityOutcome.cases.Added.make({ activityId: added?.id ?? '' }),
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -69,7 +69,7 @@ describe('runTripOperation for an Activity', () => {
             activities: [],
           },
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers an edited Activity with Edited', () =>
@@ -93,7 +93,7 @@ describe('runTripOperation for an Activity', () => {
           ],
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -114,7 +114,7 @@ describe('runTripOperation for an Activity', () => {
             activityId: 'no-such-activity',
           }),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers a moved Activity with Moved', () =>
@@ -138,7 +138,7 @@ describe('runTripOperation for an Activity', () => {
           ],
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers a removed Activity with Removed', () =>
@@ -157,7 +157,7 @@ describe('runTripOperation for an Activity', () => {
           activities: ['09:00 Kiyomizu-dera', '19:00 Birthday dinner'],
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
@@ -178,7 +178,7 @@ describe('runTripOperation for a Pin', () => {
         { outcome, pin: pinned?.pin },
         { outcome: SetPinOutcome.cases.Set.make({}), pin: fushimiInari },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -201,6 +201,6 @@ describe('runTripOperation for a Pin', () => {
             coordinates: london,
           }),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })

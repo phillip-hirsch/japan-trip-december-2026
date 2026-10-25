@@ -15,7 +15,7 @@ import {
   kyotoStayId,
   operation,
   storage,
-  tripWithOption1,
+  testTrip,
 } from '@/trip/trip/testing'
 import { runTripOperation } from '@/trip/trip-store/trip-operations'
 
@@ -51,7 +51,7 @@ describe('runTripOperation for a Tick', () => {
             ticked: [itemId],
           },
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -72,7 +72,7 @@ describe('runTripOperation for a Tick', () => {
             itemId: 'no-such-item',
           }),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers a Tick on an Own Checklist item with Ticked', () =>
@@ -92,7 +92,7 @@ describe('runTripOperation for a Tick', () => {
           ticked: [itemId],
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -110,7 +110,7 @@ describe('runTripOperation for a Tick', () => {
             itemId: 'no-such-item',
           }),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
@@ -129,7 +129,7 @@ describe('runTripOperation for an Own Checklist item', () => {
           own: [{ id: own?.id ?? '', text: 'Buy a SIM' }],
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -155,7 +155,7 @@ describe('runTripOperation for an Own Checklist item', () => {
             own: [],
           },
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers a removed Own Checklist item with Removed', () =>
@@ -173,6 +173,6 @@ describe('runTripOperation for an Own Checklist item', () => {
           own: [],
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })

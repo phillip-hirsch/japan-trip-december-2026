@@ -69,13 +69,7 @@ const stayFooter = (schedule: ScheduleDetail) => (stay: ScheduleStayDetail) => {
   )
 }
 
-export function ScheduleSections({
-  schedule,
-  linkDays = false,
-}: {
-  schedule: ScheduleDetail
-  linkDays?: boolean
-}) {
+export function ScheduleSections({ schedule }: { schedule: ScheduleDetail }) {
   return (
     <>
       <section aria-labelledby="stays" className="mt-12">
@@ -88,12 +82,7 @@ export function ScheduleSections({
         <h2 id="days" className="mb-4 text-xl font-semibold">
           Days
         </h2>
-        <DayTimeline
-          days={schedule.days}
-          stays={schedule.stays}
-          linkDays={linkDays}
-          onSchedule
-        />
+        <DayTimeline days={schedule.days} stays={schedule.stays} />
       </section>
     </>
   )

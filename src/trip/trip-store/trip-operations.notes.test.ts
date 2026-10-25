@@ -11,7 +11,7 @@ import {
   kyotoStayId,
   currentStays,
   storage,
-  tripWithOption1,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import { runTripOperation } from '@/trip/trip-store/trip-operations'
@@ -40,7 +40,7 @@ describe('runTripOperation for the Stay note', () => {
           note: 'Ask about the late check-in.',
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -61,7 +61,7 @@ describe('runTripOperation for the Stay note', () => {
             stayId: 'no-such-stay',
           }),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
@@ -79,7 +79,7 @@ describe('runTripOperation for the Trip note', () => {
           note: 'Pack the rail pass.',
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers a Trip note too long with NoteTooLong and the limit', () =>
@@ -97,6 +97,6 @@ describe('runTripOperation for the Trip note', () => {
           note: undefined,
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })

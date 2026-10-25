@@ -1,51 +1,102 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect } from 'effect'
+import { Effect, Predicate } from 'effect'
 
 import { december } from '@/trip/domain/domain'
-import { Itineraries } from '@/trip/itineraries/Itineraries'
-import { option1 } from '@/trip/itineraries/option-1'
+import { Itinerary } from '@/trip/itinerary/Itinerary'
+import { option1 } from '@/trip/itinerary/option-1'
 import {
   currentSchedule,
   option1WithTwoKyotoStays,
   storage,
   storageStartingFrom,
-  tripWithOption1,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import { startStore } from '@/trip/trip-store/store-start'
-import {
-  option1WithEveryAttachment,
-  withoutActivities,
-  withoutHotels,
-  withoutIds,
-  withoutOffers,
-} from '@/trip/trip/Trip.schedule.testing'
+import { option1WithEveryAttachment } from '@/trip/trip/Trip.schedule.testing'
 
 describe('Store start', () => {
-  it.effect('gives a fresh store one Schedule copied from Option 1', () =>
-    Effect.gen(function* () {
-      const schedule = yield* currentSchedule
-      const itinerary = yield* Trip.use((trip) => trip.itinerary(1))
+  it.effect(
+    'gives a fresh store one Schedule copied from Option 1, its Birthday outline as the December 15 Day note',
+    () =>
+      Effect.gen(function* () {
+        const { stays, days, verifyClaims } = yield* currentSchedule
 
-      const withBirthdayNote = withoutActivities(itinerary.days).map((day) =>
-        day.date === december(15)
-          ? { ...day, note: option1.birthdayOutline }
-          : day,
-      )
+        const copied = {
+          stays: stays.map(
+            ({ base, checkIn, checkOut, accommodation, highlights }) => ({
+              base: base.id,
+              checkIn,
+              checkOut,
+              accommodation,
+              highlights,
+            }),
+          ),
+          days: days.map(({ date, description, note }) => ({
+            date,
+            ...(description !== undefined && { description }),
+            ...(note !== undefined && { note }),
+          })),
+          moves: days.flatMap(({ date, move }) =>
+            move
+              ? [
+                  {
+                    date,
+                    mode: move.mode,
+                    sections: move.sections.map(({ mode, line, from, to }) => ({
+                      mode,
+                      line,
+                      from: from.id,
+                      to: to.id,
+                    })),
+                    ...(move.duration && { duration: move.duration }),
+                  },
+                ]
+              : [],
+          ),
+          dayTrips: days.flatMap(({ date, dayTrips }) =>
+            dayTrips.map(({ place, optional }) => ({
+              date,
+              place: place.id,
+              optional,
+            })),
+          ),
+          verifyClaims: [
+            ...verifyClaims,
+            ...stays.flatMap((stay) => stay.verifyClaims),
+            ...days.flatMap((day) => day.verifyClaims),
+          ]
+            .map(({ text }) => text)
+            .sort(),
+          shigeharuVisit: days.flatMap(({ anchors }) =>
+            anchors.flatMap((anchor) =>
+              Predicate.isTagged(anchor, 'ShigeharuVisit')
+                ? [{ date: anchor.date, slot: anchor.slot }]
+                : [],
+            ),
+          ),
+          nothingRecorded:
+            stays.every((stay) =>
+              Predicate.isTagged(stay.hotel, 'NotRecorded'),
+            ) && days.every((day) => day.activities.length === 0),
+        }
 
-      assert.deepStrictEqual(
-        withoutIds({
-          stays: withoutOffers(schedule.stays),
-          days: schedule.days,
-          verifyClaims: schedule.verifyClaims,
-        }),
-        withoutIds({
-          stays: withoutHotels(itinerary.stays),
-          days: withBirthdayNote,
-          verifyClaims: itinerary.verifyClaims,
-        }),
-      )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+        const expected = {
+          stays: option1.stays,
+          days: option1.days.map((day) =>
+            day.date === december(15)
+              ? { ...day, note: option1.birthdayOutline }
+              : day,
+          ),
+          moves: option1.moves,
+          dayTrips: option1.dayTrips,
+          verifyClaims: option1.verifyClaims.map(({ text }) => text).sort(),
+          shigeharuVisit: [option1.shigeharuVisit],
+          nothingRecorded: true,
+        }
+
+        assert.deepStrictEqual<typeof expected>(copied, expected)
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -81,7 +132,7 @@ describe('Store start', () => {
         )
       }).pipe(
         Effect.provide([
-          tripWithOption1,
+          testTrip,
           storageStartingFrom(option1WithEveryAttachment),
         ]),
       ),
@@ -99,10 +150,7 @@ describe('Store start', () => {
         })),
       )
     }).pipe(
-      Effect.provide([
-        tripWithOption1,
-        storageStartingFrom(option1WithTwoKyotoStays),
-      ]),
+      Effect.provide([testTrip, storageStartingFrom(option1WithTwoKyotoStays)]),
     ),
   )
 
@@ -116,7 +164,7 @@ describe('Store start', () => {
           note: 'Dinner at 19:00.',
         }),
       )
-      yield* startStore.pipe(Effect.provide(Itineraries.fromContent([option1])))
+      yield* startStore.pipe(Effect.provide(Itinerary.fromContent(option1)))
       const { current } = yield* Trip.use((trip) => trip.schedules)
       const page = yield* Trip.use((trip) => trip.day(december(15)))
 
@@ -126,6 +174,6 @@ describe('Store start', () => {
         current: before.id,
         note: 'Dinner at 19:00.',
       })
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })

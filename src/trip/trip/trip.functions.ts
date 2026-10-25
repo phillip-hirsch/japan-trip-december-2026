@@ -9,11 +9,9 @@ import {
   DayOutcome,
   EditActivity,
   IsoDate,
-  ItineraryOutcome,
   MergeStays,
   MoveActivity,
   MoveStayBoundary,
-  OptionNumber,
   outcomeOf,
   RemoveActivity,
   RemoveOwnChecklistItem,
@@ -63,39 +61,6 @@ export const getDay = createServerFn({ method: 'GET' })
     return DayOutcome.match(outcome, {
       Day: ({ page }) => page,
       DayNotFound: () => {
-        throw notFound()
-      },
-    })
-  })
-
-export const getItineraries = createServerFn({ method: 'GET' }).handler(() =>
-  runTrip(Trip.use((trip) => trip.itineraries)),
-)
-
-export const getComparisonMap = createServerFn({ method: 'GET' }).handler(() =>
-  runTrip(Trip.use((trip) => trip.comparisonMap)),
-)
-
-export const getItinerary = createServerFn({ method: 'GET' })
-  .validator(
-    Schema.toStandardSchemaV1(Schema.Struct({ optionNumber: OptionNumber })),
-  )
-  .handler(async ({ data }) => {
-    const outcome = await runTrip(
-      outcomeOf(
-        ItineraryOutcome,
-        Trip.use((trip) => trip.itinerary(data.optionNumber)).pipe(
-          Effect.map((itinerary) => ({ itinerary })),
-        ),
-      ).pipe(
-        Effect.flatMap(Schema.decodeEffect(ItineraryOutcome)),
-        Effect.orDie,
-      ),
-    )
-
-    return ItineraryOutcome.match(outcome, {
-      Itinerary: ({ itinerary }) => itinerary,
-      ItineraryNotFound: () => {
         throw notFound()
       },
     })

@@ -5,7 +5,7 @@ import { DurableObject } from 'cloudflare:workers'
 import { Effect, Exit, Layer, ManagedRuntime } from 'effect'
 import type { SqlClient } from 'effect/sql'
 
-import { Itineraries } from '@/trip/itineraries/Itineraries'
+import { Itinerary } from '@/trip/itinerary/Itinerary'
 import { runToPromise } from '@/trip/trip/runtime.server'
 import { Trip } from '@/trip/trip/Trip'
 import { startStore } from '@/trip/trip-store/store-start'
@@ -43,7 +43,7 @@ export class TripStore extends DurableObject<Env> {
     void ctx.blockConcurrencyWhile(async () => {
       this.#started = await this.#runtime.runPromiseExit(
         startStore.pipe(
-          Effect.provide(Itineraries.layer),
+          Effect.provide(Itinerary.layer),
           Effect.tapCause(Effect.logError),
         ),
       )

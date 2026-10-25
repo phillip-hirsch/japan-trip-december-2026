@@ -2,12 +2,11 @@ import { assert, describe, it } from '@effect/vitest'
 import { Duration, Effect, Fiber, Predicate } from 'effect'
 import { TestClock } from 'effect/testing'
 
-import { option1 } from '@/trip/itineraries/option-1'
 import {
   LinkRequestFailed,
   LocationLinkResolver,
 } from '@/trip/location-links/LocationLinkResolver'
-import { tripWith, tripWithOptions1And2 } from '@/trip/trip/testing'
+import { testTrip, tripWith } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
 const resolve = (link: string) =>
@@ -29,7 +28,7 @@ describe('Trip.resolveLocationLink', () => {
           yield* resolve('https://maps.app.goo.gl/75CwmUKb62uxphUq9'),
           { latitude: 35.6938493, longitude: 139.7634709 },
         )
-      }).pipe(Effect.provide(tripWithOptions1And2)),
+      }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect('follows a goo.gl/maps short link', () =>
@@ -38,7 +37,7 @@ describe('Trip.resolveLocationLink', () => {
         yield* resolve('https://goo.gl/maps/9e6EdUNDE18LuEwR7'),
         { latitude: 34.9671402, longitude: 135.7726717 },
       )
-    }).pipe(Effect.provide(tripWithOptions1And2)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect(
@@ -64,7 +63,7 @@ describe('Trip.resolveLocationLink', () => {
             { latitude: 35.0116, longitude: 135.7681 },
           ],
         )
-      }).pipe(Effect.provide(tripWithOptions1And2)),
+      }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect('ignores spaces around a pasted link', () =>
@@ -73,7 +72,7 @@ describe('Trip.resolveLocationLink', () => {
         yield* resolve('  https://goo.gl/maps/9e6EdUNDE18LuEwR7\n'),
         { latitude: 34.9671402, longitude: 135.7726717 },
       )
-    }).pipe(Effect.provide(tripWithOptions1And2)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect('refuses any other scheme or host as not Google Maps', () =>
@@ -95,7 +94,7 @@ describe('Trip.resolveLocationLink', () => {
         yield* Effect.forEach(links, refusalOf),
         links.map(() => 'LocationLinkRefused: NotGoogleMaps'),
       )
-    }).pipe(Effect.provide(tripWithOptions1And2)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect('refuses a link past 2,000 characters', () =>
@@ -109,7 +108,7 @@ describe('Trip.resolveLocationLink', () => {
           'LocationLinkRefused: TooLong',
         ],
       )
-    }).pipe(Effect.provide(tripWithOptions1And2)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect(
@@ -131,7 +130,7 @@ describe('Trip.resolveLocationLink', () => {
             'LocationLinkRefused: LeftGoogleMaps',
           ],
         )
-      }).pipe(Effect.provide(tripWithOptions1And2)),
+      }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect('follows a redirect to a link past 2,000 characters', () =>
@@ -140,7 +139,7 @@ describe('Trip.resolveLocationLink', () => {
         yield* resolve('https://maps.app.goo.gl/toLongLink'),
         { latitude: 35.0394, longitude: 135.7292 },
       )
-    }).pipe(Effect.provide(tripWithOptions1And2)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect('follows five redirects and refuses a sixth', () =>
@@ -155,7 +154,7 @@ describe('Trip.resolveLocationLink', () => {
           'LocationLinkRefused: TooManyRedirects',
         ],
       )
-    }).pipe(Effect.provide(tripWithOptions1And2)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect("refuses as unreachable a short link that doesn't exist", () =>
@@ -164,7 +163,7 @@ describe('Trip.resolveLocationLink', () => {
         yield* refusalOf('https://maps.app.goo.gl/doesnotexist123'),
         'LocationLinkRefused: Unreachable',
       )
-    }).pipe(Effect.provide(tripWithOptions1And2)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect('refuses as unreachable a short link that gets no answer', () =>
@@ -176,7 +175,6 @@ describe('Trip.resolveLocationLink', () => {
     }).pipe(
       Effect.provide(
         tripWith(
-          [option1],
           LocationLinkResolver.of({
             request: () =>
               Effect.fail(
@@ -201,10 +199,7 @@ describe('Trip.resolveLocationLink', () => {
       )
     }).pipe(
       Effect.provide(
-        tripWith(
-          [option1],
-          LocationLinkResolver.of({ request: () => Effect.never }),
-        ),
+        tripWith(LocationLinkResolver.of({ request: () => Effect.never })),
       ),
     ),
   )
@@ -223,7 +218,7 @@ describe('Trip.resolveLocationLink', () => {
           yield* Effect.forEach(links, refusalOf),
           links.map(() => 'NoCoordinatesInLink'),
         )
-      }).pipe(Effect.provide(tripWithOptions1And2)),
+      }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect('fails with CoordinatesOutsideJapan for a place elsewhere', () =>
@@ -244,6 +239,6 @@ describe('Trip.resolveLocationLink', () => {
           coordinates: { latitude: 51.5332609, longitude: -0.1260032 },
         },
       )
-    }).pipe(Effect.provide(tripWithOptions1And2)),
+    }).pipe(Effect.provide(testTrip)),
   )
 })

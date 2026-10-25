@@ -6,7 +6,7 @@ import {
   currentSchedule,
   setTime,
   storage,
-  tripWithOptions1And2,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -42,7 +42,7 @@ describe('Trip.home at the Trip boundaries', () => {
           schedule,
         }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('is during the Trip at 00:00 on December 6 in Tokyo', () =>
@@ -59,7 +59,7 @@ describe('Trip.home at the Trip boundaries', () => {
           today,
         }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('is during the Trip at 23:59:59.999 on December 20 in Tokyo', () =>
@@ -76,7 +76,7 @@ describe('Trip.home at the Trip boundaries', () => {
           today,
         }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('is after the Trip at 00:00 on December 21 in Tokyo', () =>
@@ -92,7 +92,7 @@ describe('Trip.home at the Trip boundaries', () => {
           schedule,
         }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
@@ -101,7 +101,7 @@ describe('Trip.home Today', () => {
     Effect.gen(function* () {
       const home = yield* homeAt('2026-12-05T14:59:59.999Z')
       assert.strictEqual(home.readAt, '2026-12-05T14:59:59.999Z')
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('is the Day page of the Tokyo date', () =>
@@ -116,7 +116,7 @@ describe('Trip.home Today', () => {
           today: yield* dayPage(december(14)),
         }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('follows the Tokyo date when it is ahead of the UTC date', () =>
@@ -131,7 +131,7 @@ describe('Trip.home Today', () => {
           today: yield* dayPage(december(14)),
         }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('follows the Tokyo date late in the Tokyo evening', () =>
@@ -146,7 +146,7 @@ describe('Trip.home Today', () => {
           today: yield* dayPage(december(14)),
         }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('shows the Schedule as a record after the Trip', () =>
@@ -161,7 +161,7 @@ describe('Trip.home Today', () => {
           schedule: current,
         }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
@@ -182,7 +182,7 @@ describe('Trip.home Today across Tokyo midnight', () => {
           ],
           [december(14), december(15)],
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -201,7 +201,7 @@ describe('Trip.home Today across Tokyo midnight', () => {
             today,
           }),
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
@@ -220,25 +220,25 @@ describe('Trip.home countdown', () => {
 
   it.effect('shows 1 day remaining at 00:00 on December 5 in Tokyo', () =>
     assertCountdown('2026-12-04T15:00:00.000Z', 1).pipe(
-      Effect.provide([tripWithOptions1And2, storage]),
+      Effect.provide([testTrip, storage]),
     ),
   )
 
   it.effect('follows the Tokyo date when it is ahead of the UTC date', () =>
     assertCountdown(inTokyo('2026-12-01T01:00'), 5).pipe(
-      Effect.provide([tripWithOptions1And2, storage]),
+      Effect.provide([testTrip, storage]),
     ),
   )
 
   it.effect('follows the Tokyo date late in the Tokyo evening', () =>
     assertCountdown(inTokyo('2026-11-30T23:59'), 6).pipe(
-      Effect.provide([tripWithOptions1And2, storage]),
+      Effect.provide([testTrip, storage]),
     ),
   )
 
   it.effect('counts across a month boundary in Tokyo', () =>
     assertCountdown(inTokyo('2026-10-01T08:30'), 66).pipe(
-      Effect.provide([tripWithOptions1And2, storage]),
+      Effect.provide([testTrip, storage]),
     ),
   )
 })
@@ -261,7 +261,7 @@ describe('Trip.day', () => {
           { tag: 'DayNotFound', date: '2026-12-21' },
         ],
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect("shows the Schedule's Day, as the Schedule shows it", () =>
@@ -280,7 +280,7 @@ describe('Trip.day', () => {
           dayTrips: ['Kamakura'],
         },
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -297,21 +297,21 @@ describe('Trip.day', () => {
           nights: 4,
           hotel: Hotel.cases.NotRecorded.make({}),
         })
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect("hides tonight's hotel on December 20", () =>
     Effect.gen(function* () {
       const { tonight } = yield* dayPage(december(20))
       assert.isUndefined(tonight)
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('returns a Move dated the same Day as the next Move', () =>
     Effect.gen(function* () {
       const { day, nextMove } = yield* dayPage(december(13))
       assert.deepStrictEqual(nextMove, { date: december(13), ...day.move })
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('returns the first later Move as the next Move', () =>
@@ -325,13 +325,13 @@ describe('Trip.day', () => {
         },
         { date: december(13), from: 'Kyoto', to: 'Kanazawa' },
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('returns no next Move when none are left', () =>
     Effect.gen(function* () {
       const { nextMove } = yield* dayPage(december(18))
       assert.isUndefined(nextMove)
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })

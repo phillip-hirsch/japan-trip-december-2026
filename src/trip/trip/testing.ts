@@ -16,9 +16,8 @@ import type {
   ScheduleDetail,
 } from '@/trip/domain/domain'
 import { december, OperationId, ScheduleId } from '@/trip/domain/domain'
-import { Itineraries } from '@/trip/itineraries/Itineraries'
-import { option1 } from '@/trip/itineraries/option-1'
-import { option2 } from '@/trip/itineraries/option-2'
+import { Itinerary } from '@/trip/itinerary/Itinerary'
+import { option1 } from '@/trip/itinerary/option-1'
 import { LocationLinkResolver } from '@/trip/location-links/LocationLinkResolver'
 import { recordedResponses } from '@/trip/location-links/recorded-location-links'
 import { Trip } from '@/trip/trip/Trip'
@@ -30,7 +29,7 @@ import { startStore } from '@/trip/trip-store/store-start'
  */
 export const storageStartingFrom = (itinerary: ItineraryContent) =>
   Layer.effectDiscard(startStore).pipe(
-    Layer.provide(Itineraries.fromContent([itinerary])),
+    Layer.provide(Itinerary.fromContent(itinerary)),
     Layer.provideMerge(SqliteClient.layer({ filename: ':memory:' })),
   )
 
@@ -47,26 +46,17 @@ export const recordedLinks = LocationLinkResolver.of({
   },
 })
 
-export const tripWith = (
-  contents: ReadonlyArray<ItineraryContent>,
-  links: LocationLinkResolver['Service'] = recordedLinks,
-) =>
+/** The Trip over the Itinerary, following links with `links`. */
+export const tripWith = (links: LocationLinkResolver['Service']) =>
   Trip.layer.pipe(
     Layer.provide([
-      Itineraries.fromContent(contents),
+      Itinerary.layer,
       Layer.succeed(LocationLinkResolver, links),
     ]),
   )
 
-export const liveTrip = Trip.layer.pipe(
-  Layer.provide([
-    Itineraries.layer,
-    Layer.succeed(LocationLinkResolver, recordedLinks),
-  ]),
-)
-
-/** A Trip whose only Itinerary is Option 1. */
-export const tripWithOption1 = tripWith([option1])
+/** The Trip over the Itinerary, following links from recorded responses. */
+export const testTrip = tripWith(recordedLinks)
 
 /** Option 1 with its Kyoto Stay split on December 11, both parts in Kyoto. */
 export const option1WithTwoKyotoStays: ItineraryContent = {
@@ -84,9 +74,6 @@ export const option1WithTwoKyotoStays: ItineraryContent = {
     { date: december(11), mode: 'local' as const, sections: [] },
   ].sort((a, b) => a.date.localeCompare(b.date)),
 }
-
-/** A Trip offering Option 1 and Option 2. */
-export const tripWithOptions1And2 = tripWith([option1, option2])
 
 const fixture = (name: string) =>
   Uint8Array.from(readFileSync(new URL(name, import.meta.url)))

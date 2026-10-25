@@ -70,7 +70,7 @@ describe('changing a Base', () => {
 
     assert.strictEqual(
       notSavedProblem(editor.field().field.state),
-      'The app doesn’t know that place. Add new places with the Itinerary guide.',
+      'The app doesn’t know that place. Add new places with the places guide, docs/agents/places.md.',
     )
     assert.strictEqual(editor.field().frame.view, 'form')
     assert.strictEqual(editor.schedulesShown(), 'schedules, read 1')

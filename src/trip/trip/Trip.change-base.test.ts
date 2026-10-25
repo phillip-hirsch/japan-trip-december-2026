@@ -17,7 +17,7 @@ import {
   currentScheduleId,
   stayIdAt,
   storage,
-  tripWithOption1,
+  testTrip,
   staleScheduleId,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
@@ -65,7 +65,7 @@ describe('Trip.changeStayBase', () => {
           ],
         )
         assert.deepStrictEqual(yield* currentSchedule, schedule)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect("clears the Stay's copied highlights", () =>
@@ -81,7 +81,7 @@ describe('Trip.changeStayBase', () => {
       )
 
       assert.deepStrictEqual(schedule.stays[2]?.highlights, [])
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -121,7 +121,7 @@ describe('Trip.changeStayBase', () => {
           schedule.days.map(({ move }) => move?.id),
           before.days.map(({ move }) => move?.id),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('strips only the one Move next to the first Stay', () =>
@@ -143,7 +143,7 @@ describe('Trip.changeStayBase', () => {
           [december(17), 1],
         ],
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect("keeps the Stay's Hotel details, Stay note and ticks", () =>
@@ -203,7 +203,7 @@ describe('Trip.changeStayBase', () => {
           ['ReserveSeats', moveId, undefined],
         ],
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
@@ -235,7 +235,7 @@ describe('Trip.changeStayBase', () => {
           AnchorWarning.cases.EndsOutsideTokyo.make({ base: 'hakone' }),
         ])
         assert.deepStrictEqual(yield* currentSchedule, outsideTokyo.schedule)
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   for (const place of ['atlantis', 'Osaka', 'constructor', '']) {
@@ -257,7 +257,7 @@ describe('Trip.changeStayBase', () => {
             }),
           )
           assert.deepStrictEqual(yield* currentSchedule, before)
-        }).pipe(Effect.provide([tripWithOption1, storage])),
+        }).pipe(Effect.provide([testTrip, storage])),
     )
   }
 
@@ -273,7 +273,7 @@ describe('Trip.changeStayBase', () => {
       )
 
       assert.deepStrictEqual(schedule, before)
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect("refuses a Stay the Schedule doesn't have, changing nothing", () =>
@@ -285,7 +285,7 @@ describe('Trip.changeStayBase', () => {
 
       assert.deepStrictEqual(error, new StayNotFound({ stayId: 'gone' }))
       assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('refuses an out-of-date Schedule with ScheduleChanged', () =>
@@ -298,6 +298,6 @@ describe('Trip.changeStayBase', () => {
 
       assert.strictEqual(error._tag, 'ScheduleChanged')
       assert.deepStrictEqual(yield* currentSchedule, before)
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })
