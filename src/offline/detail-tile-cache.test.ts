@@ -47,6 +47,21 @@ const tileInParts = (fill: number, ms: number, breaksOff = false) =>
     { headers: { 'Cache-Control': day } },
   )
 
+/**
+ * Access's login page, as a fetch that follows redirects answers a Detail
+ * tile request once Phillip's session has expired.
+ */
+const accessLoginPage = () => {
+  const page = new Response('<!doctype html><title>Sign in</title>', {
+    headers: { 'Content-Type': 'text/html' },
+  })
+
+  // A Response can't be built as redirected; only a followed fetch marks it.
+  Object.defineProperty(page, 'redirected', { value: true })
+
+  return page
+}
+
 type Answer = () => Response
 
 /**
@@ -197,12 +212,10 @@ describe('Detail tiles the device keeps', () => {
       Response.json('Detail tiles unavailable', { status: 503 }),
     )
 
-    network.serve(tileUrl(2), () =>
-      Response.redirect('https://phillip.cloudflareaccess.com/login', 302),
-    )
+    network.serve(tileUrl(2), accessLoginPage)
 
     assert.strictEqual(await contentOf(await view(1)), 'status 503')
-    assert.strictEqual(await contentOf(await view(2)), 'status 302')
+    assert.strictEqual((await view(2)).redirected, true)
 
     network.goOffline()
 
