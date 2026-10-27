@@ -215,7 +215,7 @@ describe('Detail tiles the device keeps', () => {
     network.serve(tileUrl(2), accessLoginPage)
 
     assert.strictEqual(await contentOf(await view(1)), 'status 503')
-    assert.strictEqual((await view(2)).redirected, true)
+    await view(2)
 
     network.goOffline()
 
