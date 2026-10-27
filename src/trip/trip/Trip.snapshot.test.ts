@@ -107,7 +107,7 @@ describe('Trip.scheduleSnapshot', () => {
   )
 
   it.effect(
-    'matches the Schedules, every Day page and the Checklist as each is read on its own',
+    'matches the Schedules, every Day page, the Checklist and the Schedule map as each is read on its own',
     () =>
       Effect.gen(function* () {
         yield* add(2, december(9), 'Senso-ji')
@@ -120,6 +120,7 @@ describe('Trip.scheduleSnapshot', () => {
             Trip.use((trip) => trip.day(date)),
           ),
           checklist: yield* Trip.use((trip) => trip.checklist),
+          map: yield* Trip.use((trip) => trip.scheduleMap),
         })
       }).pipe(Effect.provide([testTrip, storage])),
   )

@@ -5,6 +5,7 @@ import { injectManifest } from '@serwist/build'
 import { build } from 'vite-plus'
 import type { Plugin } from 'vite-plus'
 
+import { overviewMapPath } from '../src/map/overview-map.ts'
 import {
   serviceWorkerPath,
   shellHeaders,
@@ -81,7 +82,8 @@ export const serviceWorker = (): Plugin => ({
           '*.png',
           'manifest.webmanifest',
           '**/*.html',
-          'map/**/*.{pbf,json,png,pmtiles}',
+          'map/**/*.{pbf,json,png}',
+          overviewMapPath.slice(1),
         ],
         // Hashed file names already change with their content.
         dontCacheBustURLsMatching: /^assets\//,

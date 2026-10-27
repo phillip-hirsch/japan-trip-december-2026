@@ -17,6 +17,7 @@ import {
 import {
   dayQuery,
   loadQuery,
+  scheduleMapQuery,
   schedulesQuery,
   useScheduleSnapshot,
 } from '@/trip/client/queries'
@@ -30,12 +31,14 @@ import { december, WriteDayNoteOutcome } from '@/trip/domain/domain'
 import type { DayPage, IsoDate, ScheduleSnapshot } from '@/trip/domain/domain'
 import {
   getDay,
+  getScheduleMap,
   getScheduleSnapshot,
   writeDayNote,
 } from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({
   getDay: vi.fn(),
+  getScheduleMap: vi.fn(),
   getScheduleSnapshot: vi.fn(),
   writeDayNote: vi.fn(),
 }))
@@ -102,6 +105,20 @@ describe('the Schedule snapshot', () => {
         days: tripDates.map((date) => storedDay(app, date)),
       },
       { schedules: snapshot.schedules, days: snapshot.days },
+    )
+    await app.close()
+  })
+
+  it('stores the Schedule map, so Map opens offline though it never opened online', async () => {
+    const snapshot = snapshotWith('Onsen at 18:00.')
+    answerSnapshot(snapshot)
+    vi.mocked(getScheduleMap).mockImplementation(serverOutOfReach)
+    const app = await openApp()
+    loseConnection()
+
+    assert.deepStrictEqual(
+      await loadQuery(app.queryClient, scheduleMapQuery),
+      snapshot.map,
     )
     await app.close()
   })

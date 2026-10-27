@@ -51,7 +51,7 @@ Phillip's one plain-text note about the whole Trip, shown on the Schedule page.
 _Avoid_: general note, global note
 
 **Schedule snapshot**:
-The current Schedule read whole at one moment: every Day page, the Checklist with its Ticks, and the Schedule with every note and Hotel details. The app stores each of them from the last one it read and keeps them on the device, so the Schedule and any Day open offline. That includes a Day never opened there, even after the app has closed.
+The current Schedule read whole at one moment: every Day page, the Checklist with its Ticks, the Schedule with every note and Hotel details, and the Schedule on its map. The app stores each of them from the last one it read and keeps them on the device, so the Schedule, any Day and the map open offline. That includes a Day never opened there, even after the app has closed.
 _Avoid_: cache, dump, export
 
 **Day page**:

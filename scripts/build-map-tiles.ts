@@ -1,5 +1,5 @@
 // Rebuilds the map's tile extracts from a Protomaps daily build (ODbL):
-// - public/map/overview.pmtiles: the Overview map, all of Japan to zoom 8,
+// - public/overview.pmtiles: the Overview map, all of Japan to zoom 8,
 //   which ships with the app. Commit it.
 // - tiles/detail.pmtiles: the Detail tiles, zoom 0–14, in a box around every
 //   catalogue place. Run again after adding a place.

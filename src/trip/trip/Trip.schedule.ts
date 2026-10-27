@@ -194,6 +194,7 @@ export const scheduleMethods = Effect.sync(() => {
           schedules,
           days: current.days.map((day) => dayPageFor(current, day)),
           checklist,
+          map: scheduleMapOf(storedCurrent.copy),
         } satisfies ScheduleSnapshot
       }),
     )

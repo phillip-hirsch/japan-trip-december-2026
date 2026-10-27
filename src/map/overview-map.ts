@@ -3,7 +3,8 @@
 // `node` can load it.
 
 /** Where the app serves the Overview map's archive, a static file. */
-export const overviewMapPath = '/map/overview.pmtiles'
+// Outside public/map, which `vp run build-map-assets` replaces whole.
+export const overviewMapPath = '/overview.pmtiles'
 
 /** The deepest zoom the Overview map holds. Closer in, the Detail tiles draw. */
 export const overviewMaxZoom = 8

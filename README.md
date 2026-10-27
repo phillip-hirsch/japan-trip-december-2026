@@ -38,7 +38,7 @@ vp run dev
 
 ### Map tiles
 
-The map draws zoom 0–8 from the Overview map, `public/map/overview.pmtiles`, a static file the service worker precaches and the map reads whole. Closer in, the street detail comes from the Detail tiles, one PMTiles archive in the Worker's R2 bucket (`DETAIL_TILES`, object `detail.pmtiles`). The Worker serves it tile by tile at `/tiles/detail/{z}/{x}/{y}.mvt`, after the Access gate. The service worker keeps each Detail tile once viewed, up to 200 MB in IndexedDB, dropping the least recently viewed first. Glyphs and sprites are static files in `public/map`, precached too.
+The map draws zoom 0–8 from the Overview map, `public/overview.pmtiles`, a static file the service worker precaches and the map reads whole. Closer in, the street detail comes from the Detail tiles, one PMTiles archive in the Worker's R2 bucket (`DETAIL_TILES`, object `detail.pmtiles`). The Worker serves it tile by tile at `/tiles/detail/{z}/{x}/{y}.mvt`, after the Access gate. The service worker keeps each Detail tile once viewed, up to 200 MB in IndexedDB, dropping the least recently viewed first. Glyphs and sprites are static files in `public/map`, precached too.
 
 ```bash
 vp run build-map-tiles    # extracts the Overview map and the Detail tiles (needs Go)
@@ -48,7 +48,7 @@ vp run build-map-assets   # refreshes public/map
 
 `build-map-tiles` reads the latest Protomaps daily build, or the build date you pass. It writes three extracts and prints their sizes:
 
-- `public/map/overview.pmtiles`: the Overview map, Japan to zoom 8, about 10 MB. Commit it.
+- `public/overview.pmtiles`: the Overview map, Japan to zoom 8, about 10 MB. Commit it.
 - `tiles/detail.pmtiles`: zoom 0–14, a 24 km box around every place in `src/trip/catalogue/places.ts`.
 - `tiles/detail-local.pmtiles`: a 4 km box around Tokyo Station.
 
