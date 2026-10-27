@@ -1,7 +1,6 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute, notFound } from '@tanstack/react-router'
 
-import { NoSchedule } from '@/components/no-schedule'
 import { ScheduleDayView } from '@/components/schedule-day'
 import { formatDay, isTripDate } from '@/trip/domain/calendar'
 import { parseTripDate } from '@/trip/client/params'
@@ -37,8 +36,6 @@ export const Route = createFileRoute('/schedule/$date')({
 function DayPage() {
   const { date } = Route.useParams()
   const page = useSuspenseQuery(dayQuery(date)).data
-
-  if (page === null) return <NoSchedule query={dayQuery(date)} />
 
   return (
     <ScheduleDayView page={page} eyebrow="Schedule" query={dayQuery(date)} />

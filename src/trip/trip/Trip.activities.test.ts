@@ -2,14 +2,7 @@ import { assert, describe, it } from '@effect/vitest'
 import { Effect, Predicate } from 'effect'
 
 import { december, IsoDate, TokyoDateTime } from '@/trip/domain/domain'
-import {
-  activitiesOn,
-  choose,
-  restore,
-  setTime,
-  storage,
-  tripWithOptions1And2,
-} from '@/trip/trip/testing'
+import { activitiesOn, setTime, storage, testTrip } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import {
   add,
@@ -26,28 +19,26 @@ describe('Trip.addActivity', () => {
     'adds an Activity with a title and, optionally, a time and a note',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
-        yield* add(2, scheduleId, december(14), 'Onsen', {
+        yield* add(2, december(14), 'Onsen', {
           time: '18:00',
           note: 'Bring a towel.',
         })
-        yield* add(3, scheduleId, december(14), 'Pack for the Alps')
+        yield* add(3, december(14), 'Pack for the Alps')
         assert.deepStrictEqual(yield* describedOn(december(14)), [
           '18:00 Onsen (Bring a towel.)',
           '--:-- Pack for the Alps',
         ])
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
     'stores the time as a zoned date-time in Tokyo on the Activity’s Day',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
-        yield* add(2, scheduleId, december(15), 'Birthday dinner', {
+        yield* add(2, december(15), 'Birthday dinner', {
           time: '19:00',
         })
-        yield* add(3, scheduleId, december(15), 'Late bar', { time: '23:59' })
+        yield* add(3, december(15), 'Late bar', { time: '23:59' })
         assert.deepStrictEqual(
           (yield* activitiesOn(december(15))).map(({ time }) => time),
           [
@@ -55,19 +46,18 @@ describe('Trip.addActivity', () => {
             TokyoDateTime.make('2026-12-15T23:59:00.000+09:00[Asia/Tokyo]'),
           ],
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
     'records the international flights on the Arrival and Departure Days at the Tokyo-side time',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
-        yield* add(2, scheduleId, december(6), 'Flight lands at Haneda', {
+        yield* add(2, december(6), 'Flight lands at Haneda', {
           time: '15:40',
           note: 'Departs YYZ 13:10 Dec 5, seat 32K.',
         })
-        yield* add(3, scheduleId, december(20), 'Flight leaves Haneda', {
+        yield* add(3, december(20), 'Flight leaves Haneda', {
           time: '16:55',
           note: 'Arrives YYZ 15:30, seat 32K.',
         })
@@ -85,18 +75,17 @@ describe('Trip.addActivity', () => {
             ],
           },
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('trims the title and refuses a blank or overlong one', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
-      yield* add(2, scheduleId, december(14), '  Onsen  ')
-      yield* add(3, scheduleId, december(14), 'あ'.repeat(200))
-      const blank = yield* Effect.flip(add(4, scheduleId, december(14), '   '))
+      yield* add(2, december(14), '  Onsen  ')
+      yield* add(3, december(14), 'あ'.repeat(200))
+      const blank = yield* Effect.flip(add(4, december(14), '   '))
 
       const overlong = yield* Effect.flip(
-        add(5, scheduleId, december(14), 'あ'.repeat(201)),
+        add(5, december(14), 'あ'.repeat(201)),
       )
 
       assert.deepStrictEqual(
@@ -115,15 +104,13 @@ describe('Trip.addActivity', () => {
           titles: [5, 200],
         },
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('refuses a note past 10,000 characters with NoteTooLong', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
-
       const error = yield* Effect.flip(
-        add(2, scheduleId, december(14), 'Onsen', {
+        add(2, december(14), 'Onsen', {
           note: 'あ'.repeat(10_001),
         }),
       )
@@ -132,45 +119,44 @@ describe('Trip.addActivity', () => {
         { tag: error._tag, activities: yield* activitiesOn(december(14)) },
         { tag: 'NoteTooLong', activities: [] },
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
     'returns the recorded result for a repeated operation id, adding nothing more',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
-        const first = yield* add(2, scheduleId, december(14), 'Onsen')
-        const repeated = yield* add(2, scheduleId, december(14), 'Onsen')
+        const first = yield* add(2, december(14), 'Onsen')
+        const repeated = yield* add(2, december(14), 'Onsen')
         assert.deepStrictEqual(
           { repeated, activities: yield* describedOn(december(14)) },
           { repeated: first, activities: ['--:-- Onsen'] },
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('adds an untimed Activity after the rest', () =>
     Effect.gen(function* () {
-      const { scheduleId } = yield* dayWithThree
-      yield* add(5, scheduleId, december(15), 'Buy souvenirs')
+      yield* dayWithThree
+      yield* add(5, december(15), 'Buy souvenirs')
       assert.deepStrictEqual(yield* describedOn(december(15)), [
         '09:00 Kiyomizu-dera',
         '--:-- Walk Gion',
         '19:00 Birthday dinner',
         '--:-- Buy souvenirs',
       ])
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
     'inserts a timed Activity before the first Activity with a later time',
     () =>
       Effect.gen(function* () {
-        const { scheduleId } = yield* dayWithThree
-        yield* add(5, scheduleId, december(15), 'Lunch', { time: '12:00' })
-        yield* add(6, scheduleId, december(15), 'Breakfast', { time: '07:30' })
-        yield* add(7, scheduleId, december(15), 'Cake', { time: '19:00' })
-        yield* add(8, scheduleId, december(15), 'Night walk', { time: '22:00' })
+        yield* dayWithThree
+        yield* add(5, december(15), 'Lunch', { time: '12:00' })
+        yield* add(6, december(15), 'Breakfast', { time: '07:30' })
+        yield* add(7, december(15), 'Cake', { time: '19:00' })
+        yield* add(8, december(15), 'Night walk', { time: '22:00' })
         assert.deepStrictEqual(yield* describedOn(december(15)), [
           '07:30 Breakfast',
           '09:00 Kiyomizu-dera',
@@ -180,29 +166,13 @@ describe('Trip.addActivity', () => {
           '19:00 Cake',
           '22:00 Night walk',
         ])
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
-  it.effect(
-    'refuses an Activity naming a stale Schedule id with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const stale = yield* choose(1, 1, null)
-        yield* choose(2, 2, stale)
-        const error = yield* Effect.flip(add(3, stale, december(14), 'Onsen'))
-        assert.deepStrictEqual(
-          { tag: error._tag, activities: yield* activitiesOn(december(14)) },
-          { tag: 'ScheduleChanged', activities: [] },
-        )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('fails with DayNotFound for a Day the Schedule lacks', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
-
       const error = yield* Effect.flip(
-        add(2, scheduleId, IsoDate.make('2026-12-21'), 'After the Trip'),
+        add(2, IsoDate.make('2026-12-21'), 'After the Trip'),
       )
 
       assert.deepStrictEqual(
@@ -211,23 +181,21 @@ describe('Trip.addActivity', () => {
           : error._tag,
         'DayNotFound 2026-12-21',
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
 describe('Activity writes to a missing target', () => {
   it.effect('fail with ActivityNotFound for an Activity since removed', () =>
     Effect.gen(function* () {
-      const { scheduleId, walk, temple } = yield* dayWithThree
-      yield* remove(scheduleId, walk)
+      const { walk, temple } = yield* dayWithThree
+      yield* remove(walk)
 
       const errors = yield* Effect.all([
-        Effect.flip(
-          edit({ scheduleId, activityId: walk, title: 'Walk Gion again' }),
-        ),
-        Effect.flip(remove(scheduleId, walk)),
-        Effect.flip(move(scheduleId, walk, null)),
-        Effect.flip(move(scheduleId, temple, walk)),
+        Effect.flip(edit({ activityId: walk, title: 'Walk Gion again' })),
+        Effect.flip(remove(walk)),
+        Effect.flip(move(walk, null)),
+        Effect.flip(move(temple, walk)),
       ])
 
       assert.deepStrictEqual(
@@ -238,51 +206,25 @@ describe('Activity writes to a missing target', () => {
         ),
         [true, true, true, true],
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
 describe('Activities and the Schedule', () => {
-  it.effect('leaves Activities behind when choosing again', () =>
-    Effect.gen(function* () {
-      const { scheduleId } = yield* dayWithThree
-      yield* choose(2, 5, scheduleId)
-      assert.deepStrictEqual(yield* activitiesOn(december(15)), [])
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
-  it.effect(
-    'brings Activities back, in order, when restoring their Schedule',
-    () =>
-      Effect.gen(function* () {
-        const { scheduleId, temple, dinner } = yield* dayWithThree
-        yield* move(scheduleId, dinner, temple)
-        const replacement = yield* choose(2, 5, scheduleId)
-        yield* restore(scheduleId, 6, replacement)
-        assert.deepStrictEqual(yield* describedOn(december(15)), [
-          '19:00 Birthday dinner',
-          '09:00 Kiyomizu-dera',
-          '--:-- Walk Gion',
-        ])
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
   it.effect(
     'shows the current Day’s Activities, in order with their times, on Today',
     () =>
       Effect.gen(function* () {
-        const { scheduleId } = yield* dayWithThree
+        yield* dayWithThree
         yield* setTime('2026-12-15T01:00:00Z')
         const home = yield* Trip.use((trip) => trip.home)
         assert.deepStrictEqual(
           Predicate.isTagged('DuringTrip')(home) && home.today
             ? {
-                scheduleId: home.today.scheduleId,
                 activities: home.today.day.activities.map(described),
               }
             : undefined,
           {
-            scheduleId,
             activities: [
               '09:00 Kiyomizu-dera',
               '--:-- Walk Gion',
@@ -290,6 +232,6 @@ describe('Activities and the Schedule', () => {
             ],
           },
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })

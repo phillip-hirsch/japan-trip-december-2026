@@ -347,6 +347,62 @@ describe('what the device keeps', () => {
     await app.close()
   })
 
+  it('discards what the app kept while Home still listed the Itineraries', async () => {
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+    await (await openApp({ version: 1 })).close()
+
+    loseConnection()
+    const app = await openApp()
+
+    assert.strictEqual(
+      await outcomeOf(loadQuery(app.queryClient, dayQuery(december(14)))),
+      'failed',
+    )
+    await app.close()
+  })
+
+  it('discards what the app kept while the Schedule still named the Itinerary it was chosen from', async () => {
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+    await (await openApp({ version: 2 })).close()
+
+    loseConnection()
+    const app = await openApp()
+
+    assert.strictEqual(
+      await outcomeOf(loadQuery(app.queryClient, dayQuery(december(14)))),
+      'failed',
+    )
+    await app.close()
+  })
+
+  it('discards what the app kept while the Schedule map still drew flights', async () => {
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+    await (await openApp({ version: 3 })).close()
+
+    loseConnection()
+    const app = await openApp()
+
+    assert.strictEqual(
+      await outcomeOf(loadQuery(app.queryClient, dayQuery(december(14)))),
+      'failed',
+    )
+    await app.close()
+  })
+
+  it('discards what the app kept while each Day page and the Checklist still named their Schedule', async () => {
+    answerSnapshot(snapshotWith('Onsen at 18:00.'))
+    await (await openApp({ version: 4 })).close()
+
+    loseConnection()
+    const app = await openApp()
+
+    assert.strictEqual(
+      await outcomeOf(loadQuery(app.queryClient, dayQuery(december(14)))),
+      'failed',
+    )
+    await app.close()
+  })
+
   it('keeps what a newer version kept when an older version, still open in another tab, saves after it', async () => {
     answerSnapshot(snapshotWith('Onsen at 18:00.'))
     const older = await openApp({ version: 1 })

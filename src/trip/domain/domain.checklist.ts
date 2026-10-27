@@ -1,17 +1,12 @@
-import { Schema, Struct } from 'effect'
+import { Schema } from 'effect'
 
 import {
   IsoDate,
-  MoveSummary,
+  Place,
   StaySummary,
   VerifyClaimAttachment,
 } from '@/trip/domain/domain.itinerary'
-import { ScheduleId } from '@/trip/domain/domain.schedule'
-import {
-  OperationId,
-  ScheduleChanged,
-  operationOutcome,
-} from '@/trip/domain/domain.writes'
+import { OperationId, operationOutcome } from '@/trip/domain/domain.writes'
 
 /**
  * The id of a Checklist item: for one derived from the Schedule, the id of
@@ -19,9 +14,11 @@ import {
  */
 export const ChecklistItemId = Schema.String
 
-export const ChecklistMove = Schema.Struct(
-  Struct.pick(MoveSummary.fields, ['date', 'from', 'to']),
-)
+export const ChecklistMove = Schema.Struct({
+  date: IsoDate,
+  from: Place,
+  to: Place,
+})
 
 export type ChecklistMove = typeof ChecklistMove.Type
 
@@ -43,11 +40,6 @@ export const ChecklistItem = Schema.TaggedUnion({
     move: ChecklistMove,
     reminderDate: IsoDate,
     verify: Schema.Literal('reminder-date'),
-  },
-  BookFlight: {
-    ...checklistItemFields,
-    move: ChecklistMove,
-    verify: Schema.Literal('when-booking-opens'),
   },
   ConfirmShigeharu: { ...checklistItemFields, date: IsoDate },
   ReserveBirthdayDinner: { ...checklistItemFields, date: IsoDate },
@@ -74,22 +66,16 @@ export type ChecklistItem = typeof ChecklistItem.Type
  * last his own without a reminder date, oldest first.
  */
 export const Checklist = Schema.Struct({
-  /**
-   * The Schedule its derived items come from, which every tick on them
-   * names; null before Phillip chooses one, when only his own items show.
-   */
-  scheduleId: Schema.NullOr(ScheduleId),
   items: Schema.Array(ChecklistItem),
 })
 
 export type Checklist = typeof Checklist.Type
 
 /**
- * Set the tick on an item derived from the Schedule named, to true or false,
- * never toggled. It is kept with that Schedule, by what the item refers to.
+ * Set the tick on an item derived from the Schedule, to true or false, never
+ * toggled. It is kept with the Schedule, by what the item refers to.
  */
 export const TickChecklistItem = Schema.Struct({
-  scheduleId: ScheduleId,
   itemId: ChecklistItemId,
   ticked: Schema.Boolean,
 })
@@ -137,7 +123,6 @@ export class ChecklistTextInvalid extends Schema.TaggedError<ChecklistTextInvali
 ) {}
 
 export const TickChecklistItemOutcome = operationOutcome('Ticked', {}, [
-  ScheduleChanged,
   ChecklistItemNotFound,
 ])
 

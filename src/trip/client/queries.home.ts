@@ -4,7 +4,7 @@ import {
   useSuspenseQuery,
 } from '@tanstack/react-query'
 import type { FetchQueryOptions, QueryKey } from '@tanstack/react-query'
-import { Match } from 'effect'
+import { Predicate } from 'effect'
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 
 import {
@@ -160,100 +160,30 @@ export const useHome = () => {
 
   if (!movedOn) return asRead
 
-  const { schedule, from } = scheduleToMoveOnWith(
-    scheduleIn(data),
-    data.readAt,
-    schedules,
-  )
+  const { schedule, from } = scheduleToMoveOnWith(data, schedules)
 
   if (schedule === undefined) return asRead
-  const showsDay = schedule !== null && isTripDate(today)
 
-  // A Day stored from another Schedule, such as one replaced on another
-  // device before the last snapshot answered, isn't Today.
-  if (showsDay && page?.scheduleId !== schedule.id) return asRead
+  const home = homeStateOn(today, {
+    readAt: data.readAt,
+    schedule,
+    today: page,
+  })
 
-  return {
-    home: homeStateOn(today, {
-      readAt: data.readAt,
-      itineraries: data.itineraries,
-      schedule,
-      today: showsDay ? (page ?? null) : null,
-    }),
-    query: showsDay ? dayQuery(today) : from,
-  }
+  if (home === undefined) return asRead
+
+  return { home, query: isTripDate(today) ? dayQuery(today) : from }
 }
-
-/**
- * The Schedule Home was read with: its id, null for none, and its detail.
- * During the Trip Home carries only the id, so its detail is undefined.
- */
-const scheduleIn = (home: HomeState) =>
-  Match.value(home).pipe(
-    Match.tagsExhaustive({
-      BeforeTrip: ({ schedule }) => ({
-        id: schedule?.id ?? null,
-        detail: schedule,
-      }),
-      DuringTrip: ({ today }) => ({
-        id: today?.scheduleId ?? null,
-        detail: undefined,
-      }),
-      AfterTrip: ({ schedule }) => ({
-        id: schedule?.id ?? null,
-        detail: schedule,
-      }),
-    }),
-  )
 
 /**
  * The Schedule Home moves on with offline, and the query it came from:
- * whichever of Home and the stored Schedules the server answered later, else
- * Home's own. Undefined when that lacks it, as Home during the Trip carries
- * only its Schedule's id.
+ * Home's own, except during the Trip, when Home carries only Today's page and
+ * the stored Schedules stand in. Undefined when they aren't stored.
  */
 const scheduleToMoveOnWith = (
-  readWith: ReturnType<typeof scheduleIn>,
-  readAt: string,
+  home: HomeState,
   schedules: Schedules | undefined,
-) => {
-  if (
-    schedules !== undefined &&
-    storedAreLater(readWith.id, readAt, schedules)
-  ) {
-    return { schedule: schedules.current, from: schedulesQuery }
-  }
-
-  if (readWith.id === null || readWith.detail !== undefined) {
-    return { schedule: readWith.detail ?? null, from: homeQuery }
-  }
-
-  // During the Trip Home carries only its Schedule's id, so the stored
-  // Schedule stands in for it when it's the same one.
-  return schedules?.current?.id === readWith.id
-    ? { schedule: schedules.current, from: schedulesQuery }
-    : { schedule: undefined, from: homeQuery }
-}
-
-/**
- * Whether the server answered the stored Schedules later than Home, read at
- * `readAt` with the Schedule `homeScheduleId`. Both times are the server's,
- * so a device clock set wrong can't reorder them. A Schedule never goes back
- * to none, and choosing or restoring archives the Schedule it replaces. So
- * the stored Schedules are later when Home had none and they have one, or
- * when they archived Home's at or after the moment Home was read: Home saw
- * it current, so it was archived later. Holding the same Schedule as Home
- * proves neither is later.
- */
-const storedAreLater = (
-  homeScheduleId: string | null,
-  readAt: string,
-  { current, archived }: Schedules,
-) => {
-  if (homeScheduleId === null) return current !== null
-
-  return archived.some(
-    ({ id, archivedAt }) =>
-      id === homeScheduleId && Date.parse(archivedAt) >= Date.parse(readAt),
-  )
-}
+) =>
+  Predicate.isTagged(home, 'DuringTrip')
+    ? { schedule: schedules?.current, from: schedulesQuery }
+    : { schedule: home.schedule, from: homeQuery }

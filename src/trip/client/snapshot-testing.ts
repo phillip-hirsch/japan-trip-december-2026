@@ -1,6 +1,6 @@
 import { vi } from 'vite-plus/test'
 
-import { currentSchedule, scheduleId } from '@/trip/client/editor-testing'
+import { currentSchedule } from '@/trip/client/editor-testing'
 import { tripDates } from '@/trip/domain/calendar'
 import { december } from '@/trip/domain/domain'
 import type { DayPage, IsoDate, ScheduleSnapshot } from '@/trip/domain/domain'
@@ -8,7 +8,6 @@ import { getScheduleSnapshot } from '@/trip/trip/trip.functions'
 
 /** The page of an empty Day of Phillip's Schedule, with `note` if given. */
 export const dayPage = (date: IsoDate, note?: string): DayPage => ({
-  scheduleId,
   day: {
     date,
     anchors: [],
@@ -29,11 +28,10 @@ export const snapshotWith = (dayNote: string): ScheduleSnapshot => {
   return {
     schedules: {
       current: currentSchedule({ days: days.map(({ day }) => day) }),
-      archived: [],
       tripNote: 'Pack light.',
     },
     days,
-    checklist: { scheduleId, items: [] },
+    checklist: { items: [] },
   }
 }
 

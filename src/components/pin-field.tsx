@@ -17,7 +17,6 @@ import type {
   Pin,
   PinTarget,
   ResolveLocationLinkOutcome,
-  ScheduleId,
   SetPinOutcome,
 } from '@/trip/domain/domain'
 import { answerOwn, pinTarget, SaveAnswer, useSave } from '@/trip/client/drafts'
@@ -104,11 +103,9 @@ const idle: Finding = { state: 'idle' }
 
 /** The Pin on an Activity or a Stay's hotel of the Schedule shown, set as `pin`. */
 export const usePin = ({
-  scheduleId,
   target,
   pin,
 }: {
-  scheduleId: ScheduleId
   target: PinTarget
   pin: Pin | undefined
 }) => {
@@ -118,7 +115,6 @@ export const usePin = ({
     target: pinTarget(target),
     draft: isPinFields,
     equals: sameFields,
-    scheduleId,
     saved: fieldsOf(pin),
     write: 'pin',
     run: async (placed) => {
@@ -126,7 +122,7 @@ export const usePin = ({
 
       return answerOwn(
         await write({
-          data: { scheduleId, target, ...(confirmed && { pin: confirmed }) },
+          data: { target, ...(confirmed && { pin: confirmed }) },
         }),
         pinRefusal,
       )

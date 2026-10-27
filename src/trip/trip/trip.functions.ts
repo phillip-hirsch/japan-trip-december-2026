@@ -6,23 +6,17 @@ import {
   AddActivity,
   AddOwnChecklistItem,
   ChangeStayBase,
-  ChooseItinerary,
   DayOutcome,
   EditActivity,
   IsoDate,
-  ItineraryOutcome,
   MergeStays,
   MoveActivity,
   MoveStayBoundary,
-  OptionNumber,
   outcomeOf,
   RemoveActivity,
   RemoveOwnChecklistItem,
   ResolveLocationLink,
   ResolveLocationLinkOutcome,
-  RestoreSchedule,
-  ScheduleId,
-  ScheduleOutcome,
   SplitStay,
   SetPin,
   TickChecklistItem,
@@ -58,7 +52,7 @@ export const getHome = createServerFn({ method: 'GET' }).handler(
   tripOperationHandler('home'),
 )
 
-/** A Day's page, or null before Phillip chooses a Schedule. */
+/** A Day's page. */
 export const getDay = createServerFn({ method: 'GET' })
   .validator(Schema.toStandardSchemaV1(Schema.Struct({ date: IsoDate })))
   .handler(async ({ data }) => {
@@ -71,57 +65,6 @@ export const getDay = createServerFn({ method: 'GET' })
       },
     })
   })
-
-export const getItineraries = createServerFn({ method: 'GET' }).handler(() =>
-  runTrip(Trip.use((trip) => trip.itineraries)),
-)
-
-export const getComparisonMap = createServerFn({ method: 'GET' }).handler(() =>
-  runTrip(Trip.use((trip) => trip.comparisonMap)),
-)
-
-export const getItinerary = createServerFn({ method: 'GET' })
-  .validator(
-    Schema.toStandardSchemaV1(Schema.Struct({ optionNumber: OptionNumber })),
-  )
-  .handler(async ({ data }) => {
-    const outcome = await runTrip(
-      outcomeOf(
-        ItineraryOutcome,
-        Trip.use((trip) => trip.itinerary(data.optionNumber)).pipe(
-          Effect.map((itinerary) => ({ itinerary })),
-        ),
-      ).pipe(
-        Effect.flatMap(Schema.decodeEffect(ItineraryOutcome)),
-        Effect.orDie,
-      ),
-    )
-
-    return ItineraryOutcome.match(outcome, {
-      Itinerary: ({ itinerary }) => itinerary,
-      ItineraryNotFound: () => {
-        throw notFound()
-      },
-    })
-  })
-
-/**
- * Copies an Itinerary into Phillip's Schedule, archiving the current one.
- * Repeating the operation id returns the first result, so a retry never
- * chooses twice.
- */
-export const chooseItinerary = createServerFn({ method: 'POST' })
-  .validator(Schema.toStandardSchemaV1(ChooseItinerary))
-  .handler(tripOperationHandler('choose'))
-
-/**
- * Makes an archived Schedule current again, archiving the current one.
- * Repeating the operation id returns the first result, so a retry never
- * restores twice.
- */
-export const restoreSchedule = createServerFn({ method: 'POST' })
-  .validator(Schema.toStandardSchemaV1(RestoreSchedule))
-  .handler(tripOperationHandler('restore'))
 
 export const writeDayNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteDayNote))
@@ -172,26 +115,13 @@ export const writeTripNote = createServerFn({ method: 'POST' })
   .validator(Schema.toStandardSchemaV1(WriteTripNote))
   .handler(tripOperationHandler('writeTripNote'))
 
-export const getScheduleById = createServerFn({ method: 'GET' })
-  .validator(
-    Schema.toStandardSchemaV1(Schema.Struct({ scheduleId: ScheduleId })),
-  )
-  .handler(async ({ data }) => {
-    const outcome = await callTripOperation('schedule', data)
-
-    return ScheduleOutcome.match(outcome, {
-      Schedule: ({ schedule }) => schedule,
-      ScheduleNotFound: () => null,
-    })
-  })
-
 export const getSchedules = createServerFn({ method: 'GET' }).handler(
   tripOperationHandler('schedules'),
 )
 
 /**
- * The current Schedule whole, or null before Phillip chooses one. The browser
- * fills the Schedule and every Day page from it, so they read offline.
+ * The current Schedule whole. The browser fills the Schedule and every Day
+ * page from it, so they read offline.
  */
 export const getScheduleSnapshot = createServerFn({ method: 'GET' }).handler(
   tripOperationHandler('scheduleSnapshot'),
@@ -199,15 +129,6 @@ export const getScheduleSnapshot = createServerFn({ method: 'GET' }).handler(
 
 export const getScheduleMap = createServerFn({ method: 'GET' }).handler(
   tripOperationHandler('scheduleMap'),
-)
-
-/**
- * The current Schedule's summary, or null before Phillip chooses one. Only
- * the browser asks for it, after hydration, so prerendered pages never
- * contain it.
- */
-export const getScheduleSummary = createServerFn({ method: 'GET' }).handler(
-  tripOperationHandler('scheduleSummary'),
 )
 
 export const getChecklist = createServerFn({ method: 'GET' }).handler(
@@ -235,7 +156,7 @@ export const removeOwnChecklistItem = createServerFn({ method: 'POST' })
   .handler(tripOperationHandler('removeOwnChecklistItem'))
 
 /**
- * Adds an Activity on a Day of the Schedule named. Repeating the operation id
+ * Adds an Activity on a Day. Repeating the operation id
  * returns the first result, so a retry never adds it twice.
  */
 export const addActivity = createServerFn({ method: 'POST' })
@@ -247,7 +168,7 @@ export const editActivity = createServerFn({ method: 'POST' })
   .handler(tripOperationHandler('editActivity'))
 
 /**
- * Removes an Activity of the Schedule named. A retry after it landed finds
+ * Removes an Activity. A retry after it landed finds
  * nothing to remove and answers not-found.
  */
 export const removeActivity = createServerFn({ method: 'POST' })
@@ -255,7 +176,7 @@ export const removeActivity = createServerFn({ method: 'POST' })
   .handler(tripOperationHandler('removeActivity'))
 
 /**
- * Moves an Activity of the Schedule named before another on its Day, or
+ * Moves an Activity before another on its Day, or
  * last. Moving to the same place again changes nothing, so it carries no
  * operation id.
  */

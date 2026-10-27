@@ -71,18 +71,9 @@ export const answeredSince = <T>(answer: T, read: number) =>
  * snapshot. It keeps the stored answer if that answer's read started later.
  * An answer without a read number, such as one the server rendered into the
  * page, counts as the oldest when stored and the newest when arriving.
- *
- * A null answer has no read number, because a number can't be recorded on
- * null. Only a Day read answers null, and only before any Schedule exists.
- * Once Phillip has chosen a Schedule there is always a current one, so a null
- * arriving over a stored answer comes from a read that started earlier.
  */
 export const keepLatestRead = <T>(stored: T | undefined, arriving: T): T => {
   const arrivingRead = readOf(arriving)
-
-  if (stored !== undefined && stored !== null && arriving === null) {
-    return stored
-  }
 
   if (
     stored !== undefined &&

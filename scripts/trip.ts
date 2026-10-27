@@ -1,4 +1,4 @@
-// Build tooling reads the Itinerary catalogue through the Trip service. Vite's
+// Build tooling reads the Itinerary through the Trip service. Vite's
 // module runner resolves the '@/' imports that plain `node` and the Vite
 // config loader can't.
 import { Effect } from 'effect'

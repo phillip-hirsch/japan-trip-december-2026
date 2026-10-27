@@ -1,7 +1,6 @@
 import { PlaceName } from '@/components/place-name'
 import { BaseMarker, lngLatOf } from '@/components/trip-map-view'
 import {
-  MapArc,
   MapMarker,
   MapRoute,
   MarkerContent,
@@ -10,11 +9,9 @@ import {
 import type { Coordinates, ItineraryMap, Place } from '@/trip/domain/domain'
 
 // MapLibre takes colour strings, not CSS variables: these are the theme's
-// --paper, --chart-1 and --muted-foreground in hex. Vermilion stays reserved
-// for the recommended Itinerary and the Birthday.
+// --paper and --muted-foreground in hex. Vermilion stays reserved
+// for the Birthday.
 const trainColor = '#eee7d9'
-
-const flightColor = '#a1c3db'
 
 const dayTripColor = '#aba397'
 
@@ -74,15 +71,6 @@ export function ItineraryMapLayers({ map }: { map: ItineraryMap }) {
           interactive={false}
         />
       ))}
-      <MapArc
-        data={map.flights.map(({ date, from, to }) => ({
-          id: date,
-          from: lngLatOf(from.coordinates),
-          to: lngLatOf(to.coordinates),
-        }))}
-        paint={{ 'line-color': flightColor, 'line-width': 2.5 }}
-        interactive={false}
-      />
       {destinationsOf(map).map((place) => (
         <DestinationMarker key={place.id} place={place} />
       ))}

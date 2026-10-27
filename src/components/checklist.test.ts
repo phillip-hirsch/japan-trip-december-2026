@@ -13,7 +13,6 @@ import {
   ChecklistItem,
   IsoDate,
   RemoveOwnChecklistItemOutcome,
-  ScheduleId,
   TickChecklistItemOutcome,
   TickOwnChecklistItemOutcome,
 } from '@/trip/domain/domain'
@@ -41,8 +40,6 @@ vi.mock('@/trip/trip/trip.functions', () => ({
   tickOwnChecklistItem: vi.fn(),
 }))
 
-const scheduleId = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
-
 const jrPass = ChecklistItem.cases.Own.make({
   id: 'item-jr-pass',
   ticked: false,
@@ -60,15 +57,13 @@ const shigeharu = ChecklistItem.cases.ConfirmShigeharu.make({
 const sentTicked = SaveState.Saved({ value: true })
 
 describe('a Tick', () => {
-  /** The Tick of `item`, on a Checklist of `shown`'s Schedule. */
-  const openTick = (item: ChecklistItem, shown: ScheduleId | null) =>
-    openEditor(
-      ({ item }: { item: ChecklistItem }) =>
-        useTick({ item, scheduleId: shown }),
-      { item },
-    )
+  /** The Tick of `item`. */
+  const openTick = (item: ChecklistItem) =>
+    openEditor(({ item }: { item: ChecklistItem }) => useTick({ item }), {
+      item,
+    })
 
-  it('ticks an own Checklist item on the Trip, naming no Schedule', async () => {
+  it('ticks an own Checklist item on the Trip', async () => {
     vi.mocked(tickOwnChecklistItem).mockImplementation(
       answeringOnly(
         { itemId: 'item-jr-pass', ticked: true },
@@ -78,7 +73,7 @@ describe('a Tick', () => {
         }),
       ),
     )
-    const editor = await openTick(jrPass, scheduleId)
+    const editor = await openTick(jrPass)
 
     await act(() => editor.field().send(true))
 
@@ -86,34 +81,21 @@ describe('a Tick', () => {
     await editor.close()
   })
 
-  it('ticks an item derived from the Schedule on the Schedule shown', async () => {
+  it('ticks an item derived from the Schedule', async () => {
     vi.mocked(tickChecklistItem).mockImplementation(
       answeringOnly(
-        { scheduleId, itemId: 'shigeharu', ticked: true },
+        { itemId: 'shigeharu', ticked: true },
         TickChecklistItemOutcome.cases.Ticked.make({}),
-        TickChecklistItemOutcome.cases.ScheduleChanged.make({}),
+        TickChecklistItemOutcome.cases.ChecklistItemNotFound.make({
+          itemId: 'shigeharu',
+        }),
       ),
     )
-    const editor = await openTick(shigeharu, scheduleId)
+    const editor = await openTick(shigeharu)
 
     await act(() => editor.field().send(true))
 
     assert.deepStrictEqual(editor.field().state, sentTicked)
-    await editor.close()
-  })
-
-  it('keeps a Tick refused because the Schedule changed marked "not saved"', async () => {
-    vi.mocked(tickChecklistItem).mockResolvedValue(
-      TickChecklistItemOutcome.cases.ScheduleChanged.make({}),
-    )
-    const editor = await openTick(shigeharu, scheduleId)
-
-    await act(() => editor.field().send(true))
-
-    assert.strictEqual(
-      notSavedProblem(editor.field().state),
-      'Your Schedule changed on another device. This page now shows it as it is.',
-    )
     await editor.close()
   })
 
@@ -127,7 +109,7 @@ describe('a Tick', () => {
         }),
       ),
     )
-    const editor = await openTick(jrPass, null)
+    const editor = await openTick(jrPass)
 
     await goOffline()
     await act(() => editor.field().send(true))
@@ -151,7 +133,7 @@ describe('a Tick', () => {
 
   it('drops a Tick not saved once the Checklist shows the item ticked after all', async () => {
     vi.mocked(tickOwnChecklistItem).mockRejectedValue(new Error('offline'))
-    const editor = await openTick(jrPass, null)
+    const editor = await openTick(jrPass)
     await act(() => editor.field().send(true))
     assert.isTrue(SaveState.$is('NotSaved')(editor.field().state))
 

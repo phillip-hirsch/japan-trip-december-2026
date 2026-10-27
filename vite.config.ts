@@ -8,10 +8,7 @@ import { cloudflare } from '@cloudflare/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 
-import {
-  checkPrerenderedHtml,
-  readPrerenderedPaths,
-} from './scripts/prerender.ts'
+import { checkPrerenderedHtml } from './scripts/prerender.ts'
 
 import { generatedFiles } from './scripts/generated-files.ts'
 import { serviceWorker, shellPage } from './scripts/service-worker.ts'
@@ -125,9 +122,8 @@ const config = defineConfig({
   test: { include: ['src/**/*.test.ts', 'scripts/**/*.test.ts'] },
   // Tests run the Effect services in Node; the Worker and UI plugins are only
   // for dev and build (the Cloudflare plugin cannot start under Vitest).
-  plugins: lazyPlugins(async () => {
+  plugins: lazyPlugins(() => {
     if (process.env.VITEST) return []
-    const prerenderedPaths = await readPrerenderedPaths()
 
     return [
       devtools(),
@@ -136,7 +132,7 @@ const config = defineConfig({
       // Prerenders through the local preview, whose Access dev simulation
       // passes the gate as it does for `cf dev`.
       tanstackStart({
-        pages: [...prerenderedPaths.map((path) => ({ path })), shellPage],
+        pages: [shellPage],
         prerender: {
           enabled: true,
           crawlLinks: false,
@@ -145,7 +141,7 @@ const config = defineConfig({
         },
       }),
       viteReact({ compiler: true }),
-      checkPrerenderedHtml(prerenderedPaths),
+      checkPrerenderedHtml(),
       serviceWorker(),
     ]
   }),

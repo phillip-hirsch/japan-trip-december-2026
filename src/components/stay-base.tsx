@@ -25,7 +25,6 @@ const baseVerb: SaveVerb = { ...saveVerb, done: 'Base changed' }
  * since picking it again loses nothing.
  */
 export const useStayBase = ({
-  scheduleId,
   stay,
   anchorWarnings,
 }: Omit<StayEditorProps, 'stays'>) => {
@@ -33,7 +32,6 @@ export const useStayBase = ({
 
   return useSave<PlaceId>({
     target: stayBaseTarget(stay.id),
-    scheduleId,
     saved: stay.base.id,
     write: 'stayEdit',
     run: async (place) =>
@@ -41,7 +39,7 @@ export const useStayBase = ({
         'The Base change breaks an Anchor',
         anchorWarnings,
         unknownPlace,
-      )(await change({ data: { scheduleId, stayId: stay.id, place } })),
+      )(await change({ data: { stayId: stay.id, place } })),
   })
 }
 

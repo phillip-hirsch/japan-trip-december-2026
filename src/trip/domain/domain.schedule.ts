@@ -8,21 +8,13 @@ import {
   DayDetail,
   DayTripDetail,
   IsoDate,
-  IsoInstant,
   ItineraryMap,
-  ItineraryNotFound,
-  ItinerarySummary,
   MoveDetail,
-  OptionNumber,
   StayDetail,
   StaySummary,
   VerifyClaimDetail,
 } from '@/trip/domain/domain.itinerary'
-import {
-  OperationId,
-  ScheduleChanged,
-  operationOutcome,
-} from '@/trip/domain/domain.writes'
+import { operationOutcome } from '@/trip/domain/domain.writes'
 
 /** The id of something copied into a Schedule, fresh in each Schedule. */
 export const CopyId = Schema.String
@@ -32,11 +24,6 @@ export const ScheduleId = Schema.String.check(Schema.isUUID()).pipe(
 )
 
 export type ScheduleId = typeof ScheduleId.Type
-
-/** An archived Schedule is read-only; at most one is current. */
-export const ScheduleStatus = Schema.Literals(['current', 'archived'])
-
-export type ScheduleStatus = typeof ScheduleStatus.Type
 
 export const ScheduleAnchor = Schema.TaggedUnion({
   Arrival: { id: CopyId, ...anchorFields.Arrival },
@@ -175,8 +162,6 @@ export const NextMove = Schema.Struct({
 export type NextMove = typeof NextMove.Type
 
 export const DayPage = Schema.Struct({
-  /** The Schedule the Day belongs to, which every write to it names. */
-  scheduleId: ScheduleId,
   day: ScheduleDayDetail,
   /** Absent on December 20, the Departure Day, when Phillip flies home. */
   tonight: Schema.optionalKey(TonightsHotel),
@@ -186,41 +171,16 @@ export const DayPage = Schema.Struct({
 
 export type DayPage = typeof DayPage.Type
 
-export const ScheduleRecord = Schema.Struct({
-  id: ScheduleId,
-  status: ScheduleStatus,
-  sourceOptionNumber: OptionNumber,
-  /** The content version of the Itinerary when it was chosen. */
-  sourceContentVersion: Schema.String,
-  chosenAt: IsoInstant,
-  archivedAt: Schema.NullOr(IsoInstant),
-  birthdayOutline: Schema.String,
-})
+export const ScheduleRecord = Schema.Struct({ id: ScheduleId })
 
 export type ScheduleRecord = typeof ScheduleRecord.Type
 
-export const ScheduleSummary = Schema.Struct(
-  Struct.pick(ScheduleRecord.fields, ['id', 'sourceOptionNumber']),
-)
-
-export type ScheduleSummary = typeof ScheduleSummary.Type
-
-export const SourceItineraryStatus = Schema.Literals([
-  'unchanged',
-  'revised',
-  'unavailable',
-])
-
-export type SourceItineraryStatus = typeof SourceItineraryStatus.Type
-
 /**
- * Phillip's Schedule as its page shows it: where it came from, and its Stays
- * and all 15 Days as copied when he chose it. Its Verify claims carry their
- * copies' ids.
+ * Phillip's Schedule as its page shows it: its Stays and all 15 Days. Its
+ * Verify claims carry their copies' ids.
  */
 export const ScheduleDetail = Schema.Struct({
   ...ScheduleRecord.fields,
-  sourceItinerary: SourceItineraryStatus,
   /** The Verify claims about the Schedule as a whole. */
   verifyClaims: Schema.Array(VerifyClaimDetail),
   stays: Schema.Array(ScheduleStayDetail),
@@ -252,8 +212,8 @@ export const MapActivity = Schema.Struct({
 export type MapActivity = typeof MapActivity.Type
 
 /**
- * The current Schedule on its map: drawn as an Itinerary's map is, from the
- * Schedule's own Stays and Moves, with every pinned hotel and Activity.
+ * The current Schedule on its map: its Stays, Moves and Day trips, with every
+ * pinned hotel and Activity.
  */
 export const ScheduleMap = Schema.Struct({
   ...ItineraryMap.fields,
@@ -264,64 +224,6 @@ export const ScheduleMap = Schema.Struct({
 })
 
 export type ScheduleMap = typeof ScheduleMap.Type
-
-export const ArchivedScheduleSummary = Schema.Struct({
-  ...Struct.pick(ScheduleRecord.fields, [
-    'id',
-    'sourceOptionNumber',
-    'chosenAt',
-  ]),
-  archivedAt: IsoInstant,
-})
-
-export type ArchivedScheduleSummary = typeof ArchivedScheduleSummary.Type
-
-/**
- * Phillip's Schedules as /schedule shows them: the current one, if chosen,
- * the archived ones, most recently archived first, and the Trip note. Read
- * together, so the page never shows two moments at once.
- */
-export const Schedules = Schema.Struct({
-  current: Schema.NullOr(ScheduleDetail),
-  archived: Schema.Array(ArchivedScheduleSummary),
-  tripNote: Schema.optionalKey(Schema.String),
-})
-
-export type Schedules = typeof Schedules.Type
-
-/**
- * Choose an Itinerary, making a fresh copy of it Phillip's Schedule. It names
- * the current Schedule it archives, or null when there is none yet.
- */
-export const ChooseItinerary = Schema.Struct({
-  operationId: OperationId,
-  optionNumber: OptionNumber,
-  replacing: Schema.NullOr(ScheduleId),
-})
-
-export type ChooseItinerary = typeof ChooseItinerary.Type
-
-export const ScheduleChosen = Schema.Struct({ scheduleId: ScheduleId })
-
-export type ScheduleChosen = typeof ScheduleChosen.Type
-
-/** Restore an archived Schedule, archiving the current one it names. */
-export const RestoreSchedule = Schema.Struct({
-  operationId: OperationId,
-  scheduleId: ScheduleId,
-  replacing: Schema.NullOr(ScheduleId),
-})
-
-export type RestoreSchedule = typeof RestoreSchedule.Type
-
-export const ScheduleRestored = Schema.Struct({ scheduleId: ScheduleId })
-
-export type ScheduleRestored = typeof ScheduleRestored.Type
-
-export class ScheduleNotFound extends Schema.TaggedError<ScheduleNotFound>()(
-  'ScheduleNotFound',
-  { scheduleId: ScheduleId },
-) {}
 
 /** The date is not a Day of the Trip, December 6 through December 20. */
 export class DayNotFound extends Schema.TaggedError<DayNotFound>()(
@@ -335,7 +237,6 @@ const homeFields = {
    * string. The browser counts from it to the next Tokyo midnight.
    */
   readAt: Schema.String,
-  itineraries: Schema.Array(ItinerarySummary),
 }
 
 /**
@@ -350,50 +251,36 @@ export const HomeState = Schema.TaggedUnion({
      * changes the count.
      */
     daysToGo: Schema.Int,
-    schedule: Schema.NullOr(ScheduleDetail),
+    schedule: ScheduleDetail,
   },
   DuringTrip: {
     ...homeFields,
     date: IsoDate,
-    /** Today: that Day's page, null until a Schedule exists. */
-    today: Schema.NullOr(DayPage),
+    /** Today: that Day's page. */
+    today: DayPage,
   },
   AfterTrip: {
     ...homeFields,
-    schedule: Schema.NullOr(ScheduleDetail),
+    schedule: ScheduleDetail,
   },
 })
 
 export type HomeState = typeof HomeState.Type
 
-/** A Day's page, null until a Schedule exists. */
-export const DayOutcome = operationOutcome(
-  'Day',
-  { page: Schema.NullOr(DayPage) },
-  [DayNotFound],
-)
+/**
+ * Phillip's Schedule as /schedule shows it, with the Trip note, read
+ * together so the page never shows two moments at once.
+ */
+export const Schedules = Schema.Struct({
+  current: ScheduleDetail,
+  tripNote: Schema.optionalKey(Schema.String),
+})
 
-export type DayOutcome = typeof DayOutcome.Type
+export type Schedules = typeof Schedules.Type
 
-export const ScheduleOutcome = operationOutcome(
-  'Schedule',
-  { schedule: ScheduleDetail },
-  [ScheduleNotFound],
-)
-
-export type ScheduleOutcome = typeof ScheduleOutcome.Type
-
-export const ChooseOutcome = operationOutcome('Chosen', ScheduleChosen.fields, [
-  ItineraryNotFound,
-  ScheduleChanged,
+/** A Day's page. */
+export const DayOutcome = operationOutcome('Day', { page: DayPage }, [
+  DayNotFound,
 ])
 
-export type ChooseOutcome = typeof ChooseOutcome.Type
-
-export const RestoreOutcome = operationOutcome(
-  'Restored',
-  ScheduleRestored.fields,
-  [ScheduleNotFound, ScheduleChanged],
-)
-
-export type RestoreOutcome = typeof RestoreOutcome.Type
+export type DayOutcome = typeof DayOutcome.Type

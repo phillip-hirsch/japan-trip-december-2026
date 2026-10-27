@@ -17,20 +17,18 @@ import type { AccommodationKind, StayDetail } from '@/trip/domain/domain'
 
 const accommodationLabels: Record<AccommodationKind, string> = {
   hotel: 'Hotel',
-  ryokan: 'Ryokan',
 }
 
 /** The id of a Schedule's Stay on its page, for links to it. */
 export const stayElementId = (stayId: string) => `stay-${stayId}`
 
 /**
- * An Itinerary's or Schedule's Stays: each Base with its dates, nights,
- * accommodation kind, highlights and Verify claims, and whatever else the
- * Schedule adds to each, such as its Stay note. A Schedule's Stay is keyed by
- * its id, which it keeps when its dates change, so its open editors stay
- * open.
+ * The Schedule's Stays: each Base with its dates, nights, accommodation kind,
+ * highlights and Verify claims, and whatever else the page adds to each, such
+ * as its Stay note. A Stay is keyed by its id, which it keeps when its dates
+ * change, so its open editors stay open.
  */
-export function StayList<S extends StayDetail & { readonly id?: string }>({
+export function StayList<S extends StayDetail & { readonly id: string }>({
   stays,
   footer,
 }: {
@@ -43,11 +41,7 @@ export function StayList<S extends StayDetail & { readonly id?: string }>({
         const extra = footer?.(stay)
 
         return (
-          <li
-            key={stay.id ?? stay.checkIn}
-            id={stay.id === undefined ? undefined : stayElementId(stay.id)}
-            className="scroll-mt-6"
-          >
+          <li key={stay.id} id={stayElementId(stay.id)} className="scroll-mt-6">
             <Item variant="outline">
               <ItemMedia className="w-14 justify-start">
                 <DisplayJa text={stay.base.kanji} className="text-2xl" />

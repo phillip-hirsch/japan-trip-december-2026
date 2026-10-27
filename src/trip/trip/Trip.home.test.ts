@@ -1,20 +1,14 @@
 import { assert, describe, it } from '@effect/vitest'
-import { DateTime, Effect, Option, Predicate, Struct } from 'effect'
+import { DateTime, Effect, Predicate } from 'effect'
 
 import { december, HomeState, Hotel, IsoDate } from '@/trip/domain/domain'
 import {
   currentSchedule,
-  liveTrip,
-  operation,
   setTime,
   storage,
-  tripWithOptions1And2,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
-
-const chooseOption1 = Trip.use((trip) =>
-  trip.choose({ operationId: operation(1), optionNumber: 1, replacing: null }),
-)
 
 const inTokyo = (wallTime: string) =>
   DateTime.formatIso(
@@ -31,125 +25,74 @@ const homeAt = (instant: string) =>
     return yield* Trip.use((trip) => trip.home)
   })
 
-const expectedHomeFields = (readAt: string) =>
-  Trip.use((trip) => trip.itineraries).pipe(
-    Effect.map((itineraries) => ({
-      readAt,
-      itineraries: itineraries.map((itinerary) =>
-        Struct.pick(itinerary, [
-          'optionNumber',
-          'name',
-          'recommended',
-          'bestFor',
-          'route',
-          'nightsPerBase',
-          'newToYou',
-        ]),
-      ),
-    })),
-  )
+const dayPage = (date: IsoDate) => Trip.use((trip) => trip.day(date))
 
 describe('Trip.home at the Trip boundaries', () => {
   it.effect('is before the Trip at 23:59:59.999 on December 5 in Tokyo', () =>
     Effect.gen(function* () {
-      const shared = yield* expectedHomeFields('2026-12-05T14:59:59.999Z')
-      const without = yield* homeAt(shared.readAt)
-      yield* chooseOption1
-      const withSchedule = yield* homeAt(shared.readAt)
+      const readAt = '2026-12-05T14:59:59.999Z'
+      const home = yield* homeAt(readAt)
       const schedule = yield* currentSchedule
 
       assert.deepStrictEqual(
-        { without, withSchedule },
-        {
-          without: HomeState.cases.BeforeTrip.make({
-            ...shared,
-            daysToGo: 1,
-            schedule: null,
-          }),
-          withSchedule: HomeState.cases.BeforeTrip.make({
-            ...shared,
-            daysToGo: 1,
-            schedule,
-          }),
-        },
+        home,
+        HomeState.cases.BeforeTrip.make({
+          readAt,
+          daysToGo: 1,
+          schedule,
+        }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('is during the Trip at 00:00 on December 6 in Tokyo', () =>
     Effect.gen(function* () {
-      const shared = yield* expectedHomeFields('2026-12-05T15:00:00.000Z')
-      const without = yield* homeAt(shared.readAt)
-      yield* chooseOption1
-      const withSchedule = yield* homeAt(shared.readAt)
+      const readAt = '2026-12-05T15:00:00.000Z'
+      const home = yield* homeAt(readAt)
       const today = yield* dayPage(december(6))
 
       assert.deepStrictEqual(
-        { without, withSchedule },
-        {
-          without: HomeState.cases.DuringTrip.make({
-            ...shared,
-            date: december(6),
-            today: null,
-          }),
-          withSchedule: HomeState.cases.DuringTrip.make({
-            ...shared,
-            date: december(6),
-            today,
-          }),
-        },
+        home,
+        HomeState.cases.DuringTrip.make({
+          readAt,
+          date: december(6),
+          today,
+        }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('is during the Trip at 23:59:59.999 on December 20 in Tokyo', () =>
     Effect.gen(function* () {
-      const shared = yield* expectedHomeFields('2026-12-20T14:59:59.999Z')
-      const without = yield* homeAt(shared.readAt)
-      yield* chooseOption1
-      const withSchedule = yield* homeAt(shared.readAt)
+      const readAt = '2026-12-20T14:59:59.999Z'
+      const home = yield* homeAt(readAt)
       const today = yield* dayPage(december(20))
 
       assert.deepStrictEqual(
-        { without, withSchedule },
-        {
-          without: HomeState.cases.DuringTrip.make({
-            ...shared,
-            date: december(20),
-            today: null,
-          }),
-          withSchedule: HomeState.cases.DuringTrip.make({
-            ...shared,
-            date: december(20),
-            today,
-          }),
-        },
+        home,
+        HomeState.cases.DuringTrip.make({
+          readAt,
+          date: december(20),
+          today,
+        }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('is after the Trip at 00:00 on December 21 in Tokyo', () =>
     Effect.gen(function* () {
-      const shared = yield* expectedHomeFields('2026-12-20T15:00:00.000Z')
-      const without = yield* homeAt(shared.readAt)
-      yield* chooseOption1
-      const withSchedule = yield* homeAt(shared.readAt)
+      const readAt = '2026-12-20T15:00:00.000Z'
+      const home = yield* homeAt(readAt)
       const schedule = yield* currentSchedule
 
       assert.deepStrictEqual(
-        { without, withSchedule },
-        {
-          without: HomeState.cases.AfterTrip.make({
-            ...shared,
-            schedule: null,
-          }),
-          withSchedule: HomeState.cases.AfterTrip.make({
-            ...shared,
-            schedule,
-          }),
-        },
+        home,
+        HomeState.cases.AfterTrip.make({
+          readAt,
+          schedule,
+        }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
@@ -158,85 +101,80 @@ describe('Trip.home Today', () => {
     Effect.gen(function* () {
       const home = yield* homeAt('2026-12-05T14:59:59.999Z')
       assert.strictEqual(home.readAt, '2026-12-05T14:59:59.999Z')
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('is the Day page of the Tokyo date', () =>
     Effect.gen(function* () {
-      yield* chooseOption1
-      const shared = yield* expectedHomeFields('2026-12-14T03:00:00.000Z')
-      const home = yield* homeAt(shared.readAt)
-      const dayPage = yield* Trip.use((trip) => trip.day(december(14)))
+      const readAt = '2026-12-14T03:00:00.000Z'
+      const home = yield* homeAt(readAt)
       assert.deepStrictEqual(
         home,
         HomeState.cases.DuringTrip.make({
-          ...shared,
+          readAt,
           date: december(14),
-          today: Option.getOrThrow(dayPage),
+          today: yield* dayPage(december(14)),
         }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('follows the Tokyo date when it is ahead of the UTC date', () =>
     Effect.gen(function* () {
-      const shared = yield* expectedHomeFields(inTokyo('2026-12-14T01:00'))
-      const home = yield* homeAt(shared.readAt)
+      const readAt = inTokyo('2026-12-14T01:00')
+      const home = yield* homeAt(readAt)
       assert.deepStrictEqual(
         home,
         HomeState.cases.DuringTrip.make({
-          ...shared,
+          readAt,
           date: december(14),
-          today: null,
+          today: yield* dayPage(december(14)),
         }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('follows the Tokyo date late in the Tokyo evening', () =>
     Effect.gen(function* () {
-      const shared = yield* expectedHomeFields(inTokyo('2026-12-14T23:59'))
-      const home = yield* homeAt(shared.readAt)
+      const readAt = inTokyo('2026-12-14T23:59')
+      const home = yield* homeAt(readAt)
       assert.deepStrictEqual(
         home,
         HomeState.cases.DuringTrip.make({
-          ...shared,
+          readAt,
           date: december(14),
-          today: null,
+          today: yield* dayPage(december(14)),
         }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('shows the Schedule as a record after the Trip', () =>
     Effect.gen(function* () {
-      yield* chooseOption1
-      const shared = yield* expectedHomeFields('2026-12-25T03:00:00.000Z')
-      const home = yield* homeAt(shared.readAt)
+      const readAt = '2026-12-25T03:00:00.000Z'
+      const home = yield* homeAt(readAt)
       const { current } = yield* Trip.use((trip) => trip.schedules)
       assert.deepStrictEqual(
         home,
         HomeState.cases.AfterTrip.make({
-          ...shared,
-          schedule: Option.getOrThrow(current),
+          readAt,
+          schedule: current,
         }),
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
 describe('Trip.home Today across Tokyo midnight', () => {
   const todayAt = (instant: string) =>
     Effect.map(homeAt(instant), (home) =>
-      Predicate.isTagged(home, 'DuringTrip') ? home.today?.day.date : home._tag,
+      Predicate.isTagged(home, 'DuringTrip') ? home.today.day.date : home._tag,
     )
 
   it.effect(
     'is December 14 at its last moment and December 15 at the first moment after, in Tokyo',
     () =>
       Effect.gen(function* () {
-        yield* chooseOption1
-
         assert.deepStrictEqual(
           [
             yield* todayAt(inTokyo('2026-12-14T23:59:59.999')),
@@ -244,110 +182,70 @@ describe('Trip.home Today across Tokyo midnight', () => {
           ],
           [december(14), december(15)],
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
     'follows the Tokyo date while the UTC date is still the day before',
     () =>
       Effect.gen(function* () {
-        yield* chooseOption1
-        const shared = yield* expectedHomeFields('2026-12-14T16:30:00.000Z')
-        const home = yield* homeAt(shared.readAt)
+        const readAt = '2026-12-14T16:30:00.000Z'
+        const home = yield* homeAt(readAt)
         const today = yield* dayPage(december(15))
 
         assert.deepStrictEqual(
           home,
           HomeState.cases.DuringTrip.make({
-            ...shared,
+            readAt,
             date: december(15),
             today,
           }),
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
 describe('Trip.home countdown', () => {
-  const assertCountdown = (instant: string, daysToGo: number) =>
+  const assertCountdown = (readAt: string, daysToGo: number) =>
     Effect.gen(function* () {
-      const shared = yield* expectedHomeFields(instant)
       assert.deepStrictEqual(
-        yield* homeAt(instant),
+        yield* homeAt(readAt),
         HomeState.cases.BeforeTrip.make({
-          ...shared,
+          readAt,
           daysToGo,
-          schedule: null,
+          schedule: yield* currentSchedule,
         }),
       )
     })
 
   it.effect('shows 1 day remaining at 00:00 on December 5 in Tokyo', () =>
     assertCountdown('2026-12-04T15:00:00.000Z', 1).pipe(
-      Effect.provide([tripWithOptions1And2, storage]),
+      Effect.provide([testTrip, storage]),
     ),
   )
 
   it.effect('follows the Tokyo date when it is ahead of the UTC date', () =>
     assertCountdown(inTokyo('2026-12-01T01:00'), 5).pipe(
-      Effect.provide([tripWithOptions1And2, storage]),
+      Effect.provide([testTrip, storage]),
     ),
   )
 
   it.effect('follows the Tokyo date late in the Tokyo evening', () =>
     assertCountdown(inTokyo('2026-11-30T23:59'), 6).pipe(
-      Effect.provide([tripWithOptions1And2, storage]),
+      Effect.provide([testTrip, storage]),
     ),
   )
 
   it.effect('counts across a month boundary in Tokyo', () =>
     assertCountdown(inTokyo('2026-10-01T08:30'), 66).pipe(
-      Effect.provide([tripWithOptions1And2, storage]),
+      Effect.provide([testTrip, storage]),
     ),
   )
 })
 
-describe('Trip.home Itineraries', () => {
-  it.effect('lists every Itinerary in the catalogue', () =>
-    Effect.gen(function* () {
-      const home = yield* homeAt('2026-10-01T00:00:00Z')
-      const itineraries = yield* Trip.use((trip) => trip.itineraries)
-      assert.deepStrictEqual(
-        home.itineraries,
-        itineraries.map((itinerary) =>
-          Struct.pick(itinerary, [
-            'optionNumber',
-            'name',
-            'recommended',
-            'bestFor',
-            'route',
-            'nightsPerBase',
-            'newToYou',
-          ]),
-        ),
-      )
-    }).pipe(Effect.provide([liveTrip, storage])),
-  )
-})
-
-const dayPage = (date: IsoDate) =>
-  Effect.map(
-    Trip.use((trip) => trip.day(date)),
-    Option.getOrThrow,
-  )
-
 describe('Trip.day', () => {
-  it.effect('is empty before a Schedule is chosen', () =>
-    Effect.gen(function* () {
-      const found = yield* Trip.use((trip) => trip.day(december(14)))
-      assert.isTrue(Option.isNone(found))
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
   it.effect('fails with DayNotFound for a date outside the Trip', () =>
     Effect.gen(function* () {
-      yield* chooseOption1
-
       const before = yield* Effect.flip(
         Trip.use((trip) => trip.day(IsoDate.make('2026-12-05'))),
       )
@@ -363,15 +261,13 @@ describe('Trip.day', () => {
           { tag: 'DayNotFound', date: '2026-12-21' },
         ],
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect("shows the Schedule's Day, as the Schedule shows it", () =>
     Effect.gen(function* () {
-      yield* chooseOption1
       const { day } = yield* dayPage(december(8))
-      const { current } = yield* Trip.use((trip) => trip.schedules)
-      const schedule = Option.getOrThrow(current)
+      const schedule = yield* currentSchedule
       assert.deepStrictEqual(
         {
           day,
@@ -384,16 +280,14 @@ describe('Trip.day', () => {
           dayTrips: ['Kamakura'],
         },
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
     "shows tonight's hotel as the Stay covering the night, hotel not recorded",
     () =>
       Effect.gen(function* () {
-        yield* chooseOption1
-        const { current } = yield* Trip.use((trip) => trip.schedules)
-        const kyoto = Option.getOrThrow(current).stays[1]
+        const kyoto = (yield* currentSchedule).stays[1]
         const { tonight } = yield* dayPage(december(9))
         assert.deepStrictEqual(tonight, {
           id: kyoto?.id,
@@ -403,28 +297,25 @@ describe('Trip.day', () => {
           nights: 4,
           hotel: Hotel.cases.NotRecorded.make({}),
         })
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect("hides tonight's hotel on December 20", () =>
     Effect.gen(function* () {
-      yield* chooseOption1
       const { tonight } = yield* dayPage(december(20))
       assert.isUndefined(tonight)
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('returns a Move dated the same Day as the next Move', () =>
     Effect.gen(function* () {
-      yield* chooseOption1
       const { day, nextMove } = yield* dayPage(december(13))
       assert.deepStrictEqual(nextMove, { date: december(13), ...day.move })
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('returns the first later Move as the next Move', () =>
     Effect.gen(function* () {
-      yield* chooseOption1
       const { nextMove } = yield* dayPage(december(10))
       assert.deepStrictEqual(
         nextMove && {
@@ -434,14 +325,13 @@ describe('Trip.day', () => {
         },
         { date: december(13), from: 'Kyoto', to: 'Kanazawa' },
       )
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('returns no next Move when none are left', () =>
     Effect.gen(function* () {
-      yield* chooseOption1
       const { nextMove } = yield* dayPage(december(18))
       assert.isUndefined(nextMove)
-    }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })

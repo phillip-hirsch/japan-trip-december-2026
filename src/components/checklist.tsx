@@ -3,7 +3,6 @@ import { Match, Predicate } from 'effect'
 import { BadgeAlertIcon, BellIcon, Trash2Icon } from 'lucide-react'
 import { useId } from 'react'
 
-import { ButtonLink } from '@/components/button-link'
 import {
   addVerb,
   EditorFrame,
@@ -22,11 +21,7 @@ import {
   formatShortDate,
   formatWeekday,
 } from '@/trip/domain/calendar'
-import type {
-  ChecklistItem,
-  ChecklistMove,
-  ScheduleId,
-} from '@/trip/domain/domain'
+import type { ChecklistItem, ChecklistMove } from '@/trip/domain/domain'
 import {
   answerOwn,
   checklistItemRemovalTarget,
@@ -36,9 +31,7 @@ import {
   tickTarget,
   useSave,
   useSend,
-  warned,
 } from '@/trip/client/drafts'
-import type { SaveWarning } from '@/trip/client/drafts'
 import { reminderDateOf } from '@/trip/domain/checklist-items'
 import { checklistTextMaxLength } from '@/trip/domain/limits'
 import {
@@ -67,10 +60,6 @@ const wordingOf = (
         title: `Reserve seats, ${moveRoute(move)}`,
         about: `Move on ${formatDay(move.date)}`,
       }),
-      BookFlight: ({ move }) => ({
-        title: `Book flight, ${moveRoute(move)}`,
-        about: `Move on ${formatDay(move.date)}`,
-      }),
       ConfirmShigeharu: ({ date }) => ({
         title: `Confirm Shigeharu is open ${formatWeekdayDate(date)}`,
       }),
@@ -94,37 +83,22 @@ const wordingOf = (
 
 const verifyNotes = {
   'reminder-date': 'Verify: seats open about a month before',
-  'when-booking-opens': 'Verify when booking opens',
 }
 
 const verifyNoteOf = (item: ChecklistItem) =>
   Match.value(item).pipe(
     Match.tags({
       ReserveSeats: ({ verify }) => verifyNotes[verify],
-      BookFlight: ({ verify }) => verifyNotes[verify],
       VerifyClaim: () => 'Verify',
     }),
     Match.orElse(() => undefined),
   )
 
-const tickScheduleChanged: SaveWarning = {
-  title: 'Your Schedule changed on another device',
-  description:
-    'The tick wasn’t saved. The Checklist now shows the Schedule as it is.',
-}
-
 /**
- * The Tick on `item`, of a Checklist showing the Schedule `scheduleId`, or
- * none yet. An own item belongs to the Trip, so its Tick names no Schedule.
- * The hook drops a Tick not saved once the Checklist shows it.
+ * The Tick on `item`. The hook drops a Tick not saved once the Checklist
+ * shows it.
  */
-export const useTick = ({
-  item,
-  scheduleId,
-}: {
-  item: ChecklistItem
-  scheduleId: ScheduleId | null
-}) => {
+export const useTick = ({ item }: { item: ChecklistItem }) => {
   const own = Predicate.isTagged('Own')(item)
   const tickDerived = useServerFn(tickChecklistItem)
   const tickOwn = useServerFn(tickOwnChecklistItem)
@@ -132,25 +106,9 @@ export const useTick = ({
   return useSend<boolean>({
     target: tickTarget(item),
     moot: (ticked) => ticked === item.ticked,
-    // Own items belong to the Trip, so a Schedule change never refuses them.
-    scheduleId: own ? null : scheduleId,
     write: 'checklist',
-    run: async (ticked) => {
-      if (own) return tickOwn({ data: { itemId: item.id, ticked } })
-
-      if (scheduleId === null) return SaveAnswer.ScheduleChanged()
-
-      const outcome = await tickDerived({
-        data: { scheduleId, itemId: item.id, ticked },
-      })
-
-      return warned(
-        outcome,
-        Predicate.isTagged('ScheduleChanged')(outcome)
-          ? tickScheduleChanged
-          : undefined,
-      )
-    },
+    run: (ticked) =>
+      (own ? tickOwn : tickDerived)({ data: { itemId: item.id, ticked } }),
   })
 }
 
@@ -160,21 +118,14 @@ export const useChecklistItemRemoval = ({ itemId }: { itemId: string }) => {
 
   return useSend<string>({
     target: checklistItemRemovalTarget(itemId),
-    scheduleId: null,
     write: 'checklist',
     run: (removing) => remove({ data: { itemId: removing } }),
   })
 }
 
-function ChecklistRow({
-  item,
-  scheduleId,
-}: {
-  item: ChecklistItem
-  scheduleId: ScheduleId | null
-}) {
+function ChecklistRow({ item }: { item: ChecklistItem }) {
   const titleId = useId()
-  const tick = useTick({ item, scheduleId })
+  const tick = useTick({ item })
   const removal = useChecklistItemRemoval({ itemId: item.id })
   const tickFrame = frameOf(tick)
   const removalFrame = frameOf(removal)
@@ -262,10 +213,8 @@ function ChecklistRow({
 
 export function ChecklistItems({
   items,
-  scheduleId,
 }: {
   items: ReadonlyArray<ChecklistItem>
-  scheduleId: ScheduleId | null
 }) {
   if (items.length === 0) {
     return (
@@ -279,7 +228,7 @@ export function ChecklistItems({
     <ul className="flex flex-col gap-2">
       {items.map((item) => (
         <li key={`${item._tag} ${item.id}`}>
-          <ChecklistRow item={item} scheduleId={scheduleId} />
+          <ChecklistRow item={item} />
         </li>
       ))}
     </ul>
@@ -314,7 +263,6 @@ export const useNewChecklistItem = () => {
     target: newChecklistItemTarget,
     draft: isNewItem,
     equals: (a, b) => a.text === b.text && a.reminderDate === b.reminderDate,
-    scheduleId: null,
     saved: noNewItem,
     write: 'checklist',
     run: async ({ text, reminderDate }, operationId) =>
@@ -381,19 +329,5 @@ export function AddChecklistItem({ labelledBy }: { labelledBy: string }) {
         </div>
       )}
     </EditorFrame>
-  )
-}
-
-export function ChooseItineraryPrompt() {
-  return (
-    <div className="flex flex-col items-start gap-4 rounded-md border border-border bg-secondary px-4 py-4 text-sm text-secondary-foreground">
-      <p>
-        No Schedule yet. Choose an Itinerary, and the hotels, seats, flights and
-        confirmations it needs appear here. Your own items stay as they are.
-      </p>
-      <ButtonLink to="/options" size="sm">
-        Compare the Itineraries
-      </ButtonLink>
-    </div>
   )
 }

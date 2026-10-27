@@ -7,11 +7,10 @@ import {
 } from '@/trip/domain/domain'
 import { noteMaxLength } from '@/trip/domain/limits'
 import {
-  choose,
   kyotoStayId,
-  staysOf,
+  currentStays,
   storage,
-  tripWithOption1,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import { runTripOperation } from '@/trip/trip-store/trip-operations'
@@ -24,33 +23,28 @@ const tripNote = Effect.map(
 describe('runTripOperation for the Stay note', () => {
   it.effect('answers a written Stay note with Written', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
-      const stayId = yield* kyotoStayId(scheduleId)
+      const stayId = yield* kyotoStayId
 
       const outcome = yield* runTripOperation('writeStayNote', {
-        scheduleId,
         stayId,
         note: 'Ask about the late check-in.',
       })
 
       assert.deepStrictEqual(
-        { outcome, note: (yield* staysOf(scheduleId))[1]?.note },
+        { outcome, note: (yield* currentStays)[1]?.note },
         {
           outcome: WriteStayNoteOutcome.cases.Written.make({}),
           note: 'Ask about the late check-in.',
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
     'answers a Stay the Schedule lacks with StayNotFound and its id',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
-
         const outcome = yield* runTripOperation('writeStayNote', {
-          scheduleId,
           stayId: 'no-such-stay',
           note: 'Nowhere.',
         })
@@ -61,7 +55,7 @@ describe('runTripOperation for the Stay note', () => {
             stayId: 'no-such-stay',
           }),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
@@ -79,7 +73,7 @@ describe('runTripOperation for the Trip note', () => {
           note: 'Pack the rail pass.',
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers a Trip note too long with NoteTooLong and the limit', () =>
@@ -97,6 +91,6 @@ describe('runTripOperation for the Trip note', () => {
           note: undefined,
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })

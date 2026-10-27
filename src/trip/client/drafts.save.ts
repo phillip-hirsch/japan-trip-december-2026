@@ -9,22 +9,21 @@ import {
   useEditingPaused,
 } from '@/access/connection-status'
 import { toast } from '@/components/ui/toast'
-import type { ScheduleId } from '@/trip/domain/domain'
 import { answerOf, SaveAnswer } from '@/trip/client/drafts.answers'
 import type { SaveReply } from '@/trip/client/drafts.answers'
-import { operationFor } from '@/trip/client/operations'
-import type { Operation } from '@/trip/client/operations'
-import {
-  invalidateAfter,
-  invalidateAfterScheduleChanged,
-  subscribeToReadsAfter,
-} from '@/trip/client/queries'
+import { invalidateAfter, subscribeToReadsAfter } from '@/trip/client/queries'
 import type { TripWrite } from '@/trip/client/queries'
+
+/**
+ * One attempt at a write. The Trip replays a write by its operation id, so a
+ * retry under the same id returns the first result instead of writing again.
+ */
+interface Operation {
+  readonly id: string
+}
 
 interface Draft<V> {
   readonly value: V
-  /** The Schedule shown when it was typed, kept until it is edited. */
-  readonly scheduleId: string | null
   readonly writeId: string
   /** The operation it was last sent under, kept for its retry. */
   readonly operation: Operation | undefined
@@ -32,10 +31,11 @@ interface Draft<V> {
 
 const storageKey = (target: string) => `draft:${target}`
 
+// Drafts kept while saves named a Schedule also hold its id, as scheduleId
+// and the operation's subject. The Schedule can't change, so both are
+// ignored.
 const isOperation = (value: unknown): value is Operation =>
-  Predicate.isObject(value) &&
-  Predicate.isString(value.id) &&
-  (Predicate.isString(value.subject) || Predicate.isNull(value.subject))
+  Predicate.isObject(value) && Predicate.isString(value.id)
 
 // Storage can be unavailable or full; the field still holds the value then.
 const readDraft = <V>(
@@ -49,14 +49,7 @@ const readDraft = <V>(
 
     const draft: unknown = JSON.parse(stored)
 
-    if (
-      !Predicate.isObject(draft) ||
-      !(
-        Predicate.isString(draft.scheduleId) ||
-        Predicate.isNull(draft.scheduleId)
-      ) ||
-      !Predicate.isString(draft.id)
-    ) {
+    if (!Predicate.isObject(draft) || !Predicate.isString(draft.id)) {
       return undefined
     }
 
@@ -68,20 +61,13 @@ const readDraft = <V>(
     let operation = isOperation(draft.operation) ? draft.operation : undefined
 
     if (Predicate.isObject(value) && Predicate.isString(value.operationId)) {
-      const { operationId: id, operationScheduleId, ...rest } = value
+      const { operationId: id, operationScheduleId: _, ...rest } = value
       value = rest
 
-      const subject =
-        Predicate.isString(operationScheduleId) && operationScheduleId !== ''
-          ? operationScheduleId
-          : draft.scheduleId
-
-      if (operation === undefined && id !== '') operation = { id, subject }
+      if (operation === undefined && id !== '') operation = { id }
     }
 
-    return isValue(value)
-      ? { value, scheduleId: draft.scheduleId, writeId: draft.id, operation }
-      : undefined
+    return isValue(value) ? { value, writeId: draft.id, operation } : undefined
   } catch {
     return undefined
   }
@@ -89,14 +75,14 @@ const readDraft = <V>(
 
 const writeDraft = <V>(
   target: string,
-  { value, scheduleId, operation }: Omit<Draft<V>, 'writeId'>,
+  { value, operation }: Omit<Draft<V>, 'writeId'>,
 ) => {
   const writeId = crypto.randomUUID()
 
   try {
     localStorage.setItem(
       storageKey(target),
-      JSON.stringify({ value, scheduleId, id: writeId, operation }),
+      JSON.stringify({ value, id: writeId, operation }),
     )
   } catch {
     // Nothing else can keep it; the field still holds it.
@@ -149,11 +135,6 @@ const isOpen = <V>(
 const restoredProblem =
   'This is what you typed here last time. Save it, or discard it.'
 
-const scheduleChangedProblem = (drafted: boolean) =>
-  drafted
-    ? 'Your Schedule changed on another device. This page now shows it as it is; your text is kept here to save again.'
-    : 'Your Schedule changed on another device. This page now shows it as it is.'
-
 const unansweredProblem = (drafted: boolean) => {
   const loginExpired = ConnectionStatus.$is('LoginExpired')(currentConnection())
 
@@ -195,11 +176,6 @@ interface SaveOptions<V, S> {
   readonly draft?: (value: unknown) => value is V
   readonly equals?: (a: V, b: V) => boolean
   /**
-   * The Schedule the value was read from, or null for a value tied to none,
-   * such as the Trip note, which a Schedule change never affects.
-   */
-  readonly scheduleId: ScheduleId | null
-  /**
    * Whether the Schedule shown still offers a value, such as a merge with
    * the next Stay once another device moves it to another Base. An open edit
    * it withdraws stays shown, with any refusal, until Phillip discards it;
@@ -212,9 +188,9 @@ interface SaveOptions<V, S> {
    * `answerOwn` does; throws when the request gets no answer.
    *
    * Each value comes with an operation id. Writes the Trip replays by
-   * operation id send it, and others ignore it. A retry of the same value to
-   * the same Schedule keeps the id, even after a reload, so it writes once.
-   * An edited value, or one kept across a Schedule change, gets a new id.
+   * operation id send it, and others ignore it. A retry of the same value
+   * keeps the id, even after a reload, so it writes once. An edited value
+   * gets a new id.
    */
   readonly run: (value: V, operationId: string) => Promise<SaveReply>
 }
@@ -244,9 +220,9 @@ export interface SaveField<V, S = V> {
  * kept as a Draft is written as one; only a successful save clears it, and
  * invalidates the queries the write affects. A Draft left by an earlier
  * visit or a login reload is restored marked not saved, and is sent only by
- * Save or Retry. A "Schedule changed" refusal refetches the data and keeps
- * the value, and so does an answer that what it was for is gone. Every other
- * refusal keeps the value without refetching. Offline, it neither changes
+ * Save or Retry. An answer that what it was for is gone refetches what the
+ * write affects and keeps the value. Every other refusal keeps the value
+ * without refetching. Offline, it neither changes
  * nor sends the value, and keeps it open to save once the connection returns.
  *
  * Without `saved`, the value is undefined while Clean. Split and merge work
@@ -262,7 +238,6 @@ export function useSave<V>({
   target,
   draft: isDraft,
   equals = (a, b) => a === b,
-  scheduleId,
   saved,
   offered = () => true,
   write,
@@ -284,10 +259,8 @@ export function useSave<V>({
   const state = held.target === target ? held.state : clean
   // Handlers and answers read the props of the last render React committed.
   const savedRef = useRef(saved)
-  const scheduleIdRef = useRef(scheduleId)
   useLayoutEffect(() => {
     savedRef.current = saved
-    scheduleIdRef.current = scheduleId
   })
   const drafted = isDraft !== undefined
   const ownDraftWriteId = useRef<string>(undefined)
@@ -331,20 +304,6 @@ export function useSave<V>({
   }
 
   const clearOwnDraft = () => clearDraftIfStill(ownDraftWriteId.current)
-
-  const typedForAnotherSchedule = (draft: Draft<V>) =>
-    draft.scheduleId !== scheduleIdRef.current
-
-  const savedAlready = (draft: Draft<V>) =>
-    !typedForAnotherSchedule(draft) && isSaved(draft.value)
-
-  const markedForChangedSchedule = (current: SaveState<V>) =>
-    isOpen(current) && !isSaved(current.value)
-      ? SaveState.NotSaved({
-          value: current.value,
-          problem: scheduleChangedProblem(drafted),
-        })
-      : current
 
   const savedAfterAll = (latest: V) => (current: SaveState<V>) =>
     SaveState.$is('NotSaved')(current) && equals(current.value, latest)
@@ -391,22 +350,15 @@ export function useSave<V>({
 
     if (draft === undefined) return
 
-    if (savedAlready(draft)) clearStoredDraft()
+    if (isSaved(draft.value)) clearStoredDraft()
     else {
       ownDraftWriteId.current = draft.writeId
       operation.current = draft.operation
       setState(
-        SaveState.NotSaved({
-          value: draft.value,
-          problem: typedForAnotherSchedule(draft)
-            ? scheduleChangedProblem(true)
-            : restoredProblem,
-        }),
+        SaveState.NotSaved({ value: draft.value, problem: restoredProblem }),
       )
     }
   }, [target])
-
-  useOnChange(scheduleId, () => updateState(markedForChangedSchedule))
 
   useOnChange(
     saved,
@@ -418,9 +370,7 @@ export function useSave<V>({
       const own =
         draft !== undefined && draft.writeId === ownDraftWriteId.current
 
-      if (own && typedForAnotherSchedule(draft)) return
-
-      if (own && savedAlready(draft)) clearStoredDraft()
+      if (own && isSaved(draft.value)) clearStoredDraft()
       updateState(savedAfterAll(latest))
     },
     (a, b) => (a === undefined || b === undefined ? a === b : equals(a, b)),
@@ -447,11 +397,7 @@ export function useSave<V>({
 
     if (isSaved(next)) clearOwnDraft()
     else {
-      keepDraft({
-        value: next,
-        scheduleId: scheduleIdRef.current,
-        operation: undefined,
-      })
+      keepDraft({ value: next, operation: undefined })
     }
 
     setState(
@@ -469,22 +415,11 @@ export function useSave<V>({
 
   const saveValue = async (sending: V) => {
     const sentOnVisit = visit.current
-    const sentTo = scheduleIdRef.current
-    const sentUnder = operationFor(operation.current, sentTo)
+    // A kept operation is this value's, so its retry writes once. Any other
+    // send gets a new id, so it never gets another attempt's result.
+    const sentUnder = operation.current ?? { id: crypto.randomUUID() }
     operation.current = sentUnder
-    const ownDraft = storedDraft()
-
-    // A Draft typed for another Schedule stays marked for it until edited.
-    const typedFor =
-      ownDraft !== undefined && ownDraft.writeId === ownDraftWriteId.current
-        ? ownDraft.scheduleId
-        : sentTo
-
-    const sentDraftWriteId = keepDraft({
-      value: sending,
-      scheduleId: typedFor,
-      operation: sentUnder,
-    })
+    const sentDraftWriteId = keepDraft({ value: sending, operation: sentUnder })
 
     setState(SaveState.Saving({ value: sending }))
     let reply: SaveReply
@@ -498,16 +433,9 @@ export function useSave<V>({
       reply = SaveAnswer.Refused({ problem: unansweredProblem(drafted) })
     }
 
-    const answered = answerOf(reply)
+    const { answer, warning } = answerOf(reply)
 
-    if (answered.warning !== undefined) {
-      toast.add({ type: 'warning', ...answered.warning })
-    }
-
-    const answer =
-      scheduleIdRef.current === sentTo
-        ? answered.answer
-        : SaveAnswer.ScheduleChanged()
+    if (warning !== undefined) toast.add({ type: 'warning', ...warning })
 
     const stillOnVisit = visit.current === sentOnVisit
 
@@ -526,19 +454,10 @@ export function useSave<V>({
     }
 
     if (stillOnVisit) {
-      setState(
-        SaveState.NotSaved({
-          value: sending,
-          problem: SaveAnswer.$is('ScheduleChanged')(answer)
-            ? scheduleChangedProblem(drafted)
-            : answer.problem,
-        }),
-      )
+      setState(SaveState.NotSaved({ value: sending, problem: answer.problem }))
     }
 
-    if (SaveAnswer.$is('ScheduleChanged')(answer)) {
-      await invalidateAfterScheduleChanged(queryClient)
-    } else if (SaveAnswer.$is('Gone')(answer) || mayHaveLanded) {
+    if (SaveAnswer.$is('Gone')(answer) || mayHaveLanded) {
       await invalidateAfter(queryClient, write)
     }
   }
@@ -578,10 +497,7 @@ export function useSave<V>({
 export const useSend = <V>({
   moot = () => false,
   ...options
-}: Pick<
-  SaveOptions<V, V | undefined>,
-  'target' | 'scheduleId' | 'write' | 'run'
-> & {
+}: Pick<SaveOptions<V, V | undefined>, 'target' | 'write' | 'run'> & {
   /**
    * Whether a send not saved needs no retry, given what the page now shows.
    * Examples are a Tick the Checklist shows ticked after all, or a move of

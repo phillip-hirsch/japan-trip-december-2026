@@ -1,4 +1,4 @@
-import { Context, Effect, Predicate, Struct } from 'effect'
+import { Predicate, Struct } from 'effect'
 
 import {
   birthdayDate,
@@ -7,29 +7,21 @@ import {
   tripEndDate,
   tripStartDate,
 } from '@/trip/domain/calendar'
-import {
-  Anchor,
-  ItineraryNotFound,
-  VerifyClaimAttachment,
-} from '@/trip/domain/domain'
+import { Anchor, VerifyClaimAttachment } from '@/trip/domain/domain'
 import type {
-  Day,
-  DayTrip,
   IsoDate,
-  Itinerary,
+  ItineraryContent,
   Move,
   MoveDetail,
   Place,
   ScheduleDetail,
   ScheduleRecord,
-  SourceItineraryStatus,
   Station,
   Stay,
   StaySummary,
   VerifyClaim,
   VerifyClaimDetail,
 } from '@/trip/domain/domain'
-import { Itineraries } from '@/trip/itineraries/Itineraries'
 import type { PlaceId, StationId } from '@/trip/catalogue/catalogue-ids'
 import { places, visitedPlaceIds } from '@/trip/catalogue/places'
 import { stations } from '@/trip/catalogue/rail'
@@ -41,7 +33,7 @@ import {
 } from '@/trip/domain/schedule-copy'
 import type { ScheduleCopy } from '@/trip/domain/schedule-copy'
 
-export const nightsOf = (stay: Stay) => daysBetween(stay.checkIn, stay.checkOut)
+const nightsOf = (stay: Stay) => daysBetween(stay.checkIn, stay.checkOut)
 
 export const placeOf = (id: PlaceId): Place => ({
   id,
@@ -94,7 +86,7 @@ export const moveDetailsOf = <M extends Move>({
 const coversWholeDay = (stay: Stay, date: IsoDate) =>
   stay.checkIn < date && date < stay.checkOut
 
-export const hasThursdayBackup = (stays: ReadonlyArray<Stay>) =>
+const hasThursdayBackup = (stays: ReadonlyArray<Stay>) =>
   stays.some(
     (stay) => stay.base === 'kyoto' && coversWholeDay(stay, shigeharuEveDate),
   )
@@ -102,7 +94,7 @@ export const hasThursdayBackup = (stays: ReadonlyArray<Stay>) =>
 export const anchorsOf = ({
   stays,
   shigeharuVisit,
-}: Itinerary): Array<Anchor> => [
+}: ItineraryContent): Array<Anchor> => [
   Anchor.cases.Arrival.make({ date: tripStartDate }),
   ...(shigeharuVisit
     ? [
@@ -127,53 +119,30 @@ const claimsAttachedTo = (
     )
     .map(({ id, text }) => ({ id, text }))
 
-interface Plan<
-  S extends Stay,
-  D extends Day,
-  M extends Move,
-  T extends DayTrip,
-  A extends Anchor,
-> {
-  readonly stays: ReadonlyArray<S>
-  readonly days: ReadonlyArray<D>
-  readonly moves: ReadonlyArray<M>
-  readonly dayTrips: ReadonlyArray<T>
-  readonly verifyClaims: ReadonlyArray<VerifyClaim>
-  readonly anchors: ReadonlyArray<A>
-}
-
-export const staysAndDaysOf = <
-  S extends Stay,
-  D extends Day,
-  M extends Move,
-  T extends DayTrip,
-  A extends Anchor,
->(
-  plan: Plan<S, D, M, T, A>,
-) => {
-  const moves = moveDetailsOf(plan)
+const staysAndDaysOf = (copy: ScheduleCopy) => {
+  const moves = moveDetailsOf(copy)
 
   return {
     verifyClaims: claimsAttachedTo(
-      plan,
+      copy,
       VerifyClaimAttachment.cases.Itinerary.make({}),
     ),
-    stays: plan.stays.map((stay) => ({
+    stays: copy.stays.map((stay) => ({
       ...stay,
       ...staySummaryOf(stay),
       verifyClaims: claimsAttachedTo(
-        plan,
+        copy,
         VerifyClaimAttachment.cases.Stay.make({ checkIn: stay.checkIn }),
       ),
     })),
-    days: plan.days.map((day) => {
-      const dayAnchors = plan.anchors.filter(
+    days: copy.days.map((day) => {
+      const dayAnchors = copy.anchors.filter(
         (anchor) => anchor.date === day.date,
       )
 
       const move = moves.get(day.date)
 
-      const dayTrips = plan.dayTrips
+      const dayTrips = copy.dayTrips
         .filter((dayTrip) => dayTrip.date === day.date)
         .map((dayTrip) => ({
           ...Struct.omit(dayTrip, ['date', 'place']),
@@ -186,7 +155,7 @@ export const staysAndDaysOf = <
         ...(move && { move }),
         dayTrips,
         verifyClaims: claimsAttachedTo(
-          plan,
+          copy,
           VerifyClaimAttachment.cases.Day.make({ date: day.date }),
         ),
         freeDay:
@@ -203,73 +172,23 @@ export const staysAndDaysOf = <
   }
 }
 
-const sourceItineraryOf = (
-  schedule: ScheduleRecord,
-  itineraries: ReadonlyMap<number, Itinerary>,
-): SourceItineraryStatus => {
-  const source = itineraries.get(schedule.sourceOptionNumber)
+/** The stored Schedule as its page shows it. */
+export const scheduleDetailOf = ({
+  schedule,
+  copy,
+}: {
+  readonly schedule: ScheduleRecord
+  readonly copy: ScheduleCopy
+}): ScheduleDetail => {
+  const { stays, ...rest } = staysAndDaysOf(copy)
 
-  if (source === undefined) return 'unavailable'
-
-  return source.contentVersion === schedule.sourceContentVersion
-    ? 'unchanged'
-    : 'revised'
+  return {
+    ...schedule,
+    ...rest,
+    stays: stays.map((stay) => ({
+      ...stay,
+      offers: stayEditOffersOf(copy, stay),
+    })),
+    anchorWarnings: anchorWarningsOf(copy),
+  }
 }
-
-const scheduleDetailOf =
-  (itineraries: ReadonlyMap<number, Itinerary>) =>
-  ({
-    schedule,
-    copy,
-  }: {
-    readonly schedule: ScheduleRecord
-    readonly copy: ScheduleCopy
-  }): ScheduleDetail => {
-    const { stays, ...rest } = staysAndDaysOf(copy)
-
-    return {
-      ...schedule,
-      sourceItinerary: sourceItineraryOf(schedule, itineraries),
-      ...rest,
-      stays: stays.map((stay) => ({
-        ...stay,
-        offers: stayEditOffersOf(copy, stay),
-      })),
-      anchorWarnings: anchorWarningsOf(copy),
-    }
-  }
-
-export const find = Effect.fnUntraced(function* <A>(
-  entries: ReadonlyMap<number, A>,
-  optionNumber: number,
-) {
-  const found = entries.get(optionNumber)
-
-  if (found === undefined) {
-    return yield* new ItineraryNotFound({ optionNumber })
-  }
-
-  return found
-})
-
-/**
- * Builds the lookups over the Itinerary catalogue that several areas share.
- * The Trip layer runs it once and provides the result as CatalogueLookups.
- */
-export const buildCatalogueLookups = Effect.gen(function* () {
-  const { all } = yield* Itineraries
-
-  const byOptionNumber = new Map(
-    all.map((itinerary) => [itinerary.optionNumber, itinerary]),
-  )
-
-  const scheduleDetail = scheduleDetailOf(byOptionNumber)
-
-  return { byOptionNumber, scheduleDetail }
-})
-
-/** The catalogue lookups several areas share, built once per Trip layer. */
-export class CatalogueLookups extends Context.Service<
-  CatalogueLookups,
-  Effect.Success<typeof buildCatalogueLookups>
->()('japan-trip/trip/CatalogueLookups') {}

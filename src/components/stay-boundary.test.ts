@@ -11,7 +11,6 @@ import { SaveState } from '@/trip/client/drafts'
 import {
   answeringOnly,
   openEditor,
-  scheduleId,
   scheduleStay,
   staysEdited,
 } from '@/trip/client/editor-testing'
@@ -23,18 +22,18 @@ vi.mock('@/trip/trip/trip.functions', () => ({ moveStayBoundary: vi.fn() }))
 const kyotoOffering = (offers?: StayEditOffers) =>
   scheduleStay('stay-kyoto', 'kyoto', 9, 12, offers)
 
-const osaka = scheduleStay('stay-osaka', 'osaka', 12, 14)
+const uji = scheduleStay('stay-uji', 'uji', 12, 14)
 
-/** The Kyoto Stay before the Osaka one, its check-out offered up to Dec 13. */
-const kyotoBeforeOsaka = {
+/** The Kyoto Stay before the Uji one, its check-out offered up to Dec 13. */
+const kyotoBeforeUji = {
   stay: kyotoOffering({
     splitDates: [],
     boundary: {
-      next: 'stay-osaka',
+      next: 'stay-uji',
       checkOuts: [december(10), december(11), december(12), december(13)],
     },
   }),
-  stays: [osaka],
+  stays: [uji],
 }
 
 /** The Kyoto Stay as the last, its check-out offering no move. */
@@ -52,7 +51,6 @@ interface Shown {
 const openStayBoundary = (shown: Shown) =>
   openEditor(({ stay, stays }: Shown) => {
     const field = useStayBoundary({
-      scheduleId,
       stay,
       stays: [stay, ...stays],
       anchorWarnings: [],
@@ -62,16 +60,16 @@ const openStayBoundary = (shown: Shown) =>
   }, shown)
 
 describe('moving the date between two Stays', () => {
-  it('is saved once it sends the check-out chosen to the Stay of the Schedule shown', async () => {
+  it('is saved once it sends the check-out chosen to the Stay', async () => {
     localStorage.clear()
     vi.mocked(moveStayBoundary).mockImplementation(
       answeringOnly(
-        { scheduleId, stayId: 'stay-kyoto', checkOut: december(11) },
+        { stayId: 'stay-kyoto', checkOut: december(11) },
         staysEdited(),
         StayEditOutcome.cases.StayNotFound.make({ stayId: 'stay-kyoto' }),
       ),
     )
-    const editor = await openStayBoundary(kyotoBeforeOsaka)
+    const editor = await openStayBoundary(kyotoBeforeUji)
 
     await act(async () => editor.field().field.change(december(11)))
     await act(() => editor.field().field.save())
@@ -92,24 +90,24 @@ describe('moving the date between two Stays', () => {
       stay: kyotoOffering({
         splitDates: [],
         boundary: {
-          next: 'stay-osaka',
+          next: 'stay-uji',
           checkOuts: [december(10), december(13)],
         },
       }),
-      stays: [osaka],
+      stays: [uji],
     })
 
     const { checkOuts, next } = editor.field().field
     assert.deepStrictEqual(
       { checkOuts, next: next?.id },
-      { checkOuts: [december(10), december(13)], next: 'stay-osaka' },
+      { checkOuts: [december(10), december(13)], next: 'stay-uji' },
     )
     await editor.close()
   })
 
   it('shows an open Stay boundary edit as withdrawn once the Stay is the last, offering Cancel', async () => {
     localStorage.clear()
-    const editor = await openStayBoundary(kyotoBeforeOsaka)
+    const editor = await openStayBoundary(kyotoBeforeUji)
     await act(async () => editor.field().field.change(december(11)))
 
     await editor.show(kyotoLast)
@@ -136,7 +134,7 @@ describe('moving the date between two Stays', () => {
         }),
       }),
     )
-    const editor = await openStayBoundary(kyotoBeforeOsaka)
+    const editor = await openStayBoundary(kyotoBeforeUji)
     await act(async () => editor.field().field.change(december(11)))
     await act(() => editor.field().field.save())
 

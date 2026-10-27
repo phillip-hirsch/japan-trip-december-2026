@@ -5,11 +5,9 @@ import { SqlSchema } from 'effect/sql'
 import type { SqlClient } from 'effect/sql'
 
 import {
-  ArchivedScheduleSummary,
   CopyId,
   DayTrip,
   IsoDate,
-  IsoInstant,
   OperationId,
   ScheduleAnchor,
   ScheduleId,
@@ -79,41 +77,7 @@ export const scheduleQueries = (sql: SqlClient.SqlClient) => {
   const findCurrent = SqlSchema.findOneOption({
     Request: Schema.Void,
     Result: ScheduleRecord,
-    execute: () => sql`SELECT * FROM schedules WHERE status = 'current'`,
-  })
-
-  const findById = SqlSchema.findOneOption({
-    Request: ScheduleId,
-    Result: ScheduleRecord,
-    execute: (id) => sql`SELECT * FROM schedules WHERE id = ${id}`,
-  })
-
-  const findArchived = SqlSchema.findAll({
-    Request: Schema.Void,
-    Result: ArchivedScheduleSummary,
-    execute: () =>
-      sql`
-        SELECT id, sourceOptionNumber, chosenAt, archivedAt FROM schedules
-        WHERE status = 'archived' ORDER BY archivedAt DESC
-      `,
-  })
-
-  const archiveSchedule = SqlSchema.void({
-    Request: Schema.Struct({ id: ScheduleId, archivedAt: IsoInstant }),
-    execute: ({ id, archivedAt }) =>
-      sql`
-        UPDATE schedules SET status = 'archived', archivedAt = ${archivedAt}
-        WHERE id = ${id}
-      `,
-  })
-
-  const makeScheduleCurrent = SqlSchema.void({
-    Request: ScheduleId,
-    execute: (id) =>
-      sql`
-        UPDATE schedules SET status = 'current', archivedAt = NULL
-        WHERE id = ${id}
-      `,
+    execute: () => sql`SELECT * FROM schedules`,
   })
 
   const findDay = SqlSchema.findOneOption({
@@ -206,18 +170,6 @@ export const scheduleQueries = (sql: SqlClient.SqlClient) => {
     currentRecord: findCurrent(undefined),
 
     current: withCopy(findCurrent(undefined)),
-
-    recordById: findById,
-
-    scheduleById: (id: ScheduleId) => withCopy(findById(id)),
-
-    /** Every archived Schedule, the most recently archived first. */
-    archived: findArchived(undefined),
-
-    archive: (id: ScheduleId, archivedAt: IsoInstant) =>
-      archiveSchedule({ id, archivedAt }),
-
-    makeCurrent: makeScheduleCurrent,
 
     hasDay: (scheduleId: ScheduleId, date: IsoDate) =>
       Effect.map(findDay({ scheduleId, date }), Option.isSome),

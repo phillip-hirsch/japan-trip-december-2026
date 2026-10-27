@@ -8,18 +8,16 @@ import type {
   ScheduleDetail,
   Stay,
 } from '@/trip/domain/domain'
-import { option1 } from '@/trip/itineraries/option-1'
+import { option1 } from '@/trip/itinerary/option-1'
 import {
   checklistItems,
-  chooseOption1,
   currentSchedule,
   operation,
-  scheduleById,
   stayIdAt,
   storage,
+  storageStartingFrom,
   tick,
-  tripWith,
-  tripWithOption1,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -45,9 +43,8 @@ const option1With = (
 describe('Anchor warnings', () => {
   it.effect('are none for a Schedule keeping every Anchor', () =>
     Effect.gen(function* () {
-      yield* chooseOption1(1, null)
       assert.deepStrictEqual((yield* currentSchedule).anchorWarnings, [])
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   const cases: ReadonlyArray<
@@ -98,16 +95,15 @@ describe('Anchor warnings', () => {
       `are derived for a Schedule with ${reason} each time it's read`,
       () =>
         Effect.gen(function* () {
-          const scheduleId = yield* chooseOption1(1, null)
           assert.deepStrictEqual(
             (yield* currentSchedule).anchorWarnings,
             warnings,
           )
           assert.deepStrictEqual(
-            (yield* scheduleById(scheduleId)).anchorWarnings,
+            (yield* currentSchedule).anchorWarnings,
             warnings,
           )
-        }).pipe(Effect.provide([tripWith([content]), storage])),
+        }).pipe(Effect.provide([testTrip, storageStartingFrom(content)])),
     )
   }
 })
@@ -120,19 +116,17 @@ describe('Stay edits', () => {
     'drop the Checklist items and ticks of the Stay and Move they remove, keeping the ticks of the rest',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* chooseOption1(1, null)
         const before = yield* currentSchedule
         const [kyotoId, kanazawaId] = [stayIdAt(before, 1), stayIdAt(before, 2)]
         const into = moveIdOn(before, december(13))
         const outOf = moveIdOn(before, december(17))
 
         for (const itemId of [kyotoId, kanazawaId, into, outOf]) {
-          yield* tick(scheduleId, itemId)
+          yield* tick(itemId)
         }
 
         yield* Trip.use((trip) =>
           trip.changeStayBase({
-            scheduleId,
             stayId: kanazawaId,
             place: 'kyoto',
           }),
@@ -140,7 +134,6 @@ describe('Stay edits', () => {
 
         const { schedule } = yield* Trip.use((trip) =>
           trip.mergeStays({
-            scheduleId,
             operationId: operation(2),
             stayIds: [kyotoId, kanazawaId],
           }),
@@ -168,6 +161,6 @@ describe('Stay edits', () => {
           .map((item) => item.id)
 
         assert.sameMembers(ticked, [kyotoId, outOf])
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })

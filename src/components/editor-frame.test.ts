@@ -11,7 +11,6 @@ import {
   AddActivityOutcome,
   ChecklistItem,
   IsoDate,
-  ScheduleId,
   TickOwnChecklistItemOutcome,
   WriteDayNoteOutcome,
 } from '@/trip/domain/domain'
@@ -30,10 +29,6 @@ vi.mock('@/trip/trip/trip.functions', () => ({
   writeDayNote: vi.fn(),
 }))
 
-const scheduleA = ScheduleId.make('00000000-0000-4000-8000-00000000000a')
-
-const scheduleB = ScheduleId.make('00000000-0000-4000-8000-00000000000b')
-
 const date = IsoDate.make('2026-12-07')
 
 const answerDayNote = (answer: () => Promise<WriteDayNoteOutcome>) =>
@@ -42,27 +37,24 @@ const answerDayNote = (answer: () => Promise<WriteDayNoteOutcome>) =>
 const written = async () => WriteDayNoteOutcome.cases.Written.make({})
 
 /**
- * The Day note editor on December 7 of the Schedule shown, saved as `note`,
+ * The Day note editor on December 7, saved as `note`,
  * and its frame. The Schedules are read with `read`.
  */
 const openDayNoteFrame = (
   read: () => Promise<string> = async () => 'schedules',
 ) =>
   openEditor(
-    ({ scheduleId }: { scheduleId: ScheduleId }) => {
-      const field = useDayNote({ scheduleId, date, note: 'Tsukiji at dawn.' })
+    () => {
+      const field = useDayNote({ date, note: 'Tsukiji at dawn.' })
 
       return { field, frame: useEditorFrame(field) }
     },
-    { scheduleId: scheduleA },
+    {},
     read,
   )
 
 const restored =
   'This is what you typed here last time. Save it, or discard it.'
-
-const scheduleChanged =
-  'Your Schedule changed on another device. This page now shows it as it is; your text is kept here to save again.'
 
 describe('the editor frame', () => {
   it('shows a clean Day note as its saved summary', async () => {
@@ -215,26 +207,6 @@ describe('the editor frame', () => {
     )
     await after.close()
   })
-
-  it('marks a Draft "not saved" when the Schedule changed on another device', async () => {
-    localStorage.clear()
-    const editor = await openDayNoteFrame()
-    await act(async () => editor.field().field.change('Tsukiji at six.'))
-
-    await editor.show({ scheduleId: scheduleB })
-
-    const { view, problem, submitLabel, discardLabel } = editor.field().frame
-    assert.deepStrictEqual(
-      { view, problem, submitLabel, discardLabel },
-      {
-        view: 'form',
-        problem: scheduleChanged,
-        submitLabel: 'Retry',
-        discardLabel: 'Discard',
-      },
-    )
-    await editor.close()
-  })
 })
 
 describe('the editor frame of a new Activity', () => {
@@ -248,7 +220,7 @@ describe('the editor frame of a new Activity', () => {
 
     const editor = await openEditor(
       () => {
-        const field = useNewActivity({ scheduleId: scheduleA, date })
+        const field = useNewActivity({ date })
 
         return {
           field,
@@ -334,7 +306,7 @@ describe('the editor frame of a Tick', () => {
     vi.mocked(tickOwnChecklistItem).mockReturnValue(answer.promise)
 
     const editor = await openEditor(() => {
-      const field = useTick({ item, scheduleId: null })
+      const field = useTick({ item })
 
       return { field, frame: useEditorFrame(field) }
     }, {})

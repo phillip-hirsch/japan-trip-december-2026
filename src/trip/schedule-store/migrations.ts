@@ -167,4 +167,60 @@ export const migrations = Migrator.fromRecord({
       yield* sql`ALTER TABLE ${sql(table)} ADD COLUMN pinLink TEXT`
     }
   }),
+  // The Schedule is the one store start creates; choosing, archiving and
+  // restoring are gone (ADR 0007).
+  '0010_one_schedule': Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+
+    // The Birthday outline becomes the December 15 Day note, unless Phillip
+    // has written one.
+    yield* sql`
+      UPDATE days SET note = (
+        SELECT birthdayOutline FROM schedules WHERE schedules.id = days.scheduleId
+      )
+      WHERE date = '2026-12-15' AND (note IS NULL OR note = '')
+        AND scheduleId IN (SELECT id FROM schedules WHERE status = 'current')
+    `
+
+    for (const table of [
+      'activities',
+      'checklistTicks',
+      'anchors',
+      'verifyClaims',
+      'dayTrips',
+      'moves',
+      'days',
+      'stays',
+    ]) {
+      yield* sql`
+        DELETE FROM ${sql(table)}
+        WHERE scheduleId IN (SELECT id FROM schedules WHERE status = 'archived')
+      `
+    }
+
+    yield* sql`DELETE FROM schedules WHERE status = 'archived'`
+
+    // Only a choose or a restore recorded a result naming a Schedule id.
+    yield* sql`
+      DELETE FROM operations
+      WHERE json_extract(result, '$.scheduleId') IS NOT NULL
+    `
+
+    yield* sql`DROP INDEX schedulesOneCurrent`
+
+    for (const column of [
+      'status',
+      'sourceOptionNumber',
+      'sourceContentVersion',
+      'chosenAt',
+      'archivedAt',
+      'birthdayOutline',
+    ]) {
+      yield* sql`ALTER TABLE schedules DROP COLUMN ${sql(column)}`
+    }
+
+    // Every row has the same key, 0, so the store refuses a second Schedule.
+    // The Trip reads the Schedule with no order or limit and would miss one.
+    yield* sql`CREATE UNIQUE INDEX schedulesOne ON schedules ((0))`
+  }),
 })

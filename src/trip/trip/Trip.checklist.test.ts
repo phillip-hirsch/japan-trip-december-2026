@@ -8,14 +8,13 @@ import {
   VerifyClaimAttachment,
 } from '@/trip/domain/domain'
 import type { ItineraryContent } from '@/trip/domain/domain'
-import { option1 } from '@/trip/itineraries/option-1'
+import { option1 } from '@/trip/itinerary/option-1'
 import {
-  choose,
   operation,
-  restore,
   storage,
+  storageStartingFrom,
   tick,
-  tripWith,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -40,7 +39,7 @@ const withEveryKindOfItem: ItineraryContent = {
   ],
   moves: [
     ...option1.moves.slice(0, 2),
-    { date: december(17), mode: 'flight', sections: [] },
+    { date: december(17), mode: 'train', sections: [] },
     { date: december(19), mode: 'local', sections: [] },
   ],
   verifyClaims: [
@@ -53,9 +52,10 @@ const withEveryKindOfItem: ItineraryContent = {
   ],
 }
 
-const option1AsOption2: ItineraryContent = { ...option1, optionNumber: 2 }
+const trip = testTrip
 
-const trip = tripWith([withEveryKindOfItem, option1AsOption2])
+/** A store whose Schedule has every kind of derived item. */
+const storeOfEveryKind = storageStartingFrom(withEveryKindOfItem)
 
 const checklist = Trip.use((trip) => trip.checklist)
 
@@ -67,8 +67,6 @@ const described = (item: ChecklistItem) => {
       `Book hotel: ${stay.base.romaji} ${stay.checkIn} to ${stay.checkOut}`,
     ReserveSeats: ({ move, reminderDate, verify }) =>
       `Reserve seats: ${move.from.romaji} to ${move.to.romaji} on ${move.date}, reminded ${reminderDate}, verify ${verify}`,
-    BookFlight: ({ move, verify }) =>
-      `Book flight: ${move.from.romaji} to ${move.to.romaji} on ${move.date}, verify ${verify}`,
     ConfirmShigeharu: ({ date }) => `Confirm Shigeharu is open ${date}`,
     ReserveBirthdayDinner: ({ date }) => `Reserve birthday dinner ${date}`,
     VerifyClaim: ({ text, attachedTo }) =>
@@ -88,6 +86,10 @@ const described = (item: ChecklistItem) => {
 
 const describedChecklist = Effect.map(checklist, ({ items }) =>
   items.map(described),
+)
+
+const describedOwnItems = Effect.map(checklist, ({ items }) =>
+  items.filter(ChecklistItem.guards.Own).map(described),
 )
 
 const idOf = (matches: (item: ChecklistItem) => boolean) =>
@@ -110,10 +112,9 @@ const removeOwn = (itemId: string) =>
 
 describe('Trip.checklist', () => {
   it.effect(
-    'derives an item for each Stay, train and flight Move, the Shigeharu visit, the Birthday and each Verify claim',
+    'derives an item for each Stay, each train Move with or without rail sections, the Shigeharu visit, the Birthday and each Verify claim',
     () =>
       Effect.gen(function* () {
-        yield* choose(1, 1, null)
         assert.deepStrictEqual(yield* describedChecklist, [
           '[ ] Verify (whole): Rail pass prices',
           '[ ] Book hotel: Tokyo 2026-12-06 to 2026-12-09',
@@ -124,18 +125,17 @@ describe('Trip.checklist', () => {
           '[ ] Verify (Stay 2026-12-13): December also falls',
           '[ ] Verify (Stay 2026-12-13): Kanazawa can be',
           '[ ] Reserve birthday dinner 2026-12-15',
-          '[ ] Book flight: Kanazawa to Tokyo on 2026-12-17, verify when-booking-opens',
           '[ ] Book hotel: Tokyo 2026-12-17 to 2026-12-19',
           '[ ] Book hotel: Tokyo 2026-12-19 to 2026-12-20',
           '[ ] Reserve seats: Tokyo to Kyoto on 2026-12-09, reminded 2026-11-09, verify reminder-date',
           '[ ] Reserve seats: Kyoto to Kanazawa on 2026-12-13, reminded 2026-11-13, verify reminder-date',
+          '[ ] Reserve seats: Kanazawa to Tokyo on 2026-12-17, reminded 2026-11-17, verify reminder-date',
         ])
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([trip, storeOfEveryKind])),
   )
 
   it.effect('derives no item from a local Move', () =>
     Effect.gen(function* () {
-      yield* choose(1, 1, null)
       const { items } = yield* checklist
 
       assert.deepStrictEqual(
@@ -144,7 +144,7 @@ describe('Trip.checklist', () => {
         ),
         [],
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([trip, storeOfEveryKind])),
   )
 
   it.effect(
@@ -160,7 +160,6 @@ describe('Trip.checklist', () => {
           IsoDate.make('2026-11-09'),
         )
         yield* addOwn(5, 'Pack the rail pass')
-        yield* choose(2, 6, null)
 
         assert.deepStrictEqual(yield* describedChecklist, [
           '[ ] Book hotel: Tokyo 2026-12-06 to 2026-12-09',
@@ -183,44 +182,21 @@ describe('Trip.checklist', () => {
         ])
       }).pipe(Effect.provide([trip, storage])),
   )
-
-  it.effect('shows only Phillip’s own items before a Schedule is chosen', () =>
-    Effect.gen(function* () {
-      yield* addOwn(1, 'Renew the passport', IsoDate.make('2026-10-20'))
-      const { scheduleId, items } = yield* checklist
-
-      assert.deepStrictEqual(
-        { scheduleId, items: items.map(described) },
-        {
-          scheduleId: null,
-          items: ['[ ] Own: Renew the passport, reminded 2026-10-20'],
-        },
-      )
-    }).pipe(Effect.provide([storage, trip])),
-  )
-
-  it.effect('names the current Schedule', () =>
-    Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
-      assert.strictEqual((yield* checklist).scheduleId, scheduleId)
-    }).pipe(Effect.provide([trip, storage])),
-  )
 })
 
 describe('Trip.tickChecklistItem', () => {
   it.effect('sets the tick to true or false, never toggling it', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
       const itemId = yield* idOf(ChecklistItem.guards.ConfirmShigeharu)
-      yield* tick(scheduleId, itemId, true)
-      yield* tick(scheduleId, itemId, true)
+      yield* tick(itemId, true)
+      yield* tick(itemId, true)
 
       const twiceTicked = (yield* describedChecklist).filter((item) =>
         item.startsWith('[x]'),
       )
 
-      yield* tick(scheduleId, itemId, false)
-      yield* tick(scheduleId, itemId, false)
+      yield* tick(itemId, false)
+      yield* tick(itemId, false)
 
       assert.deepStrictEqual(
         {
@@ -234,38 +210,15 @@ describe('Trip.tickChecklistItem', () => {
           twiceUnticked: [],
         },
       )
-    }).pipe(Effect.provide([trip, storage])),
-  )
-
-  it.effect(
-    'refuses a tick naming a stale Schedule id with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const stale = yield* choose(1, 1, null)
-        const staleItemId = yield* idOf(ChecklistItem.guards.BookHotel)
-        yield* choose(1, 2, stale)
-        const error = yield* Effect.flip(tick(stale, staleItemId, true))
-
-        assert.deepStrictEqual(
-          {
-            tag: error._tag,
-            ticked: (yield* describedChecklist).filter((item) =>
-              item.startsWith('[x]'),
-            ),
-          },
-          { tag: 'ScheduleChanged', ticked: [] },
-        )
-      }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([trip, storeOfEveryKind])),
   )
 
   it.effect(
     'fails with ChecklistItemNotFound for an item the Schedule lacks',
     () =>
       Effect.gen(function* () {
-        const first = yield* choose(1, 1, null)
-        const goneItemId = yield* idOf(ChecklistItem.guards.BookHotel)
-        const current = yield* choose(1, 2, first)
-        const error = yield* Effect.flip(tick(current, goneItemId, true))
+        const goneItemId = 'no-such-item'
+        const error = yield* Effect.flip(tick(goneItemId, true))
 
         assert.deepStrictEqual(
           {
@@ -276,67 +229,11 @@ describe('Trip.tickChecklistItem', () => {
           },
           { tag: 'ChecklistItemNotFound', itemId: goneItemId },
         )
-      }).pipe(Effect.provide([trip, storage])),
-  )
-
-  it.effect(
-    'keeps ticks with their Schedule: not carried into a new one, back on restoring',
-    () =>
-      Effect.gen(function* () {
-        const first = yield* choose(1, 1, null)
-        yield* tick(first, yield* idOf(ChecklistItem.guards.BookHotel), true)
-        yield* tick(
-          first,
-          yield* idOf(ChecklistItem.guards.ReserveBirthdayDinner),
-          true,
-        )
-        const second = yield* choose(1, 2, first)
-
-        const afterChoosing = (yield* describedChecklist).filter((item) =>
-          item.startsWith('[x]'),
-        )
-
-        yield* restore(first, 3, second)
-
-        assert.deepStrictEqual(
-          {
-            afterChoosing,
-            afterRestoring: (yield* describedChecklist).filter((item) =>
-              item.startsWith('[x]'),
-            ),
-          },
-          {
-            afterChoosing: [],
-            afterRestoring: [
-              '[x] Book hotel: Tokyo 2026-12-06 to 2026-12-09',
-              '[x] Reserve birthday dinner 2026-12-15',
-            ],
-          },
-        )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([trip, storeOfEveryKind])),
   )
 })
 
 describe('Phillip’s own Checklist items', () => {
-  it.effect('carry over, ticks included, on choosing again', () =>
-    Effect.gen(function* () {
-      const first = yield* choose(1, 1, null)
-      const { itemId } = yield* addOwn(2, 'Buy a Suica', december(1))
-      yield* addOwn(3, 'Pack the coin purse')
-      yield* tickOwn(itemId, true)
-      yield* choose(2, 4, first)
-      const { items } = yield* checklist
-
-      assert.deepStrictEqual(
-        items.filter(ChecklistItem.guards.Own).map(described),
-        [
-          '[x] Own: Buy a Suica, reminded 2026-12-01',
-          '[ ] Own: Pack the coin purse',
-        ],
-      )
-    }).pipe(Effect.provide([trip, storage])),
-  )
-
   it.effect(
     'returns the recorded result for a repeated create operation id, adding nothing',
     () =>
@@ -345,27 +242,27 @@ describe('Phillip’s own Checklist items', () => {
         const repeated = yield* addOwn(1, 'Buy a Suica')
 
         assert.deepStrictEqual(
-          { repeated, items: (yield* describedChecklist).length },
+          { repeated, items: (yield* describedOwnItems).length },
           { repeated: added, items: 1 },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([trip, storeOfEveryKind])),
   )
 
   it.effect('tick and untick', () =>
     Effect.gen(function* () {
       const { itemId } = yield* addOwn(1, 'Buy a Suica')
       yield* tickOwn(itemId, true)
-      const ticked = yield* describedChecklist
+      const ticked = yield* describedOwnItems
       yield* tickOwn(itemId, false)
 
       assert.deepStrictEqual(
-        { ticked, unticked: yield* describedChecklist },
+        { ticked, unticked: yield* describedOwnItems },
         {
           ticked: ['[x] Own: Buy a Suica'],
           unticked: ['[ ] Own: Buy a Suica'],
         },
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([trip, storeOfEveryKind])),
   )
 
   it.effect('are removed, and removing one already gone changes nothing', () =>
@@ -374,10 +271,10 @@ describe('Phillip’s own Checklist items', () => {
       yield* addOwn(2, 'Pack the coin purse')
       yield* removeOwn(itemId)
       yield* removeOwn(itemId)
-      assert.deepStrictEqual(yield* describedChecklist, [
+      assert.deepStrictEqual(yield* describedOwnItems, [
         '[ ] Own: Pack the coin purse',
       ])
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([trip, storeOfEveryKind])),
   )
 
   it.effect('fail to tick with ChecklistItemNotFound once removed', () =>
@@ -389,7 +286,7 @@ describe('Phillip’s own Checklist items', () => {
         { tag: error._tag, itemId: error.itemId },
         { tag: 'ChecklistItemNotFound', itemId },
       )
-    }).pipe(Effect.provide([trip, storage])),
+    }).pipe(Effect.provide([trip, storeOfEveryKind])),
   )
 
   it.effect(
@@ -400,7 +297,7 @@ describe('Phillip’s own Checklist items', () => {
         const blank = yield* Effect.flip(addOwn(2, ' \n '))
         yield* addOwn(3, 'あ'.repeat(500))
         const tooLong = yield* Effect.flip(addOwn(4, 'あ'.repeat(501)))
-        const { items } = yield* checklist
+        const items = (yield* checklist).items.filter(ChecklistItem.guards.Own)
 
         assert.deepStrictEqual(
           {
@@ -419,6 +316,6 @@ describe('Phillip’s own Checklist items', () => {
             first: '[ ] Own: Buy a Suica',
           },
         )
-      }).pipe(Effect.provide([trip, storage])),
+      }).pipe(Effect.provide([trip, storeOfEveryKind])),
   )
 })

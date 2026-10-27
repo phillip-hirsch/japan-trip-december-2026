@@ -12,11 +12,10 @@ import {
 import { activityTitleMaxLength } from '@/trip/domain/limits'
 import {
   activitiesOn,
-  choose,
   kyotoStayId,
   operation,
   storage,
-  tripWithOption1,
+  testTrip,
 } from '@/trip/trip/testing'
 import { dayWithThree, describedOn } from '@/trip/trip/Trip.activities.testing'
 import {
@@ -29,11 +28,8 @@ import { runTripOperation } from '@/trip/trip-store/trip-operations'
 describe('runTripOperation for an Activity', () => {
   it.effect('answers an added Activity with Added and its id', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
-
       const outcome = yield* runTripOperation('addActivity', {
         operationId: operation(2),
-        scheduleId,
         date: december(15),
         title: 'Kiyomizu-dera',
       })
@@ -44,18 +40,15 @@ describe('runTripOperation for an Activity', () => {
         outcome,
         AddActivityOutcome.cases.Added.make({ activityId: added?.id ?? '' }),
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
     'answers a blank title with ActivityTitleInvalid and the limit',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
-
         const outcome = yield* runTripOperation('addActivity', {
           operationId: operation(2),
-          scheduleId,
           date: december(15),
           title: '  ',
         })
@@ -69,15 +62,14 @@ describe('runTripOperation for an Activity', () => {
             activities: [],
           },
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers an edited Activity with Edited', () =>
     Effect.gen(function* () {
-      const { scheduleId, walk } = yield* dayWithThree
+      const { walk } = yield* dayWithThree
 
       const outcome = yield* runTripOperation('editActivity', {
-        scheduleId,
         activityId: walk,
         note: 'Hanamikoji first',
       })
@@ -93,17 +85,14 @@ describe('runTripOperation for an Activity', () => {
           ],
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
     'answers an Activity the Schedule lacks with ActivityNotFound and its id',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
-
         const outcome = yield* runTripOperation('editActivity', {
-          scheduleId,
           activityId: 'no-such-activity',
           title: 'Gone',
         })
@@ -114,15 +103,14 @@ describe('runTripOperation for an Activity', () => {
             activityId: 'no-such-activity',
           }),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers a moved Activity with Moved', () =>
     Effect.gen(function* () {
-      const { scheduleId, temple, walk } = yield* dayWithThree
+      const { temple, walk } = yield* dayWithThree
 
       const outcome = yield* runTripOperation('moveActivity', {
-        scheduleId,
         activityId: walk,
         before: temple,
       })
@@ -138,15 +126,14 @@ describe('runTripOperation for an Activity', () => {
           ],
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect('answers a removed Activity with Removed', () =>
     Effect.gen(function* () {
-      const { scheduleId, walk } = yield* dayWithThree
+      const { walk } = yield* dayWithThree
 
       const outcome = yield* runTripOperation('removeActivity', {
-        scheduleId,
         activityId: walk,
       })
 
@@ -157,17 +144,16 @@ describe('runTripOperation for an Activity', () => {
           activities: ['09:00 Kiyomizu-dera', '19:00 Birthday dinner'],
         },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 })
 
 describe('runTripOperation for a Pin', () => {
   it.effect('answers a Pin set on an Activity with Set', () =>
     Effect.gen(function* () {
-      const { scheduleId, temple } = yield* dayWithThree
+      const { temple } = yield* dayWithThree
 
       const outcome = yield* runTripOperation('setPin', {
-        scheduleId,
         target: activityTarget(temple),
         pin: fushimiInari,
       })
@@ -178,19 +164,17 @@ describe('runTripOperation for a Pin', () => {
         { outcome, pin: pinned?.pin },
         { outcome: SetPinOutcome.cases.Set.make({}), pin: fushimiInari },
       )
-    }).pipe(Effect.provide([tripWithOption1, storage])),
+    }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
     'answers a Pin outside Japan with CoordinatesOutsideJapan and its coordinates',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
-        const stayId = yield* kyotoStayId(scheduleId)
+        const stayId = yield* kyotoStayId
         const london = { latitude: 51.5332609, longitude: -0.1260032 }
 
         const outcome = yield* runTripOperation('setPin', {
-          scheduleId,
           target: hotelTarget(stayId),
           pin: { coordinates: london },
         })
@@ -201,6 +185,6 @@ describe('runTripOperation for a Pin', () => {
             coordinates: london,
           }),
         )
-      }).pipe(Effect.provide([tripWithOption1, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })

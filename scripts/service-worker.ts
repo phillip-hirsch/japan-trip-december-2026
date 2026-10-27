@@ -35,10 +35,10 @@ const workerSource = path.resolve(
 )
 
 /**
- * Builds the service worker after Start's prerender, so the shell and the
- * prerendered pages exist (ADR 0006). It bundles the worker on the Serwist
- * runtime, then injects the precache list: the hashed assets, the icons, the
- * web manifest and every prerendered page, the shell included. List it after
+ * Builds the service worker after Start's prerender, so the shell exists
+ * (ADR 0006). It bundles the worker on the Serwist runtime, then injects the
+ * precache list: the hashed assets, the icons, the web manifest and the
+ * shell. List it after
  * `tanstackStart()` and `checkPrerenderedHtml()`, which checks the shell.
  */
 export const serviceWorker = (): Plugin => ({

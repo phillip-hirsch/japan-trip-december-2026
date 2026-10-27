@@ -29,15 +29,7 @@ import {
 } from '@/trip/domain/calendar'
 import type { DayDetail, StayDetail } from '@/trip/domain/domain'
 
-function DayItem({
-  day,
-  linked,
-  onSchedule,
-}: {
-  day: DayDetail
-  linked: boolean
-  onSchedule?: boolean
-}) {
+function DayItem({ day }: { day: DayDetail }) {
   const birthday = isBirthday(day.anchors)
 
   return (
@@ -47,11 +39,7 @@ function DayItem({
         'items-start',
         birthday && 'border-primary/40 bg-primary/10',
       )}
-      render={
-        linked ? (
-          <Link to="/schedule/$date" params={{ date: day.date }} />
-        ) : undefined
-      }
+      render={<Link to="/schedule/$date" params={{ date: day.date }} />}
     >
       <ItemMedia className="w-10 flex-col items-center gap-0 self-start">
         <time dateTime={day.date} className="flex flex-col items-center">
@@ -77,13 +65,7 @@ function DayItem({
         <AnchorBadges anchors={day.anchors} freeDay={day.freeDay} />
         <AnchorNotes anchors={day.anchors} />
         {day.move && <MoveRoute move={day.move} />}
-        {day.move && (
-          <MoveTravel
-            move={day.move}
-            onSchedule={onSchedule}
-            className="pl-5.5"
-          />
-        )}
+        {day.move && <MoveTravel move={day.move} className="pl-5.5" />}
         {day.dayTrips.map((dayTrip) => (
           <DayTripLine key={dayTrip.place.id} dayTrip={dayTrip} />
         ))}
@@ -94,28 +76,23 @@ function DayItem({
         )}
         <VerifyClaims claims={day.verifyClaims} className="mt-1" />
       </ItemContent>
-      {linked && (
-        <ItemActions className="self-center">
-          <ChevronRightIcon
-            aria-hidden
-            className="size-4 text-muted-foreground"
-          />
-        </ItemActions>
-      )}
+      <ItemActions className="self-center">
+        <ChevronRightIcon
+          aria-hidden
+          className="size-4 text-muted-foreground"
+        />
+      </ItemActions>
     </Item>
   )
 }
 
+/** The Schedule's Days under their Stays, each linked to its Day page. */
 export function DayTimeline({
   days,
   stays,
-  linkDays = false,
-  onSchedule,
 }: {
   days: ReadonlyArray<DayDetail>
   stays: ReadonlyArray<StayDetail>
-  linkDays?: boolean
-  onSchedule?: boolean
 }) {
   const sections = stays.map((stay, index) => {
     const next = stays[index + 1]
@@ -144,7 +121,7 @@ export function DayTimeline({
             {days.map((day, index) => (
               <li key={day.date} id={day.date} className="scroll-mt-4">
                 {index > 0 && <Separator className="my-1" />}
-                <DayItem day={day} linked={linkDays} onSchedule={onSchedule} />
+                <DayItem day={day} />
               </li>
             ))}
           </ol>

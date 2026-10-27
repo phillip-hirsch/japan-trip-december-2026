@@ -1,8 +1,8 @@
 // effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
 // @effect-diagnostics unstableApiUsage:off
-import { SqliteClient, SqliteMigrator } from '@effect/sql-sqlite-node'
+import { SqliteClient } from '@effect/sql-sqlite-node'
 import { deepStrictEqual } from '@effect/vitest/utils'
-import { DateTime, Effect, Layer, Option } from 'effect'
+import { DateTime, Effect, Layer } from 'effect'
 import { TestClock } from 'effect/testing'
 import { readFileSync } from 'node:fs'
 import { EtagMismatch } from 'pmtiles'
@@ -14,20 +14,27 @@ import type {
   IsoDate,
   ItineraryContent,
   ScheduleDetail,
-  ScheduleId,
 } from '@/trip/domain/domain'
 import { december, OperationId } from '@/trip/domain/domain'
-import { Itineraries } from '@/trip/itineraries/Itineraries'
-import { option1 } from '@/trip/itineraries/option-1'
-import { option2 } from '@/trip/itineraries/option-2'
+import { Itinerary } from '@/trip/itinerary/Itinerary'
+import { option1 } from '@/trip/itinerary/option-1'
 import { LocationLinkResolver } from '@/trip/location-links/LocationLinkResolver'
-import { migrations } from '@/trip/schedule-store/migrations'
 import { recordedResponses } from '@/trip/location-links/recorded-location-links'
 import { Trip } from '@/trip/trip/Trip'
+import { startStore } from '@/trip/trip-store/store-start'
 
-export const storage = Layer.effectDiscard(
-  SqliteMigrator.run({ loader: migrations }),
-).pipe(Layer.provideMerge(SqliteClient.layer({ filename: ':memory:' })))
+/**
+ * A fresh Schedule store in memory, started as the Durable Object starts it,
+ * so its Schedule is copied from `itinerary`.
+ */
+export const storageStartingFrom = (itinerary: ItineraryContent) =>
+  Layer.effectDiscard(startStore).pipe(
+    Layer.provide(Itinerary.fromContent(itinerary)),
+    Layer.provideMerge(SqliteClient.layer({ filename: ':memory:' })),
+  )
+
+/** A fresh Schedule store in memory, its Schedule copied from the Itinerary. */
+export const storage = storageStartingFrom(option1)
 
 export const recordedLinks = LocationLinkResolver.of({
   request: (url) => {
@@ -39,28 +46,19 @@ export const recordedLinks = LocationLinkResolver.of({
   },
 })
 
-export const tripWith = (
-  contents: ReadonlyArray<ItineraryContent>,
-  links: LocationLinkResolver['Service'] = recordedLinks,
-) =>
+/** The Trip over the Itinerary, following links with `links`. */
+export const tripWith = (links: LocationLinkResolver['Service']) =>
   Trip.layer.pipe(
     Layer.provide([
-      Itineraries.fromContent(contents),
+      Itinerary.layer,
       Layer.succeed(LocationLinkResolver, links),
     ]),
   )
 
-export const liveTrip = Trip.layer.pipe(
-  Layer.provide([
-    Itineraries.layer,
-    Layer.succeed(LocationLinkResolver, recordedLinks),
-  ]),
-)
+/** The Trip over the Itinerary, following links from recorded responses. */
+export const testTrip = tripWith(recordedLinks)
 
-/** A Trip whose only Itinerary is Option 1. */
-export const tripWithOption1 = tripWith([option1])
-
-/** Option 1 with its Kyoto Stay split on December 11, both parts in Kyoto. */
+/** The Itinerary with its Kyoto Stay split on December 11, both parts in Kyoto. */
 export const option1WithTwoKyotoStays: ItineraryContent = {
   ...option1,
   stays: option1.stays.flatMap((stay) =>
@@ -76,9 +74,6 @@ export const option1WithTwoKyotoStays: ItineraryContent = {
     { date: december(11), mode: 'local' as const, sections: [] },
   ].sort((a, b) => a.date.localeCompare(b.date)),
 }
-
-/** A Trip offering Option 1 and Option 2. */
-export const tripWithOptions1And2 = tripWith([option1, option2])
 
 const fixture = (name: string) =>
   Uint8Array.from(readFileSync(new URL(name, import.meta.url)))
@@ -160,64 +155,34 @@ export const operation = (n: number) =>
 export const assertFailedWith = <E extends Error>(actual: E, expected: E) =>
   deepStrictEqual(actual, expected)
 
-/** Chooses the Itinerary with this Option number, as operation `n`. */
-export const choose = (
-  optionNumber: number,
-  n: number,
-  replacing: ScheduleId | null,
-) =>
-  Effect.map(
-    Trip.use((trip) =>
-      trip.choose({ operationId: operation(n), optionNumber, replacing }),
-    ),
-    ({ scheduleId }) => scheduleId,
-  )
-
-/** Chooses Option 1, as operation `n`. */
-export const chooseOption1 = (n: number, replacing: ScheduleId | null) =>
-  choose(1, n, replacing)
-
-/** Restores an archived Schedule, as operation `n`. */
-export const restore = (
-  scheduleId: ScheduleId,
-  n: number,
-  replacing: ScheduleId,
-) =>
-  Trip.use((trip) =>
-    trip.restore({ operationId: operation(n), scheduleId, replacing }),
-  )
-
 export const currentSchedule = Effect.map(
   Trip.use((trip) => trip.schedules),
-  ({ current }) => Option.getOrThrow(current),
+  ({ current }) => current,
 )
 
-export const scheduleById = (scheduleId: ScheduleId) =>
-  Trip.use((trip) => trip.schedule(scheduleId))
-
-export const staysOf = (scheduleId: ScheduleId) =>
-  Effect.map(scheduleById(scheduleId), ({ stays }) => stays)
+export const currentStays = Effect.map(currentSchedule, ({ stays }) => stays)
 
 export const stayIdAt = (schedule: ScheduleDetail, index: number) =>
   schedule.stays[index]?.id ?? ''
 
-/** The Kyoto Stay, second in Option 1 and Option 2. */
-export const kyotoStayId = (scheduleId: ScheduleId) =>
-  Effect.map(staysOf(scheduleId), (stays) => stays[1]?.id ?? '')
+/** The Kyoto Stay, second in the Itinerary. */
+export const kyotoStayId = Effect.map(
+  currentStays,
+  (stays) => stays[1]?.id ?? '',
+)
 
-export const kyotoHotelOf = (scheduleId: ScheduleId) =>
-  Effect.map(staysOf(scheduleId), (stays) => stays[1]?.hotel)
+export const kyotoHotel = Effect.map(currentStays, (stays) => stays[1]?.hotel)
 
 export const activitiesOn = (date: IsoDate) =>
   Effect.map(
     Trip.use((trip) => trip.day(date)),
-    (page) => Option.getOrThrow(page).day.activities,
+    (page) => page.day.activities,
   )
 
 export const tonightsHotel = (date: IsoDate) =>
   Effect.map(
     Trip.use((trip) => trip.day(date)),
-    (page) => Option.getOrThrow(page).tonight?.hotel,
+    (page) => page.tonight?.hotel,
   )
 
 export const checklistItems = Effect.map(
@@ -225,5 +190,5 @@ export const checklistItems = Effect.map(
   ({ items }) => items,
 )
 
-export const tick = (scheduleId: ScheduleId, itemId: string, ticked = true) =>
-  Trip.use((trip) => trip.tickChecklistItem({ scheduleId, itemId, ticked }))
+export const tick = (itemId: string, ticked = true) =>
+  Trip.use((trip) => trip.tickChecklistItem({ itemId, ticked }))

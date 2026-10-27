@@ -1,25 +1,21 @@
 // effect/sql is marked unstable; ADR 0001 adopts it, pinned to effect's version.
 // @effect-diagnostics unstableApiUsage:off
-import { Effect, Option, Schema } from 'effect'
+import { Effect, Schema } from 'effect'
 import type { SqlClient } from 'effect/sql'
 
 import {
   AddActivityOutcome,
   AddOwnChecklistItemOutcome,
   Checklist,
-  ChooseOutcome,
   DayOutcome,
   EditActivityOutcome,
   HomeState,
   MoveActivityOutcome,
   RemoveActivityOutcome,
   RemoveOwnChecklistItemOutcome,
-  RestoreOutcome,
   ScheduleMap,
-  ScheduleOutcome,
   Schedules,
   ScheduleSnapshot,
-  ScheduleSummary,
   SetPinOutcome,
   StayEditOutcome,
   TickChecklistItemOutcome,
@@ -34,7 +30,6 @@ import type {
   AddActivity,
   AddOwnChecklistItem,
   ChangeStayBase,
-  ChooseItinerary,
   EditActivity,
   IsoDate,
   MergeStays,
@@ -42,8 +37,6 @@ import type {
   MoveStayBoundary,
   RemoveActivity,
   RemoveOwnChecklistItem,
-  RestoreSchedule,
-  ScheduleId,
   SetPin,
   SplitStay,
   SuccessValueOf,
@@ -95,43 +88,14 @@ const read = <S extends Schema.Codec<unknown, unknown>, I = void>(
 const tripOperations = {
   home: read(HomeState, () => Trip.use((trip) => trip.home)),
   day: withOutcome(DayOutcome, ({ date }: { readonly date: IsoDate }) =>
-    Trip.use((trip) => trip.day(date)).pipe(
-      Effect.map((page) => ({ page: Option.getOrNull(page) })),
-    ),
+    Trip.use((trip) => trip.day(date)).pipe(Effect.map((page) => ({ page }))),
   ),
-  schedule: withOutcome(
-    ScheduleOutcome,
-    ({ scheduleId }: { readonly scheduleId: ScheduleId }) =>
-      Trip.use((trip) => trip.schedule(scheduleId)).pipe(
-        Effect.map((schedule) => ({ schedule })),
-      ),
+  schedules: read(Schedules, () => Trip.use((trip) => trip.schedules)),
+  scheduleSnapshot: read(ScheduleSnapshot, () =>
+    Trip.use((trip) => trip.scheduleSnapshot),
   ),
-  schedules: read(Schedules, () =>
-    Trip.use((trip) => trip.schedules).pipe(
-      Effect.map(({ current, ...rest }) => ({
-        current: Option.getOrNull(current),
-        ...rest,
-      })),
-    ),
-  ),
-  scheduleSnapshot: read(Schema.NullOr(ScheduleSnapshot), () =>
-    Trip.use((trip) => trip.scheduleSnapshot).pipe(
-      Effect.map(Option.getOrNull),
-    ),
-  ),
-  scheduleMap: read(Schema.NullOr(ScheduleMap), () =>
-    Trip.use((trip) => trip.scheduleMap).pipe(Effect.map(Option.getOrNull)),
-  ),
-  scheduleSummary: read(Schema.NullOr(ScheduleSummary), () =>
-    Trip.use((trip) => trip.scheduleSummary).pipe(Effect.map(Option.getOrNull)),
-  ),
+  scheduleMap: read(ScheduleMap, () => Trip.use((trip) => trip.scheduleMap)),
   checklist: read(Checklist, () => Trip.use((trip) => trip.checklist)),
-  choose: withOutcome(ChooseOutcome, (input: ChooseItinerary) =>
-    Trip.use((trip) => trip.choose(input)),
-  ),
-  restore: withOutcome(RestoreOutcome, (input: RestoreSchedule) =>
-    Trip.use((trip) => trip.restore(input)),
-  ),
   writeDayNote: withOutcome(WriteDayNoteOutcome, (input: WriteDayNote) =>
     Trip.use((trip) => trip.writeDayNote(input)),
   ),

@@ -7,7 +7,7 @@ import { EditorFrame } from '@/components/editor-frame'
 import { OpenInGoogleMaps } from '@/components/open-in-google-maps'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type { Hotel, HotelDetails, Pin, ScheduleId } from '@/trip/domain/domain'
+import type { Hotel, HotelDetails, Pin } from '@/trip/domain/domain'
 import {
   answerOwn,
   hotelDetailsTarget,
@@ -79,11 +79,9 @@ export function HotelDetailsList({
 
 /** The Hotel details of a Stay of the Schedule shown, recorded as `hotel`. */
 export const useHotelDetails = ({
-  scheduleId,
   stayId,
   hotel,
 }: {
-  scheduleId: ScheduleId
   stayId: string
   hotel: Hotel
 }) => {
@@ -93,14 +91,10 @@ export const useHotelDetails = ({
     target: hotelDetailsTarget(stayId),
     draft: isHotelFields,
     equals: sameFields,
-    scheduleId,
     saved: fieldsOf(hotel),
     write: 'hotelDetails',
     run: async (details) =>
-      answerOwn(
-        await write({ data: { scheduleId, stayId, details } }),
-        tooLong,
-      ),
+      answerOwn(await write({ data: { stayId, details } }), tooLong),
   })
 }
 

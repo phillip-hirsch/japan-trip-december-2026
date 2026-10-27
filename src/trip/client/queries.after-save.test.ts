@@ -58,7 +58,6 @@ import {
 } from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({
-  chooseItinerary: vi.fn(),
   getChecklist: vi.fn(),
   getDay: vi.fn(),
   getHome: vi.fn(),

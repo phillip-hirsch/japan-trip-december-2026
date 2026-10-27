@@ -1,18 +1,18 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option, Predicate } from 'effect'
+import { Effect, Predicate } from 'effect'
 
 import { tripDates } from '@/trip/domain/calendar'
 import { ChecklistItem, december } from '@/trip/domain/domain'
 import type { ScheduleSnapshot } from '@/trip/domain/domain'
+import { option1 } from '@/trip/itinerary/option-1'
 import { add } from '@/trip/trip/Trip.activities.testing'
 import {
   checklistItems,
-  choose,
   kyotoStayId,
   operation,
   storage,
   tick,
-  tripWithOptions1And2,
+  testTrip,
 } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 
@@ -49,53 +49,36 @@ const notesAndAddressesOf = ({ schedules, days }: ScheduleSnapshot) => ({
 
 describe('Trip.scheduleSnapshot', () => {
   it.effect(
-    'is none before a Schedule is chosen, even with a Trip note and an Own Checklist item',
-    () =>
-      Effect.gen(function* () {
-        yield* writeTripNote
-        yield* addOwnItem
-
-        assert.isTrue(Option.isNone(yield* scheduleSnapshot))
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
-  )
-
-  it.effect(
     'reads the whole current Schedule: every Day page, the Checklist with its Ticks, and every note and address',
     () =>
       Effect.gen(function* () {
-        const archived = yield* choose(2, 1, null)
-        const scheduleId = yield* choose(1, 2, archived)
-        const kyoto = yield* kyotoStayId(scheduleId)
+        const kyoto = yield* kyotoStayId
 
         yield* Trip.use((trip) =>
           trip.writeDayNote({
-            scheduleId,
             date: december(14),
             note: 'Onsen at 18:00.',
           }),
         )
         yield* Trip.use((trip) =>
-          trip.writeStayNote({ scheduleId, stayId: kyoto, note: 'Near Gion.' }),
+          trip.writeStayNote({ stayId: kyoto, note: 'Near Gion.' }),
         )
         yield* Trip.use((trip) =>
           trip.writeHotelDetails({
-            scheduleId,
             stayId: kyoto,
             details: { name: 'Ryokan Example', address: '1 Example-cho' },
           }),
         )
-        yield* add(3, scheduleId, december(15), 'Kiyomizu-dera')
+        yield* add(3, december(15), 'Kiyomizu-dera')
         yield* writeTripNote
         yield* addOwnItem
         const firstItem = (yield* checklistItems)[0]?.id ?? ''
-        yield* tick(scheduleId, firstItem)
+        yield* tick(firstItem)
 
-        const snapshot = Option.getOrThrow(yield* scheduleSnapshot)
+        const snapshot = yield* scheduleSnapshot
 
         assert.deepStrictEqual(
           {
-            schedule: snapshot.schedules.current.id,
-            archived: snapshot.schedules.archived.map(({ id }) => id),
             days: snapshot.days.map(({ day }) => day.date),
             ...notesAndAddressesOf(snapshot),
             ticked: snapshot.checklist.items
@@ -106,13 +89,11 @@ describe('Trip.scheduleSnapshot', () => {
             ),
           },
           {
-            schedule: scheduleId,
-            archived: [archived],
             days: [...tripDates],
             tripNote: 'Pack light.',
             stayNotes: ['Near Gion.'],
             addresses: ['1 Example-cho'],
-            dayNotes: ['Onsen at 18:00.'],
+            dayNotes: ['Onsen at 18:00.', option1.birthdayOutline],
             activities: ['2026-12-15 Kiyomizu-dera'],
             // The Kyoto Stay covers the nights of December 9 to 12.
             tonightsAddresses: [9, 10, 11, 12].map(
@@ -122,32 +103,24 @@ describe('Trip.scheduleSnapshot', () => {
             ownItems: ['Buy a Suica card'],
           },
         )
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 
   it.effect(
     'matches the Schedules, every Day page and the Checklist as each is read on its own',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
-        yield* add(2, scheduleId, december(9), 'Senso-ji')
+        yield* add(2, december(9), 'Senso-ji')
 
-        const snapshot = Option.getOrThrow(yield* scheduleSnapshot)
-        const schedules = yield* Trip.use((trip) => trip.schedules)
+        const snapshot = yield* scheduleSnapshot
 
         assert.deepStrictEqual(snapshot, {
-          schedules: {
-            ...schedules,
-            current: Option.getOrThrow(schedules.current),
-          },
+          schedules: yield* Trip.use((trip) => trip.schedules),
           days: yield* Effect.forEach(tripDates, (date) =>
-            Effect.map(
-              Trip.use((trip) => trip.day(date)),
-              Option.getOrThrow,
-            ),
+            Trip.use((trip) => trip.day(date)),
           ),
           checklist: yield* Trip.use((trip) => trip.checklist),
         })
-      }).pipe(Effect.provide([tripWithOptions1And2, storage])),
+      }).pipe(Effect.provide([testTrip, storage])),
   )
 })

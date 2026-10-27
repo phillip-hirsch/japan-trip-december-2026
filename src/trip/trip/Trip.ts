@@ -1,17 +1,13 @@
 import { Context, Effect, Layer } from 'effect'
 
 import { detailTileLookup } from '@/trip/detail-tiles/detail-tiles'
-import { Itineraries } from '@/trip/itineraries/Itineraries'
+import { Itinerary } from '@/trip/itinerary/Itinerary'
 import { LocationLinkResolver } from '@/trip/location-links/LocationLinkResolver'
 import { activityMethods } from '@/trip/trip/Trip.activities'
 import { checklistMethods } from '@/trip/trip/Trip.checklist'
 import { itineraryMethods } from '@/trip/trip/Trip.itinerary'
 import { noteMethods } from '@/trip/trip/Trip.notes'
 import { scheduleMethods } from '@/trip/trip/Trip.schedule'
-import {
-  buildCatalogueLookups,
-  CatalogueLookups,
-} from '@/trip/trip/Trip.shared'
 import { stayMethods } from '@/trip/trip/Trip.stays'
 import type { TripContract } from '@/trip/trip/Trip.contract'
 
@@ -57,13 +53,11 @@ export class Trip extends Context.Service<Trip, TripContract>()(
         ...(yield* checklistMethods),
         ...(yield* activityMethods),
       })
-    }).pipe(
-      Effect.provideServiceEffect(CatalogueLookups, buildCatalogueLookups),
-    ),
+    }),
   )
 
-  /** The Trip over the real Itinerary catalogue, following links online. */
+  /** The Trip over the Itinerary, Option 1, following links online. */
   static readonly live = Trip.layer.pipe(
-    Layer.provide([Itineraries.layer, LocationLinkResolver.layer]),
+    Layer.provide([Itinerary.layer, LocationLinkResolver.layer]),
   )
 }

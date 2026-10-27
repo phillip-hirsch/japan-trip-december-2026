@@ -8,14 +8,9 @@ import {
   CopyId,
   DayNotFound,
   Pin,
-  ScheduleId,
 } from '@/trip/domain/domain.schedule'
 import { StayNotFound } from '@/trip/domain/domain.stays'
-import {
-  OperationId,
-  ScheduleChanged,
-  operationOutcome,
-} from '@/trip/domain/domain.writes'
+import { OperationId, operationOutcome } from '@/trip/domain/domain.writes'
 
 export const TimeOfDay = Schema.String.check(
   Schema.isPattern(timeOfDayPattern),
@@ -24,12 +19,11 @@ export const TimeOfDay = Schema.String.check(
 export type TimeOfDay = typeof TimeOfDay.Type
 
 /**
- * Add an Activity on a Day of the Schedule named. A timed one goes before
+ * Add an Activity on a Day. A timed one goes before
  * the first Activity with a later time; one without a time goes last.
  */
 export const AddActivity = Schema.Struct({
   operationId: OperationId,
-  scheduleId: ScheduleId,
   date: IsoDate,
   title: Schema.String,
   time: Schema.optionalKey(TimeOfDay),
@@ -43,12 +37,11 @@ export const ActivityAdded = Schema.Struct({ activityId: ActivityId })
 export type ActivityAdded = typeof ActivityAdded.Type
 
 /**
- * Edit an Activity of the Schedule named, writing only the fields it
+ * Edit an Activity, writing only the fields it
  * carries, so the last write wins for each field. A null time or an empty
  * note removes it. Its Day never changes.
  */
 export const EditActivity = Schema.Struct({
-  scheduleId: ScheduleId,
   activityId: ActivityId,
   title: Schema.optionalKey(Schema.String),
   time: Schema.optionalKey(Schema.NullOr(TimeOfDay)),
@@ -58,18 +51,16 @@ export const EditActivity = Schema.Struct({
 export type EditActivity = typeof EditActivity.Type
 
 export const RemoveActivity = Schema.Struct({
-  scheduleId: ScheduleId,
   activityId: ActivityId,
 })
 
 export type RemoveActivity = typeof RemoveActivity.Type
 
 /**
- * Move an Activity of the Schedule named to just before another on its Day,
+ * Move an Activity to just before another on its Day,
  * or after the rest when that is null.
  */
 export const MoveActivity = Schema.Struct({
-  scheduleId: ScheduleId,
   activityId: ActivityId,
   before: Schema.NullOr(ActivityId),
 })
@@ -90,13 +81,12 @@ export class ActivityTitleInvalid extends Schema.TaggedError<ActivityTitleInvali
 export const AddActivityOutcome = operationOutcome(
   'Added',
   ActivityAdded.fields,
-  [ScheduleChanged, DayNotFound, ActivityTitleInvalid, NoteTooLong],
+  [DayNotFound, ActivityTitleInvalid, NoteTooLong],
 )
 
 export type AddActivityOutcome = typeof AddActivityOutcome.Type
 
 export const EditActivityOutcome = operationOutcome('Edited', {}, [
-  ScheduleChanged,
   ActivityNotFound,
   ActivityTitleInvalid,
   NoteTooLong,
@@ -105,14 +95,12 @@ export const EditActivityOutcome = operationOutcome('Edited', {}, [
 export type EditActivityOutcome = typeof EditActivityOutcome.Type
 
 export const RemoveActivityOutcome = operationOutcome('Removed', {}, [
-  ScheduleChanged,
   ActivityNotFound,
 ])
 
 export type RemoveActivityOutcome = typeof RemoveActivityOutcome.Type
 
 export const MoveActivityOutcome = operationOutcome('Moved', {}, [
-  ScheduleChanged,
   ActivityNotFound,
 ])
 
@@ -174,12 +162,11 @@ export const PinTarget = Schema.Union([
 export type PinTarget = typeof PinTarget.Type
 
 /**
- * Set the Pin on an Activity or a Stay's hotel of the Schedule named, as a
+ * Set the Pin on an Activity or a Stay's hotel, as a
  * whole value, once Phillip confirms it; no Pin removes it. The last write
  * wins.
  */
 export const SetPin = Schema.Struct({
-  scheduleId: ScheduleId,
   target: PinTarget,
   pin: Schema.optionalKey(Pin),
 })
@@ -187,7 +174,6 @@ export const SetPin = Schema.Struct({
 export type SetPin = typeof SetPin.Type
 
 export const SetPinOutcome = operationOutcome('Set', {}, [
-  ScheduleChanged,
   ActivityNotFound,
   StayNotFound,
   LocationLinkRefused,

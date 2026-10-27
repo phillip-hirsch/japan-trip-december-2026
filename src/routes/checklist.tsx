@@ -1,11 +1,7 @@
 import { useSuspenseQuery } from '@tanstack/react-query'
 import { createFileRoute } from '@tanstack/react-router'
 
-import {
-  AddChecklistItem,
-  ChecklistItems,
-  ChooseItineraryPrompt,
-} from '@/components/checklist'
+import { AddChecklistItem, ChecklistItems } from '@/components/checklist'
 import { LastUpdated } from '@/components/last-updated'
 import { checklistQuery, loadQuery } from '@/trip/client/queries'
 import { pageTitle } from '@/lib/app-identity'
@@ -20,7 +16,7 @@ export const Route = createFileRoute('/checklist')({
 })
 
 function ChecklistPage() {
-  const { scheduleId, items } = useSuspenseQuery(checklistQuery).data
+  const { items } = useSuspenseQuery(checklistQuery).data
   const done = items.filter((item) => item.ticked).length
 
   return (
@@ -34,13 +30,8 @@ function ChecklistPage() {
         </p>
         <LastUpdated query={checklistQuery} className="mt-2" />
       </header>
-      {scheduleId === null && (
-        <div className="mt-8">
-          <ChooseItineraryPrompt />
-        </div>
-      )}
       <section aria-label="Items" className="mt-8">
-        <ChecklistItems items={items} scheduleId={scheduleId} />
+        <ChecklistItems items={items} />
       </section>
       <section aria-labelledby="add-item" className="mt-12">
         <h2 id="add-item" className="mb-4 text-xl font-semibold">

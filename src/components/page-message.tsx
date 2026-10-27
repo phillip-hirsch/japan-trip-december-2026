@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react'
 
 /**
- * A page that is only a message, such as not found or no Schedule yet: an
+ * A page that is only a message, such as not found: an
  * eyebrow, a title, a short explanation and what to do next.
  */
 export function PageMessage({

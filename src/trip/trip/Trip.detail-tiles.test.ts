@@ -9,7 +9,7 @@ import { DetailTilesUnavailable } from '@/trip/domain/domain'
 import type { TileCoordinates } from '@/trip/domain/domain'
 import {
   assertFailedWith,
-  liveTrip,
+  testTrip,
   openOcean,
   openOceanArchive,
   openOceanEast,
@@ -44,7 +44,7 @@ describe('Trip.detailTile', () => {
         assert.strictEqual(served.encoding, 'gzip')
         assert.isAbove(gunzipSync(served.bytes).byteLength, 0)
       }
-    }).pipe(Effect.provide(liveTrip)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect('serves the same Detail tile again from a warm archive', () =>
@@ -54,7 +54,7 @@ describe('Trip.detailTile', () => {
       const again = Option.getOrThrow(yield* detailTile(tile))
 
       assert.deepStrictEqual(again.bytes, first.bytes)
-    }).pipe(Effect.provide(liveTrip)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect("has no Detail tile outside the archive's boxes", () =>
@@ -65,7 +65,7 @@ describe('Trip.detailTile', () => {
       ]) {
         assert.isTrue(Option.isNone(yield* detailTile(tile)))
       }
-    }).pipe(Effect.provide(liveTrip)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect("has no Detail tile beyond the archive's zoom levels", () =>
@@ -76,7 +76,7 @@ describe('Trip.detailTile', () => {
       ]) {
         assert.isTrue(Option.isNone(yield* detailTile(tile)))
       }
-    }).pipe(Effect.provide(liveTrip)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect('has no Detail tile at coordinates off the tile grid', () =>
@@ -90,7 +90,7 @@ describe('Trip.detailTile', () => {
       ]) {
         assert.isTrue(Option.isNone(yield* detailTile(tile)))
       }
-    }).pipe(Effect.provide(liveTrip)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect("serves a replaced archive's Detail tiles within a minute", () =>
@@ -106,7 +106,7 @@ describe('Trip.detailTile', () => {
 
       assert.isTrue(Option.isSome(yield* detailTile(east, archive)))
       assert.isTrue(Option.isNone(yield* detailTile(west, archive)))
-    }).pipe(Effect.provide(liveTrip)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect(
@@ -128,7 +128,7 @@ describe('Trip.detailTile', () => {
         yield* Fiber.join(checking)
 
         assert.isTrue(Option.isSome(meanwhile))
-      }).pipe(Effect.provide(liveTrip)),
+      }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect('names the encoding of the archive a Detail tile came from', () =>
@@ -145,7 +145,7 @@ describe('Trip.detailTile', () => {
       const served = Option.getOrThrow(yield* detailTile(tile, archive))
 
       assert.strictEqual(served.encoding, 'identity')
-    }).pipe(Effect.provide(liveTrip)),
+    }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect(
@@ -170,7 +170,7 @@ describe('Trip.detailTile', () => {
         const served = Option.getOrThrow(yield* Fiber.join(slow))
 
         assert.strictEqual(served.encoding, 'gzip')
-      }).pipe(Effect.provide(liveTrip)),
+      }).pipe(Effect.provide(testTrip)),
   )
 
   it.effect('fails as unavailable when the archive cannot be read', () =>
@@ -181,6 +181,6 @@ describe('Trip.detailTile', () => {
         ),
         new DetailTilesUnavailable(),
       )
-    }).pipe(Effect.provide(liveTrip)),
+    }).pipe(Effect.provide(testTrip)),
   )
 })

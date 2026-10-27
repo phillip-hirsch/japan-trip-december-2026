@@ -181,7 +181,7 @@ function NextMoveCard({ move, today }: { move: NextMove; today: IsoDate }) {
         )}
       </p>
       <MoveRoute move={move} className="text-base" />
-      <MoveTravel move={move} onSchedule className="pl-5.5" />
+      <MoveTravel move={move} className="pl-5.5" />
     </Item>
   )
 }
@@ -191,7 +191,7 @@ const activitiesHeadingId = 'activities'
 const noteHeadingId = 'note'
 
 export function ScheduleDayView({
-  page: { scheduleId, day, tonight, nextMove },
+  page: { day, tonight, nextMove },
   eyebrow,
   query,
 }: {
@@ -273,7 +273,6 @@ export function ScheduleDayView({
       </DaySection>
       <DaySection id={activitiesHeadingId} title="Activities">
         <Activities
-          scheduleId={scheduleId}
           date={day.date}
           activities={day.activities}
           near={nearTonightOrTokyo}
@@ -281,12 +280,7 @@ export function ScheduleDayView({
         />
       </DaySection>
       <DaySection id={noteHeadingId} title="Note">
-        <DayNote
-          scheduleId={scheduleId}
-          date={day.date}
-          note={day.note}
-          labelledBy={noteHeadingId}
-        />
+        <DayNote date={day.date} note={day.note} labelledBy={noteHeadingId} />
       </DaySection>
       {tonight && (
         <DaySection id="tonight" title="Tonight">

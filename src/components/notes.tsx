@@ -5,7 +5,7 @@ import { PencilIcon } from 'lucide-react'
 import { EditorFrame } from '@/components/editor-frame'
 import { NoteText } from '@/components/note-text'
 import { Textarea } from '@/components/ui/textarea'
-import type { IsoDate, ScheduleId } from '@/trip/domain/domain'
+import type { IsoDate } from '@/trip/domain/domain'
 import {
   answerOwn,
   dayNoteTarget,
@@ -33,11 +33,9 @@ const tooLong =
 
 /** The Day note on a Day of the Schedule shown, saved as `note`. */
 export const useDayNote = ({
-  scheduleId,
   date,
   note,
 }: {
-  scheduleId: ScheduleId
   date: IsoDate
   note: string | undefined
 }) => {
@@ -46,12 +44,11 @@ export const useDayNote = ({
   return useSave({
     target: dayNoteTarget(date),
     draft: Predicate.isString,
-    scheduleId,
     saved: note ?? '',
     write: 'dayNote',
     run: async (value) =>
       answerOwn(
-        await write({ data: { scheduleId, date, note: value } }),
+        await write({ data: { date, note: value } }),
         tooLong('Day note'),
       ),
   })
@@ -59,11 +56,9 @@ export const useDayNote = ({
 
 /** The Stay note on a Stay of the Schedule shown, saved as `note`. */
 export const useStayNote = ({
-  scheduleId,
   stayId,
   note,
 }: {
-  scheduleId: ScheduleId
   stayId: string
   note: string | undefined
 }) => {
@@ -72,20 +67,19 @@ export const useStayNote = ({
   return useSave({
     target: stayNoteTarget(stayId),
     draft: Predicate.isString,
-    scheduleId,
     saved: note ?? '',
     write: 'stayNote',
     run: async (value) =>
       answerOwn(
-        await write({ data: { scheduleId, stayId, note: value } }),
+        await write({ data: { stayId, note: value } }),
         tooLong('Stay note'),
       ),
   })
 }
 
 /**
- * Phillip's Trip note, saved as `note`. It belongs to the Trip, not a
- * Schedule, so a Schedule change never marks it.
+ * Phillip's Trip note, saved as `note`. It belongs to the Trip, not the
+ * Schedule.
  */
 export const useTripNote = ({ note }: { note: string | undefined }) => {
   const write = useServerFn(writeTripNote)
@@ -93,7 +87,6 @@ export const useTripNote = ({ note }: { note: string | undefined }) => {
   return useSave({
     target: tripNoteTarget,
     draft: Predicate.isString,
-    scheduleId: null,
     saved: note ?? '',
     write: 'tripNote',
     run: async (value) =>
@@ -193,7 +186,7 @@ export function TripNote({
     <NoteFrame
       field={field}
       labelledBy={labelledBy}
-      emptyText="No Trip note yet. It stays as it is when you choose again."
+      emptyText="No Trip note yet."
     />
   )
 }

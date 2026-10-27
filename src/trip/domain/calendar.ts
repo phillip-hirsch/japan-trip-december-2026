@@ -152,13 +152,3 @@ export const formatDurationRange = ({
   minMinutes === maxMinutes
     ? `about ${formatMinutes(minMinutes)}`
     : `${formatMinutes(minMinutes)} – ${formatMinutes(maxMinutes)}`
-
-const formatTokyoDate = formatter({
-  month: 'long',
-  day: 'numeric',
-  year: 'numeric',
-  timeZone: tripTimeZone,
-})
-
-export const formatMoment = (isoInstant: string) =>
-  formatTokyoDate(new Date(isoInstant))

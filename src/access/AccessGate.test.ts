@@ -70,7 +70,7 @@ const forbidden: AccessDecision = AccessDecision.Refused({ status: 403 })
 const unavailable: AccessDecision = AccessDecision.Refused({ status: 503 })
 
 const requestWith = (token?: string) =>
-  new Request('https://japan-trip.workers.dev/options', {
+  new Request('https://japan-trip.workers.dev/schedule', {
     headers: token === undefined ? {} : { 'Cf-Access-Jwt-Assertion': token },
   })
 

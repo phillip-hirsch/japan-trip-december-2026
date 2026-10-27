@@ -14,7 +14,6 @@ import {
   Hotel,
   StayDateRuleBreak,
   StayNotFound,
-  TripRuleBreak,
   VerifyClaimAttachment,
 } from '@/trip/domain/domain'
 import type {
@@ -48,7 +47,7 @@ export type ScheduleDay = Day & {
 
 export type ScheduleMove = Copied<Move>
 
-/** A Schedule's own copy of the Itinerary chosen, as Phillip has edited it. */
+/** The Schedule's own copy of the Itinerary, as Phillip has edited it. */
 export interface ScheduleCopy {
   readonly stays: ReadonlyArray<ScheduleStay>
   readonly days: ReadonlyArray<ScheduleDay>
@@ -93,9 +92,7 @@ const unchecked = { disableChecks: true }
  * breaks skip re-checking their dates, which are already checked. The Stay
  * edit offers run this over a hundred times per read of the Schedule.
  */
-export const stayDateRuleBreaksOf = <
-  S extends Pick<Stay, 'checkIn' | 'checkOut'>,
->(
+const stayDateRuleBreaksOf = <S extends Pick<Stay, 'checkIn' | 'checkOut'>>(
   stays: ReadonlyArray<S>,
   checkInOf: (stay: S) => IsoDate = (stay) => stay.checkIn,
 ): Array<StayDateRuleBreak> => {
@@ -157,7 +154,16 @@ export const stayDateRuleBreaksOf = <
  * Stay boundary, two Moves on one date, a Stay boundary without a Move, or a
  * Verify claim attached to nothing there.
  */
-export const fitBreaksOf = ({
+type FitBreak = Data.TaggedEnum<{
+  MoveWithoutStayBoundary: { readonly date: IsoDate }
+  MovesOnOneDate: { readonly date: IsoDate }
+  StayBoundaryWithoutMove: { readonly date: IsoDate }
+  UnattachedVerifyClaim: { readonly id: string }
+}>
+
+const FitBreak = Data.taggedEnum<FitBreak>()
+
+const fitBreaksOf = ({
   stays,
   days,
   moves,
@@ -167,24 +173,24 @@ export const fitBreaksOf = ({
   readonly days: ReadonlyArray<Pick<Day, 'date'>>
   readonly moves: ReadonlyArray<Move>
   readonly verifyClaims: ReadonlyArray<VerifyClaim>
-}): Array<TripRuleBreak> => {
-  const breaks: Array<TripRuleBreak> = []
+}): Array<FitBreak> => {
+  const breaks: Array<FitBreak> = []
   const boundaryDates = new Set(stayBoundariesOf(stays).map(({ date }) => date))
   const moveDates = new Set(moves.map((move) => move.date))
 
   for (const date of moveDates) {
     if (!boundaryDates.has(date)) {
-      breaks.push(TripRuleBreak.cases.MoveWithoutStayBoundary.make({ date }))
+      breaks.push(FitBreak.MoveWithoutStayBoundary({ date }))
     }
 
     if (moves.filter((move) => move.date === date).length > 1) {
-      breaks.push(TripRuleBreak.cases.MovesOnOneDate.make({ date }))
+      breaks.push(FitBreak.MovesOnOneDate({ date }))
     }
   }
 
   for (const date of boundaryDates) {
     if (!moveDates.has(date)) {
-      breaks.push(TripRuleBreak.cases.StayBoundaryWithoutMove.make({ date }))
+      breaks.push(FitBreak.StayBoundaryWithoutMove({ date }))
     }
   }
 
@@ -200,7 +206,7 @@ export const fitBreaksOf = ({
 
   for (const { id, attachedTo } of verifyClaims) {
     if (!attachments.has(attachmentKey(attachedTo))) {
-      breaks.push(TripRuleBreak.cases.UnattachedVerifyClaim.make({ id }))
+      breaks.push(FitBreak.UnattachedVerifyClaim({ id }))
     }
   }
 

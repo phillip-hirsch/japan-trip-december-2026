@@ -48,7 +48,6 @@ const labels = {
  * change gets a new operation for the Schedule now shown.
  */
 export const useSplitMergeStay = ({
-  scheduleId,
   stay,
   stays,
   anchorWarnings,
@@ -67,7 +66,6 @@ export const useSplitMergeStay = ({
         : choice.kind === 'split'
           ? splitDates.length > 0
           : choice.next.id === mergeable?.id,
-    scheduleId,
     write: 'stayEdit',
     run: async (choice, operationId) => {
       setLastKind(choice.kind)
@@ -81,7 +79,6 @@ export const useSplitMergeStay = ({
         return answer(
           await merge({
             data: {
-              scheduleId,
               operationId,
               stayIds: [stay.id, choice.next.id],
             },
@@ -96,7 +93,6 @@ export const useSplitMergeStay = ({
       return answer(
         await split({
           data: {
-            scheduleId,
             operationId,
             stayId: stay.id,
             date: choice.date,

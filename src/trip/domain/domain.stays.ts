@@ -5,13 +5,8 @@ import {
   CopyId,
   HotelDetails,
   ScheduleDetail,
-  ScheduleId,
 } from '@/trip/domain/domain.schedule'
-import {
-  OperationId,
-  ScheduleChanged,
-  operationOutcome,
-} from '@/trip/domain/domain.writes'
+import { OperationId, operationOutcome } from '@/trip/domain/domain.writes'
 
 export class StayNotFound extends Schema.TaggedError<StayNotFound>()(
   'StayNotFound',
@@ -19,12 +14,11 @@ export class StayNotFound extends Schema.TaggedError<StayNotFound>()(
 ) {}
 
 /**
- * Write the Hotel details on a Stay of the Schedule named, as a whole value:
+ * Write the Hotel details on a Stay, as a whole value:
  * each field is trimmed, a blank one is removed, and all blank removes them,
  * so the Stay's hotel is not recorded again. The last write wins.
  */
 export const WriteHotelDetails = Schema.Struct({
-  scheduleId: ScheduleId,
   stayId: CopyId,
   details: HotelDetails,
 })
@@ -62,7 +56,6 @@ export const StaysEdited = Schema.Struct({ schedule: ScheduleDetail })
 export type StaysEdited = typeof StaysEdited.Type
 
 export const StayEditOutcome = operationOutcome('Edited', StaysEdited.fields, [
-  ScheduleChanged,
   StayNotFound,
   HardRuleBroken,
 ])
@@ -70,14 +63,13 @@ export const StayEditOutcome = operationOutcome('Edited', StaysEdited.fields, [
 export type StayEditOutcome = typeof StayEditOutcome.Type
 
 /**
- * Split a Stay of the Schedule named at a date after its check-in and before
+ * Split a Stay at a date after its check-in and before
  * its check-out. The Stay keeps the nights before the date. A new Stay in the
  * same Base takes the rest, joined to it by a new local Move on the date. It
  * creates both, so a retry with the same operation id returns the first
  * result.
  */
 export const SplitStay = Schema.Struct({
-  scheduleId: ScheduleId,
   operationId: OperationId,
   stayId: CopyId,
   date: IsoDate,
@@ -86,13 +78,12 @@ export const SplitStay = Schema.Struct({
 export type SplitStay = typeof SplitStay.Type
 
 /**
- * Merge two adjacent Stays in one Base of the Schedule named, given in either
+ * Merge two adjacent Stays in one Base, given in either
  * order. The earlier Stay takes the later one's nights, and the Move between
  * them is removed. A retry with the same operation id returns the first
  * result, instead of finding the later Stay gone.
  */
 export const MergeStays = Schema.Struct({
-  scheduleId: ScheduleId,
   operationId: OperationId,
   stayIds: Schema.Tuple([CopyId, CopyId]),
 })
@@ -100,12 +91,11 @@ export const MergeStays = Schema.Struct({
 export type MergeStays = typeof MergeStays.Type
 
 /**
- * Move the date a Stay of the Schedule named checks out. The next Stay's
+ * Move the date a Stay checks out. The next Stay's
  * check-in and the Move between them move to the same date. Setting a date
  * twice changes nothing more, so it carries no operation id.
  */
 export const MoveStayBoundary = Schema.Struct({
-  scheduleId: ScheduleId,
   stayId: CopyId,
   checkOut: IsoDate,
 })
@@ -113,13 +103,12 @@ export const MoveStayBoundary = Schema.Struct({
 export type MoveStayBoundary = typeof MoveStayBoundary.Type
 
 /**
- * Change the Base of a Stay of the Schedule named to the place with the id
+ * Change the Base of a Stay to the place with the id
  * given. The place is any string, so one outside the catalogue reaches the
  * Trip service, which refuses it with a Hard rule. Setting a Base is
  * idempotent, so it carries no operation id.
  */
 export const ChangeStayBase = Schema.Struct({
-  scheduleId: ScheduleId,
   stayId: CopyId,
   place: Schema.String,
 })
@@ -127,7 +116,6 @@ export const ChangeStayBase = Schema.Struct({
 export type ChangeStayBase = typeof ChangeStayBase.Type
 
 export const WriteHotelDetailsOutcome = operationOutcome('Written', {}, [
-  ScheduleChanged,
   StayNotFound,
   HotelDetailTooLong,
 ])

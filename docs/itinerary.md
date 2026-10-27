@@ -1,3 +1,5 @@
+> **History.** Option 1 is the Itinerary: `src/trip/itinerary/option-1.ts` holds it, and the Schedule was created from it (ADR 0007). Options 2 to 4 below are history only. The app has no copy of them.
+
 **I recommend Option 1: Tokyo → Kyoto → Kanazawa → Tokyo.** It best balances your three priorities: seeing somewhere new on your fourth trip, giving yourself a realistic opportunity to visit Shigeharu, and having enough downtime to enjoy each place.
 
 All four options below total **14 nights**, keep **December 15 free of hotel changes**, and finish in Tokyo before your December 20 flight.

@@ -1,8 +1,7 @@
-import { DateTime, Option, Schema, Struct } from 'effect'
+import { Schema } from 'effect'
 
 import { displayStrings } from '@/fonts/display-strings'
 import { isCalendarDate } from '@/trip/domain/calendar'
-import { operationOutcome } from '@/trip/domain/domain.writes'
 import {
   placeIds,
   railLineIds,
@@ -15,17 +14,6 @@ export const IsoDate = Schema.String.check(
 ).pipe(Schema.brand('IsoDate'))
 
 export type IsoDate = typeof IsoDate.Type
-
-export const IsoInstant = Schema.String.check(
-  Schema.makeFilter((instant: string) =>
-    Option.exists(
-      DateTime.make(instant),
-      (parsed) => DateTime.formatIso(parsed) === instant,
-    ),
-  ),
-).pipe(Schema.brand('IsoInstant'))
-
-export type IsoInstant = typeof IsoInstant.Type
 
 export const december = (day: number) =>
   IsoDate.make(`2026-12-${String(day).padStart(2, '0')}`)
@@ -49,9 +37,7 @@ export const Place = Schema.Struct({
 
 export type Place = typeof Place.Type
 
-export const OptionNumber = Schema.Int.check(Schema.isGreaterThan(0))
-
-export const AccommodationKind = Schema.Literals(['hotel', 'ryokan'])
+export const AccommodationKind = Schema.Literal('hotel')
 
 export type AccommodationKind = typeof AccommodationKind.Type
 
@@ -110,7 +96,7 @@ export const DurationRange = Schema.Struct({
 export type DurationRange = typeof DurationRange.Type
 
 /** Local is a Move between two Stays in the same Base. */
-export const MoveMode = Schema.Literals(['train', 'flight', 'local'])
+export const MoveMode = Schema.Literals(['train', 'local'])
 
 export type MoveMode = typeof MoveMode.Type
 
@@ -172,47 +158,21 @@ export const VerifyClaim = Schema.Struct({
 
 export type VerifyClaim = typeof VerifyClaim.Type
 
-export const ItineraryReasoning = Schema.Struct({
-  birthdayOutline: Schema.String,
-  pros: Schema.Array(Schema.String),
-  cons: Schema.Array(Schema.String),
-  chooseThisIf: Schema.optionalKey(Schema.String),
-  whyRecommended: Schema.optionalKey(Schema.String),
-  travelNotes: Schema.optionalKey(Schema.String),
-})
-
-export type ItineraryReasoning = typeof ItineraryReasoning.Type
-
 /**
- * An Itinerary as converted from gpt-6-astra's markdown. Exactly one is
- * recommended by gpt-6-astra.
+ * The Itinerary: Option 1 as converted from gpt-6-astra's markdown, with its
+ * Birthday outline. It never changes; the Schedule started as its copy.
  */
 export const ItineraryContent = Schema.Struct({
-  optionNumber: OptionNumber,
-  name: Schema.String,
-  bestFor: Schema.String,
-  recommended: Schema.Boolean,
   stays: Schema.Array(Stay),
   days: Schema.Array(Day),
   moves: Schema.Array(Move),
   dayTrips: Schema.Array(DayTrip),
   verifyClaims: Schema.Array(VerifyClaim),
   shigeharuVisit: Schema.optionalKey(ShigeharuVisit),
-  ...ItineraryReasoning.fields,
+  birthdayOutline: Schema.String,
 })
 
 export type ItineraryContent = typeof ItineraryContent.Type
-
-/**
- * One candidate way to spend the Trip. The content version is a fingerprint
- * of its content that changes only when a Revision lands.
- */
-export const Itinerary = Schema.Struct({
-  ...ItineraryContent.fields,
-  contentVersion: Schema.String,
-})
-
-export type Itinerary = typeof Itinerary.Type
 
 export const anchorFields = {
   Arrival: { date: IsoDate },
@@ -290,78 +250,6 @@ export const DayDetail = Schema.Struct({
 
 export type DayDetail = typeof DayDetail.Type
 
-/** The nights an Itinerary spends at one Base, across all its Stays there. */
-export const BaseNights = Schema.Struct({ base: Place, nights: Schema.Int })
-
-export type BaseNights = typeof BaseNights.Type
-
-export const ItinerarySummary = Schema.Struct({
-  optionNumber: OptionNumber,
-  name: Schema.String,
-  recommended: Schema.Boolean,
-  bestFor: Schema.String,
-  /** Each Base in the order the Trip reaches it. */
-  route: Schema.Array(Place),
-  /** In the order the Trip first reaches each Base. */
-  nightsPerBase: Schema.Array(BaseNights),
-  /**
-   * The New places among its Bases and Day trip destinations, optional Day
-   * trips included, in the order the Trip first reaches them.
-   */
-  newToYou: Schema.Array(Place),
-})
-
-export type ItinerarySummary = typeof ItinerarySummary.Type
-
-export const MoveSummary = Schema.Struct({
-  date: IsoDate,
-  mode: MoveMode,
-  from: Place,
-  to: Place,
-})
-
-export type MoveSummary = typeof MoveSummary.Type
-
-export const MovesComparison = Schema.Struct({
-  count: Schema.Int,
-  /**
-   * The summed duration range of the train and flight Moves that have one;
-   * absent when none has. A Move without one is never estimated.
-   */
-  travelTime: Schema.optionalKey(DurationRange),
-  /** The train and flight Moves left out of the travel time. */
-  durationNotGiven: Schema.Array(MoveSummary),
-})
-
-export type MovesComparison = typeof MovesComparison.Type
-
-export const ItineraryComparison = Schema.Struct({
-  ...ItinerarySummary.fields,
-  /**
-   * The Base whose Stay covers the night of December 15, absent only when no
-   * Stay does, and the birthday outline.
-   */
-  birthday: Schema.Struct({
-    base: Schema.optionalKey(Place),
-    outline: Schema.String,
-  }),
-  moves: MovesComparison,
-  /**
-   * Whether all of Thursday, December 10 is spent in Kyoto and not moving, so
-   * the Shigeharu visit can fall back to it.
-   */
-  thursdayBackup: Schema.Boolean,
-  /**
-   * Each Day trip destination once, in the order the Trip first goes there.
-   * It is optional only when every Day trip there is.
-   */
-  dayTrips: Schema.Array(DayTripDetail),
-  flights: Schema.Array(MoveSummary),
-  ryokanStays: Schema.Array(StaySummary),
-})
-
-export type ItineraryComparison = typeof ItineraryComparison.Type
-
 /**
  * A rail section as the map draws it: along its rail line, or straight
  * between its stations when the rail geometry lacks it.
@@ -374,7 +262,7 @@ export const MapRailSection = Schema.Struct({
 export type MapRailSection = typeof MapRailSection.Type
 
 /**
- * A Move between two Bases as the map draws it, other than a flight: from
+ * A Move between two Bases as the map draws it: from
  * the Base it leaves, along each of its rail sections in turn, to the Base it
  * reaches. Its stations join their Bases with straight lines, and a Move
  * without rail sections, such as after a Stay edit, is one straight line.
@@ -395,13 +283,14 @@ export const MapDayTrip = Schema.Struct({
 
 export type MapDayTrip = typeof MapDayTrip.Type
 
-/** An Itinerary on its map. Local Moves stay within a Base and draw nothing. */
+/**
+ * The Schedule's Stays, Moves and Day trips as its map draws them. Local
+ * Moves stay within a Base and draw nothing.
+ */
 export const ItineraryMap = Schema.Struct({
   /** Each Base once, in the order the Trip first reaches it. */
   bases: Schema.Array(Place),
   trainMoves: Schema.Array(MapTrainMove),
-  /** Each flight from Base to Base, drawn as an arc. */
-  flights: Schema.Array(MoveSummary),
   /** Each pair of Base and destination once, drawn dashed. */
   dayTrips: Schema.Array(MapDayTrip),
   /**
@@ -413,41 +302,8 @@ export const ItineraryMap = Schema.Struct({
 
 export type ItineraryMap = typeof ItineraryMap.Type
 
-export const ComparisonMapItinerary = Schema.Struct({
-  ...Struct.pick(ItinerarySummary.fields, ['optionNumber', 'recommended']),
-  ...Struct.pick(ItineraryMap.fields, ['trainMoves', 'flights']),
-})
-
-export type ComparisonMapItinerary = typeof ComparisonMapItinerary.Type
-
-export const ComparisonMap = Schema.Struct({
-  /** Each Base once, in the order the Itineraries first reach it. */
-  bases: Schema.Array(Place),
-  itineraries: Schema.Array(ComparisonMapItinerary),
-  /**
-   * The credit the rail geometry's licence requires, present only when a
-   * train Move follows a rail line.
-   */
-  railAttribution: Schema.optionalKey(Schema.String),
-})
-
-export type ComparisonMap = typeof ComparisonMap.Type
-
-export const ItineraryDetail = Schema.Struct({
-  ...ItinerarySummary.fields,
-  ...ItineraryReasoning.fields,
-  contentVersion: Schema.String,
-  stays: Schema.Array(StayDetail),
-  days: Schema.Array(DayDetail),
-  /** The Verify claims about the Itinerary as a whole. */
-  verifyClaims: Schema.Array(VerifyClaimDetail),
-  map: ItineraryMap,
-})
-
-export type ItineraryDetail = typeof ItineraryDetail.Type
-
 /**
- * The Hard rules on Stay dates, which every Itinerary keeps too: Stays from
+ * The Hard rules on Stay dates, which the Itinerary keeps too: Stays from
  * December 6 to December 20, back to back with no Gap or Overlap, each at
  * least one night.
  */
@@ -482,36 +338,3 @@ const anchorWarnings = {
 export const AnchorWarning = Schema.TaggedUnion(anchorWarnings)
 
 export type AnchorWarning = typeof AnchorWarning.Type
-
-/**
- * Why an Itinerary breaks the Trip's rules. The cases are the Hard rules on
- * Stay dates, the Anchor warnings, which an Itinerary must not have, and
- * checks on its own content.
- */
-export const TripRuleBreak = Schema.TaggedUnion({
-  ...stayDateRules,
-  ...anchorWarnings,
-  NotTheTripDays: { dates: Schema.Array(IsoDate) },
-  ShigeharuMissing: {},
-  ShigeharuWrongDate: { date: IsoDate },
-  ShigeharuNotInMorning: { slot: DaySlot },
-  MoveWithoutStayBoundary: { date: IsoDate },
-  MovesOnOneDate: { date: IsoDate },
-  StayBoundaryWithoutMove: { date: IsoDate },
-  UnattachedVerifyClaim: { id: Schema.String },
-})
-
-export type TripRuleBreak = typeof TripRuleBreak.Type
-
-export class ItineraryNotFound extends Schema.TaggedError<ItineraryNotFound>()(
-  'ItineraryNotFound',
-  { optionNumber: Schema.Int },
-) {}
-
-export const ItineraryOutcome = operationOutcome(
-  'Itinerary',
-  { itinerary: ItineraryDetail },
-  [ItineraryNotFound],
-)
-
-export type ItineraryOutcome = typeof ItineraryOutcome.Type

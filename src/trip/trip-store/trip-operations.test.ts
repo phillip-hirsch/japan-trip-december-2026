@@ -1,42 +1,24 @@
 import { assert, describe, it } from '@effect/vitest'
-import { Effect, Option } from 'effect'
+import { Effect } from 'effect'
 
 import { december, IsoDate, WriteDayNoteOutcome } from '@/trip/domain/domain'
-import type { ScheduleId } from '@/trip/domain/domain'
-import { option1 } from '@/trip/itineraries/option-1'
-import { option2 } from '@/trip/itineraries/option-2'
 import { noteMaxLength } from '@/trip/domain/limits'
-import { operation, storage, tripWith } from '@/trip/trip/testing'
+import { storage, testTrip } from '@/trip/trip/testing'
 import { Trip } from '@/trip/trip/Trip'
 import { runTripOperation } from '@/trip/trip-store/trip-operations'
 
-const trip = tripWith([option1, option2])
-
-const choose = (
-  optionNumber: number,
-  n: number,
-  replacing: ScheduleId | null,
-) =>
-  Effect.map(
-    Trip.use((trip) =>
-      trip.choose({ operationId: operation(n), optionNumber, replacing }),
-    ),
-    ({ scheduleId }) => scheduleId,
-  )
+const trip = testTrip
 
 const dayNote = (date: IsoDate) =>
   Effect.map(
     Trip.use((trip) => trip.day(date)),
-    (page) => Option.getOrThrow(page).day.note,
+    (page) => page.day.note,
   )
 
 describe('runTripOperation', () => {
   it.effect('answers a written Day note with Written', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
-
       const outcome = yield* runTripOperation('writeDayNote', {
-        scheduleId,
         date: december(14),
         note: 'Book the onsen.',
       })
@@ -52,33 +34,10 @@ describe('runTripOperation', () => {
   )
 
   it.effect(
-    'answers a write to an archived Schedule with ScheduleChanged',
-    () =>
-      Effect.gen(function* () {
-        const archived = yield* choose(1, 1, null)
-        yield* choose(2, 2, archived)
-
-        const outcome = yield* runTripOperation('writeDayNote', {
-          scheduleId: archived,
-          date: december(14),
-          note: 'Written on an old screen.',
-        })
-
-        assert.deepStrictEqual(
-          outcome,
-          WriteDayNoteOutcome.cases.ScheduleChanged.make({}),
-        )
-      }).pipe(Effect.provide([trip, storage])),
-  )
-
-  it.effect(
     'answers a Day the Schedule lacks with DayNotFound and its date',
     () =>
       Effect.gen(function* () {
-        const scheduleId = yield* choose(1, 1, null)
-
         const outcome = yield* runTripOperation('writeDayNote', {
-          scheduleId,
           date: IsoDate.make('2026-12-21'),
           note: 'After the Trip.',
         })
@@ -94,10 +53,7 @@ describe('runTripOperation', () => {
 
   it.effect('answers a Day note too long with NoteTooLong and the limit', () =>
     Effect.gen(function* () {
-      const scheduleId = yield* choose(1, 1, null)
-
       const outcome = yield* runTripOperation('writeDayNote', {
-        scheduleId,
         date: december(14),
         note: 'あ'.repeat(noteMaxLength + 1),
       })
