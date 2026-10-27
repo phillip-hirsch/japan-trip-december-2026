@@ -1,5 +1,6 @@
 // Rebuilds the map's tile extracts from a Protomaps daily build (ODbL):
-// - tiles/overview.pmtiles: all of Japan, zoom 0–8.
+// - public/map/overview.pmtiles: the Overview map, all of Japan to zoom 8,
+//   which ships with the app. Commit it.
 // - tiles/detail.pmtiles: the Detail tiles, zoom 0–14, in a box around every
 //   catalogue place. Run again after adding a place.
 // - tiles/detail-local.pmtiles: a small box around Tokyo Station for local
@@ -19,6 +20,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 // Relative, not '@/': plain `node` runs this script and can't resolve the alias.
+import { overviewMapPath, overviewMaxZoom } from '../src/map/overview-map.ts'
 import { detailTilesMaxZoom } from '../src/trip/detail-tiles/detail-tile-source.ts'
 import { places } from '../src/trip/catalogue/places.ts'
 import type { CatalogueCoordinates } from '../src/trip/catalogue/places.ts'
@@ -30,8 +32,6 @@ const builds = 'https://build-metadata.protomaps.dev/builds.json'
 const outputs = 'tiles'
 
 const japan = '129.0,30.9,146.0,45.6'
-
-const overviewMaxZoom = 8
 
 /** How far each place's box reaches from its station to each edge. */
 const detailReachKm = 12
@@ -153,10 +153,16 @@ writeFileSync(
 )
 
 const archives = [
-  ['overview', [`--bbox=${japan}`, `--maxzoom=${overviewMaxZoom}`]],
-  ['detail', [`--region=${region}`, `--maxzoom=${detailTilesMaxZoom}`]],
   [
-    'detail-local',
+    join('public', overviewMapPath),
+    [`--bbox=${japan}`, `--maxzoom=${overviewMaxZoom}`],
+  ],
+  [
+    join(outputs, 'detail.pmtiles'),
+    [`--region=${region}`, `--maxzoom=${detailTilesMaxZoom}`],
+  ],
+  [
+    join(outputs, 'detail-local.pmtiles'),
     [
       bboxFlag(boxAround(places.tokyo.coordinates, localReachKm)),
       `--maxzoom=${detailTilesMaxZoom}`,
@@ -166,8 +172,7 @@ const archives = [
 
 // Each extract replaces the last good one only once it's complete, so an
 // interrupted run never leaves a broken archive to seed or upload.
-for (const [name, flags] of archives) {
-  const output = join(outputs, `${name}.pmtiles`)
+for (const [output, flags] of archives) {
   const partial = `${output}.partial`
   extract(partial, flags)
   renameSync(partial, output)
