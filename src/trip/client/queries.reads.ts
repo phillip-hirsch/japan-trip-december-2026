@@ -68,6 +68,7 @@ export const checklistQuery = queryOptions({
 
 export const scheduleMapQuery = queryOptions({
   queryKey: keys.scheduleMap,
-  queryFn: () => getScheduleMap(),
+  queryFn: readInOrder(() => getScheduleMap()),
+  structuralSharing: keepLatestRead,
   refetchOnMount: false,
 })
