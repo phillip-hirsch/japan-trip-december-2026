@@ -26,9 +26,11 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 
 import { protomapsDark } from '@/components/protomaps-style'
 import { cn } from '@/lib/utils'
+import { basemapScheme, loadBasemapTile } from '@/map/basemap-tiles'
 
 if (typeof window !== 'undefined' && !MapLibreGL.getWorkerUrl()) {
   MapLibreGL.setWorkerUrl(workerUrl)
+  MapLibreGL.addProtocol(basemapScheme, loadBasemapTile)
 }
 
 // A tile-less, dependency-free style with a transparent background. Use it for
@@ -365,11 +367,12 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       ...viewport,
     })
 
-    // MapLibre reports a resource that fails to load, such as the sprite or a
-    // tile while offline, as an event rather than throwing. Until the map
-    // first finishes loading, an error fails the map, as does a style that
-    // takes too long to load, so the nearest error boundary can replace it.
-    // Later errors, such as one tile failing, leave the map running.
+    // MapLibre reports a resource that fails to load, such as the sprite, as
+    // an event rather than throwing. Until the map first finishes loading, an
+    // error fails the map, as does a style that takes too long to load, so
+    // the nearest error boundary can replace it. A failed tile never fails
+    // the map. Offline, a Detail tile never viewed fails, and the map draws
+    // the closest zoom it has instead. Later errors leave the map running.
     let firstLoaded = false
 
     const startupTimeout = setTimeout(
@@ -377,10 +380,11 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       STYLE_LOAD_TIMEOUT_MS,
     )
 
-    const errorHandler = ({ error }: MapLibreGL.ErrorEvent) => {
-      if (firstLoaded) return
+    // MapLibre adds the failed tile to a tile's error event, untyped.
+    const errorHandler = (event: MapLibreGL.ErrorEvent) => {
+      if (firstLoaded || Predicate.hasProperty(event, 'tile')) return
       clearTimeout(startupTimeout)
-      setStartupError(new Error(error.message, { cause: error }))
+      setStartupError(new Error(event.error.message, { cause: event.error }))
     }
 
     const styleLoadHandler = () => {

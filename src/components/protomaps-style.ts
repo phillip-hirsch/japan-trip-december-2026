@@ -1,19 +1,17 @@
 import { layers, namedFlavor } from '@protomaps/basemaps'
 import type { StyleSpecification } from 'maplibre-gl'
 
-import {
-  detailTilesMaxZoom,
-  detailTilesPath,
-} from '@/trip/detail-tiles/detail-tile-source'
+import { basemapTiles } from '@/map/basemap-tiles'
+import { detailTilesMaxZoom } from '@/trip/detail-tiles/detail-tile-source'
 
 const attribution =
   '<a href="https://github.com/protomaps/basemaps">Protomaps</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
 
 /**
  * Protomaps' dark style, with every request going to the app's own origin.
- * The Worker serves the Detail tiles, and the glyphs and sprites are static
- * files. Each label shows the English name, with the Japanese one beneath it
- * where the scripts differ.
+ * Its tiles come from the Overview map, then the Detail tiles the Worker
+ * serves, and the glyphs and sprites are static files. Each label shows the
+ * English name, with the Japanese one beneath it where the scripts differ.
  */
 export const protomapsDark = (origin: string): StyleSpecification => ({
   version: 8,
@@ -22,7 +20,7 @@ export const protomapsDark = (origin: string): StyleSpecification => ({
   sources: {
     protomaps: {
       type: 'vector',
-      tiles: [`${origin}${detailTilesPath}/{z}/{x}/{y}.mvt`],
+      tiles: [basemapTiles],
       maxzoom: detailTilesMaxZoom,
       attribution,
     },

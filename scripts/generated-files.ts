@@ -3,6 +3,7 @@
 export const generatedFiles = [
   'pnpm-lock.yaml',
   'public/map/**',
+  'public/overview.pmtiles',
   'src/routeTree.gen.ts',
   'src/trip/catalogue/rail-geometry.json',
   'worker-configuration.d.ts',

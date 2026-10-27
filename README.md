@@ -12,14 +12,14 @@ Four phases, in order. Spec: [issue #1](https://github.com/phillip-hirsch/japan-
 
 **Phase 3, bookings.** Not built. Activities, hotel details, stay edits, pins from map links, and a full-screen map.
 
-**Phase 4, offline.** In progress. The app installs to the iPhone Home Screen with its own name and icon. Pages link `public/manifest.webmanifest` with credentials, so the request carries the Access session. Reading the schedule, Today, checklist, notes, and a Japan map with no connection is not built yet.
+**Phase 4, offline.** In progress. The app installs to the iPhone Home Screen with its own name and icon. Pages link `public/manifest.webmanifest` with credentials, so the request carries the Access session. With no connection, the schedule, Today, the checklist and notes open from what the device kept. The map draws all of Japan offline from the Overview map, which ships with the app, with street detail wherever Phillip viewed it online.
 
 ## Stack
 
 - [TanStack Start](https://tanstack.com/start) and React 19. Routes in `src/routes`.
 - [Tailwind CSS](https://tailwindcss.com/) 4, dark only.
 - [Cloudflare Workers](https://developers.cloudflare.com/workers/). `cf dev`, `cf build`, and `cf deploy --prebuilt` read `cloudflare.config.ts`. Wrangler stays for live logs, single secrets, and types ([ADR 0005](docs/adr/0005-use-cf-cli-for-dev-and-build.md)). Entry is `src/server.ts`.
-- [MapLibre GL](https://maplibre.org/) with [Protomaps](https://protomaps.com/)' dark style. The Worker serves the Detail tiles from R2 behind Access, and the app hosts the glyphs, sprites and MapLibre worker itself.
+- [MapLibre GL](https://maplibre.org/) with [Protomaps](https://protomaps.com/)' dark style. The app ships the Overview map as a static archive. The Worker serves the Detail tiles from R2 behind Access, and the app hosts the glyphs, sprites and MapLibre worker itself.
 - [Effect](https://effect.website/) 4 for the Trip service and the Access gate. Tests use `@effect/vitest`.
 - [Vite+](https://viteplus.dev/) (`vp`).
 - shadcn/ui on Base UI.
@@ -38,19 +38,19 @@ vp run dev
 
 ### Map tiles
 
-The map's street detail, the Detail tiles, comes from one PMTiles archive in the Worker's R2 bucket (`DETAIL_TILES`, object `detail.pmtiles`). The Worker serves it tile by tile at `/tiles/detail/{z}/{x}/{y}.mvt`, after the Access gate. Glyphs and sprites are static files in `public/map`.
+The map draws zoom 0–8 from the Overview map, `public/overview.pmtiles`, a static file the service worker precaches and the map reads whole. Closer in, the street detail comes from the Detail tiles, one PMTiles archive in the Worker's R2 bucket (`DETAIL_TILES`, object `detail.pmtiles`). The Worker serves it tile by tile at `/tiles/detail/{z}/{x}/{y}.mvt`, after the Access gate. The service worker keeps each Detail tile once viewed, up to 200 MB in IndexedDB, dropping the least recently viewed first. Glyphs and sprites are static files in `public/map`, precached too.
 
 ```bash
-vp run build-map-tiles    # extracts into the git-ignored tiles/ (needs Go)
+vp run build-map-tiles    # extracts the Overview map and the Detail tiles (needs Go)
 vp run seed-local-tiles   # puts tiles/detail-local.pmtiles in the local bucket
 vp run build-map-assets   # refreshes public/map
 ```
 
 `build-map-tiles` reads the latest Protomaps daily build, or the build date you pass. It writes three extracts and prints their sizes:
 
-- `overview.pmtiles`: Japan, zoom 0–8.
-- `detail.pmtiles`: zoom 0–14, a 24 km box around every place in `src/trip/catalogue/places.ts`.
-- `detail-local.pmtiles`: a 4 km box around Tokyo Station.
+- `public/overview.pmtiles`: the Overview map, Japan to zoom 8, about 10 MB. Commit it.
+- `tiles/detail.pmtiles`: zoom 0–14, a 24 km box around every place in `src/trip/catalogue/places.ts`.
+- `tiles/detail-local.pmtiles`: a 4 km box around Tokyo Station.
 
 Run it again after adding a place. Locally, the map shows street detail only around Tokyo Station.
 

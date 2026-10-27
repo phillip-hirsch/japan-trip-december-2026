@@ -4,7 +4,12 @@
 import { NetworkOnly, Serwist } from 'serwist'
 import type { PrecacheEntry, RouteHandlerCallbackOptions } from 'serwist'
 
+import {
+  detailTileCache,
+  keptDetailTileBytes,
+} from '@/offline/detail-tile-cache'
 import { pageFile, shellHeaders, shellPath } from '@/offline/shell'
+import { detailTilesPath } from '@/trip/detail-tiles/detail-tile-source'
 
 declare const self: ServiceWorkerGlobalScope & {
   readonly __SW_MANIFEST: ReadonlyArray<PrecacheEntry | string>
@@ -46,7 +51,9 @@ const serwist = new Serwist({
 // A connection that hangs, as in a tunnel, counts as failed after a few
 // seconds, so the app opens from the precache instead of a blank screen. The
 // shell's own server-function reads still report a late login redirect.
-const network = new NetworkOnly({ networkTimeoutSeconds: 4 })
+const networkTimeoutSeconds = 4
+
+const network = new NetworkOnly({ networkTimeoutSeconds })
 
 /**
  * Asks the Worker for the SPA shell, so the page's data comes from server
@@ -84,5 +91,26 @@ const pageLoads = serwist.registerCapture(
 serwist.unregisterRoute(pageLoads)
 
 serwist.routes.get('GET')?.unshift(pageLoads)
+
+// The precache holds the Overview map, its style's glyphs and sprites, and
+// the bundled MapLibre worker. Detail tiles are kept only once viewed.
+const detailTiles = detailTileCache({
+  indexedDB: self.indexedDB,
+  network: (request) => fetch(request),
+  maxBytes: keptDetailTileBytes,
+  networkTimeoutMs: networkTimeoutSeconds * 1000,
+  now: () => Date.now(),
+})
+
+serwist.registerCapture(
+  ({ request, url }) =>
+    request.method === 'GET' &&
+    isAppPath(url) &&
+    url.pathname.startsWith(`${detailTilesPath}/`),
+  {
+    handle: ({ request, event }) =>
+      detailTiles.answer(request, (work) => event.waitUntil(work)),
+  },
+)
 
 serwist.addEventListeners()

@@ -1,7 +1,7 @@
 import { queryOptions } from '@tanstack/react-query'
 import type { QueryClient, QueryKey } from '@tanstack/react-query'
 
-import { keepLatestRead, readInOrder } from '@/trip/client/read-order'
+import { readInOrder } from '@/trip/client/read-order'
 import type { IsoDate } from '@/trip/domain/domain'
 import {
   getChecklist,
@@ -40,7 +40,6 @@ export const subscribeToQuery = (
 export const homeQuery = queryOptions({
   queryKey: keys.home,
   queryFn: readInOrder(() => getHome()),
-  structuralSharing: keepLatestRead,
   refetchOnMount: false,
 })
 
@@ -48,26 +47,23 @@ export const dayQuery = (date: IsoDate) =>
   queryOptions({
     queryKey: [...keys.days, date],
     queryFn: readInOrder(() => getDay({ data: { date } })),
-    structuralSharing: keepLatestRead,
     refetchOnMount: false,
   })
 
 export const schedulesQuery = queryOptions({
   queryKey: keys.schedules,
   queryFn: readInOrder(() => getSchedules()),
-  structuralSharing: keepLatestRead,
   refetchOnMount: false,
 })
 
 export const checklistQuery = queryOptions({
   queryKey: keys.checklist,
   queryFn: readInOrder(() => getChecklist()),
-  structuralSharing: keepLatestRead,
   refetchOnMount: false,
 })
 
 export const scheduleMapQuery = queryOptions({
   queryKey: keys.scheduleMap,
-  queryFn: () => getScheduleMap(),
+  queryFn: readInOrder(() => getScheduleMap()),
   refetchOnMount: false,
 })

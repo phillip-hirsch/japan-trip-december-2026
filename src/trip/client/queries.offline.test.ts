@@ -1,6 +1,12 @@
 // @vitest-environment happy-dom
 import { afterEach, assert, describe, it } from '@effect/vitest'
-import { focusManager, onlineManager, useQuery } from '@tanstack/react-query'
+import {
+  dehydrate,
+  focusManager,
+  hydrate,
+  onlineManager,
+  useQuery,
+} from '@tanstack/react-query'
 import { vi } from 'vite-plus/test'
 import { act } from 'react'
 
@@ -17,6 +23,7 @@ import {
 import {
   dayQuery,
   loadQuery,
+  scheduleMapQuery,
   schedulesQuery,
   useScheduleSnapshot,
 } from '@/trip/client/queries'
@@ -27,15 +34,22 @@ import {
 } from '@/trip/client/snapshot-testing'
 import { tripDates } from '@/trip/domain/calendar'
 import { december, WriteDayNoteOutcome } from '@/trip/domain/domain'
-import type { DayPage, IsoDate, ScheduleSnapshot } from '@/trip/domain/domain'
+import type {
+  DayPage,
+  IsoDate,
+  ScheduleMap,
+  ScheduleSnapshot,
+} from '@/trip/domain/domain'
 import {
   getDay,
+  getScheduleMap,
   getScheduleSnapshot,
   writeDayNote,
 } from '@/trip/trip/trip.functions'
 
 vi.mock('@/trip/trip/trip.functions', () => ({
   getDay: vi.fn(),
+  getScheduleMap: vi.fn(),
   getScheduleSnapshot: vi.fn(),
   writeDayNote: vi.fn(),
 }))
@@ -70,6 +84,23 @@ type App = Awaited<ReturnType<typeof openApp>>
 const storedDay = (app: App, date: IsoDate) =>
   app.queryClient.getQueryData(dayQuery(date).queryKey)
 
+/**
+ * The Schedule map of `snapshotWith`, told apart from others by its rail
+ * credit, `credit`.
+ */
+const mapWithCredit = (credit: string): ScheduleMap => ({
+  ...snapshotWith('Onsen at 18:00.').map,
+  railAttribution: credit,
+})
+
+const snapshotWithMapCredit = (credit: string): ScheduleSnapshot => ({
+  ...snapshotWith('Onsen at 18:00.'),
+  map: mapWithCredit(credit),
+})
+
+const storedMapCredit = (app: App) =>
+  app.queryClient.getQueryData(scheduleMapQuery.queryKey)?.railAttribution
+
 /** Saves a Day note on December 7, as Phillip does in its editor. */
 const saveDayNote = async (app: App) => {
   vi.mocked(writeDayNote).mockResolvedValue(
@@ -102,6 +133,20 @@ describe('the Schedule snapshot', () => {
         days: tripDates.map((date) => storedDay(app, date)),
       },
       { schedules: snapshot.schedules, days: snapshot.days },
+    )
+    await app.close()
+  })
+
+  it('stores the Schedule map, so Map opens offline though it never opened online', async () => {
+    const snapshot = snapshotWith('Onsen at 18:00.')
+    answerSnapshot(snapshot)
+    vi.mocked(getScheduleMap).mockImplementation(serverOutOfReach)
+    const app = await openApp()
+    loseConnection()
+
+    assert.deepStrictEqual(
+      await loadQuery(app.queryClient, scheduleMapQuery),
+      snapshot.map,
     )
     await app.close()
   })
@@ -162,6 +207,74 @@ describe('the Schedule snapshot', () => {
     assert.strictEqual(
       storedDay(app, december(14))?.day.note,
       'Written on another device.',
+    )
+    await app.close()
+  })
+
+  it('keeps a Schedule map read that started after the snapshot read, though the snapshot answers later', async () => {
+    const olderSnapshot = deferred<ScheduleSnapshot>()
+    vi.mocked(getScheduleSnapshot).mockImplementation(
+      () => olderSnapshot.promise,
+    )
+    const app = await openApp()
+    vi.mocked(getScheduleMap).mockImplementation(async () =>
+      mapWithCredit('Pin moved on another device.'),
+    )
+    await loadQuery(app.queryClient, scheduleMapQuery)
+
+    await act(async () =>
+      olderSnapshot.resolve(snapshotWithMapCredit('Pin where it was.')),
+    )
+    await settle()
+
+    assert.strictEqual(storedMapCredit(app), 'Pin moved on another device.')
+    await app.close()
+  })
+
+  it('keeps the Day a save stored over a server-rendered Day when the snapshot from before the save answers late', async () => {
+    const beforeSave = deferred<ScheduleSnapshot>()
+    vi.mocked(getScheduleSnapshot).mockImplementation(() => beforeSave.promise)
+    const app = await openApp()
+    // A Day the server rendered into the page arrives without its query's
+    // options, as a Day the device kept does.
+    const server = testQueryClient()
+    server.setQueryData(
+      dayQuery(december(14)).queryKey,
+      dayPage(december(14), 'Onsen at 17:00.'),
+    )
+    hydrate(app.queryClient, dehydrate(server))
+
+    answerSnapshot(snapshotWith('Onsen moved to 20:00.'))
+    await saveDayNote(app)
+    await act(async () => beforeSave.resolve(snapshotWith('Onsen at 18:00.')))
+    await settle()
+
+    assert.strictEqual(
+      storedDay(app, december(14))?.day.note,
+      'Onsen moved to 20:00.',
+    )
+    await app.close()
+  })
+
+  it('keeps the Schedule map it stored after a save when a read of the map from before the save answers late', async () => {
+    answerSnapshot(snapshotWithMapCredit('Pin where it was.'))
+    const app = await openApp()
+    const beforeSave = deferred<ScheduleMap>()
+    vi.mocked(getScheduleMap).mockImplementation(() => beforeSave.promise)
+    const preloaded = loadQuery(app.queryClient, scheduleMapQuery)
+
+    answerSnapshot(snapshotWithMapCredit('Pin moved.'))
+    await saveDayNote(app)
+    await act(async () =>
+      beforeSave.resolve(mapWithCredit('Pin where it was.')),
+    )
+
+    assert.deepStrictEqual(
+      {
+        loaded: (await preloaded).railAttribution,
+        stored: storedMapCredit(app),
+      },
+      { loaded: 'Pin moved.', stored: 'Pin moved.' },
     )
     await app.close()
   })

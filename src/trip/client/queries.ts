@@ -31,6 +31,7 @@ import {
   dayQuery,
   homeQuery,
   keys,
+  scheduleMapQuery,
   schedulesQuery,
   subscribeToQuery,
 } from '@/trip/client/queries.reads'
@@ -169,9 +170,9 @@ export const loadQuery = async <TData, TKey extends QueryKey>(
 
 /**
  * Stores `data`, which `read` answered, in the query of `options`, unless the
- * query holds an answer from a later read. It builds the query with its own
- * options first, so a query that never read on its own still checks the read
- * numbers.
+ * query holds an answer from a later read. Every query checks the read
+ * numbers through the client's defaults. It builds a missing query with its
+ * own options first.
  */
 const storeRead = <T, K extends QueryKey>(
   queryClient: QueryClient,
@@ -186,8 +187,9 @@ const storeRead = <T, K extends QueryKey>(
 }
 
 /**
- * Reads the Schedule snapshot, and stores the Schedules, every Day page and
- * the Checklist from it, skipping any already stored from a later read.
+ * Reads the Schedule snapshot, and stores the Schedules, every Day page, the
+ * Checklist and the Schedule map from it, skipping any already stored from a
+ * later read.
  */
 const readSnapshot = async (queryClient: QueryClient) => {
   const started = startRead()
@@ -200,21 +202,23 @@ const readSnapshot = async (queryClient: QueryClient) => {
   }
 
   storeRead(queryClient, checklistQuery, snapshot.checklist, read)
+  storeRead(queryClient, scheduleMapQuery, snapshot.map, read)
 
   return snapshot
 }
 
 const scheduleSnapshotQuery = queryOptions({
   queryKey: keys.scheduleSnapshot,
-  // The device keeps the Schedules, Days and Checklist the snapshot stores,
-  // so keeping the snapshot too would store a second copy.
+  // The device keeps the Schedules, Days, Checklist and map the snapshot
+  // stores, so keeping the snapshot too would store a second copy.
   meta: { kept: false },
   queryFn: ({ client }) => readSnapshot(client),
 })
 
 /**
- * Stores the Schedules, every Day page and the Checklist from the Schedule
- * snapshot, so any Day opens offline, even one never opened on this device.
+ * Stores the Schedules, every Day page, the Checklist and the Schedule map
+ * from the Schedule snapshot, so any Day and the map open offline, even ones
+ * never opened on this device.
  * They all come from one snapshot, except any stored from a later read. It reads
  * the snapshot after hydration, on focus and on reconnect, and every write
  * reads it too. It never re-renders its component.

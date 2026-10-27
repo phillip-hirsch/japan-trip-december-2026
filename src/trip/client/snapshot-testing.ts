@@ -32,6 +32,13 @@ export const snapshotWith = (dayNote: string): ScheduleSnapshot => {
     },
     days,
     checklist: { items: [] },
+    map: {
+      bases: [],
+      trainMoves: [],
+      dayTrips: [],
+      hotels: [],
+      activities: [],
+    },
   }
 }
 

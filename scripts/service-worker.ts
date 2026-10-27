@@ -5,6 +5,7 @@ import { injectManifest } from '@serwist/build'
 import { build } from 'vite-plus'
 import type { Plugin } from 'vite-plus'
 
+import { overviewMapPath } from '../src/map/overview-map.ts'
 import {
   serviceWorkerPath,
   shellHeaders,
@@ -37,8 +38,9 @@ const workerSource = path.resolve(
 /**
  * Builds the service worker after Start's prerender, so the shell exists
  * (ADR 0006). It bundles the worker on the Serwist runtime, then injects the
- * precache list: the hashed assets, the icons, the web manifest and the
- * shell. List it after
+ * precache list: the hashed assets, among them the MapLibre worker, the
+ * icons, the web manifest, the shell, and the map's Overview map archive,
+ * glyphs and sprites. List it after
  * `tanstackStart()` and `checkPrerenderedHtml()`, which checks the shell.
  */
 export const serviceWorker = (): Plugin => ({
@@ -80,10 +82,13 @@ export const serviceWorker = (): Plugin => ({
           '*.png',
           'manifest.webmanifest',
           '**/*.html',
+          'map/**/*.{pbf,json,png}',
+          overviewMapPath.slice(1),
         ],
         // Hashed file names already change with their content.
         dontCacheBustURLsMatching: /^assets\//,
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // The Overview map's archive is the largest file, about 10 MB.
+        maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
       })
 
       await rm(bundleDir, { recursive: true, force: true })

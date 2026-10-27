@@ -42,12 +42,16 @@ _Avoid_: marker, location, geotag
 The street-level map, up to zoom 14, in a box around every place in the catalogue: every Base and Day trip destination of the Schedule. The app serves them itself, and only to Phillip. Beyond the boxes, the map has no street detail.
 _Avoid_: city maps, map tiles
 
+**Overview map**:
+All of Japan, down to zoom 8, shipped with the app as one archive, so the map always draws offline. Closer in, the map draws the Detail tiles, and enlarges the Overview map where there are none. Offline, it has street detail only where Phillip viewed it online, because the device keeps each Detail tile once viewed, up to 200 MB, and drops the least recently viewed first.
+_Avoid_: base map, world map
+
 **Trip note**:
 Phillip's one plain-text note about the whole Trip, shown on the Schedule page.
 _Avoid_: general note, global note
 
 **Schedule snapshot**:
-The current Schedule read whole at one moment: every Day page, the Checklist with its Ticks, and the Schedule with every note and Hotel details. The app stores each of them from the last one it read and keeps them on the device, so the Schedule and any Day open offline. That includes a Day never opened there, even after the app has closed.
+The current Schedule read whole at one moment: every Day page, the Checklist with its Ticks, the Schedule with every note and Hotel details, and the Schedule on its map. The app stores each of them from the last one it read and keeps them on the device, so the Schedule, any Day and the map open offline. That includes a Day never opened there, even after the app has closed.
 _Avoid_: cache, dump, export
 
 **Day page**:
