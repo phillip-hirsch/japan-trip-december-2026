@@ -25,6 +25,28 @@ const emptyTile = () =>
     headers: { 'Cache-Control': 'private, max-age=300' },
   })
 
+/**
+ * A Detail tile of 10 bytes, each byte `fill`, whose body sends its first
+ * byte at once. After `ms` it sends the rest, or with `breaksOff` fails.
+ */
+const tileInParts = (fill: number, ms: number, breaksOff = false) =>
+  new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(1).fill(fill))
+        setTimeout(() => {
+          if (breaksOff) {
+            controller.error(new TypeError('The connection was lost'))
+          } else {
+            controller.enqueue(new Uint8Array(9).fill(fill))
+            controller.close()
+          }
+        }, ms)
+      },
+    }),
+    { headers: { 'Cache-Control': day } },
+  )
+
 type Answer = () => Response
 
 /**
@@ -212,6 +234,31 @@ describe('Detail tiles the device keeps', () => {
     network.goOffline()
 
     assert.strictEqual(await contentOf(await view(1)), 'tile 2')
+  })
+
+  it("answers a kept Detail tile past its max-age when the network's tile arrives slowly, then keeps the late answer", async () => {
+    const { network, view, advance } = freshDevice()
+    network.serve(tileUrl(1), () => tile(1))
+    await view(1)
+
+    network.serve(tileUrl(1), () => tileInParts(2, 60))
+    advance(24 * 60 * 60)
+    assert.strictEqual(await contentOf(await view(1)), 'tile 1')
+
+    network.goOffline()
+
+    assert.strictEqual(await contentOf(await view(1)), 'tile 2')
+  })
+
+  it("answers a kept Detail tile past its max-age when the network's tile breaks off", async () => {
+    const { network, view, advance } = freshDevice()
+    network.serve(tileUrl(1), () => tile(1))
+    await view(1)
+
+    network.serve(tileUrl(1), () => tileInParts(2, 5, true))
+    advance(24 * 60 * 60)
+
+    assert.strictEqual(await contentOf(await view(1)), 'tile 1')
   })
 
   it('drops the least recently viewed Detail tiles once they pass the cap', async () => {

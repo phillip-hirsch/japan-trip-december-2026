@@ -22,6 +22,12 @@ interface DetailTileCacheOptions {
  */
 type KeepAlive = (work: Promise<void>) => void
 
+/** A network answer with its whole body read. */
+interface NetworkAnswer {
+  readonly response: Response
+  readonly body: ArrayBuffer
+}
+
 /** A Detail tile as the device keeps it. */
 interface KeptTile {
   readonly status: number
@@ -184,15 +190,18 @@ export const detailTileCache = (options: DetailTileCacheOptions) => {
     return kept
   }
 
-  /** Keeps `response` at `url`, then drops the least recently viewed past the cap. */
-  const keep = async (url: string, response: Response) => {
+  /**
+   * Keeps `response`, whose body is `body`, at `url`, then drops the least
+   * recently viewed past the cap.
+   */
+  const keep = async (url: string, { response, body }: NetworkAnswer) => {
     const cacheControl = response.headers.get('Cache-Control')
 
     const tile: KeptTile = {
       status: response.status,
       contentType: response.headers.get('Content-Type'),
       cacheControl,
-      bytes: await response.arrayBuffer(),
+      bytes: body,
       maxAgeEndsAt: now() + maxAgeSeconds(cacheControl) * 1000,
     }
 
@@ -236,20 +245,26 @@ export const detailTileCache = (options: DetailTileCacheOptions) => {
       return responseOf(kept)
     }
 
-    const fromNetwork = network(request)
+    // The answer arrives only once its body has, so a body that breaks off
+    // fails the answer, and one that stalls counts against the timeout.
+    // Reading a copy leaves the original whole for the page.
+    const fromNetwork = network(request).then(
+      async (response): Promise<NetworkAnswer> => ({
+        response,
+        body: await response.clone().arrayBuffer(),
+      }),
+    )
 
-    // This runs before the page reads the answer, so it copies the body while
-    // the body is still unread.
     keepAlive(
       fromNetwork
-        .then((response) =>
-          keepable(response) ? keep(request.url, response.clone()) : undefined,
+        .then((answered) =>
+          keepable(answered.response) ? keep(request.url, answered) : undefined,
         )
         .catch(() => {}),
     )
 
     try {
-      const response = await (kept === undefined
+      const { response } = await (kept === undefined
         ? fromNetwork
         : within(fromNetwork, networkTimeoutMs))
 
