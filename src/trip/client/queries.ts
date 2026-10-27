@@ -170,9 +170,9 @@ export const loadQuery = async <TData, TKey extends QueryKey>(
 
 /**
  * Stores `data`, which `read` answered, in the query of `options`, unless the
- * query holds an answer from a later read. It builds the query with its own
- * options first, so a query that never read on its own still checks the read
- * numbers.
+ * query holds an answer from a later read. Every query checks the read
+ * numbers through the client's defaults. It builds a missing query with its
+ * own options first.
  */
 const storeRead = <T, K extends QueryKey>(
   queryClient: QueryClient,

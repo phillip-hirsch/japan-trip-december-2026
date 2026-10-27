@@ -8,6 +8,7 @@ import {
   subscribeToConnection,
 } from '@/access/connection-status'
 import { keepCacheOnDevice } from '@/trip/client/device-cache'
+import { keepLatestRead } from '@/trip/client/read-order'
 
 /**
  * Refetches on more returns than TanStack Query notices alone. There is no
@@ -77,8 +78,16 @@ export const pageHydrateOptions = (
  * Offline, a page opens on stored data, such as a Day the Schedule snapshot
  * filled but never shown. So the cache keeps unused queries, however long the
  * app stays open.
+ *
+ * Every query keeps to the read order, including one the device kept or the
+ * server rendered, which holds only these defaults until it reads on its own.
+ * So a late read never rolls back a newer answer, wherever the query came
+ * from.
  */
-export const queryDefaults = { gcTime: Infinity } as const
+export const queryDefaults = {
+  gcTime: Infinity,
+  structuralSharing: keepLatestRead,
+} as const
 
 export const createQueryClient = () => {
   const queryClient = new QueryClient({

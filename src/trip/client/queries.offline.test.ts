@@ -1,6 +1,12 @@
 // @vitest-environment happy-dom
 import { afterEach, assert, describe, it } from '@effect/vitest'
-import { focusManager, onlineManager, useQuery } from '@tanstack/react-query'
+import {
+  dehydrate,
+  focusManager,
+  hydrate,
+  onlineManager,
+  useQuery,
+} from '@tanstack/react-query'
 import { vi } from 'vite-plus/test'
 import { act } from 'react'
 
@@ -222,6 +228,31 @@ describe('the Schedule snapshot', () => {
     await settle()
 
     assert.strictEqual(storedMapCredit(app), 'Pin moved on another device.')
+    await app.close()
+  })
+
+  it('keeps the Day a save stored over a server-rendered Day when the snapshot from before the save answers late', async () => {
+    const beforeSave = deferred<ScheduleSnapshot>()
+    vi.mocked(getScheduleSnapshot).mockImplementation(() => beforeSave.promise)
+    const app = await openApp()
+    // A Day the server rendered into the page arrives without its query's
+    // options, as a Day the device kept does.
+    const server = testQueryClient()
+    server.setQueryData(
+      dayQuery(december(14)).queryKey,
+      dayPage(december(14), 'Onsen at 17:00.'),
+    )
+    hydrate(app.queryClient, dehydrate(server))
+
+    answerSnapshot(snapshotWith('Onsen moved to 20:00.'))
+    await saveDayNote(app)
+    await act(async () => beforeSave.resolve(snapshotWith('Onsen at 18:00.')))
+    await settle()
+
+    assert.strictEqual(
+      storedDay(app, december(14))?.day.note,
+      'Onsen moved to 20:00.',
+    )
     await app.close()
   })
 
