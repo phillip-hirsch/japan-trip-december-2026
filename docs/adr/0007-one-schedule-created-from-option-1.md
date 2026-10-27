@@ -11,4 +11,4 @@ Phillip settled on Option 1, so the app keeps exactly one Schedule and no longer
 ## Consequences
 
 - The catalogue holds only the places, stations and lines the Schedule uses, so changing a Stay's Base offers only those. A new Base needs a coding agent to add it to the catalogue.
-- A migration drops the columns only choosing used (status, source Option number and content version, chosen and archived times, Birthday outline). The Birthday outline becomes the December 15 Day note of a newly created Schedule.
+- A migration drops the columns only choosing used (status, source Option number and content version, chosen and archived times, Birthday outline). The Birthday outline becomes the December 15 Day note: the migration writes it into the existing Schedule when that note is empty, and store start writes it into a newly created one.

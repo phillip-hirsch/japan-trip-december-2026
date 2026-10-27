@@ -16,7 +16,7 @@ import {
 import { Itinerary } from '@/trip/itinerary/Itinerary'
 import { option1 } from '@/trip/itinerary/option-1'
 import { migrations } from '@/trip/schedule-store/migrations'
-import { testTrip } from '@/trip/trip/testing'
+import { operation, testTrip } from '@/trip/trip/testing'
 import { copyOf, Trip } from '@/trip/trip/Trip'
 import { startStore } from '@/trip/trip-store/store-start'
 
@@ -151,6 +151,17 @@ const startedAfter = (
     Layer.provideMerge(SqliteClient.layer({ filename: ':memory:' })),
   )
 
+/** An Activity Phillip added before the migration, recorded as operation 1. */
+const recordedActivityId = 'b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e'
+
+const activityRecordedAsShipped = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient
+  yield* sql`INSERT INTO operations ${sql.insert({
+    id: operation(1),
+    result: JSON.stringify({ activityId: recordedActivityId }),
+  })}`
+})
+
 const entered: Entered = {
   kyotoHotel: 'Hotel Kanra Kyoto',
   kyotoNote: 'Ask for a quiet room.',
@@ -271,5 +282,34 @@ describe('Migrating to one Schedule', () => {
         ),
       ]),
     ),
+  )
+
+  it.effect(
+    'returns the result recorded before the migration when the operation repeats, writing nothing',
+    () =>
+      Effect.gen(function* () {
+        const before = yield* whatPhillipSees
+
+        const replayed = yield* Trip.use((trip) =>
+          trip.addActivity({
+            operationId: operation(1),
+            date: december(14),
+            title: 'Walk Gion',
+          }),
+        )
+
+        assert.deepStrictEqual(replayed, { activityId: recordedActivityId })
+        assert.deepStrictEqual(yield* whatPhillipSees, before)
+      }).pipe(
+        Effect.provide([
+          testTrip,
+          startedAfter(
+            Effect.andThen(
+              insertScheduleAsShipped(currentId, 'current', entered),
+              activityRecordedAsShipped,
+            ),
+          ),
+        ]),
+      ),
   )
 })
