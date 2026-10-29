@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 
 import { assert, describe, it } from '@effect/vitest'
-import { Predicate, SchemaRepresentation } from 'effect'
+import { Predicate, Schema, SchemaRepresentation } from 'effect'
 import { vi } from 'vite-plus/test'
 
 import { keptDataVersion } from '@/trip/client/device-cache'
@@ -41,15 +41,20 @@ const notKept = [keys.scheduleSnapshot]
 
 // The fingerprint of the kept data at each keptDataVersion. Add one entry per
 // bump, and never change an older entry.
-const fingerprints = new Map([[5, 'c5aeb099d3c8bcdb']])
+const fingerprints = new Map([[5, '3a40feb6f58b5e7e']])
 
 /**
- * A hash of every kept query's key and of the full schema of its data, type
- * and encoding, with checks and annotations. A documentation change moves it
- * too; bumping for one is harmless, since the app only reads the data again.
+ * A hash of every kept query's key and of the full schema of its data, with
+ * checks and annotations. The device keeps the decoded data, which a schema's
+ * representation alone leaves out, so the type side counts too. A
+ * documentation change moves it as well; bumping for one is harmless, since
+ * the app only reads the data again.
  */
 const keptDataFingerprint = () => {
-  const [first, ...rest] = keptQueries.map(({ data }) => data.ast)
+  const [first, ...rest] = keptQueries.flatMap(({ data }) => [
+    data.ast,
+    Schema.toType(data).ast,
+  ])
 
   const schemas = SchemaRepresentation.toRepresentations([first, ...rest])
 
