@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 
 import { assert, describe, it } from '@effect/vitest'
+import type { DataTag, QueryKey } from '@tanstack/react-query'
 import { Predicate, Schema, SchemaRepresentation } from 'effect'
 import { vi } from 'vite-plus/test'
 
@@ -15,7 +16,7 @@ import {
 } from '@/trip/client/queries'
 import {
   Checklist,
-  DayOutcome,
+  DayPage,
   december,
   HomeState,
   ScheduleMap,
@@ -25,23 +26,30 @@ import {
 // The queries' keys are all this reads; the transport needs the Worker.
 vi.mock('@/trip/trip/trip.functions', () => ({}))
 
-// Each query the device keeps, with the schema of the data it holds: the
-// result of the Trip store operation it reads. A Day query holds the page of
-// DayOutcome's Day case.
+/**
+ * A query the device keeps, with the schema of the data it holds. The schema's
+ * type must fit the query's data, so a query that comes to hold more than its
+ * schema says fails the typecheck: data kept before would lack the new part.
+ */
+const kept = <TData>(
+  query: { readonly queryKey: DataTag<QueryKey, TData, Error> },
+  data: Schema.Top & { readonly Type: NoInfer<TData> },
+) => ({ key: query.queryKey, data })
+
 const keptQueries = [
-  { key: homeQuery.queryKey, data: HomeState },
-  { key: dayQuery(december(14)).queryKey, data: DayOutcome },
-  { key: schedulesQuery.queryKey, data: Schedules },
-  { key: checklistQuery.queryKey, data: Checklist },
-  { key: scheduleMapQuery.queryKey, data: ScheduleMap },
-] as const
+  kept(homeQuery, HomeState),
+  kept(dayQuery(december(14)), DayPage),
+  kept(schedulesQuery, Schedules),
+  kept(checklistQuery, Checklist),
+  kept(scheduleMapQuery, ScheduleMap),
+]
 
 // Queries marked `meta: { kept: false }`, which the device never keeps.
 const notKept = [keys.scheduleSnapshot]
 
 // The fingerprint of the kept data at each keptDataVersion. Add one entry per
 // bump, and never change an older entry.
-const fingerprints = new Map([[5, '3a40feb6f58b5e7e']])
+const fingerprints = new Map([[5, 'd88a0a0526efe4d5']])
 
 /**
  * A hash of every kept query's key and of the full schema of its data, with

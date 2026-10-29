@@ -43,6 +43,9 @@ export const browserFiles = [
   'src/map/**',
   'src/offline/**',
   'src/router.tsx',
+  'src/start.ts',
+  'src/access/connection-status.ts',
+  'src/access/server-fn-fetch.ts',
 ]
 
 /** Tests and their helpers run in Node, so they may import anything. */

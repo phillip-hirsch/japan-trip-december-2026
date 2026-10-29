@@ -158,13 +158,17 @@ cloudflare.config.ts is the source: dev, build and deploy read it. Make the chan
       )
     }
 
+    // A checkout with core.autocrlf gives the committed file CRLF line
+    // endings; wrangler writes LF.
+    const lf = (text: string) => text.replaceAll('\r\n', '\n')
+
     // The header records the command, which names the output file.
-    const fresh = readFileSync(freshFile, 'utf8').replace(
+    const fresh = lf(readFileSync(freshFile, 'utf8')).replace(
       `running \`wrangler types ${freshFile}\``,
       'running `wrangler types`',
     )
 
-    const committed = readFileSync(typesFile, 'utf8')
+    const committed = lf(readFileSync(typesFile, 'utf8'))
 
     if (fresh !== committed) {
       const freshLines = fresh.split('\n')
