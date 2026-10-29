@@ -22,12 +22,17 @@ const repoRoot = fileURLToPath(new URL('..', import.meta.url))
 
 const repoFile = (name: string) => readFileSync(join(repoRoot, name), 'utf8')
 
+const wranglerBin = join(repoRoot, 'node_modules/wrangler/bin/wrangler.js')
+
 const run = (cwd: string) =>
   spawnSync(process.execPath, [checker], { cwd, encoding: 'utf8' })
 
-// A throwaway project holding the repository's Cloudflare files, with any of
-// them replaced. cloudflare.config.ts becomes the plain object the repository's
-// config builds, so it needs no packages installed.
+// A throwaway project holding the repository's Cloudflare config files, with
+// either replaced. cloudflare.config.ts becomes the plain object the
+// repository's config builds, so it needs no packages installed. Its
+// worker-configuration.d.ts is what `wrangler types` writes there, before any
+// replacement: the output can differ by environment, such as in a sandbox, and
+// the repository's own file is checked by the first test.
 const project = (
   replace: {
     readonly wrangler?: (jsonc: string) => string
@@ -39,7 +44,6 @@ const project = (
   onTestFinished(() => rmSync(dir, { recursive: true, force: true }))
 
   const wrangler = repoFile('wrangler.jsonc')
-  const types = repoFile('worker-configuration.d.ts')
 
   mkdirSync(join(dir, 'src'))
   writeFileSync(join(dir, 'src/server.ts'), 'export class TripStore {}\n')
@@ -54,10 +58,19 @@ const project = (
     replace.wrangler ? replace.wrangler(wrangler) : wrangler,
   )
 
-  writeFileSync(
-    join(dir, 'worker-configuration.d.ts'),
-    replace.types ? replace.types(types) : types,
-  )
+  const typesFile = join(dir, 'worker-configuration.d.ts')
+
+  const typegen = spawnSync(process.execPath, [wranglerBin, 'types'], {
+    cwd: dir,
+    encoding: 'utf8',
+    env: { ...process.env, WRANGLER_SEND_METRICS: 'false' },
+  })
+
+  assert.strictEqual(typegen.status, 0, typegen.stderr)
+
+  if (replace.types) {
+    writeFileSync(typesFile, replace.types(readFileSync(typesFile, 'utf8')))
+  }
 
   return dir
 }
