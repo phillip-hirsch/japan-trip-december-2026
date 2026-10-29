@@ -11,6 +11,7 @@ import {
   shellHeaders,
   shellPath,
 } from '../src/offline/shell.ts'
+import { checkClientBundle } from './check-client-bundle.ts'
 import { clientOutDir } from './prerender.ts'
 
 /**
@@ -58,6 +59,7 @@ export const serviceWorker = (): Plugin => ({
         configFile: false,
         logLevel: 'warn',
         resolve: { tsconfigPaths: true },
+        plugins: [checkClientBundle()],
         // Serwist reads it, and a worker has no `process`.
         define: { 'process.env.NODE_ENV': JSON.stringify('production') },
         build: {

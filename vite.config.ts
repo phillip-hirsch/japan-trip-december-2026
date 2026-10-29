@@ -8,11 +8,18 @@ import { cloudflare } from '@cloudflare/vite-plugin'
 import tailwindcss from '@tailwindcss/vite'
 import viteReact from '@vitejs/plugin-react'
 
+import { checkClientBundle } from './scripts/check-client-bundle.ts'
 import { checkPrerenderedHtml } from './scripts/prerender.ts'
 
 import { generatedFiles } from './scripts/generated-files.ts'
 import { serviceWorker, shellPage } from './scripts/service-worker.ts'
 
+import {
+  browserFileExceptions,
+  browserFiles,
+  browserRestrictedImports,
+  restrictedImports,
+} from './tools/oxlint/repo/restricted-imports.ts'
 import effectTsconfig from './tsconfig.effect.json' with { type: 'json' }
 
 // tsconfig.effect.json is the single Effect diagnostics policy. The patched tsc
@@ -74,6 +81,7 @@ const config = defineConfig({
         name: 'anti-slop-effect',
         specifier: './tools/oxlint/anti-slop/effect/index.ts',
       },
+      { name: 'repo', specifier: './tools/oxlint/repo/index.ts' },
     ],
     ignorePatterns: [...agentToolingIgnores, 'worker-configuration.d.ts'],
     rules: {
@@ -103,7 +111,18 @@ const config = defineConfig({
       'anti-slop-effect/no-manual-tagged-construction': 'error',
       'anti-slop-effect/no-service-constructor-imports': 'error',
       'anti-slop-effect/prefer-effect-match': 'error',
+      'repo/no-split-module-entry-import': 'error',
+      'no-restricted-imports': ['error', restrictedImports],
     },
+    overrides: [
+      {
+        files: browserFiles,
+        excludeFiles: browserFileExceptions,
+        rules: {
+          'no-restricted-imports': ['error', browserRestrictedImports],
+        },
+      },
+    ],
     options: { typeAware: true, typeCheck: true },
   },
   resolve: { tsconfigPaths: true },
@@ -141,6 +160,7 @@ const config = defineConfig({
         },
       }),
       viteReact({ compiler: true }),
+      checkClientBundle(),
       checkPrerenderedHtml(),
       serviceWorker(),
     ]

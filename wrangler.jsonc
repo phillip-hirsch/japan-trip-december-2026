@@ -28,6 +28,10 @@
     "ACCESS_AUD": "4a42be9cb2b73a1d0fec42fcf0e6523227a9e4a988fffd69b689b012cfebdf16",
     "ACCESS_ALLOWED_EMAIL": "phillip@350home.com",
   },
+  // Matches bindings.secret() in cloudflare.config.ts. Declaring it here also
+  // keeps `wrangler types` from reading .dev.vars, so the types don't depend
+  // on a local file.
+  "secrets": { "required": ["ACCESS_DEV_SIMULATION"] },
   // Matches worker.access.dev in cloudflare.config.ts. Wrangler reads this
   // file; cf dev reads cloudflare.config.ts. The gate uses ctx.access only
   // when .dev.vars sets ACCESS_DEV_SIMULATION, which production never does.

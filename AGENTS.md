@@ -51,6 +51,24 @@ release. Add a tool name to select part of the graph. For example, run
 - `vp check` must pass before considering tasks completed.
 - `vp run typecheck` and `vp test` must also pass. Effect diagnostics follow the policy in `tsconfig.effect.json` and surface in both gates: `vp check` lints with the `@effect/tsgo`-patched Oxlint, whose `effecttsgo/*` rule severities `vite.config.ts` derives from that file, and `vp run typecheck` runs the patched `tsc` (the `prepare` script applies both patches). Change a severity only in `tsconfig.effect.json`. Error-severity Effect diagnostics fail the gates; warnings and suggestions print without failing — do not ignore new ones. The Oxlint patch only applies when `@effect/tsgo` supports the exact `oxlint`/`oxlint-tsgolint` versions `vite-plus` pins (see its README "Supported Package Versions") — bump them together.
 - Use `vp test` for the built-in Vite+ test command and `vp run test` when you specifically need the `test` package script.
+- CI (`.github/workflows/ci.yml`) runs these three gates and `vp run build` on every pull request and push to `main`. Run `vp run build` too after changing what browser code imports.
+
+## Enforced rules
+
+These rules fail a gate, and each failure names its fix. Follow the message.
+
+| Rule                                                                                                                          | Enforced by                                                                                                                                                                                                                 | Gate                       |
+| ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| Browser code value-imports only `Predicate`, `Data` and `Match` from `effect`, and `import type` from `@/trip/domain/domain*` | `no-restricted-imports` for browser files (`tools/oxlint/repo/restricted-imports.ts`); for imports through a shared module, `checkClientBundle` (`scripts/check-client-bundle.ts`) on the client and service worker bundles | `vp check`; `vp run build` |
+| No Radix-based components and no `sonner`                                                                                     | `no-restricted-imports`                                                                                                                                                                                                     | `vp check`                 |
+| Nav marks the current page with Link's `activeOptions`/`activeProps`, not `useMatchRoute`                                     | `no-restricted-imports`                                                                                                                                                                                                     | `vp check`                 |
+| A split module's sibling never imports its entry                                                                              | `repo/no-split-module-entry-import` (`tools/oxlint/repo/`)                                                                                                                                                                  | `vp check`                 |
+| `keptDataVersion` is bumped when a kept query's key or data shape changes                                                     | `src/trip/client/kept-data-version.test.ts`                                                                                                                                                                                 | `vp test`                  |
+| `wrangler.jsonc` matches `cloudflare.config.ts`, and `worker-configuration.d.ts` matches `vp run cf-typegen`                  | `scripts/check-cloudflare-config.ts`                                                                                                                                                                                        | `vp test`                  |
+| The display font holds exactly `src/fonts/display-strings.ts` plus ASCII                                                      | `scripts/check-display-font.ts`                                                                                                                                                                                             | `vp test`                  |
+| `effect`, `@effect/vitest` and every `@effect/sql-*` driver share one exact version                                           | `scripts/check-effect-versions.ts`                                                                                                                                                                                          | `vp test`                  |
+
+A new rule that code can check belongs in this table, enforced by the highest of: a type, a lint rule or build check whose message names the fix, then a test. Keep prose for rules that need judgment.
 
 ## Project Snapshot
 
@@ -86,10 +104,6 @@ Before writing any Effect code, first read `node_modules/effect/AGENTS.md`
 If you need to learn more about particular Effect apis and concepts that the
 guide doesn't cover, search through the source code in `node_modules/effect/src`.
 
-### Effect in the browser
-
-Browser code may value-import only `Predicate`, `Data` and `Match` from `effect`, and must use `import type` for `@/trip/domain/domain`. Keep `Schema`, `SchemaParser`, `Effect` and the rest server-only: Schema plus the Effect runtime costs about 75 KB gzip ([research](docs/research/effect-v4.md)); Predicate, Data and Match are small and runtime-free.
-
 ### Imports
 
 Import from `src/` with the `@/` alias (`@/routes/...` for `src/routes/...`).
@@ -100,38 +114,30 @@ Import from `src/` with the `@/` alias (`@/routes/...` for `src/routes/...`).
 
 ### Splitting a module
 
-A module over the pre-commit token limit splits into `<Module>.<area>.ts` siblings by Trip area: Itinerary, Schedule, Stays, Notes, Checklist, Activities and Detail tiles. One more sibling holds the pieces several areas share. The Trip service also keeps the checks its writes share in `Trip.guards.ts`, and its whole interface, every method with its doc comment, in `Trip.contract.ts`. The original path stays the entry point. It re-exports every sibling and keeps any area too small for its own file. Other modules import only the entry. Siblings import each other but never the entry, because that cycle fails when the modules load.
+A module over the pre-commit token limit splits into `<Module>.<area>.ts` siblings by Trip area: Itinerary, Schedule, Stays, Notes, Checklist, Activities and Detail tiles. One more sibling holds the pieces several areas share. The Trip service also keeps the checks its writes share in `Trip.guards.ts`, and its whole interface, every method with its doc comment, in `Trip.contract.ts`. The original path stays the entry point. It re-exports every sibling and keeps any area too small for its own file. Other modules import only the entry.
 
 ### Trip writes
 
 Every Trip write to the Schedule store is its own input checks plus one call to the Schedule-write unit in `src/trip/trip/Trip.guards.ts`: `scheduleWrite`, which hands the write the Schedule's id, or `tripWrite` for a write to the Trip itself, such as the Trip note. A write's input names only what it changes, such as a Day, Stay or Activity; the unit supplies the one Schedule. In one transaction, which the unit owns, it replays a repeated operation id, runs the write and records its result. It turns storage failures into defects. Its target declares once whether it takes an operation id. `Trip.schedule-writes.test.ts` covers replay for every write that takes one, so feature tests leave replay to it.
 
-### Kept data version
-
-The browser keeps the Query cache on the device across sessions (`src/trip/client/device-cache.ts`). When a change alters a query's key or the shape of the data it holds, bump `keptDataVersion` in that file, so the app discards what an older version kept instead of reading it.
-
 ### Cloudflare bindings
 
-Dev and build use `cf dev` and `cf build`, which read `cloudflare.config.ts`. Deploy is `cf build`, then `cf deploy --prebuilt --mode production` ([ADR 0005](docs/adr/0005-use-cf-cli-for-dev-and-build.md)). `wrangler.jsonc` stays for `wrangler tail`, `wrangler secret put`, and `wrangler types`. Keep the two files in step. `worker-configuration.d.ts` is generated: run `vp run cf-typegen` after a `wrangler.jsonc` change and commit the result. Server code reads the typed environment with `import { env } from 'cloudflare:workers'`.
+Dev and build use `cf dev` and `cf build`, which read `cloudflare.config.ts`. Deploy is `cf build`, then `cf deploy --prebuilt --mode production` ([ADR 0005](docs/adr/0005-use-cf-cli-for-dev-and-build.md)). `wrangler.jsonc` stays for `wrangler tail`, `wrangler secret put`, and `wrangler types`. Server code reads the typed environment with `import { env } from 'cloudflare:workers'`.
 
 ### Japanese display font
 
-Shippori Mincho is subset to the curated strings in `src/fonts/display-strings.ts` plus ASCII. Render those strings with `DisplayJa`; any other Japanese text stays in the system font. After changing the list, run `vp run subset-display-font` (needs `uv`) and commit the regenerated woff2. The Home Screen icons draw 日本 from that font, so keep it in the list, and after re-subsetting also run `vp run build-app-manifest` and commit its output.
+Shippori Mincho is subset to the curated strings in `src/fonts/display-strings.ts` plus ASCII. Render those strings with `DisplayJa`; any other Japanese text stays in the system font. The Home Screen icons draw 日本 from that font, so keep it in the list.
 
 ### UI components
 
-shadcn/ui components in `src/components/ui/` are owned code on Base UI (vega preset). Never add Radix-based components or `sonner`; use the `toast` component for notifications.
+shadcn/ui components in `src/components/ui/` are owned code on Base UI (vega preset).
 
 Router integration (Base UI, so no `asChild`):
 
 - To make a Base UI component navigate, pass a router `Link` as its `render` prop, e.g. `<SidebarMenuButton render={<Link to="/" />}>`.
 - For a link styled as a button, use `ButtonLink` (`src/components/button-link.tsx`, built with `createLink`) rather than `Button`, which renders a `<button>`.
-- Navigation entries live once in `src/components/app-nav.tsx`, shared by the tab bar and the sidebar. Mark the current page with Link's own active state (`activeOptions`/`activeProps`), not a separate `useMatchRoute` check.
+- Navigation entries live once in `src/components/app-nav.tsx`, shared by the tab bar and the sidebar.
 - Dialogs, sheets and toasts portal to `body` above the `isolate` app root; don't add a portal-root element or a theme provider (the app is dark-only).
-
-### Pinning
-
-`effect`, `@effect/vitest` and every Effect SQL driver share one exact version, bumped together. `@effect/tsgo` is versioned independently, against the TypeScript and Oxlint versions it supports.
 
 ## Testing
 
@@ -142,7 +148,7 @@ Tests are colocated with the modules they exercise (`*.test.ts` under `src/`), w
 - Build the module under test for real; substitute only its dependencies (the Itinerary, Clock, SQL client, configuration, key-set transport, link resolver, Detail tiles archive) through layers or `Effect.provideService`.
 - Read state back through the seam; tables, internal helpers and component internals stay uninspected.
 
-Scripts under `scripts/` are the exception. Their tests run the script as its own process against temporary inputs (for the pre-commit size check, a throwaway Git repository) and assert only on its exit status and output.
+Scripts under `scripts/` are the exception. Their tests run the script as its own process against temporary inputs (for the pre-commit size check, a throwaway Git repository) and assert only on its exit status and output. Each check script's test also runs it on the repository itself, which is how `vp test` enforces it. `kept-data-version.test.ts` is likewise a guard on a recorded fingerprint, not a behaviour test.
 
 ## Agent skills
 
