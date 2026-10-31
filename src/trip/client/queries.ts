@@ -43,6 +43,7 @@ export {
   checklistQuery,
   dayQuery,
   homeQuery,
+  keys,
   scheduleMapQuery,
   schedulesQuery,
   subscribeToQuery,

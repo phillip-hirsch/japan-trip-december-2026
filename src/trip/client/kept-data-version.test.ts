@@ -1,0 +1,110 @@
+import { createHash } from 'node:crypto'
+
+import { assert, describe, it } from '@effect/vitest'
+import type { DataTag, QueryKey } from '@tanstack/react-query'
+import { Predicate, Schema, SchemaRepresentation } from 'effect'
+import { vi } from 'vite-plus/test'
+
+import { keptDataVersion } from '@/trip/client/device-cache'
+import {
+  checklistQuery,
+  dayQuery,
+  homeQuery,
+  keys,
+  scheduleMapQuery,
+  schedulesQuery,
+} from '@/trip/client/queries'
+import {
+  Checklist,
+  DayPage,
+  december,
+  HomeState,
+  ScheduleMap,
+  Schedules,
+} from '@/trip/domain/domain'
+
+// The queries' keys are all this reads; the transport needs the Worker.
+vi.mock('@/trip/trip/trip.functions', () => ({}))
+
+/**
+ * A query the device keeps, with the schema of the data it holds. The schema's
+ * type must fit the query's data, so a query that comes to hold more than its
+ * schema says fails the typecheck: data kept before would lack the new part.
+ */
+const kept = <TData>(
+  query: { readonly queryKey: DataTag<QueryKey, TData, Error> },
+  data: Schema.Top & { readonly Type: NoInfer<TData> },
+) => ({ key: query.queryKey, data })
+
+const keptQueries = [
+  kept(homeQuery, HomeState),
+  kept(dayQuery(december(14)), DayPage),
+  kept(schedulesQuery, Schedules),
+  kept(checklistQuery, Checklist),
+  kept(scheduleMapQuery, ScheduleMap),
+]
+
+// Queries marked `meta: { kept: false }`, which the device never keeps.
+const notKept = [keys.scheduleSnapshot]
+
+// The fingerprint of the kept data at each keptDataVersion. Add one entry per
+// bump, and never change an older entry.
+const fingerprints = new Map([[5, 'd88a0a0526efe4d5']])
+
+/**
+ * A hash of every kept query's key and of the full schema of its data, with
+ * checks and annotations. The device keeps the decoded data, which a schema's
+ * representation alone leaves out, so the type side counts too. A
+ * documentation change moves it as well; bumping for one is harmless, since
+ * the app only reads the data again.
+ */
+const keptDataFingerprint = () => {
+  const [first, ...rest] = keptQueries.flatMap(({ data }) => [
+    data.ast,
+    Schema.toType(data).ast,
+  ])
+
+  const schemas = SchemaRepresentation.toRepresentations([first, ...rest])
+
+  const json = JSON.stringify(
+    { keys: keptQueries.map(({ key }) => key), schemas },
+    (_key, value) =>
+      Predicate.isFunction(value) || Predicate.isSymbol(value)
+        ? String(value)
+        : value,
+  )
+
+  return createHash('sha256').update(json).digest('hex').slice(0, 16)
+}
+
+describe('keptDataVersion', () => {
+  it('covers every query, kept or not', () => {
+    const covered = [...keptQueries.map(({ key }) => key), ...notKept]
+      .map(([root]) => root)
+      .sort()
+
+    assert.deepStrictEqual(
+      covered,
+      Object.values(keys)
+        .map(([root]) => root)
+        .sort(),
+      'Every query key in src/trip/client/queries.reads.ts must appear in keptQueries in this file, with the schema of the data it holds, or in notKept if it has meta: { kept: false }.',
+    )
+  })
+
+  it('names the shape of the data the device keeps', () => {
+    const fingerprint = keptDataFingerprint()
+    const recorded = fingerprints.get(keptDataVersion)
+
+    const fix =
+      recorded === undefined
+        ? `Add [${keptDataVersion}, '${fingerprint}'] to fingerprints in this file.`
+        : `Bump keptDataVersion in src/trip/client/device-cache.ts to ${keptDataVersion + 1}, so the app discards what an older version kept instead of reading it, and add [${keptDataVersion + 1}, '${fingerprint}'] to fingerprints in this file. Leave the older entries as they are.`
+
+    assert.strictEqual(
+      fingerprint,
+      recorded,
+      `A kept query's key or the shape of its data changed. ${fix}`,
+    )
+  })
+})

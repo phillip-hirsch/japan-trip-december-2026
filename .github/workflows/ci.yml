@@ -1,0 +1,43 @@
+# The same gates AGENTS.md asks for locally, plus the build, whose plugins
+# check the browser bundle and the prerendered shell.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No step pushes, so dependency code run by vp install gets no token.
+          persist-credentials: false
+
+      # Node.js follows devEngines.runtime in package.json, as vp does locally.
+      - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+        with:
+          cache: true
+          run-install: false
+
+      # Runs the prepare script, which patches tsc and Oxlint for the Effect
+      # diagnostics and fails the install if a patch can't apply.
+      - run: vp install
+
+      - run: vp check
+
+      - run: vp run typecheck
+
+      - run: vp test
+
+      - run: vp run build

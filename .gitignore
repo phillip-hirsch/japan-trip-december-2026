@@ -30,3 +30,6 @@ todos.json
 
 # The service worker bundle, before scripts/service-worker.ts injects its precache list
 /.service-worker
+
+# What scripts/check-cloudflare-config.ts generates to compare, removed after
+/.worker-configuration.check.d.ts
